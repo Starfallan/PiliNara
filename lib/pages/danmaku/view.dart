@@ -132,6 +132,9 @@ class _PlDanmakuState extends State<PlDanmaku> {
             );
           } catch (_) {}
         } else {
+          // Note: e.fontsize contains the calculated enlarged font size based on merge count
+          // TODO: Once canvas_danmaku supports per-item fontSize in DanmakuContentItem,
+          // pass e.fontsize here to enable font size scaling for merged danmaku
           _controller!.addDanmaku(
             DanmakuContentItem(
               e.content,

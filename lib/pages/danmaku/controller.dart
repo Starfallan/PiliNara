@@ -1,5 +1,6 @@
 import 'dart:collection';
 import 'dart:io' show File;
+import 'dart:math' show log;
 
 import 'package:PiliPlus/grpc/bilibili/community/service/dm/v1.pb.dart';
 import 'package:PiliPlus/grpc/dm.dart';
@@ -36,6 +37,25 @@ class PlDanmakuController {
 
   static int calcSegment(int progress) {
     return progress ~/ segmentLength;
+  }
+
+  /// Calculate the font size enlargement rate based on the number of merged danmaku
+  /// 
+  /// Formula from Pakku.js:
+  /// - count <= 5: return 1 (no enlargement)
+  /// - count > 5: return log(count) / log(5)
+  static double _calcEnlargeRate(int count) {
+    if (count <= 5) {
+      return 1.0;
+    }
+    const log5 = 1.6094379124341003; // log(5)
+    return log(count) / log5;
+  }
+
+  /// Calculate enlarged font size for merged danmaku
+  /// Base font size is typically 25 for standard danmaku
+  static int _calcEnlargedFontSize(int baseFontSize, int count) {
+    return (baseFontSize * _calcEnlargeRate(count)).round();
   }
 
   Future<void> queryDanmaku(int segmentIndex) async {
@@ -77,9 +97,16 @@ class PlDanmakuController {
         if (_mergeDanmaku) {
           final elem = uniques[element.content];
           if (elem == null) {
-            uniques[element.content] = element..count = 1;
+            // First occurrence: initialize count and store base font size
+            final baseFontSize = element.fontsize != 0 ? element.fontsize : 25;
+            uniques[element.content] = element
+              ..count = 1
+              ..fontsize = baseFontSize;
           } else {
+            // Subsequent occurrence: increment count and calculate enlarged font size
             elem.count++;
+            final baseFontSize = element.fontsize != 0 ? element.fontsize : 25;
+            elem.fontsize = _calcEnlargedFontSize(baseFontSize, elem.count);
             continue;
           }
         }
