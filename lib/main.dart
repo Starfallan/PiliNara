@@ -309,12 +309,12 @@ class MyApp extends StatelessWidget {
           
           // Threshold for detecting abnormal padding: 
           // - Normal status bars are typically 20-48 dp
-          // - Values <= 0 or > 50 indicate the Flutter SDK bug
+          // - Values > 50 indicate the Flutter SDK bug on HyperOS windowed mode
+          // - Values == 0 are valid in fullscreen/immersive mode, so we don't treat them as abnormal
           const maxNormalPadding = 50.0;
           
           final mediaQueryData = MediaQuery.of(context);
-          final hasAbnormalPadding = mediaQueryData.viewPadding.top <= 0 ||
-              mediaQueryData.viewPadding.top > maxNormalPadding;
+          final hasAbnormalPadding = mediaQueryData.viewPadding.top > maxNormalPadding;
           
           final effectiveViewPadding = hasAbnormalPadding
               ? fallbackPadding
