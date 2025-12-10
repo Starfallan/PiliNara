@@ -132,9 +132,7 @@ class _PlDanmakuState extends State<PlDanmaku> {
             );
           } catch (_) {}
         } else {
-          // Note: e.fontsize contains the calculated enlarged font size based on merge count
-          // TODO: Once canvas_danmaku supports per-item fontSize in DanmakuContentItem,
-          // pass e.fontsize here to enable font size scaling for merged danmaku
+          // Pass calculated enlarged font size for merged danmaku
           _controller!.addDanmaku(
             DanmakuContentItem(
               e.content,
@@ -146,6 +144,7 @@ class _PlDanmakuState extends State<PlDanmaku> {
                   playerController.showVipDanmaku &&
                   e.colorful == DmColorfulType.VipGradualColor,
               count: e.count > 1 ? e.count : null,
+              fontSize: e.fontsize > 0 ? e.fontsize.toDouble() : null,
               selfSend: e.isSelf,
               extra: VideoDanmaku(
                 id: e.id.toInt(),

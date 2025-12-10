@@ -146,9 +146,7 @@ dependencies:
   #     url: https://github.com/bggRGjQaUbCoE/flutter_ns_danmaku.git
   #     ref: master
   canvas_danmaku:
-    git:
-      url: https://github.com/bggRGjQaUbCoE/canvas_danmaku.git
-      ref: main
+    path: packages/canvas_danmaku
   # 状态栏图标控制
   # status_bar_control: ^3.2.1
   # 代理
