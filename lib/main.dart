@@ -298,9 +298,24 @@ class MyApp extends StatelessWidget {
         toastBuilder: (String msg) => CustomToast(msg: msg),
         loadingBuilder: (msg) => LoadingWidget(msg: msg),
         builder: (context, child) {
+          // Fix for Flutter SDK bug on HyperOS windowed mode
+          // https://github.com/flutter/flutter/issues/164092
+          // https://github.com/flutter/flutter/issues/161086
+          // Detect abnormal viewPadding values
+          final isPaddingCheckError =
+              MediaQuery.of(context).viewPadding.top <= 0 ||
+              MediaQuery.of(context).viewPadding.top > 50;
+
           child = MediaQuery(
             data: MediaQuery.of(context).copyWith(
               textScaler: TextScaler.linear(Pref.defaultTextScale),
+              // Apply fallback padding if abnormal values detected
+              viewPadding: isPaddingCheckError
+                  ? const EdgeInsets.only(top: 25, bottom: 35)
+                  : MediaQuery.of(context).viewPadding,
+              padding: isPaddingCheckError
+                  ? const EdgeInsets.only(top: 25, bottom: 35)
+                  : MediaQuery.of(context).padding,
             ),
             child: child!,
           );
