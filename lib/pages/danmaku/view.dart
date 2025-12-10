@@ -132,15 +132,16 @@ class _PlDanmakuState extends State<PlDanmaku> {
             );
           } catch (_) {}
         } else {
-          // Apply fontSize for all merged danmaku (count >= 1)
+          // Apply fontSize for merged danmaku (count > 1)
           // e.fontsize contains base * enlargeRate, multiply by user's scale
           double? itemFontSize;
-          if (e.fontsize > 0) {
+          if (e.fontsize > 0 && e.count > 1) {
             final scale = !widget.isFullScreen || widget.isPipMode
                 ? playerController.danmakuFontScale
                 : playerController.danmakuFontScaleFS;
             itemFontSize = e.fontsize.toDouble() * scale;
           }
+          // If itemFontSize is null, canvas_danmaku uses global fontSize from DanmakuOption
           
           _controller!.addDanmaku(
             DanmakuContentItem(

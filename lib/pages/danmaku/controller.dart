@@ -115,16 +115,14 @@ class PlDanmakuController {
           final elem = uniques[element.content];
           if (elem == null) {
             // First occurrence: initialize count
-            final baseFontSize = _getBaseFontSize(element);
-            baseFontSizes[element.content] = baseFontSize;
-            uniques[element.content] = element
-              ..count = 1
-              ..fontsize = _calcEnlargedFontSize(baseFontSize, 1); // Rate is 1.0 for count=1
+            // Don't set fontsize yet - only set it when actually merged (count > 1)
+            baseFontSizes[element.content] = _defaultFontSize;
+            uniques[element.content] = element..count = 1;
           } else {
-            // Subsequent occurrence: increment count and calculate enlarged font size
+            // Subsequent occurrence: this is now a merged danmaku
             elem.count++;
             final baseFontSize = baseFontSizes[element.content] ?? _defaultFontSize;
-            // Always calculate enlarged font size (rate is 1.0 for count <= 5)
+            // Calculate enlarged font size (rate is 1.0 for count <= 5, increases after)
             elem.fontsize = _calcEnlargedFontSize(baseFontSize, elem.count);
             continue;
           }
