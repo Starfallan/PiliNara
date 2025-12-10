@@ -144,7 +144,7 @@ Once canvas_danmaku is updated and the above line is added:
 
 ## References
 
-- Original feature request: [[FR] 增加重复弹幕合并时弹幕字体随重复数量增多而增大的功能](https://github.com/Starfallan/PiliPlus/issues)
+- Original feature request: [增加重复弹幕合并时弹幕字体随重复数量增多而增大的功能]
 - Pakku.js implementation: https://github.com/xmcp/pakku.js/
 - Pakku.js enlarge rate formula: `count<=5 ? 1 : (Math.log(count) / MATH_LOG5)`
 - canvas_danmaku repository: https://github.com/bggRGjQaUbCoE/canvas_danmaku

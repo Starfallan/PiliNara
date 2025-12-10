@@ -30,7 +30,8 @@ class PlDanmakuController {
 
   static const int segmentLength = 60 * 6 * 1000;
   
-  // Default font size for standard danmaku from Bilibili
+  // Default font size for standard danmaku from Bilibili API
+  // This is the standard size sent by Bilibili servers
   static const int _defaultFontSize = 25;
   
   // Precomputed log(5) for performance optimization
@@ -122,7 +123,7 @@ class PlDanmakuController {
             // Subsequent occurrence: increment count and calculate enlarged font size
             // Use cached base font size from first occurrence
             elem.count++;
-            final baseFontSize = baseFontSizes[element.content]!;
+            final baseFontSize = baseFontSizes[element.content] ?? _defaultFontSize;
             elem.fontsize = _calcEnlargedFontSize(baseFontSize, elem.count);
             continue;
           }
