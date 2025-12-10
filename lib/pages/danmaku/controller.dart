@@ -39,7 +39,7 @@ class PlDanmakuController {
   static const double _log7 = 1.9459101490553132;
   
   // Threshold for danmaku merge count before applying enlargement
-  static const int _enlargeThreshold = 5;
+  static const int _enlargeThreshold = 7;
 
   void dispose() {
     _dmSegMap.clear();
