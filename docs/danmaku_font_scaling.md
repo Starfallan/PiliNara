@@ -4,14 +4,16 @@
 
 This feature implements font size scaling for merged duplicate danmaku, similar to Pakku.js. When multiple identical danmaku are merged together, the font size increases logarithmically based on the number of merged items, making popular danmaku more visually prominent.
 
-## Implementation Status
+## Current Implementation Status
 
-### Completed in PiliPlus
+### ✅ Completed in PiliPlus
+
+The PiliPlus-side implementation is **complete**:
 
 1. **Font Size Calculation Logic** (`lib/pages/danmaku/controller.dart`)
-   - Added `_calcEnlargeRate()` method that implements the Pakku.js formula
-   - Added `_calcEnlargedFontSize()` method to calculate the final font size
-   - Modified `handleDanmaku()` to calculate and store enlarged font sizes in `DanmakuElem.fontsize`
+   - Added `_calcEnlargeRate()` method implementing the Pakku.js formula: `count <= 5 ? 1.0 : log(count) / log(5)`
+   - Added `_calcEnlargedFontSize()` method to calculate the final scaled font size
+   - Modified `handleDanmaku()` to calculate and store enlarged font sizes in `DanmakuElem.fontsize` field during danmaku merging
 
 2. **Formula**
    ```dart
@@ -19,78 +21,89 @@ This feature implements font size scaling for merged duplicate danmaku, similar 
    enlargedFontSize = baseFontSize * enlargeRate
    ```
 
-### Pending: canvas_danmaku Package Updates
+3. **Example scaling**:
+   - 1-5 identical danmaku: 1.0x (base size, e.g., 25px)
+   - 10 identical danmaku: 1.43x (e.g., ~36px)
+   - 20 identical danmaku: 1.86x (e.g., ~47px)
+   - 50 identical danmaku: 2.43x (e.g., ~61px)
+   - 100 identical danmaku: 2.86x (e.g., ~72px)
 
-The `canvas_danmaku` package currently does not support per-item font sizes for regular danmaku (only for special danmaku via `SpecialDanmakuContentItem`). To complete this feature, the following changes are needed in canvas_danmaku:
+### 🔄 Pending: canvas_danmaku Package Updates
 
-1. **Add fontSize field to DanmakuContentItem**
-   ```dart
-   class DanmakuContentItem<T> {
-     final String text;
-     Color color;
-     final DanmakuItemType type;
-     final bool selfSend;
-     final bool isColorful;
-     final int? count;
-     final double? fontSize;  // <-- Add this field
-     final T? extra;
-     
-     DanmakuContentItem(
-       this.text, {
-       this.color = Colors.white,
-       this.type = DanmakuItemType.scroll,
-       this.selfSend = false,
-       this.isColorful = false,
-       this.count,
-       this.fontSize,  // <-- Add this parameter
-       this.extra,
-     });
-   }
-   ```
+The `canvas_danmaku` package (external Git dependency) currently does not support per-item font sizes for regular danmaku. The package needs the following minimal changes to complete this feature:
 
-2. **Modify generateParagraph() in utils.dart**
-   ```dart
-   static ui.Paragraph generateParagraph({
-     required DanmakuContentItem content,
-     required double fontSize,
-     required int fontWeight,
-   }) {
-     // Use content.fontSize if available, otherwise use the global fontSize
-     final effectiveFontSize = content.fontSize ?? fontSize;
-     
-     final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
-       textAlign: TextAlign.left,
-       fontWeight: FontWeight.values[fontWeight],
-       textDirection: TextDirection.ltr,
-       maxLines: 1,
-     ));
+#### Required Changes in canvas_danmaku
 
-     if (content.count case final count?) {
-       builder
-         ..pushStyle(ui.TextStyle(
-           color: content.color,
-           fontSize: effectiveFontSize * 0.6,
-         ))
-         ..addText('($count)')
-         ..pop();
-     }
+**1. Add fontSize field to DanmakuContentItem** (`lib/models/danmaku_content_item.dart`)
 
-     builder
-       ..pushStyle(ui.TextStyle(color: content.color, fontSize: effectiveFontSize))
-       ..addText(content.text);
+```dart
+class DanmakuContentItem<T> {
+  final String text;
+  Color color;
+  final DanmakuItemType type;
+  final bool selfSend;
+  final bool isColorful;
+  final int? count;
+  final double? fontSize;  // 👈 ADD THIS FIELD
+  final T? extra;
+  
+  DanmakuContentItem(
+    this.text, {
+    this.color = Colors.white,
+    this.type = DanmakuItemType.scroll,
+    this.selfSend = false,
+    this.isColorful = false,
+    this.count,
+    this.fontSize,  // 👈 ADD THIS PARAMETER
+    this.extra,
+  });
+}
+```
 
-     return builder.build()
-       ..layout(const ui.ParagraphConstraints(width: double.infinity));
-   }
-   ```
+**2. Modify generateParagraph()** (`lib/utils/utils.dart`)
 
-3. **Update recordDanmakuImage() similarly** to use `content.fontSize` if available
+```dart
+static ui.Paragraph generateParagraph({
+  required DanmakuContentItem content,
+  required double fontSize,
+  required int fontWeight,
+}) {
+  // 👇 Use content.fontSize if available, otherwise use global fontSize
+  final effectiveFontSize = content.fontSize ?? fontSize;
+  
+  final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
+    textAlign: TextAlign.left,
+    fontWeight: FontWeight.values[fontWeight],
+    textDirection: TextDirection.ltr,
+    maxLines: 1,
+  ));
 
-4. **Update danmaku_screen.dart** to pass content.fontSize when calling these methods
+  if (content.count case final count?) {
+    builder
+      ..pushStyle(ui.TextStyle(
+        color: content.color,
+        fontSize: effectiveFontSize * 0.6,  // 👈 Use effectiveFontSize
+      ))
+      ..addText('($count)')
+      ..pop();
+  }
 
-### Using the Feature (Once canvas_danmaku is Updated)
+  builder
+    ..pushStyle(ui.TextStyle(color: content.color, fontSize: effectiveFontSize))  // 👈 Use effectiveFontSize
+    ..addText(content.text);
 
-Once canvas_danmaku supports per-item fontSize, update `lib/pages/danmaku/view.dart`:
+  return builder.build()
+    ..layout(const ui.ParagraphConstraints(width: double.infinity));
+}
+```
+
+**3. Update recordDanmakuImage()** (`lib/utils/utils.dart`)
+
+Apply the same `content.fontSize ?? fontSize` pattern in the `recordDanmakuImage()` function for both the content and stroke paragraphs.
+
+### 🚀 Activation: Update PiliPlus view.dart
+
+Once canvas_danmaku is updated, uncomment and add the fontSize parameter in `lib/pages/danmaku/view.dart`:
 
 ```dart
 _controller!.addDanmaku(
@@ -101,7 +114,7 @@ _controller!.addDanmaku(
     isColorful: playerController.showVipDanmaku &&
         e.colorful == DmColorfulType.VipGradualColor,
     count: e.count > 1 ? e.count : null,
-    fontSize: e.fontsize > 0 ? e.fontsize.toDouble() : null,  // <-- Add this line
+    fontSize: e.fontsize > 0 ? e.fontsize.toDouble() : null,  // 👈 ADD THIS LINE
     selfSend: e.isSelf,
     extra: VideoDanmaku(
       id: e.id.toInt(),
@@ -114,16 +127,24 @@ _controller!.addDanmaku(
 
 ## Testing
 
-To test the implementation once complete:
+Once canvas_danmaku is updated and the above line is added:
 
-1. Enable danmaku merging in settings
-2. Play a video with many duplicate danmaku
-3. Verify that merged danmaku (shown with count like "(5)text") appear larger as the count increases
-4. Danmaku with count ≤ 5 should appear at normal size
-5. Danmaku with count > 5 should scale logarithmically
+1. Enable danmaku merging in PiliPlus settings
+2. Play a video with many duplicate danmaku (popular videos work well)
+3. Verify that merged danmaku appear larger as the count increases:
+   - Count ≤ 5: Normal size
+   - Count > 5: Progressively larger, following logarithmic scaling
+4. The `(count)` prefix should scale proportionally with the danmaku text
+
+## Next Steps
+
+1. **Submit PR to canvas_danmaku**: The changes needed are minimal and well-defined above
+2. **Update PiliPlus**: Once canvas_danmaku is updated, add the `fontSize` parameter in view.dart (one line change)
+3. **Test**: Verify the feature works as expected with real danmaku data
 
 ## References
 
-- Original feature request: [Issue #XX]
+- Original feature request: [[FR] 增加重复弹幕合并时弹幕字体随重复数量增多而增大的功能](https://github.com/Starfallan/PiliPlus/issues/XXX)
 - Pakku.js implementation: https://github.com/xmcp/pakku.js/
 - Pakku.js enlarge rate formula: `count<=5 ? 1 : (Math.log(count) / MATH_LOG5)`
+- canvas_danmaku repository: https://github.com/bggRGjQaUbCoE/canvas_danmaku
