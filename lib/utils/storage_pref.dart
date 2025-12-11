@@ -411,6 +411,12 @@ abstract class Pref {
   static bool get mergeDanmaku =>
       _setting.get(SettingBoxKey.mergeDanmaku, defaultValue: false);
 
+  static int get danmakuEnlargeThreshold =>
+      _setting.get(SettingBoxKey.danmakuEnlargeThreshold, defaultValue: 7);
+
+  static int get danmakuEnlargeLogBase =>
+      _setting.get(SettingBoxKey.danmakuEnlargeLogBase, defaultValue: 7);
+
   static bool get showHotRcmd =>
       _setting.get(SettingBoxKey.showHotRcmd, defaultValue: false);
 

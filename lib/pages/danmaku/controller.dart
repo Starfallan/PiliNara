@@ -34,12 +34,16 @@ class PlDanmakuController {
   // This matches the base size used in view.dart: 15 * scale
   static const int _defaultFontSize = 15;
   
-  // Precomputed log(7) for performance optimization
-  // Using log(7) instead of log(5) for better mobile screen adaptation
-  static const double _log7 = 1.9459101490553132;
+  /// Get the current enlarge threshold from settings
+  /// Can be configured by user in danmaku settings
+  int get _enlargeThreshold => Pref.danmakuEnlargeThreshold;
   
-  // Threshold for danmaku merge count before applying enlargement
-  static const int _enlargeThreshold = 7;
+  /// Get the current log base from settings  
+  /// Can be configured by user in danmaku settings
+  int get _logBase => Pref.danmakuEnlargeLogBase;
+  
+  /// Get precomputed log value for the current base
+  double get _logBaseValue => log(_logBase.toDouble());
 
   void dispose() {
     _dmSegMap.clear();
@@ -53,18 +57,19 @@ class PlDanmakuController {
   /// Calculate the font size enlargement rate based on the number of merged danmaku
   /// 
   /// Formula adapted from Pakku.js for mobile screens:
-  /// - count <= _enlargeThreshold: return 1 (no enlargement)
-  /// - count > _enlargeThreshold: return log(count) / log(7)
-  static double _calcEnlargeRate(int count) {
+  /// - count <= threshold: return 1 (no enlargement)
+  /// - count > threshold: return log(count) / log(base)
+  /// Both threshold and base can be configured in settings
+  double _calcEnlargeRate(int count) {
     if (count <= _enlargeThreshold) {
       return 1.0;
     }
-    return log(count) / _log7;
+    return log(count) / _logBaseValue;
   }
 
   /// Calculate enlarged font size for merged danmaku
-  /// Base font size is typically 25 for standard danmaku
-  static int _calcEnlargedFontSize(int baseFontSize, int count) {
+  /// Base font size is typically 15 for standard danmaku
+  int _calcEnlargedFontSize(int baseFontSize, int count) {
     return (baseFontSize * _calcEnlargeRate(count)).round();
   }
 
