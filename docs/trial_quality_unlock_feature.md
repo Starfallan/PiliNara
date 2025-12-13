@@ -42,15 +42,51 @@ This implementation references the approach used in BiliRoamingX:
    - `fourk=1`: Request 4K support
    - `try_look=1`: Request trial access (for non-logged-in users)
 
-2. **Response Processing**:
-   - When enabled, scans all returned video/audio streams
+2. **Response Processing** (Unlock Logic):
+   - Scans all returned video/audio streams from dash and durl
    - Identifies streams with valid playable URLs
-   - Logs stream information for debugging
-   - Note: The Dash format in PiliPlus doesn't use `needVip` flags in the same way as gRPC responses
+   - **Collects quality codes** from available video streams
+   - **Modifies `acceptQuality` list**: Adds missing quality codes to enable UI selection
+   - **Modifies `supportFormats` list**: Creates FormatItem entries for new qualities
+   - Maintains proper sorting (highest quality first)
+   - Logs detailed information for debugging
 
-3. **Playback**:
-   - Player/downloader automatically uses available streams
-   - Higher quality streams are accessible if URLs are present
+3. **Playback/Download**:
+   - Quality selector UI shows unlocked qualities
+   - Player can select and play unlocked streams  
+   - Download module can access unlocked qualities
+   - All based on modified model data
+
+### Technical Implementation
+
+The unlock function performs these steps:
+
+```dart
+// 1. Scan video streams and collect quality codes with available URLs
+for (final video in videoList) {
+  if (_hasPlayableUrls(video.baseUrl, video.backupUrl)) {
+    unlockedQualities.add(video.quality.code);  // e.g., 116 for 1080P
+  }
+}
+
+// 2. Add missing qualities to acceptQuality (enables UI selection)
+data.acceptQuality!.addAll(newQualities);
+data.acceptQuality!.sort((a, b) => b.compareTo(a));  // Highest first
+
+// 3. Create FormatItem for each new quality (enables playback/download)
+data.supportFormats!.add(FormatItem(
+  quality: quality,
+  format: 'dash',
+  newDesc: VideoQuality.fromCode(quality).desc,
+  displayDesc: VideoQuality.fromCode(quality).desc,
+  codecs: ['avc', 'hev'],  // Basic codec support
+));
+```
+
+This ensures that:
+- The UI quality selector shows the unlocked qualities
+- The player can actually select and use these streams
+- The download module recognizes these as valid quality options
 
 ## Usage
 
@@ -75,7 +111,22 @@ When the feature is enabled and running in debug mode:
    - Video stream quality codes and codecs
    - Audio stream quality
    - URL availability
-   - Total streams processed
+   - **Added qualities to acceptQuality list**
+   - **Created FormatItem entries**
+   - **Total unlocked streams and quality codes**
+
+### Sample Debug Output
+
+```
+[UnlockQuality] Video stream available: quality=116, codec=avc1.640032, url=https://...
+[UnlockQuality] Video stream available: quality=112, codec=avc1.640028, url=https://...
+[UnlockQuality] Added qualities to acceptQuality: {116, 112}
+[UnlockQuality] Updated acceptQuality: [127, 126, 125, 120, 116, 112, 80, 64]
+[UnlockQuality] Added FormatItem for quality 116: 1080P 高清
+[UnlockQuality] Added FormatItem for quality 112: 1080P+ 高码率
+[UnlockQuality] Total unlocked video streams: 8
+[UnlockQuality] Unlocked qualities: {116, 112, 120}
+```
 
 ## Testing
 
@@ -113,20 +164,47 @@ When the feature is enabled and running in debug mode:
 ### Expected Behavior
 
 #### With Feature ENABLED:
-- Console logs show `[UnlockQuality]` messages
-- Available streams are logged with details
-- All streams with valid URLs are accessible
-- Higher quality options may appear in quality selector
+- Console logs show `[UnlockQuality]` messages with detailed unlock information
+- Available streams are logged with quality codes
+- **`acceptQuality` list is expanded** with unlocked quality codes
+- **`supportFormats` list gains new FormatItem entries** for unlocked qualities
+- Quality selector UI displays additional quality options (e.g., 1080P, 1080P+)
+- Higher quality options can be selected and played
+- Download module shows unlocked quality options
 
 #### With Feature DISABLED:
 - No unlock processing occurs
 - Normal quality restrictions apply
 - No `[UnlockQuality]` debug messages
+- Only server-authorized qualities available
 
 ### Sample Response Structure
 
-#### Dash Video Stream Example:
+#### Complete Unlock Flow Example:
 ```dart
+// Before unlock:
+acceptQuality: [80, 64, 32, 16]  // Only basic qualities
+supportFormats: [FormatItem(quality: 80), FormatItem(quality: 64), ...]
+
+// Server returns dash with high-quality streams:
+dash.video: [
+  VideoItem(quality: 127, url: "https://..."),  // Has URL!
+  VideoItem(quality: 116, url: "https://..."),  // Has URL!
+  VideoItem(quality: 80, url: "https://..."),
+]
+
+// After unlock:
+acceptQuality: [127, 116, 80, 64, 32, 16]  // Added 127, 116
+supportFormats: [
+  FormatItem(quality: 127, desc: "8K 超高清"),  // Added!
+  FormatItem(quality: 116, desc: "1080P 高清"),  // Added!
+  FormatItem(quality: 80, desc: "480P 清晰"),
+  ...
+]
+```
+#### Individual Stream Log Examples:
+```dart
+// Video stream detection:
 [UnlockQuality] Video stream available: quality=116, codec=avc1.640032, url=https://...
 [UnlockQuality] Video stream available: quality=112, codec=avc1.640028, url=https://...
 ```
