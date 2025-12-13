@@ -293,9 +293,9 @@ class VideoHttp {
             
             // Collect codec information from actual stream
             qualityCodecs[qualityCode] ??= {};
-            if (video.codecs?.isNotEmpty == true) {
+            final codecs = video.codecs;
+            if (codecs != null && codecs.isNotEmpty) {
               // Extract codec prefix (e.g., 'avc' from 'avc1.640032')
-              final codecs = video.codecs!; // Safe: checked by condition above
               final codecPrefix = codecs.split('.').first.toLowerCase();
               if (codecPrefix.isNotEmpty) {
                 qualityCodecs[qualityCode]!.add(codecPrefix);
@@ -367,6 +367,8 @@ class VideoHttp {
             final exists = data.supportFormats!.any((f) => f.quality == quality);
             if (!exists) {
               // Try to get VideoQuality info, fallback to basic description if unknown
+              // Note: VideoQuality.fromCode() uses _codeMap[code]! which throws StateError
+              // when the quality code is not in the enum
               String qualityDesc;
               try {
                 final videoQuality = VideoQuality.fromCode(quality);
@@ -379,8 +381,8 @@ class VideoHttp {
                 }
               }
               
-              // Use actual codecs from streams, fallback to defaults
-              final codecList = qualityCodecs[quality]?.toList() ?? _defaultCodecs;
+              // Use actual codecs from streams, fallback to defaults (create a new list)
+              final codecList = qualityCodecs[quality]?.toList() ?? List<String>.from(_defaultCodecs);
               
               final newFormat = FormatItem(
                 quality: quality,
