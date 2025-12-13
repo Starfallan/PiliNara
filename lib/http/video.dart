@@ -274,7 +274,7 @@ class VideoHttp {
     if (!Pref.enableTrialQuality) return;
 
     try {
-      int unlockedCount = 0;
+      int availableCount = 0;
 
       // Process dash video streams
       final videoList = data.dash?.video;
@@ -282,6 +282,7 @@ class VideoHttp {
         for (final video in videoList) {
           // Check if stream requires VIP and has playable URLs
           if (_hasPlayableUrls(video.baseUrl, video.backupUrl)) {
+            availableCount++;
             // Note: The Dash VideoItem and AudioItem don't have needVip field
             // They are already accessible if URLs are present
             if (kDebugMode) {
@@ -299,6 +300,7 @@ class VideoHttp {
       if (audioList != null) {
         for (final audio in audioList) {
           if (_hasPlayableUrls(audio.baseUrl, audio.backupUrl)) {
+            availableCount++;
             if (kDebugMode) {
               print('[UnlockQuality] Audio stream available: '
                   'quality=${audio.quality}, '
@@ -313,6 +315,7 @@ class VideoHttp {
       if (durlList != null) {
         for (final durl in durlList) {
           if (_hasPlayableUrls(durl.url, durl.backupUrl)) {
+            availableCount++;
             if (kDebugMode) {
               print('[UnlockQuality] Durl stream available: '
                   'order=${durl.order}, '
@@ -323,8 +326,8 @@ class VideoHttp {
         }
       }
 
-      if (kDebugMode && unlockedCount > 0) {
-        print('[UnlockQuality] Total streams processed: $unlockedCount');
+      if (kDebugMode && availableCount > 0) {
+        print('[UnlockQuality] Total available streams: $availableCount');
       }
     } catch (e, s) {
       if (kDebugMode) {
@@ -335,8 +338,8 @@ class VideoHttp {
 
   /// Check if a stream has playable URLs
   static bool _hasPlayableUrls(String? baseUrl, List<String>? backupUrls) {
-    if (baseUrl?.isNotEmpty == true) return true;
-    if (backupUrls?.isNotEmpty == true) return true;
+    if (baseUrl?.isNotEmpty ?? false) return true;
+    if (backupUrls?.isNotEmpty ?? false) return true;
     return false;
   }
 
