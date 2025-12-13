@@ -1595,6 +1595,19 @@ class HeaderControlState extends State<HeaderControl>
         usefulQaSam++;
       }
     }
+    
+    // If trial quality unlock is enabled, count all supportFormats that have
+    // corresponding streams in dash.video (matched by quality code)
+    if (Pref.enableTrialQuality) {
+      final Set<int> availableQualities = idSet;
+      // Count how many supportFormats have matching streams
+      usefulQaSam = videoFormat.where((format) {
+        return format.quality != null && availableQualities.contains(format.quality);
+      }).length;
+      if (kDebugMode) {
+        print('[UnlockQuality] UI: availableQualities=$availableQualities, usefulQaSam=$usefulQaSam');
+      }
+    }
 
     showBottomSheet(
       (context, setState) {
