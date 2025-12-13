@@ -274,17 +274,17 @@ class VideoHttp {
     if (!Pref.enableTrialQuality) return;
 
     try {
-      int availableCount = 0;
+      int unlockedCount = 0;
+      final Set<int> unlockedQualities = {};
 
-      // Process dash video streams
+      // Process dash video streams - collect available quality codes
       final videoList = data.dash?.video;
       if (videoList != null) {
         for (final video in videoList) {
-          // Check if stream requires VIP and has playable URLs
+          // Check if stream has playable URLs
           if (_hasPlayableUrls(video.baseUrl, video.backupUrl)) {
-            availableCount++;
-            // Note: The Dash VideoItem and AudioItem don't have needVip field
-            // They are already accessible if URLs are present
+            unlockedQualities.add(video.quality.code);
+            unlockedCount++;
             if (kDebugMode) {
               print('[UnlockQuality] Video stream available: '
                   'quality=${video.quality.code}, '
@@ -300,7 +300,6 @@ class VideoHttp {
       if (audioList != null) {
         for (final audio in audioList) {
           if (_hasPlayableUrls(audio.baseUrl, audio.backupUrl)) {
-            availableCount++;
             if (kDebugMode) {
               print('[UnlockQuality] Audio stream available: '
                   'quality=${audio.quality}, '
@@ -315,7 +314,6 @@ class VideoHttp {
       if (durlList != null) {
         for (final durl in durlList) {
           if (_hasPlayableUrls(durl.url, durl.backupUrl)) {
-            availableCount++;
             if (kDebugMode) {
               print('[UnlockQuality] Durl stream available: '
                   'order=${durl.order}, '
@@ -326,8 +324,54 @@ class VideoHttp {
         }
       }
 
-      if (kDebugMode && availableCount > 0) {
-        print('[UnlockQuality] Total available streams: $availableCount');
+      // Unlock: Add missing quality codes to acceptQuality list
+      if (unlockedQualities.isNotEmpty) {
+        final existingQualities = data.acceptQuality?.toSet() ?? <int>{};
+        final newQualities = unlockedQualities.difference(existingQualities);
+        
+        if (newQualities.isNotEmpty) {
+          // Add new qualities to acceptQuality list
+          data.acceptQuality ??= [];
+          data.acceptQuality!.addAll(newQualities);
+          // Sort in descending order (highest quality first)
+          data.acceptQuality!.sort((a, b) => b.compareTo(a));
+          
+          if (kDebugMode) {
+            print('[UnlockQuality] Added qualities to acceptQuality: $newQualities');
+            print('[UnlockQuality] Updated acceptQuality: ${data.acceptQuality}');
+          }
+        }
+
+        // Unlock: Add missing FormatItem entries for new qualities
+        if (data.supportFormats != null && newQualities.isNotEmpty) {
+          for (final quality in newQualities) {
+            // Check if FormatItem already exists for this quality
+            final exists = data.supportFormats!.any((f) => f.quality == quality);
+            if (!exists) {
+              // Create a basic FormatItem for this quality
+              final videoQuality = VideoQuality.fromCode(quality);
+              final newFormat = FormatItem(
+                quality: quality,
+                format: 'dash',
+                newDesc: videoQuality.desc,
+                displayDesc: videoQuality.desc,
+                codecs: ['avc', 'hev'], // Basic codec support
+              );
+              data.supportFormats!.add(newFormat);
+              
+              if (kDebugMode) {
+                print('[UnlockQuality] Added FormatItem for quality $quality: ${videoQuality.desc}');
+              }
+            }
+          }
+          // Sort supportFormats by quality (descending)
+          data.supportFormats!.sort((a, b) => (b.quality ?? 0).compareTo(a.quality ?? 0));
+        }
+      }
+
+      if (kDebugMode && unlockedCount > 0) {
+        print('[UnlockQuality] Total unlocked video streams: $unlockedCount');
+        print('[UnlockQuality] Unlocked qualities: $unlockedQualities');
       }
     } catch (e, s) {
       if (kDebugMode) {
