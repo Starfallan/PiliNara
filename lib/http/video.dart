@@ -207,6 +207,12 @@ class VideoHttp {
     required VideoType videoType,
     String? language,
   }) async {
+    // Force trial mode when unlock feature is enabled to get VIP quality streams
+    final shouldTryLook = tryLook || Pref.enableTrialQuality;
+    if (Pref.enableTrialQuality) {
+      _logUnlockQuality('Trial mode REQUESTED: try_look=1 will be sent to server');
+    }
+    
     final params = await WbiSign.makSign({
       'avid': ?avid,
       'bvid': ?bvid,
@@ -222,8 +228,8 @@ class VideoHttp {
       'gaia_source': 'pre-load',
       'isGaiaAvoided': true,
       'web_location': 1315873,
-      // 免登录查看1080p
-      if (tryLook) 'try_look': 1,
+      // 免登录查看1080p + 试用会员画质
+      if (shouldTryLook) 'try_look': 1,
       'cur_language': ?language,
     });
 
