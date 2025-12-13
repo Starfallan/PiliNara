@@ -20,6 +20,7 @@ abstract class SettingBoxKey {
       hardwareDecoding = 'hardwareDecoding',
       videoSync = 'videoSync',
       p1080 = 'p1080',
+      enableTrialQuality = 'enableTrialQuality',
       enableAutoBrightness = 'enableAutoBrightness',
       enableAutoEnter = 'enableAutoEnter',
       enableAutoExit = 'enableAutoExit',

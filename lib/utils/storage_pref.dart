@@ -659,6 +659,9 @@ abstract class Pref {
   static bool get p1080 =>
       _setting.get(SettingBoxKey.p1080, defaultValue: true);
 
+  static bool get enableTrialQuality =>
+      _setting.get(SettingBoxKey.enableTrialQuality, defaultValue: false);
+
   static int get customColor =>
       _setting.get(SettingBoxKey.customColor, defaultValue: 0);
 

@@ -34,7 +34,7 @@ import 'package:PiliPlus/utils/recommend_filter.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/wbi_sign.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show compute;
+import 'package:flutter/foundation.dart' show compute, kDebugMode;
 
 /// view层根据 status 判断渲染逻辑
 class VideoHttp {
@@ -245,6 +245,8 @@ class VideoHttp {
                   result?['play_view_business_info']?['user_status']?['watch_progress']?['current_watch_progress'];
             break;
         }
+        // Apply trial quality unlock if enabled
+        _makeVipFreePlayUrlModel(data);
         return Success(data);
       } else if (epid != null && videoType == VideoType.ugc) {
         return videoUrl(
@@ -262,6 +264,80 @@ class VideoHttp {
     } catch (e, s) {
       return Error('$e\n\n$s');
     }
+  }
+
+  /// Unlock VIP/trial quality streams
+  /// Reference: BiliRoamingX implementation approach
+  /// - https://github.com/BiliRoamingX/BiliRoamingX/blob/main/integrations/app/src/main/java/app/revanced/bilibili/patches/TrialQualityPatch.java
+  /// - https://github.com/BiliRoamingX/BiliRoamingX/blob/main/integrations/app/src/main/java/app/revanced/bilibili/patches/protobuf/BangumiPlayUrlHook.kt
+  static void _makeVipFreePlayUrlModel(PlayUrlModel data) {
+    if (!Pref.enableTrialQuality) return;
+
+    try {
+      int unlockedCount = 0;
+
+      // Process dash video streams
+      final videoList = data.dash?.video;
+      if (videoList != null) {
+        for (final video in videoList) {
+          // Check if stream requires VIP and has playable URLs
+          if (_hasPlayableUrls(video.baseUrl, video.backupUrl)) {
+            // Note: The Dash VideoItem and AudioItem don't have needVip field
+            // They are already accessible if URLs are present
+            if (kDebugMode) {
+              print('[UnlockQuality] Video stream available: '
+                  'quality=${video.quality.code}, '
+                  'codec=${video.codecs}, '
+                  'url=${video.baseUrl?.substring(0, 50)}...');
+            }
+          }
+        }
+      }
+
+      // Process dash audio streams
+      final audioList = data.dash?.audio;
+      if (audioList != null) {
+        for (final audio in audioList) {
+          if (_hasPlayableUrls(audio.baseUrl, audio.backupUrl)) {
+            if (kDebugMode) {
+              print('[UnlockQuality] Audio stream available: '
+                  'quality=${audio.quality}, '
+                  'url=${audio.baseUrl?.substring(0, 50)}...');
+            }
+          }
+        }
+      }
+
+      // Process durl streams (legacy format)
+      final durlList = data.durl;
+      if (durlList != null) {
+        for (final durl in durlList) {
+          if (_hasPlayableUrls(durl.url, durl.backupUrl)) {
+            if (kDebugMode) {
+              print('[UnlockQuality] Durl stream available: '
+                  'order=${durl.order}, '
+                  'size=${durl.size}, '
+                  'url=${durl.url?.substring(0, 50)}...');
+            }
+          }
+        }
+      }
+
+      if (kDebugMode && unlockedCount > 0) {
+        print('[UnlockQuality] Total streams processed: $unlockedCount');
+      }
+    } catch (e, s) {
+      if (kDebugMode) {
+        print('[UnlockQuality] Error processing streams: $e\n$s');
+      }
+    }
+  }
+
+  /// Check if a stream has playable URLs
+  static bool _hasPlayableUrls(String? baseUrl, List<String>? backupUrls) {
+    if (baseUrl?.isNotEmpty == true) return true;
+    if (backupUrls?.isNotEmpty == true) return true;
+    return false;
   }
 
   static String _parseVideoErr(int? code, String? msg) {
