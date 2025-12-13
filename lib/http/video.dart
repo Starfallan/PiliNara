@@ -26,6 +26,7 @@ import 'package:PiliPlus/models_new/video/video_detail/video_detail_response.dar
 import 'package:PiliPlus/models_new/video/video_note_list/data.dart';
 import 'package:PiliPlus/models_new/video/video_play_info/data.dart';
 import 'package:PiliPlus/models_new/video/video_relation/data.dart';
+import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/app_sign.dart';
 import 'package:PiliPlus/utils/extension.dart';
@@ -305,7 +306,7 @@ class VideoHttp {
             
             unlockedCount++;
             if (kDebugMode) {
-              print('[UnlockQuality] Video stream available: '
+              logger.i('[UnlockQuality] Video stream available: '
                   'quality=$qualityCode, '
                   'codec=${video.codecs}, '
                   'url=${video.baseUrl?.substring(0, 50)}...');
@@ -320,7 +321,7 @@ class VideoHttp {
         for (final audio in audioList) {
           if (_hasPlayableUrls(audio.baseUrl, audio.backupUrl)) {
             if (kDebugMode) {
-              print('[UnlockQuality] Audio stream available: '
+              logger.i('[UnlockQuality] Audio stream available: '
                   'quality=${audio.quality}, '
                   'url=${audio.baseUrl?.substring(0, 50)}...');
             }
@@ -334,7 +335,7 @@ class VideoHttp {
         for (final durl in durlList) {
           if (_hasPlayableUrls(durl.url, durl.backupUrl)) {
             if (kDebugMode) {
-              print('[UnlockQuality] Durl stream available: '
+              logger.i('[UnlockQuality] Durl stream available: '
                   'order=${durl.order}, '
                   'size=${durl.size}, '
                   'url=${durl.url?.substring(0, 50)}...');
@@ -356,8 +357,8 @@ class VideoHttp {
           data.acceptQuality!.sort((a, b) => b.compareTo(a));
           
           if (kDebugMode) {
-            print('[UnlockQuality] Added qualities to acceptQuality: $newQualities');
-            print('[UnlockQuality] Updated acceptQuality: ${data.acceptQuality}');
+            logger.i('[UnlockQuality] Added qualities to acceptQuality: $newQualities');
+            logger.i('[UnlockQuality] Updated acceptQuality: ${data.acceptQuality}');
           }
         }
 
@@ -378,7 +379,7 @@ class VideoHttp {
                 // Quality code not in enum, use generic description
                 qualityDesc = '$_unknownQualityPrefix $quality';
                 if (kDebugMode) {
-                  print('[UnlockQuality] Unknown quality code $quality, using generic description');
+                  logger.i('[UnlockQuality] Unknown quality code $quality, using generic description');
                 }
               }
               
@@ -395,7 +396,7 @@ class VideoHttp {
               data.supportFormats!.add(newFormat);
               
               if (kDebugMode) {
-                print('[UnlockQuality] Added FormatItem for quality $quality: $qualityDesc (codecs: $codecList)');
+                logger.i('[UnlockQuality] Added FormatItem for quality $quality: $qualityDesc (codecs: $codecList)');
               }
             }
           }
@@ -405,12 +406,12 @@ class VideoHttp {
       }
 
       if (kDebugMode && unlockedCount > 0) {
-        print('[UnlockQuality] Total unlocked video streams: $unlockedCount');
-        print('[UnlockQuality] Unlocked qualities: $unlockedQualities');
+        logger.i('[UnlockQuality] Total unlocked video streams: $unlockedCount');
+        logger.i('[UnlockQuality] Unlocked qualities: $unlockedQualities');
       }
     } catch (e, s) {
       if (kDebugMode) {
-        print('[UnlockQuality] Error processing streams: $e\n$s');
+        logger.e('[UnlockQuality] Error processing streams', error: e, stackTrace: s);
       }
     }
   }

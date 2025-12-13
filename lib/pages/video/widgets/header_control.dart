@@ -35,6 +35,7 @@ import 'package:PiliPlus/pages/video/introduction/ugc/widgets/menu_row.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
+import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/accounts/account.dart';
@@ -1607,7 +1608,7 @@ class HeaderControlState extends State<HeaderControl>
       }).toList();
       usefulQaSam = matchedFormats.length;
       if (kDebugMode) {
-        print('[UnlockQuality] UI: totalFormats=${videoFormat.length}, '
+        logger.i('[UnlockQuality] UI: totalFormats=${videoFormat.length}, '
             'videoFormat qualities=${videoFormat.map((f) => f.quality).toList()}, '
             'availableQualities=$availableQualities, '
             'matchedFormats=${matchedFormats.map((f) => f.quality).toList()}, '
