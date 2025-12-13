@@ -376,9 +376,11 @@ class VideoHttp {
           _logUnlockQuality('Updated acceptQuality: ${data.acceptQuality}');
         }
 
-        // Unlock: Add missing FormatItem entries for new qualities
-        if (data.supportFormats != null && newQualities.isNotEmpty) {
-          for (final quality in newQualities) {
+        // Unlock: Add missing FormatItem entries for ALL unlocked qualities
+        // This is critical: even if quality is already in acceptQuality, it might not have a FormatItem
+        // (server lists VIP qualities in acceptQuality to advertise them, but marks them as need_vip)
+        if (data.supportFormats != null && unlockedQualities.isNotEmpty) {
+          for (final quality in unlockedQualities) {
             // Check if FormatItem already exists for this quality
             final exists = data.supportFormats!.any((f) => f.quality == quality);
             if (!exists) {
@@ -417,6 +419,7 @@ class VideoHttp {
 
       _logUnlockQuality('Total unlocked video streams: $unlockedCount');
       _logUnlockQuality('Unlocked qualities: $unlockedQualities');
+      _logUnlockQuality('New qualities added to acceptQuality: $newQualities');
       _logUnlockQuality('Final acceptQuality: ${data.acceptQuality}');
       _logUnlockQuality('Final supportFormats: ${data.supportFormats?.map((f) => f.quality).toList()}');
     } catch (e, s) {
