@@ -132,8 +132,8 @@ class _PlDanmakuState extends State<PlDanmaku> {
           double? itemFontSize;
           if (e.fontsize > 0 && e.count > 1) {
             final scale = !widget.isFullScreen || widget.isPipMode
-                ? playerController.danmakuFontScale
-                : playerController.danmakuFontScaleFS;
+                ? DanmakuOptions.danmakuFontScale
+                : DanmakuOptions.danmakuFontScaleFS;
             itemFontSize = e.fontsize.toDouble() * scale;
           }
           // If itemFontSize is null, canvas_danmaku uses global fontSize from DanmakuOption
