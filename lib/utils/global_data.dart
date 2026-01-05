@@ -13,6 +13,8 @@ class GlobalData {
 
   Set<int> blackMids = Pref.blackMids;
 
+  Set<int> dynamicsBlockedMids = Pref.dynamicsBlockedMids;
+
   bool dynamicsWaterfallFlow = Pref.dynamicsWaterfallFlow;
 
   // 私有构造函数

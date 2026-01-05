@@ -44,6 +44,7 @@ class DynamicsDataModel {
   static bool enableFilter = banWordForDyn.pattern.isNotEmpty;
 
   static bool antiGoodsDyn = Pref.antiGoodsDyn;
+  static Set<int> dynamicsBlockedMids = Pref.dynamicsBlockedMids;
 
   DynamicsDataModel.fromJson(
     Map<String, dynamic> json, {
@@ -57,6 +58,7 @@ class DynamicsDataModel {
       items = <DynamicItemModel>[];
       late final filterBan =
           type != DynamicsTabType.up && tempBannedList?.isNotEmpty == true;
+      late final filterBlockedUsers = type != DynamicsTabType.up && dynamicsBlockedMids.isNotEmpty;
       for (final e in list) {
         DynamicItemModel item = DynamicItemModel.fromJson(e);
         if (antiGoodsDyn &&
@@ -78,6 +80,10 @@ class DynamicsDataModel {
         }
         if (filterBan &&
             tempBannedList!.contains(item.modules.moduleAuthor?.mid)) {
+          continue;
+        }
+        if (filterBlockedUsers &&
+            dynamicsBlockedMids.contains(item.modules.moduleAuthor?.mid)) {
           continue;
         }
         items!.add(item);

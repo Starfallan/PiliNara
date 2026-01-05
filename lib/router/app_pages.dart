@@ -48,6 +48,7 @@ import 'package:PiliPlus/pages/popular_series/view.dart';
 import 'package:PiliPlus/pages/search/view.dart';
 import 'package:PiliPlus/pages/search_result/view.dart';
 import 'package:PiliPlus/pages/search_trending/view.dart';
+import 'package:PiliPlus/pages/setting/dynamics_setting.dart';
 import 'package:PiliPlus/pages/setting/extra_setting.dart';
 import 'package:PiliPlus/pages/setting/pages/bar_set.dart';
 import 'package:PiliPlus/pages/setting/pages/color_select.dart';
@@ -113,6 +114,8 @@ class Routes {
     GetPage(name: '/memberSearch', page: () => const MemberSearchPage()),
     // 推荐流设置
     GetPage(name: '/recommendSetting', page: () => const RecommendSetting()),
+    // 动态流设置
+    GetPage(name: '/dynamicsSetting', page: () => const DynamicsSetting()),
     // 音视频设置
     GetPage(name: '/videoSetting', page: () => const VideoSetting()),
     // 播放器设置
