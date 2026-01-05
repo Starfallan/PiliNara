@@ -94,10 +94,10 @@ List<SettingsModel> get dynamicsSettings => [
       );
     },
   ),
-  const SwitchModel(
+  SwitchModel(
     title: '屏蔽带货动态',
     subtitle: '过滤包含商品推广的动态',
-    leading: Icon(Icons.shopping_bag_outlined),
+    leading: const Icon(Icons.shopping_bag_outlined),
     setKey: SettingBoxKey.antiGoodsDyn,
     defaultVal: false,
     onChanged: (value) {
