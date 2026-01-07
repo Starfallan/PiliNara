@@ -15,6 +15,8 @@ class GlobalData {
 
   Set<int> dynamicsBlockedMids = Pref.dynamicsBlockedMids;
 
+  Set<int> recommendBlockedMids = Pref.recommendBlockedMids;
+
   bool dynamicsWaterfallFlow = Pref.dynamicsWaterfallFlow;
 
   // 私有构造函数

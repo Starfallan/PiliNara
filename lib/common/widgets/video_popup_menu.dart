@@ -9,6 +9,8 @@ import 'package:PiliPlus/pages/search/widgets/search_text.dart';
 import 'package:PiliPlus/pages/video/ai_conclusion/view.dart';
 import 'package:PiliPlus/pages/video/introduction/ugc/controller.dart';
 import 'package:PiliPlus/utils/accounts.dart';
+import 'package:PiliPlus/utils/global_data.dart';
+import 'package:PiliPlus/utils/recommend_filter.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/material.dart';
@@ -137,6 +139,26 @@ class VideoPopupMenu extends StatelessWidget {
                         '访问：${videoItem.owner.name}',
                         const Icon(MdiIcons.accountCircleOutline, size: 16),
                         () => Get.toNamed('/member?mid=${videoItem.owner.mid}'),
+                      ),
+                      _VideoCustomAction(
+                        '屏蔽：${videoItem.owner.name}',
+                        const Icon(MdiIcons.accountOff, size: 16),
+                        () {
+                          final mid = videoItem.owner.mid;
+                          if (mid == null) {
+                            SmartDialog.showToast('无法获取用户ID');
+                            return;
+                          }
+                          final blockedMids = Pref.recommendBlockedMids;
+                          blockedMids.add(mid);
+                          Pref.recommendBlockedMids = blockedMids;
+                          GlobalData().recommendBlockedMids = blockedMids;
+                          RecommendFilter.recommendBlockedMids = blockedMids;
+                          SmartDialog.showToast(
+                            '已屏蔽${videoItem.owner.name}(${mid})，可在推荐流设置中管理',
+                          );
+                          onRemove?.call();
+                        },
                       ),
                       _VideoCustomAction(
                         '不感兴趣',

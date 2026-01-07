@@ -66,6 +66,13 @@ abstract final class Pref {
     _localCache.put(LocalCacheKey.dynamicsBlockedMids, blockedMidsSet);
   }
 
+  static Set<int> get recommendBlockedMids =>
+      _localCache.get(LocalCacheKey.recommendBlockedMids, defaultValue: <int>{});
+
+  static set recommendBlockedMids(Set<int> blockedMidsSet) {
+    _localCache.put(LocalCacheKey.recommendBlockedMids, blockedMidsSet);
+  }
+
   static RuleFilter get danmakuFilterRule => _localCache.get(
     LocalCacheKey.danmakuFilterRules,
     defaultValue: RuleFilter.empty(),
