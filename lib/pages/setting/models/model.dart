@@ -261,25 +261,65 @@ SettingsModel getVideoFilterSelectModel({
 }
 
 /// Creates a list-based keyword filter model using ListEditorDialog
-/// Items are stored as a pipe-separated string but edited as a list
+/// Items are stored as newline-separated strings (instead of pipe-separated)
+/// to support regex patterns containing '|' character
 SettingsModel getListBanWordModel({
   required String title,
   required String key,
   required ValueChanged<RegExp> onChanged,
 }) {
   String banWord = GStorage.setting.get(key, defaultValue: '');
+  
+  // Helper function to parse stored data with backward compatibility
+  List<String> parseItems(String data) {
+    if (data.isEmpty) return [];
+    
+    // Check if it's the old pipe-separated format (no newlines)
+    // If it contains no newlines but has pipes, it's likely old format
+    if (!data.contains('\n') && data.contains('|')) {
+      // Old format: pipe-separated
+      // But we need to be careful - single regex pattern can also have pipes
+      // Heuristic: if it looks like multiple short items separated by pipes,
+      // it's probably old format. If it's a complex regex, keep it as-is.
+      final parts = data.split('|').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      
+      // If after splitting we get multiple items and none look like complex regex
+      // (e.g., don't contain parentheses, brackets, etc.), treat as old format
+      if (parts.length > 1) {
+        final hasComplexRegex = parts.any((p) => 
+          p.contains('(') || p.contains('[') || p.contains('{') || 
+          p.contains('\\') || p.contains('^') || p.contains('\$')
+        );
+        
+        if (!hasComplexRegex) {
+          // Old format with simple keywords - migrate
+          return parts;
+        }
+      }
+      
+      // Might be a single complex regex pattern - keep as single item
+      return [data];
+    }
+    
+    // New format: newline-separated
+    return data.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+  }
+  
+  // Helper function to join items using newline
+  String joinItems(List<String> items) {
+    return items.join('\n');
+  }
+  
   return NormalModel(
     leading: const Icon(Icons.filter_alt_outlined),
     title: title,
     getSubtitle: () {
       if (banWord.isEmpty) return "点击添加";
-      final items = banWord.split('|').where((e) => e.isNotEmpty).toList();
+      final items = parseItems(banWord);
       return items.isEmpty ? "点击添加" : '${items.length} 个关键词';
     },
     onTap: (context, setState) async {
-      final items = banWord.isEmpty
-          ? <String>[]
-          : banWord.split('|').where((e) => e.isNotEmpty).toList();
+      final items = parseItems(banWord);
       
       final result = await showDialog<List<String>>(
         context: context,
@@ -287,16 +327,24 @@ SettingsModel getListBanWordModel({
           return ListEditorDialog(
             title: title,
             initialItems: items,
-            hintText: '输入关键词',
+            hintText: '输入关键词或正则表达式',
             itemLabel: '关键词',
           );
         },
       );
 
       if (result != null) {
-        banWord = result.join('|');
+        banWord = joinItems(result);
         setState();
-        onChanged(RegExp(banWord, caseSensitive: false));
+        // Build regex by joining all patterns with alternation
+        final regexPattern = result.isEmpty ? '' : result.map((item) {
+          // If the item is already a complex pattern, wrap in non-capturing group
+          if (item.contains('|') && !item.startsWith('(')) {
+            return '($item)';
+          }
+          return item;
+        }).join('|');
+        onChanged(RegExp(regexPattern, caseSensitive: false));
         SmartDialog.showToast('已保存');
         GStorage.setting.put(key, banWord);
       }

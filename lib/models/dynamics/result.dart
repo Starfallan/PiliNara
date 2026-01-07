@@ -38,7 +38,7 @@ class DynamicsDataModel {
   }
 
   static RegExp banWordForDyn = RegExp(
-    Pref.banWordForDyn,
+    Pref.parseBanWordToRegex(Pref.banWordForDyn),
     caseSensitive: false,
   );
   static bool enableFilter = banWordForDyn.pattern.isNotEmpty;

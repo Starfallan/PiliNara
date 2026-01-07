@@ -431,7 +431,7 @@ List<SettingsModel> get extraSettings => [
     setKey: SettingBoxKey.continuePlayingPart,
     defaultVal: true,
   ),
-  getBanWordModel(
+  getListBanWordModel(
     title: '评论关键词过滤',
     key: SettingBoxKey.banWordForReply,
     onChanged: (value) {
@@ -439,7 +439,7 @@ List<SettingsModel> get extraSettings => [
       ReplyGrpc.enableFilter = value.pattern.isNotEmpty;
     },
   ),
-  getBanWordModel(
+  getListBanWordModel(
     title: '动态关键词过滤',
     key: SettingBoxKey.banWordForDyn,
     onChanged: (value) {
