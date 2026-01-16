@@ -2,15 +2,22 @@ class BaseEmote {
   late String url;
   late String emoticonUnique;
   late double width;
-  double? height;
+  late double height;
   late final isUpower = emoticonUnique.startsWith('upower_');
 
   BaseEmote.fromJson(Map<String, dynamic> json) {
     url = json['url'];
     emoticonUnique = json['emoticon_unique'];
     width = (json['width'] as num).toDouble();
-    height = (json['height'] as num?)?.toDouble();
+    height = (json['height'] as num?)?.toDouble() ?? width;
   }
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'url': url,
+    'emoticon_unique': emoticonUnique,
+    'width': width,
+    'height': height,
+  };
 }
 
 // class Emote extends BaseEmote {

@@ -119,23 +119,23 @@ List<SettingsModel> get playSettings => [
   NormalModel(
     title: '自动启用字幕',
     leading: const Icon(Icons.closed_caption_outlined),
-    getSubtitle: () =>
-        '当前选择偏好：${SubtitlePrefType.values[Pref.subtitlePreferenceV2].desc}',
+    getSubtitle: () => '当前选择偏好：${Pref.subtitlePreferenceV2.desc}',
     onTap: (context, setState) async {
-      final result = await showDialog<int>(
+      final result = await showDialog<SubtitlePrefType>(
         context: context,
         builder: (context) {
-          return SelectDialog<int>(
+          return SelectDialog<SubtitlePrefType>(
             title: '字幕选择偏好',
             value: Pref.subtitlePreferenceV2,
-            values: SubtitlePrefType.values
-                .map((e) => (e.index, e.desc))
-                .toList(),
+            values: SubtitlePrefType.values.map((e) => (e, e.desc)).toList(),
           );
         },
       );
       if (result != null) {
-        await GStorage.setting.put(SettingBoxKey.subtitlePreferenceV2, result);
+        await GStorage.setting.put(
+          SettingBoxKey.subtitlePreferenceV2,
+          result.index,
+        );
         setState();
       }
     },
@@ -266,23 +266,20 @@ List<SettingsModel> get playSettings => [
   NormalModel(
     title: '默认全屏方向',
     leading: const Icon(Icons.open_with_outlined),
-    getSubtitle: () =>
-        '当前全屏方向：${FullScreenMode.values[Pref.fullScreenMode].desc}',
+    getSubtitle: () => '当前全屏方向：${Pref.fullScreenMode.desc}',
     onTap: (context, setState) async {
-      final result = await showDialog<int>(
+      final result = await showDialog<FullScreenMode>(
         context: context,
         builder: (context) {
-          return SelectDialog<int>(
+          return SelectDialog<FullScreenMode>(
             title: '默认全屏方向',
             value: Pref.fullScreenMode,
-            values: FullScreenMode.values
-                .map((e) => (e.index, e.desc))
-                .toList(),
+            values: FullScreenMode.values.map((e) => (e, e.desc)).toList(),
           );
         },
       );
       if (result != null) {
-        await GStorage.setting.put(SettingBoxKey.fullScreenMode, result);
+        await GStorage.setting.put(SettingBoxKey.fullScreenMode, result.index);
         setState();
       }
     },
@@ -290,23 +287,23 @@ List<SettingsModel> get playSettings => [
   NormalModel(
     title: '底部进度条展示',
     leading: const Icon(Icons.border_bottom_outlined),
-    getSubtitle: () =>
-        '当前展示方式：${BtmProgressBehavior.values[Pref.btmProgressBehavior].desc}',
+    getSubtitle: () => '当前展示方式：${Pref.btmProgressBehavior.desc}',
     onTap: (context, setState) async {
-      final result = await showDialog<int>(
+      final result = await showDialog<BtmProgressBehavior>(
         context: context,
         builder: (context) {
-          return SelectDialog<int>(
+          return SelectDialog<BtmProgressBehavior>(
             title: '底部进度条展示',
             value: Pref.btmProgressBehavior,
-            values: BtmProgressBehavior.values
-                .map((e) => (e.index, e.desc))
-                .toList(),
+            values: BtmProgressBehavior.values.map((e) => (e, e.desc)).toList(),
           );
         },
       );
       if (result != null) {
-        await GStorage.setting.put(SettingBoxKey.btmProgressBehavior, result);
+        await GStorage.setting.put(
+          SettingBoxKey.btmProgressBehavior,
+          result.index,
+        );
         setState();
       }
     },

@@ -36,7 +36,7 @@ class BiliDownloadEntryInfo with MultiSelectData {
 
   late String pageDirPath;
   late String entryDirPath;
-  DownloadStatus? status;
+  late DownloadStatus status = .wait;
 
   int get cid => source?.cid ?? pageData!.cid;
 
@@ -67,7 +67,7 @@ class BiliDownloadEntryInfo with MultiSelectData {
       ),
       itemBuilder: (_) => [
         PopupMenuItem(
-          height: 35,
+          height: 38,
           child: const Text(
             '查看详情页',
             style: TextStyle(fontSize: 13),
@@ -99,7 +99,7 @@ class BiliDownloadEntryInfo with MultiSelectData {
         ),
         if (ownerId case final mid?)
           PopupMenuItem(
-            height: 35,
+            height: 38,
             child: Text(
               '访问${ownerName != null ? '：$ownerName' : '用户主页'}',
               style: const TextStyle(
@@ -398,4 +398,6 @@ enum DownloadStatus {
 
   final String message;
   const DownloadStatus(this.message);
+
+  bool get isDownloading => index <= 3;
 }

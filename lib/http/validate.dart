@@ -1,10 +1,11 @@
 import 'package:PiliPlus/http/api.dart';
 import 'package:PiliPlus/http/init.dart';
+import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:dio/dio.dart';
 
 abstract final class ValidateHttp {
-  static Future gaiaVgateRegister(String vVoucher) async {
+  static Future<LoadingState<Map?>> gaiaVgateRegister(String vVoucher) async {
     final res = await Request().post(
       Api.gaiaVgateRegister,
       queryParameters: {
@@ -18,17 +19,17 @@ abstract final class ValidateHttp {
       ),
     );
     if (res.data['code'] == 0) {
-      return {'status': true, 'data': res.data['data']};
+      return Success(res.data['data']);
     } else {
-      return {'status': false, 'msg': res.data['message']};
+      return Error(res.data['message']);
     }
   }
 
-  static Future gaiaVgateValidate({
-    required challenge,
-    required seccode,
-    required token,
-    required validate,
+  static Future<LoadingState<Map?>> gaiaVgateValidate({
+    required dynamic challenge,
+    required dynamic seccode,
+    required dynamic token,
+    required dynamic validate,
   }) async {
     final res = await Request().post(
       Api.gaiaVgateValidate,
@@ -43,9 +44,9 @@ abstract final class ValidateHttp {
       },
     );
     if (res.data['code'] == 0) {
-      return {'status': true, 'data': res.data['data']};
+      return Success(res.data['data']);
     } else {
-      return {'status': false, 'msg': res.data['message']};
+      return Error(res.data['message']);
     }
   }
 }

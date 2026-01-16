@@ -42,7 +42,7 @@ abstract final class VideoHttp {
   static bool enableFilter = zoneRegExp.pattern.isNotEmpty;
 
   // 首页推荐视频
-  static Future<LoadingState> rcmdVideoList({
+  static Future<LoadingState<List<RecVideoItemModel>>> rcmdVideoList({
     required int ps,
     required int freshIdx,
   }) async {
@@ -78,7 +78,9 @@ abstract final class VideoHttp {
   }
 
   // 添加额外的loginState变量模拟未登录状态
-  static Future<LoadingState> rcmdVideoListApp({required int freshIdx}) async {
+  static Future<LoadingState<List<RecVideoItemAppModel>>> rcmdVideoListApp({
+    required int freshIdx,
+  }) async {
     final params = {
       'build': 2001100,
       'c_locale': 'zh_CN',
@@ -532,7 +534,7 @@ abstract final class VideoHttp {
   // parent	num	父评论rpid	非必要	二级评论同根评论id 大于二级评论为要回复的评论id
   // message	str	发送评论内容	必要	最大1000字符
   // plat	num	发送平台标识	非必要	1：web端 2：安卓客户端  3：ios客户端  4：wp客户端
-  static Future replyAdd({
+  static Future<LoadingState<Map>> replyAdd({
     required int type,
     required int oid,
     required String message,
@@ -542,9 +544,6 @@ abstract final class VideoHttp {
     bool syncToDynamic = false,
     Map<String, int>? atNameToMid,
   }) async {
-    if (message == '') {
-      return {'status': false, 'msg': '请输入评论内容'};
-    }
     final data = {
       'type': type,
       'oid': oid,
@@ -563,9 +562,9 @@ abstract final class VideoHttp {
       options: Options(contentType: Headers.formUrlEncodedContentType),
     );
     if (res.data['code'] == 0) {
-      return {'status': true, 'data': res.data['data']};
+      return Success(res.data['data']);
     } else {
-      return {'status': false, 'msg': res.data['message']};
+      return Error(res.data['message']);
     }
   }
 
@@ -923,7 +922,7 @@ abstract final class VideoHttp {
   }
 
   // pgc 排行
-  static Future<LoadingState> pgcRankList({
+  static Future<LoadingState<List<PgcRankItemModel>?>> pgcRankList({
     int day = 3,
     required int seasonType,
   }) async {
@@ -946,7 +945,7 @@ abstract final class VideoHttp {
   }
 
   // pgc season 排行
-  static Future<LoadingState> pgcSeasonRankList({
+  static Future<LoadingState<List<PgcRankItemModel>?>> pgcSeasonRankList({
     int day = 3,
     required int seasonType,
   }) async {

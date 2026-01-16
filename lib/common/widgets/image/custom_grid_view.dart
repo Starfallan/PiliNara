@@ -15,6 +15,7 @@
  * along with PiliPlus.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import 'dart:io' show Platform;
 import 'dart:math' show min;
 
 import 'package:PiliPlus/common/constants.dart';
@@ -26,10 +27,13 @@ import 'package:PiliPlus/models/common/image_preview_type.dart';
 import 'package:PiliPlus/utils/extension/context_ext.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/extension/size_ext.dart';
+import 'package:PiliPlus/utils/image_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
+import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:flutter/material.dart'
     hide CustomMultiChildLayout, MultiChildLayoutDelegate;
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:get/get_core/src/get_main.dart';
 import 'package:get/get_navigation/get_navigation.dart';
 
@@ -138,6 +142,56 @@ class CustomGridView extends StatelessWidget {
     );
   }
 
+  static bool enableImgMenu = Pref.enableImgMenu;
+
+  void _showMenu(BuildContext context, Offset offset, ImageModel item) {
+    HapticFeedback.mediumImpact();
+    showMenu(
+      context: context,
+      position: PageUtils.menuPosition(offset),
+      items: [
+        if (PlatformUtils.isMobile)
+          PopupMenuItem(
+            height: 42,
+            onTap: () => ImageUtils.onShareImg(item.url),
+            child: const Text('分享', style: TextStyle(fontSize: 14)),
+          ),
+        PopupMenuItem(
+          height: 42,
+          onTap: () => ImageUtils.downloadImg([item.url]),
+          child: const Text('保存图片', style: TextStyle(fontSize: 14)),
+        ),
+        if (PlatformUtils.isDesktop)
+          PopupMenuItem(
+            height: 42,
+            onTap: () => PageUtils.launchURL(item.url),
+            child: const Text('网页打开', style: TextStyle(fontSize: 14)),
+          )
+        else if (picArr.length > 1)
+          PopupMenuItem(
+            height: 42,
+            onTap: () =>
+                ImageUtils.downloadImg(picArr.map((item) => item.url).toList()),
+            child: const Text('保存全部', style: TextStyle(fontSize: 14)),
+          ),
+        if (item.isLivePhoto)
+          PopupMenuItem(
+            height: 42,
+            onTap: () => ImageUtils.downloadLivePhoto(
+              url: item.url,
+              liveUrl: item.liveUrl!,
+              width: item.width.toInt(),
+              height: item.height.toInt(),
+            ),
+            child: Text(
+              '保存${Platform.isIOS ? '实况' : '视频'}',
+              style: const TextStyle(fontSize: 14),
+            ),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     double imageWidth;
@@ -205,6 +259,14 @@ class CustomGridView extends StatelessWidget {
               id: index,
               child: GestureDetector(
                 onTap: () => onTap(context, index),
+                onSecondaryTapUp: enableImgMenu && PlatformUtils.isDesktop
+                    ? (details) =>
+                          _showMenu(context, details.globalPosition, item)
+                    : null,
+                onLongPressStart: enableImgMenu && PlatformUtils.isMobile
+                    ? (details) =>
+                          _showMenu(context, details.globalPosition, item)
+                    : null,
                 child: Hero(
                   tag: item.url,
                   child: Stack(
@@ -219,7 +281,7 @@ class CustomGridView extends StatelessWidget {
                           width: imageWidth,
                           height: imageHeight,
                           alignment: item.isLongPic ? .topCenter : .center,
-                          forceUseCacheWidth: item.width <= item.height,
+                          cacheWidth: item.width <= item.height,
                           getPlaceHolder: () => placeHolder,
                         ),
                       ),

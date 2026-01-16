@@ -37,8 +37,8 @@ class HorizontalMemberPageController
 
   Future<void> getMemberStat() async {
     final res = await MemberHttp.memberStat(mid: mid);
-    if (res['status']) {
-      userStat.addAll(res['data']);
+    if (res case Success(:final response)) {
+      userStat.addAll(response);
     }
   }
 
@@ -47,8 +47,8 @@ class HorizontalMemberPageController
       return;
     }
     final res = await MemberHttp.memberView(mid: mid);
-    if (res['status']) {
-      userStat.addAll(res['data']);
+    if (res case Success(:final response)) {
+      userStat.addAll(response);
     }
   }
 

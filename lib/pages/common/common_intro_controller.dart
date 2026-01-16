@@ -152,8 +152,7 @@ abstract class CommonIntroController extends GetxController
     final res = await (hasLater.value
         ? UserHttp.toViewDel(aids: IdUtils.bv2av(bvid).toString())
         : UserHttp.toViewLater(bvid: bvid));
-    if (res['status']) hasLater.value = !hasLater.value;
-    SmartDialog.showToast(res['msg']);
+    if (res.isSuccess) hasLater.value = !hasLater.value;
   }
 }
 

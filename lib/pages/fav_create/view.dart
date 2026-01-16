@@ -154,11 +154,11 @@ class _CreateFavPageState extends State<CreateFavPage> {
           dir: 'cover',
         ).then((res) {
           if (context.mounted) {
-            if (res['status']) {
-              _cover = res['data']['location'];
+            if (res case Success(:final response)) {
+              _cover = response['location'];
               (context as Element).markNeedsBuild();
             } else {
-              SmartDialog.showToast(res['msg']);
+              res.toast();
             }
           }
           if (PlatformUtils.isMobile) {

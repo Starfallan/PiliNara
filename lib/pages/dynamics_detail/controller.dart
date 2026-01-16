@@ -1,9 +1,11 @@
 import 'package:PiliPlus/http/dynamics.dart';
 import 'package:PiliPlus/http/loading_state.dart';
+import 'package:PiliPlus/http/reply.dart';
 import 'package:PiliPlus/models/dynamics/result.dart';
 import 'package:PiliPlus/pages/common/dyn/common_dyn_controller.dart';
 import 'package:PiliPlus/utils/id_utils.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
+import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 
 class DynamicDetailController extends CommonDynController {
@@ -44,5 +46,34 @@ class DynamicDetailController extends CommonDynController {
     oid = int.parse(commentIdStr);
     replyType = commentType;
     queryData();
+  }
+
+  Future<LoadingState> onSetPubSetting(bool isPrivate, Object dynId) async {
+    final res = await DynamicsHttp.dynPrivatePubSetting(
+      dynId: dynId,
+      action: isPrivate ? 'public_pub' : 'private_pub',
+    );
+    if (res.isSuccess) {
+      dynItem.modules.moduleAuthor?.badgeText = isPrivate ? null : '仅自己可见';
+      SmartDialog.showToast('设置成功');
+    } else {
+      res.toast();
+    }
+    return res;
+  }
+
+  Future<void> onSetReplySubject(int action) async {
+    final res = await ReplyHttp.replySubjectModify(
+      oid: oid,
+      type: replyType,
+      action: action,
+    );
+    if (res.isSuccess) {
+      await Future.delayed(const Duration(milliseconds: 500), () {
+        if (!isClosed) {
+          onReload();
+        }
+      });
+    }
   }
 }

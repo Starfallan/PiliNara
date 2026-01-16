@@ -72,12 +72,7 @@ class VideoPopupMenu extends StatelessWidget {
                       _VideoCustomAction(
                         '稍后再看',
                         const Icon(MdiIcons.clockTimeEightOutline, size: 16),
-                        () async {
-                          final res = await UserHttp.toViewLater(
-                            bvid: videoItem.bvid,
-                          );
-                          SmartDialog.showToast(res['msg']);
-                        },
+                        () => UserHttp.toViewLater(bvid: videoItem.bvid),
                       ),
                       if (videoItem.cid != null && Pref.enableAi)
                         _VideoCustomAction(

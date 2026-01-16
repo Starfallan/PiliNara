@@ -243,15 +243,15 @@ abstract final class PgcHttp {
     }
   }
 
-  static Future seasonStatus(Object seasonId) async {
+  static Future<LoadingState<Map>> seasonStatus(Object seasonId) async {
     final res = await Request().get(
       Api.seasonStatus,
       queryParameters: {'season_id': seasonId},
     );
     if (res.data['code'] == 0) {
-      return {'status': true, 'data': res.data['result']};
+      return Success(res.data['result']);
     } else {
-      return {'status': false, 'msg': res.data['message']};
+      return Error(res.data['message']);
     }
   }
 }

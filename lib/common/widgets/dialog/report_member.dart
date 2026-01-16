@@ -146,21 +146,16 @@ Future<void> showMemberReportDialog(
             ),
           ),
           TextButton(
-            onPressed: () async {
+            onPressed: () {
               if (reason.isEmpty) {
                 SmartDialog.showToast('至少选择一项作为举报内容');
               } else {
                 Get.back();
-                final result = await MemberHttp.reportMember(
+                MemberHttp.reportMember(
                   mid,
                   reason: reason.join(','),
                   reasonV2: reasonV2 != null ? reasonV2! + 1 : null,
                 );
-                if (result['msg'] is String && result['msg'].isNotEmpty) {
-                  SmartDialog.showToast(result['msg']);
-                } else {
-                  SmartDialog.showToast('举报失败');
-                }
               }
             },
             child: const Text('确定'),

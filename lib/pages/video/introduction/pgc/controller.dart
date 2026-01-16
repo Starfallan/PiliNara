@@ -480,10 +480,9 @@ class PgcIntroController extends CommonIntroController {
     // });
 
     final res = await PgcHttp.seasonStatus(seasonId!);
-    if (res['status']) {
-      final Map<String, dynamic> data = res['data'];
-      isFollowed.value = data['follow'] == 1;
-      followStatus.value = data['follow_status'];
+    if (res case Success(:final response)) {
+      isFollowed.value = response['follow'] == 1;
+      followStatus.value = response['follow_status'];
     }
   }
 

@@ -65,6 +65,24 @@ class _AboutPageState extends State<AboutPage> {
     );
   }
 
+  void _showDialog() => showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        constraints: StyleString.dialogFixedConstraints,
+        content: TextField(
+          autofocus: true,
+          onSubmitted: (value) {
+            Get.back();
+            if (value.isNotEmpty) {
+              PageUtils.handleWebview(value, inApp: true);
+            }
+          },
+        ),
+      );
+    },
+  );
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -88,25 +106,10 @@ class _AboutPageState extends State<AboutPage> {
               _pressCount++;
               if (_pressCount == 5) {
                 _pressCount = 0;
-                showDialog(
-                  context: context,
-                  builder: (context) {
-                    return AlertDialog(
-                      constraints: StyleString.dialogFixedConstraints,
-                      content: TextField(
-                        autofocus: true,
-                        onSubmitted: (value) {
-                          Get.back();
-                          if (value.isNotEmpty) {
-                            PageUtils.handleWebview(value, inApp: true);
-                          }
-                        },
-                      ),
-                    );
-                  },
-                );
+                _showDialog();
               }
             },
+            onSecondaryTap: PlatformUtils.isDesktop ? _showDialog : null,
             child: ExcludeSemantics(
               child: Image.asset(
                 width: 150,

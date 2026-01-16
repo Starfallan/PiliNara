@@ -673,7 +673,7 @@ abstract final class FavHttp {
     }
   }
 
-  static Future<LoadingState> copyOrMoveFav({
+  static Future<LoadingState<Null>> copyOrMoveFav({
     required bool isCopy,
     required bool isFav,
     required dynamic srcMediaId,

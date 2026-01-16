@@ -23,7 +23,7 @@ List<SettingsModel> get recommendSettings => [
     subtitle: '下拉刷新时保留上次内容',
     leading: const Icon(Icons.refresh),
     setKey: SettingBoxKey.enableSaveLastData,
-    defaultVal: false,
+    defaultVal: true,
     onChanged: (value) {
       try {
         Get.find<RcmdController>()

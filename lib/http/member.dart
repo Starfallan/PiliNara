@@ -29,9 +29,10 @@ import 'package:PiliPlus/utils/app_sign.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:PiliPlus/utils/wbi_sign.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 
 abstract final class MemberHttp {
-  static Future reportMember(
+  static Future<void> reportMember(
     dynamic mid, {
     String? reason,
     int? reasonV2,
@@ -46,10 +47,11 @@ abstract final class MemberHttp {
       },
       options: Options(contentType: Headers.formUrlEncodedContentType),
     );
-    return {
-      'status': res.data['status'],
-      'msg': res.data['message'] ?? res.data['data'],
-    };
+    if (res.data['status'] == true) {
+      SmartDialog.showToast('举报成功');
+    } else {
+      SmartDialog.showToast('举报失败');
+    }
   }
 
   static Future<LoadingState<SpaceArticleData>> spaceArticle({
@@ -205,48 +207,48 @@ abstract final class MemberHttp {
     }
   }
 
-  static Future<LoadingState> spaceStory({
-    required Object mid,
-    required Object aid,
-    required Object beforeSize,
-    required Object afterSize,
-    required Object cid,
-    required Object contain,
-    required Object index,
-  }) async {
-    final params = {
-      'aid': aid,
-      'before_size': beforeSize,
-      'after_size': afterSize,
-      'cid': cid,
-      'contain': contain,
-      'index': index,
-      'build': 8430300,
-      'version': '8.43.0',
-      'c_locale': 'zh_CN',
-      'channel': 'master',
-      'mobi_app': 'android',
-      'platform': 'android',
-      's_locale': 'zh_CN',
-      'statistics': Constants.statisticsApp,
-      'vmid': mid,
-    };
-    final res = await Request().get(
-      Api.spaceStory,
-      queryParameters: params,
-      options: Options(
-        headers: {
-          'bili-http-engine': 'cronet',
-          'user-agent': Constants.userAgentApp,
-        },
-      ),
-    );
-    if (res.data['code'] == 0) {
-      return Success(res.data['data']);
-    } else {
-      return Error(res.data['message']);
-    }
-  }
+  // static Future<LoadingState> spaceStory({
+  //   required Object mid,
+  //   required Object aid,
+  //   required Object beforeSize,
+  //   required Object afterSize,
+  //   required Object cid,
+  //   required Object contain,
+  //   required Object index,
+  // }) async {
+  //   final params = {
+  //     'aid': aid,
+  //     'before_size': beforeSize,
+  //     'after_size': afterSize,
+  //     'cid': cid,
+  //     'contain': contain,
+  //     'index': index,
+  //     'build': 8430300,
+  //     'version': '8.43.0',
+  //     'c_locale': 'zh_CN',
+  //     'channel': 'master',
+  //     'mobi_app': 'android',
+  //     'platform': 'android',
+  //     's_locale': 'zh_CN',
+  //     'statistics': Constants.statisticsApp,
+  //     'vmid': mid,
+  //   };
+  //   final res = await Request().get(
+  //     Api.spaceStory,
+  //     queryParameters: params,
+  //     options: Options(
+  //       headers: {
+  //         'bili-http-engine': 'cronet',
+  //         'user-agent': Constants.userAgentApp,
+  //       },
+  //     ),
+  //   );
+  //   if (res.data['code'] == 0) {
+  //     return Success(res.data['data']);
+  //   } else {
+  //     return Error(res.data['message']);
+  //   }
+  // }
 
   static Future<LoadingState<SpaceData>> space({
     int? mid,
@@ -315,15 +317,15 @@ abstract final class MemberHttp {
     }
   }
 
-  static Future memberStat({int? mid}) async {
+  static Future<LoadingState<Map>> memberStat({int? mid}) async {
     final res = await Request().get(
       Api.userStat,
       queryParameters: {'vmid': mid},
     );
     if (res.data['code'] == 0) {
-      return {'status': true, 'data': res.data['data']};
+      return Success(res.data['data']);
     } else {
-      return {'status': false, 'msg': res.data['message']};
+      return Error(res.data['message']);
     }
   }
 
@@ -632,15 +634,15 @@ abstract final class MemberHttp {
   }
 
   // 获取up播放数、点赞数
-  static Future memberView({required int mid}) async {
+  static Future<LoadingState<Map>> memberView({required int mid}) async {
     final res = await Request().get(
       Api.getMemberViewApi,
       queryParameters: {'mid': mid},
     );
     if (res.data['code'] == 0) {
-      return {'status': true, 'data': res.data['data']};
+      return Success(res.data['data']);
     } else {
-      return {'status': false, 'msg': res.data['message']};
+      return Error(res.data['message']);
     }
   }
 

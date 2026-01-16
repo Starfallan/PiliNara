@@ -18,21 +18,8 @@ void imageSaveDialog({
   SmartDialog.show(
     animationType: SmartAnimationType.centerScale_otherSlide,
     builder: (context) {
+      const iconSize = 20.0;
       final theme = Theme.of(context);
-
-      Widget iconBtn({
-        String? tooltip,
-        required Icon icon,
-        required VoidCallback? onPressed,
-      }) {
-        return iconButton(
-          icon: icon,
-          iconSize: 20,
-          tooltip: tooltip,
-          onPressed: onPressed,
-        );
-      }
-
       return Container(
         width: imgWidth,
         margin: const EdgeInsets.symmetric(horizontal: StyleString.safeSpace),
@@ -94,19 +81,19 @@ void imageSaveDialog({
                   else
                     const Spacer(),
                   if (aid != null || bvid != null)
-                    iconBtn(
+                    iconButton(
+                      iconSize: iconSize,
                       tooltip: '稍后再看',
                       onPressed: () => {
                         SmartDialog.dismiss(),
-                        UserHttp.toViewLater(aid: aid, bvid: bvid).then(
-                          (res) => SmartDialog.showToast(res['msg']),
-                        ),
+                        UserHttp.toViewLater(aid: aid, bvid: bvid),
                       },
                       icon: const Icon(Icons.watch_later_outlined),
                     ),
                   if (cover != null && cover.isNotEmpty) ...[
                     if (PlatformUtils.isMobile)
-                      iconBtn(
+                      iconButton(
+                        iconSize: iconSize,
                         tooltip: '分享',
                         onPressed: () {
                           SmartDialog.dismiss();
@@ -114,13 +101,11 @@ void imageSaveDialog({
                         },
                         icon: const Icon(Icons.share),
                       ),
-                    iconBtn(
+                    iconButton(
+                      iconSize: iconSize,
                       tooltip: '保存封面图',
                       onPressed: () async {
-                        bool saveStatus = await ImageUtils.downloadImg(
-                          context,
-                          [cover],
-                        );
+                        bool saveStatus = await ImageUtils.downloadImg([cover]);
                         if (saveStatus) {
                           SmartDialog.dismiss();
                         }

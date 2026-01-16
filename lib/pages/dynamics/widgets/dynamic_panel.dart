@@ -1,11 +1,13 @@
 import 'package:PiliPlus/common/widgets/avatars.dart';
 import 'package:PiliPlus/common/widgets/flutter/dyn/ink_well.dart';
 import 'package:PiliPlus/common/widgets/image/image_save.dart';
+import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/models/dynamics/result.dart';
 import 'package:PiliPlus/pages/dynamics/widgets/action_panel.dart';
 import 'package:PiliPlus/pages/dynamics/widgets/author_panel.dart';
 import 'package:PiliPlus/pages/dynamics/widgets/dyn_content.dart';
 import 'package:PiliPlus/pages/dynamics/widgets/interaction.dart';
+import 'package:PiliPlus/utils/extension/theme_ext.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:flutter/material.dart' hide InkWell;
@@ -14,12 +16,16 @@ class DynamicPanel extends StatelessWidget {
   final DynamicItemModel item;
   final double maxWidth;
   final bool isDetail;
-  final ValueChanged? onRemove;
+  final ValueChanged<Object>? onRemove;
   final bool isSave;
   final void Function(bool isTop, Object dynId)? onSetTop;
   final VoidCallback? onBlock;
   final VoidCallback? onUnfold;
   final bool isDetailPortraitW;
+  final Future<LoadingState> Function(bool isPrivate, Object dynId)?
+  onSetPubSetting;
+  final VoidCallback? onEdit;
+  final ValueChanged<int>? onSetReplySubject;
 
   const DynamicPanel({
     super.key,
@@ -32,6 +38,9 @@ class DynamicPanel extends StatelessWidget {
     this.onBlock,
     this.onUnfold,
     this.isDetailPortraitW = true,
+    this.onSetPubSetting,
+    this.onEdit,
+    this.onSetReplySubject,
   });
 
   @override
@@ -47,6 +56,9 @@ class DynamicPanel extends StatelessWidget {
       isSave: isSave,
       onSetTop: onSetTop,
       onBlock: onBlock,
+      onSetPubSetting: onSetPubSetting,
+      onEdit: onEdit,
+      onSetReplySubject: onSetReplySubject,
     );
 
     void showMore() => _imageSaveDialog(context, authorWidget.morePanel);
@@ -78,6 +90,8 @@ class DynamicPanel extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
               child: authorWidget,
             ),
+            if (item.modules.moduleDispute case final moduleDispute?)
+              _buildDispute(theme, moduleDispute),
             ...dynContent(
               context,
               theme: theme,
@@ -241,5 +255,54 @@ class DynamicPanel extends StatelessWidget {
         child: child,
       ),
     );
+  }
+
+  Widget _buildDispute(ThemeData theme, ModuleDispute moduleDispute) {
+    final child = Container(
+      width: .infinity,
+      margin: const .fromLTRB(12, 2, 12, 6),
+      padding: const .symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer.withValues(
+          alpha: theme.brightness.isLight ? 0.5 : 0.7,
+        ),
+        borderRadius: const BorderRadius.all(Radius.circular(6)),
+      ),
+      child: Text.rich(
+        style: TextStyle(
+          height: 1,
+          fontSize: 13,
+          color: theme.colorScheme.onSecondaryContainer,
+        ),
+        strutStyle: const StrutStyle(
+          leading: 0,
+          height: 1,
+          fontSize: 13,
+        ),
+        TextSpan(
+          children: [
+            WidgetSpan(
+              alignment: .middle,
+              child: Padding(
+                padding: const .only(right: 4),
+                child: Icon(
+                  size: 15,
+                  Icons.warning_rounded,
+                  color: theme.colorScheme.onSecondaryContainer,
+                ),
+              ),
+            ),
+            TextSpan(text: moduleDispute.title),
+          ],
+        ),
+      ),
+    );
+    if (moduleDispute.jumpUrl?.isNotEmpty == true) {
+      return GestureDetector(
+        onTap: () => PageUtils.handleWebview(moduleDispute.jumpUrl!),
+        child: child,
+      );
+    }
+    return child;
   }
 }

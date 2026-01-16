@@ -4,10 +4,13 @@ import 'dart:math' show pow, sqrt;
 import 'package:PiliPlus/common/widgets/pair.dart';
 import 'package:PiliPlus/http/constants.dart';
 import 'package:PiliPlus/models/common/dynamic/dynamic_badge_mode.dart';
+import 'package:PiliPlus/models/common/dynamic/dynamics_type.dart';
 import 'package:PiliPlus/models/common/dynamic/up_panel_position.dart';
 import 'package:PiliPlus/models/common/follow_order_type.dart';
 import 'package:PiliPlus/models/common/member/tab_type.dart';
 import 'package:PiliPlus/models/common/msg/msg_unread_type.dart';
+import 'package:PiliPlus/models/common/nav_bar_config.dart';
+import 'package:PiliPlus/models/common/reply/reply_sort_type.dart';
 import 'package:PiliPlus/models/common/sponsor_block/segment_type.dart';
 import 'package:PiliPlus/models/common/sponsor_block/skip_type.dart';
 import 'package:PiliPlus/models/common/super_chat_type.dart';
@@ -32,10 +35,12 @@ import 'package:PiliPlus/utils/login_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
+import 'package:PiliPlus/utils/utils.dart';
+import 'package:crypto/crypto.dart';
+import 'package:flex_seed_scheme/flex_seed_scheme.dart' show FlexSchemeVariant;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
-import 'package:uuid/uuid.dart';
 
 abstract final class Pref {
   static final Box _setting = GStorage.setting;
@@ -55,9 +60,8 @@ abstract final class Pref {
   static Set<int> get blackMids =>
       _localCache.get(LocalCacheKey.blackMids, defaultValue: <int>{});
 
-  static set blackMids(Set<int> blackMidsSet) {
-    _localCache.put(LocalCacheKey.blackMids, blackMidsSet);
-  }
+  static set blackMids(Set<int> blackMidsSet) =>
+      _localCache.put(LocalCacheKey.blackMids, blackMidsSet);
 
   static Set<int> get dynamicsBlockedMids =>
       _localCache.get(LocalCacheKey.dynamicsBlockedMids, defaultValue: <int>{});
@@ -78,16 +82,15 @@ abstract final class Pref {
     defaultValue: RuleFilter.empty(),
   );
 
-  static void setBlackMid(int mid) {
-    _localCache.put(LocalCacheKey.blackMids, GlobalData().blackMids..add(mid));
-  }
+  static void setBlackMid(int mid) => _localCache.put(
+    LocalCacheKey.blackMids,
+    GlobalData().blackMids..add(mid),
+  );
 
-  static void removeBlackMid(int mid) {
-    _localCache.put(
-      LocalCacheKey.blackMids,
-      GlobalData().blackMids..remove(mid),
-    );
-  }
+  static void removeBlackMid(int mid) => _localCache.put(
+    LocalCacheKey.blackMids,
+    GlobalData().blackMids..remove(mid),
+  );
 
   static MemberTabType get memberTab =>
       MemberTabType.values[_setting.get(
@@ -100,13 +103,13 @@ abstract final class Pref {
     defaultValue: ThemeType.system.index,
   );
 
-  static ThemeMode get themeMode {
-    return switch (_themeTypeInt) {
-      0 => ThemeMode.light,
-      1 => ThemeMode.dark,
-      _ => ThemeMode.system,
-    };
-  }
+  static ThemeType get themeType => ThemeType.values[_themeTypeInt];
+
+  static ThemeMode get themeMode => switch (_themeTypeInt) {
+    0 => ThemeMode.light,
+    1 => ThemeMode.dark,
+    _ => ThemeMode.system,
+  };
 
   static List<double> get springDescription => List<double>.from(
     _setting.get(SettingBoxKey.springDescription) ??
@@ -157,8 +160,6 @@ abstract final class Pref {
   static int get picQuality =>
       _setting.get(SettingBoxKey.defaultPicQa, defaultValue: 10);
 
-  static ThemeType get themeType => ThemeType.values[_themeTypeInt];
-
   static DynamicBadgeMode get dynamicBadgeType =>
       DynamicBadgeMode.values[_setting.get(
         SettingBoxKey.dynamicBadgeMode,
@@ -177,8 +178,13 @@ abstract final class Pref {
           .toSet() ??
       MsgUnReadType.values.toSet();
 
-  static int get defaultHomePage =>
-      _setting.get(SettingBoxKey.defaultHomePage, defaultValue: 0);
+  static NavigationBarType get defaultHomePage =>
+      NavigationBarType.values[defaultHomePageIndex];
+
+  static int get defaultHomePageIndex => _setting.get(
+    SettingBoxKey.defaultHomePage,
+    defaultValue: NavigationBarType.home.index,
+  );
 
   static int get previewQ =>
       _setting.get(SettingBoxKey.previewQuality, defaultValue: 100);
@@ -195,20 +201,23 @@ abstract final class Pref {
         defaultValue: UpPanelPosition.leftFixed.index,
       )];
 
-  static int get fullScreenMode => _setting.get(
-    SettingBoxKey.fullScreenMode,
-    defaultValue: FullScreenMode.auto.index,
-  );
+  static FullScreenMode get fullScreenMode =>
+      FullScreenMode.values[_setting.get(
+        SettingBoxKey.fullScreenMode,
+        defaultValue: FullScreenMode.auto.index,
+      )];
 
-  static int get btmProgressBehavior => _setting.get(
-    SettingBoxKey.btmProgressBehavior,
-    defaultValue: BtmProgressBehavior.alwaysShow.index,
-  );
+  static BtmProgressBehavior get btmProgressBehavior =>
+      BtmProgressBehavior.values[_setting.get(
+        SettingBoxKey.btmProgressBehavior,
+        defaultValue: BtmProgressBehavior.alwaysShow.index,
+      )];
 
-  static int get subtitlePreferenceV2 => _setting.get(
-    SettingBoxKey.subtitlePreferenceV2,
-    defaultValue: SubtitlePrefType.off.index,
-  );
+  static SubtitlePrefType get subtitlePreferenceV2 =>
+      SubtitlePrefType.values[_setting.get(
+        SettingBoxKey.subtitlePreferenceV2,
+        defaultValue: SubtitlePrefType.off.index,
+      )];
 
   static bool get useRelativeSlide =>
       _setting.get(SettingBoxKey.useRelativeSlide, defaultValue: false);
@@ -281,8 +290,16 @@ abstract final class Pref {
   static String get systemProxyPort =>
       _setting.get(SettingBoxKey.systemProxyPort, defaultValue: '');
 
-  static int get defaultDynamicType =>
-      _setting.get(SettingBoxKey.defaultDynamicType, defaultValue: 0);
+  static DynamicsTabType get defaultDynamicType =>
+      DynamicsTabType.values[defaultDynamicTypeIndex];
+
+  static int get defaultDynamicTypeIndex => _setting.get(
+    SettingBoxKey.defaultDynamicType,
+    defaultValue: DynamicsTabType.all.index,
+  );
+
+  static bool get showDynInteraction =>
+      _setting.get(SettingBoxKey.showDynInteraction, defaultValue: true);
 
   static double get blockLimit =>
       _setting.get(SettingBoxKey.blockLimit, defaultValue: 0.0);
@@ -296,12 +313,11 @@ abstract final class Pref {
   );
 
   static String get blockUserID {
-    String blockUserID = _setting.get(
-      SettingBoxKey.blockUserID,
-      defaultValue: '',
-    );
-    if (blockUserID.isEmpty) {
-      blockUserID = const Uuid().v4().replaceAll('-', '');
+    String? blockUserID = _setting.get(SettingBoxKey.blockUserID);
+    if (blockUserID == null || blockUserID.isEmpty) {
+      blockUserID = Digest(
+        List.generate(16, (_) => Utils.random.nextInt(256)),
+      ).toString();
       _setting.put(SettingBoxKey.blockUserID, blockUserID);
     }
     return blockUserID;
@@ -324,11 +340,16 @@ abstract final class Pref {
   static int get dynamicPeriod =>
       _setting.get(SettingBoxKey.dynamicPeriod, defaultValue: 5);
 
-  static int get schemeVariant =>
-      _setting.get(SettingBoxKey.schemeVariant, defaultValue: 10);
+  static FlexSchemeVariant get schemeVariant =>
+      FlexSchemeVariant.values[_setting.get(
+        SettingBoxKey.schemeVariant,
+        defaultValue: FlexSchemeVariant.material3Legacy.index,
+      )];
 
-  static double get danmakuFontScaleFS =>
-      _setting.get(SettingBoxKey.danmakuFontScaleFS, defaultValue: 1.2);
+  static double get danmakuFontScaleFS => _setting.get(
+    SettingBoxKey.danmakuFontScaleFS,
+    defaultValue: PlatformUtils.isMobile ? 1.2 : 1.7,
+  );
 
   static bool get danmakuMassiveMode =>
       _setting.get(SettingBoxKey.danmakuMassiveMode, defaultValue: false);
@@ -363,11 +384,15 @@ abstract final class Pref {
   static bool get expandIntroPanelH =>
       _setting.get(SettingBoxKey.expandIntroPanelH, defaultValue: false);
 
-  static bool get horizontalSeasonPanel =>
-      _setting.get(SettingBoxKey.horizontalSeasonPanel, defaultValue: false);
+  static bool get horizontalSeasonPanel => _setting.get(
+    SettingBoxKey.horizontalSeasonPanel,
+    defaultValue: PlatformUtils.isDesktop,
+  );
 
-  static bool get horizontalMemberPage =>
-      _setting.get(SettingBoxKey.horizontalMemberPage, defaultValue: false);
+  static bool get horizontalMemberPage => _setting.get(
+    SettingBoxKey.horizontalMemberPage,
+    defaultValue: PlatformUtils.isDesktop,
+  );
 
   static int? get replyLengthLimit {
     int length = _setting.get(SettingBoxKey.replyLengthLimit, defaultValue: 6);
@@ -452,8 +477,7 @@ abstract final class Pref {
     if (index != null) {
       superResolutionType = SuperResolutionType.values.getOrNull(index);
     }
-    superResolutionType ??= SuperResolutionType.disable;
-    return superResolutionType;
+    return superResolutionType ?? SuperResolutionType.disable;
   }
 
   static bool get preInitPlayer =>
@@ -693,6 +717,9 @@ abstract final class Pref {
   static double get defaultTextScale =>
       _setting.get(SettingBoxKey.defaultTextScale, defaultValue: 1.0);
 
+  static double get uiScale =>
+      _setting.get(SettingBoxKey.uiScale, defaultValue: 1.0);
+
   static bool get dynamicsWaterfallFlow =>
       _setting.get(SettingBoxKey.dynamicsWaterfallFlow, defaultValue: true);
 
@@ -744,16 +771,20 @@ abstract final class Pref {
   static bool get enableHttp2 =>
       _setting.get(SettingBoxKey.enableHttp2, defaultValue: false);
 
-  static int get replySortType =>
-      _setting.get(SettingBoxKey.replySortType, defaultValue: 1);
+  static ReplySortType get replySortType =>
+      ReplySortType.values[_setting.get(
+        SettingBoxKey.replySortType,
+        defaultValue: ReplySortType.hot.index,
+      )];
 
   static bool get hideTabBar =>
       _setting.get(SettingBoxKey.hideTabBar, defaultValue: true);
 
-  static int get dynamicBadgeMode => _setting.get(
-    SettingBoxKey.dynamicBadgeMode,
-    defaultValue: DynamicBadgeMode.number.index,
-  );
+  static DynamicBadgeMode get dynamicBadgeMode =>
+      DynamicBadgeMode.values[_setting.get(
+        SettingBoxKey.dynamicBadgeMode,
+        defaultValue: DynamicBadgeMode.number.index,
+      )];
 
   static bool get enableMYBar =>
       _setting.get(SettingBoxKey.enableMYBar, defaultValue: true);
@@ -792,8 +823,10 @@ abstract final class Pref {
   static double get danmakuOpacity =>
       _setting.get(SettingBoxKey.danmakuOpacity, defaultValue: 1.0);
 
-  static double get danmakuFontScale =>
-      _setting.get(SettingBoxKey.danmakuFontScale, defaultValue: 1.0);
+  static double get danmakuFontScale => _setting.get(
+    SettingBoxKey.danmakuFontScale,
+    defaultValue: PlatformUtils.isMobile ? 1.0 : 1.4,
+  );
 
   static double get danmakuDuration =>
       _setting.get(SettingBoxKey.danmakuDuration, defaultValue: 7.0);
@@ -801,11 +834,15 @@ abstract final class Pref {
   static double get danmakuStaticDuration =>
       _setting.get(SettingBoxKey.danmakuStaticDuration, defaultValue: 4.0);
 
-  static double get danmakuStrokeWidth =>
-      _setting.get(SettingBoxKey.danmakuStrokeWidth, defaultValue: 1.5);
+  static double get danmakuStrokeWidth => _setting.get(
+    SettingBoxKey.danmakuStrokeWidth,
+    defaultValue: PlatformUtils.isMobile ? 1.5 : 2.5,
+  );
 
-  static int get danmakuFontWeight =>
-      _setting.get(SettingBoxKey.danmakuFontWeight, defaultValue: 5);
+  static int get danmakuFontWeight => _setting.get(
+    SettingBoxKey.danmakuFontWeight,
+    defaultValue: PlatformUtils.isMobile ? 5 : 6,
+  );
 
   static bool get enableLongShowControl =>
       _setting.get(SettingBoxKey.enableLongShowControl, defaultValue: false);
@@ -844,14 +881,16 @@ abstract final class Pref {
       _setting.get(SettingBoxKey.enableSearchRcmd, defaultValue: true);
 
   static bool get enableSaveLastData =>
-      _setting.get(SettingBoxKey.enableSaveLastData, defaultValue: false);
+      _setting.get(SettingBoxKey.enableSaveLastData, defaultValue: true);
 
   static double get defaultToastOp =>
       _setting.get(SettingBoxKey.defaultToastOp, defaultValue: 1.0);
 
-  static int get playRepeat =>
-      (_video.get(VideoBoxKey.playRepeat) as num?)?.toInt() ??
-      PlayRepeat.pause.index;
+  static PlayRepeat get playRepeat =>
+      PlayRepeat.values[_video.get(
+        VideoBoxKey.playRepeat,
+        defaultValue: PlayRepeat.pause.index,
+      )];
 
   static int get cacheVideoFit =>
       _video.get(VideoBoxKey.cacheVideoFit, defaultValue: 1);
@@ -966,4 +1005,10 @@ abstract final class Pref {
         SettingBoxKey.followOrderType,
         defaultValue: FollowOrderType.def.index,
       )];
+
+  static bool get enableImgMenu =>
+      _setting.get(SettingBoxKey.enableImgMenu, defaultValue: false);
+
+  static bool get showDynDispute =>
+      _setting.get(SettingBoxKey.showDynDispute, defaultValue: false);
 }

@@ -35,10 +35,13 @@ TextSpan? richNode(
       if (richTextNodes == null || richTextNodes.isEmpty) {
         return TextSpan(text: desc.text);
       }
-    } else if (moduleDynamic?.major?.opus case final opus?) {
+    } else if (moduleDynamic?.major?.opus case DynamicOpusModel(
+      :final title,
+      :final summary,
+    )) {
       // 动态页面 richTextNodes 层级可能与主页动态层级不同
-      richTextNodes = opus.summary?.richTextNodes;
-      if (opus.title case final title?) {
+      richTextNodes = summary?.richTextNodes;
+      if (title != null && title.isNotEmpty) {
         spanChildren.add(
           TextSpan(
             text: '$title\n',
@@ -76,7 +79,7 @@ TextSpan? richNode(
           case 'RICH_TEXT_NODE_TYPE_TOPIC':
             spanChildren.add(
               TextSpan(
-                text: i.origText!,
+                text: i.origText,
                 style: style,
                 recognizer: TapGestureRecognizer()
                   ..onTap = () => Get.toNamed(

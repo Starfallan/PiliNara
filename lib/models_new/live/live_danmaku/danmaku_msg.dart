@@ -57,4 +57,14 @@ class DanmakuMsg {
       reply: reply,
     );
   }
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'name': name,
+    'uid': uid,
+    'text': text,
+    'emots': emots,
+    'uemote': uemote?.toJson(),
+    'extra': extra.toJson(),
+    'reply': reply?.toJson(),
+  };
 }

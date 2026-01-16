@@ -11,30 +11,30 @@ class NetworkImgLayer extends StatelessWidget {
     super.key,
     required this.src,
     required this.width,
-    this.height,
+    required this.height,
     this.type = .def,
     this.fadeOutDuration = const Duration(milliseconds: 120),
     this.fadeInDuration = const Duration(milliseconds: 120),
     this.quality,
     this.borderRadius = StyleString.mdRadius,
-    this.forceUseCacheWidth = false,
     this.getPlaceHolder,
     this.fit = .cover,
     this.alignment = .center,
+    this.cacheWidth,
   });
 
   final String? src;
   final double width;
-  final double? height;
+  final double height;
   final ImageType type;
   final Duration fadeOutDuration;
   final Duration fadeInDuration;
   final int? quality;
   final BorderRadius borderRadius;
-  final bool forceUseCacheWidth;
   final ValueGetter<Widget>? getPlaceHolder;
   final BoxFit fit;
   final Alignment alignment;
+  final bool? cacheWidth;
 
   static Color? reduceLuxColor = Pref.reduceLuxColor;
   static bool reduce = false;
@@ -64,10 +64,10 @@ class NetworkImgLayer extends StatelessWidget {
     required bool isAvatar,
   }) {
     int? memCacheWidth, memCacheHeight;
-    if (height == null || forceUseCacheWidth || width <= height!) {
+    if (cacheWidth ?? width <= height) {
       memCacheWidth = width.cacheSize(context);
     } else {
-      memCacheHeight = height?.cacheSize(context);
+      memCacheHeight = height.cacheSize(context);
     }
     return CachedNetworkImage(
       imageUrl: ImageUtils.thumbnailUrl(src, quality),

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:PiliPlus/common/widgets/pair.dart';
 import 'package:PiliPlus/http/api.dart';
 import 'package:PiliPlus/http/constants.dart';
@@ -151,7 +153,7 @@ abstract final class DynamicsHttp {
     }
   }
 
-  static Future createDynamic({
+  static Future<LoadingState<Map?>> createDynamic({
     dynamic mid,
     dynamic dynIdStr, // repost dyn
     dynamic rid, // repost video
@@ -171,8 +173,8 @@ abstract final class DynamicsHttp {
       queryParameters: {
         'platform': 'web',
         'csrf': Accounts.main.csrf,
-        'x-bili-device-req-json': {"platform": "web", "device": "pc"},
-        'x-bili-web-req-json': {"spm_id": "333.999"},
+        'x-bili-device-req-json': '{"platform": "web", "device": "pc"}',
+        'x-bili-web-req-json': '{"spm_id": "333.999"}',
       },
       data: {
         "dyn_req": {
@@ -231,15 +233,9 @@ abstract final class DynamicsHttp {
       },
     );
     if (res.data['code'] == 0) {
-      return {
-        'status': true,
-        'data': res.data['data'],
-      };
+      return Success(res.data['data']);
     } else {
-      return {
-        'status': false,
-        'msg': res.data['message'],
-      };
+      return Error(res.data['message']);
     }
   }
 
@@ -671,6 +667,112 @@ abstract final class DynamicsHttp {
             ?.map((e) => FolloweeVote.fromJson(e))
             .toList(),
       );
+    } else {
+      return Error(res.data['message']);
+    }
+  }
+
+  static Future<LoadingState<Null>> dynPrivatePubSetting({
+    required Object dynId,
+    int? dynType,
+    required String action,
+  }) async {
+    final res = await Request().post(
+      Api.dynPrivatePubSetting,
+      queryParameters: {
+        'platform': 'web',
+        'csrf': Accounts.main.csrf,
+      },
+      data: {
+        "object_id": jsonEncode({
+          "dyn_id": dynId.toString(),
+          "dyn_type": ?dynType,
+        }),
+        "action": action,
+      },
+      options: Options(contentType: Headers.jsonContentType),
+    );
+    if (res.data['code'] == 0) {
+      return const Success(null);
+    } else {
+      return Error(res.data['message']);
+    }
+  }
+
+  static Future<LoadingState<Null>> editDyn({
+    required Object dynId,
+    Object? repostDynId,
+    dynamic rawText,
+    List? pics,
+    ReplyOptionType? replyOption,
+    int? privatePub,
+    List<Map<String, dynamic>>? extraContent,
+    Pair<int, String>? topic,
+    String? title,
+    Map? attachCard,
+  }) async {
+    final uploadId =
+        "${Accounts.main.mid}_${DateTime.now().millisecondsSinceEpoch ~/ 1000}_${Utils.random.nextInt(9000) + 1000}";
+    final res = await Request().post(
+      Api.editDyn,
+      queryParameters: await WbiSign.makSign({
+        'platform': 'web',
+        'csrf': Accounts.main.csrf,
+        'x-bili-device-req-json':
+            '{"platform":"web","device":"pc","spmid":"333.1368"}',
+        'w_dyn_req.upload_id': uploadId,
+        'w_dyn_req.meta':
+            '{"app_meta":{"from":"create.dynamic.web","mobi_app":"web"}}',
+      }),
+      data: {
+        "dyn_req": {
+          "content": {
+            "contents": [
+              if (rawText != null)
+                {
+                  "raw_text": rawText,
+                  "type": 1,
+                  "biz_id": "",
+                },
+              ...?extraContent,
+            ],
+            if (title != null && title.isNotEmpty) 'title': title,
+          },
+          if (privatePub != null || replyOption != null)
+            "option": {
+              'private_pub': ?privatePub,
+              if (replyOption == ReplyOptionType.close)
+                "close_comment": 1
+              else if (replyOption == ReplyOptionType.choose)
+                "up_choose_comment": 1,
+            },
+          "scene": repostDynId != null
+              ? 4
+              : pics != null
+              ? 2
+              : 1,
+          'pics': ?pics,
+          "attach_card": attachCard,
+          "upload_id": uploadId,
+          "meta": {
+            "app_meta": {"from": "create.dynamic.web", "mobi_app": "web"},
+          },
+          if (topic != null)
+            "topic": {
+              "id": topic.first,
+              "name": topic.second,
+              "from_source": "dyn.web.list",
+              "from_topic_id": 0,
+            },
+        },
+        "dyn_id_str": dynId.toString(),
+        if (repostDynId != null)
+          "web_repost_src": {"dyn_id_str": repostDynId.toString()},
+      },
+      options: Options(contentType: Headers.jsonContentType),
+    );
+    if (res.data['code'] == 0) {
+      return const Success(null);
     } else {
       return Error(res.data['message']);
     }

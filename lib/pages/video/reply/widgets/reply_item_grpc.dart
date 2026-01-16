@@ -99,14 +99,8 @@ class ReplyItemGrpc extends StatelessWidget {
     return Material(
       type: MaterialType.transparency,
       child: InkWell(
-        onTap: () {
-          feedBack();
-          replyReply?.call(replyItem, null);
-        },
-        onLongPress: () {
-          feedBack();
-          showMore();
-        },
+        onTap: () => replyReply?.call(replyItem, null),
+        onLongPress: showMore,
         onSecondaryTap: isMobile ? null : showMore,
         child: _buildContent(context, theme),
       ),
@@ -468,10 +462,7 @@ class ReplyItemGrpc extends StatelessWidget {
                 return InkWell(
                   onTap: () =>
                       replyReply?.call(replyItem, childReply.id.toInt()),
-                  onLongPress: () {
-                    feedBack();
-                    showMore();
-                  },
+                  onLongPress: showMore,
                   onSecondaryTap: PlatformUtils.isMobile ? null : showMore,
                   child: Padding(
                     padding: padding,

@@ -9,9 +9,11 @@ import 'package:PiliPlus/common/widgets/flutter/text_field/text_field.dart';
 import 'package:PiliPlus/common/widgets/view_safe_area.dart';
 import 'package:PiliPlus/grpc/bilibili/main/community/reply/v1.pb.dart'
     show ReplyInfo;
+import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/http/video.dart';
 import 'package:PiliPlus/main.dart';
 import 'package:PiliPlus/models/common/publish_panel_type.dart';
+import 'package:PiliPlus/models/dynamics/result.dart' show FilePicModel;
 import 'package:PiliPlus/pages/common/publish/common_rich_text_pub_page.dart';
 import 'package:PiliPlus/pages/dynamics_mention/controller.dart';
 import 'package:PiliPlus/pages/emote/view.dart';
@@ -110,7 +112,7 @@ class _ReplyPageState extends CommonRichTextPubPageState<ReplyPage> {
   Widget buildImagePreview() {
     return Obx(
       () {
-        if (pathList.isNotEmpty) {
+        if (imageList.isNotEmpty) {
           return SizedBox(
             height: 85,
             child: SingleChildScrollView(
@@ -120,7 +122,7 @@ class _ReplyPageState extends CommonRichTextPubPageState<ReplyPage> {
                 spacing: 10,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: List.generate(
-                  pathList.length,
+                  imageList.length,
                   (index) => buildImage(index, 75),
                 ),
               ),
@@ -368,7 +370,7 @@ class _ReplyPageState extends CommonRichTextPubPageState<ReplyPage> {
             if (isRoot && widget.canUploadPic)
               item(
                 onTap: () async {
-                  if (pathList.length >= limit) {
+                  if (imageList.length >= limit) {
                     SmartDialog.showToast('最多选择$limit张图片');
                     return;
                   }
@@ -385,7 +387,7 @@ class _ReplyPageState extends CommonRichTextPubPageState<ReplyPage> {
                         '$tmpDirPath/${Utils.generateRandomString(8)}.png',
                       );
                       await file.writeAsBytes(res);
-                      pathList.add(file.path);
+                      imageList.add(FilePicModel(path: file.path));
                     } else {
                       debugPrint('null screenshot');
                     }
@@ -415,7 +417,7 @@ class _ReplyPageState extends CommonRichTextPubPageState<ReplyPage> {
       }
     }
     String message = editController.rawText;
-    final result = await VideoHttp.replyAdd(
+    final res = await VideoHttp.replyAdd(
       type: widget.replyType,
       oid: widget.oid,
       root: widget.root,
@@ -427,12 +429,12 @@ class _ReplyPageState extends CommonRichTextPubPageState<ReplyPage> {
       pictures: pictures,
       syncToDynamic: _syncToDynamic.value,
     );
-    if (result['status']) {
+    if (res case Success(:final response)) {
       hasPub = true;
-      SmartDialog.showToast(result['data']['success_toast']);
-      Get.back(result: result['data']['reply']);
+      SmartDialog.showToast(response['success_toast']);
+      Get.back(result: response['reply']);
     } else {
-      SmartDialog.showToast(result['msg']);
+      res.toast();
     }
   }
 }

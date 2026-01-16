@@ -5,6 +5,8 @@ import 'package:PiliPlus/common/widgets/dialog/report.dart';
 import 'package:PiliPlus/common/widgets/flutter/dyn/ink_well.dart';
 import 'package:PiliPlus/common/widgets/pendant_avatar.dart';
 import 'package:PiliPlus/http/constants.dart';
+import 'package:PiliPlus/http/loading_state.dart';
+import 'package:PiliPlus/http/reply.dart';
 import 'package:PiliPlus/http/user.dart';
 import 'package:PiliPlus/http/video.dart';
 import 'package:PiliPlus/models/dynamics/result.dart';
@@ -30,22 +32,27 @@ import 'package:get/get.dart';
 
 class AuthorPanel extends StatelessWidget {
   final DynamicItemModel item;
-  final Function? addBannedList;
   final bool isSave;
   final bool isDetail;
-  final ValueChanged? onRemove;
+  final ValueChanged<Object>? onRemove;
   final void Function(bool isTop, Object dynId)? onSetTop;
   final VoidCallback? onBlock;
+  final Future<LoadingState> Function(bool isPrivate, Object dynId)?
+  onSetPubSetting;
+  final VoidCallback? onEdit;
+  final ValueChanged<int>? onSetReplySubject;
 
   const AuthorPanel({
     super.key,
     required this.item,
-    this.addBannedList,
     this.isDetail = false,
     this.onRemove,
     this.isSave = false,
     this.onSetTop,
     this.onBlock,
+    this.onSetPubSetting,
+    this.onEdit,
+    this.onSetReplySubject,
   });
 
   Widget _buildAvatar(ModuleAuthorModel moduleAuthor) {
@@ -75,6 +82,33 @@ class AuthorPanel extends StatelessWidget {
                 )
               : DateFormatUtils.dateFormat(moduleAuthor.pubTs)
         : moduleAuthor.pubTime;
+    Widget? pubTs;
+    if (pubTime != null) {
+      pubTs = Text(
+        '$pubTime${moduleAuthor.pubAction != null ? ' ${moduleAuthor.pubAction}' : ''}',
+        style: TextStyle(
+          color: theme.colorScheme.outline,
+          fontSize: theme.textTheme.labelSmall!.fontSize,
+        ),
+      );
+      if (moduleAuthor.badgeText case final badgeText?) {
+        pubTs = Row(
+          mainAxisSize: .min,
+          spacing: 5,
+          children: [
+            pubTs,
+            Text(
+              badgeText,
+              style: TextStyle(
+                color: theme.colorScheme.secondary,
+                fontSize: theme.textTheme.labelSmall!.fontSize,
+              ),
+            ),
+          ],
+        );
+      }
+    }
+    final moduleTagText = !isDetail ? item.modules.moduleTag?.text : null;
     return Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.center,
@@ -90,10 +124,10 @@ class AuthorPanel extends StatelessWidget {
                   }
                 : null,
             child: Row(
+              spacing: 10,
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildAvatar(moduleAuthor),
-                const SizedBox(width: 10),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -109,14 +143,7 @@ class AuthorPanel extends StatelessWidget {
                         fontSize: theme.textTheme.titleSmall!.fontSize,
                       ),
                     ),
-                    if (pubTime != null)
-                      Text(
-                        '$pubTime${moduleAuthor.pubAction != null ? ' ${moduleAuthor.pubAction}' : ''}',
-                        style: TextStyle(
-                          color: theme.colorScheme.outline,
-                          fontSize: theme.textTheme.labelSmall!.fontSize,
-                        ),
-                      ),
+                    ?pubTs,
                   ],
                 ),
               ],
@@ -125,7 +152,7 @@ class AuthorPanel extends StatelessWidget {
         ),
         Align(
           alignment: Alignment.centerRight,
-          child: !isDetail && item.modules.moduleTag?.text != null
+          child: moduleTagText != null
               ? Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -144,7 +171,7 @@ class AuthorPanel extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        item.modules.moduleTag!.text!,
+                        moduleTagText,
                         style: TextStyle(
                           height: 1,
                           fontSize: 12,
@@ -278,14 +305,9 @@ class AuthorPanel extends StatelessWidget {
               ),
               if (bvid != null)
                 ListTile(
-                  onTap: () async {
+                  onTap: () {
                     Get.back();
-                    try {
-                      final res = await UserHttp.toViewLater(bvid: bvid);
-                      SmartDialog.showToast(res['msg']);
-                    } catch (err) {
-                      SmartDialog.showToast('出错了：${err.toString()}');
-                    }
+                    UserHttp.toViewLater(bvid: bvid);
                   },
                   minLeadingWidth: 0,
                   leading: const Icon(Icons.watch_later_outlined, size: 19),
@@ -424,17 +446,149 @@ class AuthorPanel extends StatelessWidget {
                   ListTile(
                     onTap: () {
                       Get.back();
-                      onSetTop!(
-                        item.modules.moduleTag?.text != null,
-                        item.idStr,
-                      );
+                      onSetTop!(moduleAuthor.isTop ?? false, item.idStr);
                     },
                     minLeadingWidth: 0,
                     leading: const Icon(Icons.vertical_align_top, size: 19),
                     title: Text(
-                      '${item.modules.moduleTag?.text != null ? '取消' : ''}置顶',
+                      '${moduleAuthor.isTop == true ? '取消' : ''}置顶',
                       style: theme.textTheme.titleSmall!,
                     ),
+                  ),
+                if (onSetReplySubject != null)
+                  ListTile(
+                    onTap: () async {
+                      Get.back();
+                      final res = await ReplyHttp.replyInteraction(
+                        oid: item.basic!.commentIdStr!,
+                        type: item.basic!.commentType!,
+                      );
+                      if (res case Success(:final response)) {
+                        if (context.mounted) {
+                          showDialog(
+                            context: context,
+                            builder: (context) {
+                              final selection = response.upReplySelection;
+                              final enableSelection = selection.status == 1;
+
+                              final reply = response.upReply;
+                              final enableReply = reply.status == 1;
+
+                              return AlertDialog(
+                                clipBehavior: .hardEdge,
+                                contentPadding: const .symmetric(vertical: 12),
+                                content: Column(
+                                  mainAxisSize: .min,
+                                  crossAxisAlignment: .start,
+                                  children: [
+                                    ListTile(
+                                      dense: true,
+                                      enabled: selection.canModify,
+                                      title: Text(
+                                        '${enableSelection ? '停止' : '开启'}评论精选',
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                      onTap: () {
+                                        Get.back();
+                                        onSetReplySubject!(
+                                          enableSelection ? 2 : 1,
+                                        );
+                                      },
+                                    ),
+                                    ListTile(
+                                      dense: true,
+                                      enabled: reply.canModify,
+                                      title: Text(
+                                        '${enableReply ? '关闭' : '恢复'}评论',
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                      onTap: () {
+                                        Get.back();
+                                        onSetReplySubject!(enableReply ? 3 : 4);
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          );
+                        }
+                      } else {
+                        res.toast();
+                      }
+                    },
+                    minLeadingWidth: 0,
+                    leading: const Icon(
+                      Icons.mark_unread_chat_alt_outlined,
+                      size: 19,
+                    ),
+                    title: Text(
+                      '互动设置',
+                      style: theme.textTheme.titleSmall!,
+                    ),
+                  ),
+                if (onSetPubSetting != null)
+                  ListTile(
+                    onTap: () {
+                      Get.back();
+
+                      final isPrivate = moduleAuthor.badgeText != null;
+                      Future<void> onTap() async {
+                        Get.back();
+                        if ((await onSetPubSetting!(
+                          isPrivate,
+                          item.idStr,
+                        )).isSuccess) {
+                          if (context.mounted) {
+                            (context as Element).markNeedsBuild();
+                          }
+                        }
+                      }
+
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          clipBehavior: Clip.hardEdge,
+                          contentPadding: const .symmetric(vertical: 12),
+                          content: Column(
+                            mainAxisSize: .min,
+                            children: [
+                              ListTile(
+                                dense: true,
+                                enabled: isPrivate,
+                                title: const Text(
+                                  '所有用户可见',
+                                  style: TextStyle(fontSize: 14),
+                                ),
+                                onTap: onTap,
+                              ),
+                              ListTile(
+                                dense: true,
+                                enabled: !isPrivate,
+                                title: const Text(
+                                  '仅自己可见',
+                                  style: TextStyle(fontSize: 14),
+                                ),
+                                onTap: onTap,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                    minLeadingWidth: 0,
+                    leading: const Icon(Icons.visibility, size: 19),
+                    title: Text('可见范围', style: theme.textTheme.titleSmall!),
+                  ),
+                if (onEdit != null)
+                  ListTile(
+                    onTap: () {
+                      Get.back();
+                      onEdit!();
+                    },
+                    minLeadingWidth: 0,
+                    leading: const Icon(Icons.edit_note, size: 19),
+                    title: Text('编辑动态', style: theme.textTheme.titleSmall!),
                   ),
                 if (onRemove != null)
                   ListTile(

@@ -14,4 +14,10 @@ class UserInfo {
     uname: json['uname'],
     nameColor: json['name_color'] ?? '#666666',
   );
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'face': face,
+    'uname': uname,
+    'name_color': nameColor,
+  };
 }

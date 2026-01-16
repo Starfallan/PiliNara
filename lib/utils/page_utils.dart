@@ -22,10 +22,12 @@ import 'package:PiliPlus/utils/app_scheme.dart';
 import 'package:PiliPlus/utils/extension/context_ext.dart';
 import 'package:PiliPlus/utils/extension/extension.dart';
 import 'package:PiliPlus/utils/extension/iterable_ext.dart';
+import 'package:PiliPlus/utils/extension/size_ext.dart';
 import 'package:PiliPlus/utils/extension/string_ext.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
 import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/id_utils.dart';
+import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/url_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
@@ -40,6 +42,10 @@ import 'package:url_launcher/url_launcher.dart';
 abstract final class PageUtils {
   static final RouteObserver<PageRoute> routeObserver =
       RouteObserver<PageRoute>();
+
+  static RelativeRect menuPosition(Offset offset) {
+    return .fromLTRB(offset.dx, offset.dy, offset.dx, 0);
+  }
 
   static Future<void> imageView({
     int initialPage = 0,
@@ -331,13 +337,17 @@ abstract final class PageUtils {
         maxWidth: min(640, context.mediaQueryShortestSide),
       ),
       builder: (BuildContext context) {
+        final maxChildSize =
+            PlatformUtils.isMobile && !context.mediaQuerySize.isPortrait
+            ? 1.0
+            : 0.7;
         return DraggableScrollableSheet(
           minChildSize: 0,
           maxChildSize: 1,
-          initialChildSize: 0.7,
           snap: true,
           expand: false,
-          snapSizes: const [0.7],
+          snapSizes: [maxChildSize],
+          initialChildSize: maxChildSize,
           builder: (BuildContext context, ScrollController scrollController) {
             return FavPanel(
               ctr: ctr,

@@ -11,6 +11,7 @@ import 'package:PiliPlus/utils/utils.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:easy_debounce/easy_throttle.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:get/get.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
@@ -273,8 +274,8 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
                   onDoubleTap,
                 ),
                 onLongPress: !isFileImg ? () => onLongPress(item) : null,
-                onSecondaryTap: !isFileImg && !PlatformUtils.isMobile
-                    ? () => onLongPress(item)
+                onSecondaryTapUp: PlatformUtils.isDesktop && !isFileImg
+                    ? (e) => _showDesktopMenu(e.globalPosition, item)
                     : null,
                 child: widget.itemBuilder != null
                     ? widget.itemBuilder!(
@@ -326,9 +327,9 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
       child: Hero(
         tag: item.url,
         child: switch (item.sourceType) {
-          SourceType.fileImage => Image(
+          SourceType.fileImage => Image.file(
+            File(item.url),
             filterQuality: FilterQuality.low,
-            image: FileImage(File(item.url)),
           ),
           SourceType.networkImage => CachedNetworkImage(
             fadeInDuration: Duration.zero,
@@ -336,6 +337,9 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
             imageUrl: _getActualUrl(item.url),
             placeholderFadeInDuration: Duration.zero,
             placeholder: (context, url) {
+              if (widget.quality == _quality) {
+                return const SizedBox.expand();
+              }
               return CachedNetworkImage(
                 fadeInDuration: Duration.zero,
                 fadeOutDuration: Duration.zero,
@@ -408,6 +412,7 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
   }
 
   void onLongPress(SourceModel item) {
+    HapticFeedback.mediumImpact();
     showDialog(
       context: context,
       builder: (context) {
@@ -437,10 +442,7 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
               ListTile(
                 onTap: () {
                   Get.back();
-                  ImageUtils.downloadImg(
-                    this.context,
-                    [item.url],
-                  );
+                  ImageUtils.downloadImg([item.url]);
                 },
                 dense: true,
                 title: const Text('保存图片', style: TextStyle(fontSize: 14)),
@@ -459,7 +461,6 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
                   onTap: () {
                     Get.back();
                     ImageUtils.downloadImg(
-                      this.context,
                       widget.sources.map((item) => item.url).toList(),
                     );
                   },
@@ -471,7 +472,6 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
                   onTap: () {
                     Get.back();
                     ImageUtils.downloadLivePhoto(
-                      context: this.context,
                       url: item.url,
                       liveUrl: item.liveUrl!,
                       width: item.width!,
@@ -479,15 +479,50 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
                     );
                   },
                   dense: true,
-                  title: const Text(
-                    '保存 Live Photo',
-                    style: TextStyle(fontSize: 14),
+                  title: Text(
+                    '保存${Platform.isIOS ? ' Live Photo' : '视频'}',
+                    style: const TextStyle(fontSize: 14),
                   ),
                 ),
             ],
           ),
         );
       },
+    );
+  }
+
+  void _showDesktopMenu(Offset offset, SourceModel item) {
+    showMenu(
+      context: context,
+      position: PageUtils.menuPosition(offset),
+      items: [
+        PopupMenuItem(
+          height: 42,
+          onTap: () => Utils.copyText(item.url),
+          child: const Text('复制链接', style: TextStyle(fontSize: 14)),
+        ),
+        PopupMenuItem(
+          height: 42,
+          onTap: () => ImageUtils.downloadImg([item.url]),
+          child: const Text('保存图片', style: TextStyle(fontSize: 14)),
+        ),
+        PopupMenuItem(
+          height: 42,
+          onTap: () => PageUtils.launchURL(item.url),
+          child: const Text('网页打开', style: TextStyle(fontSize: 14)),
+        ),
+        if (item.sourceType == SourceType.livePhoto)
+          PopupMenuItem(
+            height: 42,
+            onTap: () => ImageUtils.downloadLivePhoto(
+              url: item.url,
+              liveUrl: item.liveUrl!,
+              width: item.width!,
+              height: item.height!,
+            ),
+            child: const Text('保存视频', style: TextStyle(fontSize: 14)),
+          ),
+      ],
     );
   }
 }

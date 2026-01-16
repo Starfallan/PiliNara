@@ -313,6 +313,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     } else {
       await videoDetailController.playerInit(autoplay: true);
     }
+    if (!mounted || !isShowing) return;
     plPlayerController!
       ..addStatusLister(playerListener)
       ..addPositionListener(positionListener);
@@ -370,7 +371,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
   @override
   // 离开当前页面时
-  Future<void> didPushNext() async {
+  void didPushNext() {
     if (Get.routing.route is HeroDialogRoute) {
       videoDetailController.imageview = true;
       return;
@@ -402,7 +403,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
   @override
   // 返回当前页面时
-  Future<void> didPopNext() async {
+  void didPopNext() {
     if (videoDetailController.imageview) {
       videoDetailController.imageview = false;
       return;
@@ -442,20 +443,24 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         ScreenBrightnessPlatform.instance.resetApplicationScreenBrightness();
       }
     }
-    super.didPopNext();
-    if (videoDetailController.autoPlay.value) {
-      await videoDetailController.playerInit(
-        autoplay: videoDetailController.playerStatus == PlayerStatus.playing,
-      );
-    } else if (videoDetailController.plPlayerController.preInitPlayer &&
-        !videoDetailController.isQuerying &&
-        videoDetailController.videoState.value is! Error) {
-      await videoDetailController.playerInit();
-    }
 
-    plPlayerController
-      ?..addStatusLister(playerListener)
-      ..addPositionListener(positionListener);
+    () async {
+      if (videoDetailController.autoPlay.value) {
+        await videoDetailController.playerInit(
+          autoplay: videoDetailController.playerStatus == PlayerStatus.playing,
+        );
+      } else if (videoDetailController.plPlayerController.preInitPlayer &&
+          !videoDetailController.isQuerying &&
+          videoDetailController.videoState.value is! Error) {
+        await videoDetailController.playerInit();
+      }
+      if (!mounted || !isShowing) return;
+      plPlayerController
+        ?..addStatusLister(playerListener)
+        ..addPositionListener(positionListener);
+    }();
+
+    super.didPopNext();
   }
 
   @override
@@ -1312,10 +1317,8 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         ),
       if (videoDetailController.cover.value.isNotEmpty)
         PopupMenuItem(
-          onTap: () => ImageUtils.downloadImg(
-            context,
-            [videoDetailController.cover.value],
-          ),
+          onTap: () =>
+              ImageUtils.downloadImg([videoDetailController.cover.value]),
           child: const Text('保存封面'),
         ),
       if (!videoDetailController.isFileSource && videoDetailController.isUgc)
@@ -1591,6 +1594,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
               return Positioned.fill(
                 child: GestureDetector(
                   onTap: handlePlay,
+                  behavior: .opaque,
                   child: Obx(
                     () => NetworkImgLayer(
                       type: .emote,
@@ -1598,7 +1602,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                       src: videoDetailController.cover.value,
                       width: width,
                       height: height,
-                      forceUseCacheWidth: true,
+                      cacheWidth: true,
                       getPlaceHolder: () => Center(
                         child: Image.asset('assets/images/loading.png'),
                       ),

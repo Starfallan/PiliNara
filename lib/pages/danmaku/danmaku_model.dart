@@ -41,4 +41,12 @@ class LiveDanmaku extends DanmakuExtra {
     required this.ts,
     required this.ct,
   });
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'id': id,
+    'mid': mid,
+    'dm_type': dmType,
+    'ts': ts,
+    'ct': ct,
+  };
 }

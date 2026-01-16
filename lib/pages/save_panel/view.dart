@@ -290,10 +290,10 @@ class _SavePanelState extends State<SavePanel> {
   }
 
   Future<void> _onSaveOrSharePic([bool isShare = false]) async {
-    if (!isShare && PlatformUtils.isMobile) {
-      if (mounted && !await ImageUtils.checkPermissionDependOnSdkInt(context)) {
-        return;
-      }
+    if (!isShare &&
+        PlatformUtils.isMobile &&
+        !await ImageUtils.checkPermissionDependOnSdkInt()) {
+      return;
     }
     SmartDialog.showLoading();
     try {

@@ -5,6 +5,8 @@ import 'package:PiliPlus/common/widgets/color_palette.dart';
 import 'package:PiliPlus/common/widgets/custom_toast.dart';
 import 'package:PiliPlus/common/widgets/dialog/dialog.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
+import 'package:PiliPlus/common/widgets/scale_app.dart';
+import 'package:PiliPlus/common/widgets/stateful_builder.dart';
 import 'package:PiliPlus/main.dart';
 import 'package:PiliPlus/models/common/dynamic/dynamic_badge_mode.dart';
 import 'package:PiliPlus/models/common/dynamic/up_panel_position.dart';
@@ -32,8 +34,7 @@ import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:auto_orientation/auto_orientation.dart';
-import 'package:flex_seed_scheme/flex_seed_scheme.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide StatefulBuilder;
 import 'package:flutter/services.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
@@ -109,6 +110,12 @@ List<SettingsModel> get styleSettings => [
     onChanged: (value) {
       Get.forceAppUpdate();
     },
+  ),
+  NormalModel(
+    title: '界面缩放',
+    getSubtitle: () => '当前缩放比例：${Pref.uiScale.toStringAsFixed(2)}',
+    leading: const Icon(Icons.zoom_in_outlined),
+    onTap: _showUiScaleDialog,
   ),
   NormalModel(
     title: '页面过渡动画',
@@ -586,10 +593,7 @@ List<SettingsModel> get styleSettings => [
             dimension: 32,
             child: ColorPalette(
               colorScheme: colorThemeTypes[Pref.customColor].color
-                  .asColorSchemeSeed(
-                    FlexSchemeVariant.values[Pref.schemeVariant],
-                    Get.theme.brightness,
-                  ),
+                  .asColorSchemeSeed(Pref.schemeVariant, Get.theme.brightness),
               selected: false,
               showBgColor: false,
             ),
@@ -597,28 +601,25 @@ List<SettingsModel> get styleSettings => [
   ),
   NormalModel(
     onTap: (context, setState) async {
-      final result = await showDialog<int>(
+      final result = await showDialog<NavigationBarType>(
         context: context,
         builder: (context) {
-          return SelectDialog<int>(
+          return SelectDialog<NavigationBarType>(
             title: '首页启动页',
             value: Pref.defaultHomePage,
-            values: NavigationBarType.values
-                .map((e) => (e.index, e.label))
-                .toList(),
+            values: NavigationBarType.values.map((e) => (e, e.label)).toList(),
           );
         },
       );
       if (result != null) {
-        await GStorage.setting.put(SettingBoxKey.defaultHomePage, result);
+        await GStorage.setting.put(SettingBoxKey.defaultHomePage, result.index);
         SmartDialog.showToast('设置成功，重启生效');
         setState();
       }
     },
     leading: const Icon(Icons.home_outlined),
     title: '默认启动页',
-    getSubtitle: () =>
-        '当前启动页：${NavigationBarType.values.firstWhere((e) => e.index == Pref.defaultHomePage).label}',
+    getSubtitle: () => '当前启动页：${Pref.defaultHomePage.label}',
   ),
   NormalModel(
     title: '滑动动画弹簧参数',
@@ -773,4 +774,111 @@ void _showQualityDialog({
       onChanged(result.toInt());
     }
   });
+}
+
+void _showUiScaleDialog(
+  BuildContext context,
+  VoidCallback setState,
+) {
+  const minUiScale = 0.5;
+  const maxUiScale = 2.0;
+
+  double uiScale = Pref.uiScale;
+  final textController = TextEditingController(
+    text: uiScale.toStringAsFixed(2),
+  );
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text('界面缩放'),
+        contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
+        content: StatefulBuilder(
+          onDispose: textController.dispose,
+          builder: (context, setDialogState) {
+            return Column(
+              spacing: 20,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Slider(
+                  padding: .zero,
+                  value: uiScale,
+                  min: minUiScale,
+                  max: maxUiScale,
+                  secondaryTrackValue: 1.0,
+                  divisions: ((maxUiScale - minUiScale) * 20).toInt(),
+                  label: textController.text,
+                  onChanged: (value) => setDialogState(() {
+                    uiScale = value.toPrecision(2);
+                    textController.text = uiScale.toStringAsFixed(2);
+                  }),
+                ),
+                TextFormField(
+                  controller: textController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  inputFormatters: [
+                    LengthLimitingTextInputFormatter(4),
+                    FilteringTextInputFormatter.allow(RegExp(r'[\d.]+')),
+                  ],
+                  decoration: const InputDecoration(
+                    labelText: '缩放比例',
+                    hintText: '0.50 - 2.00',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (value) {
+                    final parsed = double.tryParse(value);
+                    if (parsed != null &&
+                        parsed >= minUiScale &&
+                        parsed <= maxUiScale) {
+                      setDialogState(() {
+                        uiScale = parsed;
+                      });
+                    }
+                  },
+                ),
+              ],
+            );
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              GStorage.setting.delete(SettingBoxKey.uiScale).whenComplete(() {
+                setState();
+                Get.appUpdate();
+                ScaledWidgetsFlutterBinding.instance.setScaleFactor(1.0);
+              });
+            },
+            child: const Text('重置'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              '取消',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.outline,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              GStorage.setting.put(SettingBoxKey.uiScale, uiScale).whenComplete(
+                () {
+                  setState();
+                  Get.appUpdate();
+                  ScaledWidgetsFlutterBinding.instance.setScaleFactor(uiScale);
+                },
+              );
+            },
+            child: const Text('确定'),
+          ),
+        ],
+      );
+    },
+  );
 }

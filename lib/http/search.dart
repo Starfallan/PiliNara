@@ -230,19 +230,19 @@ abstract final class SearchHttp {
     }
   }
 
-  static Future<LoadingState> episodeInfo({dynamic epId}) async {
-    final res = await Request().get(
-      Api.episodeInfo,
-      queryParameters: {
-        'ep_id': ?epId,
-      },
-    );
-    if (res.data['code'] == 0) {
-      return Success(res.data['data']);
-    } else {
-      return Error(res.data['message']);
-    }
-  }
+  // static Future<LoadingState> episodeInfo({dynamic epId}) async {
+  //   final res = await Request().get(
+  //     Api.episodeInfo,
+  //     queryParameters: {
+  //       'ep_id': ?epId,
+  //     },
+  //   );
+  //   if (res.data['code'] == 0) {
+  //     return Success(res.data['data']);
+  //   } else {
+  //     return Error(res.data['message']);
+  //   }
+  // }
 
   static Future<LoadingState<SearchTrendingData>> searchTrending({
     int limit = 30,

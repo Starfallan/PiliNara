@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:PiliPlus/common/widgets/dialog/report.dart';
 import 'package:PiliPlus/common/widgets/flutter/text_field/controller.dart';
 import 'package:PiliPlus/http/constants.dart';
 import 'package:PiliPlus/http/live.dart';
@@ -98,10 +99,11 @@ class LiveRoomController extends GetxController {
   // dm
   LiveDmInfoData? dmInfo;
   List<RichTextItem>? savedDanmaku;
-  RxList<DanmakuMsg> messages = <DanmakuMsg>[].obs;
+  RxList<dynamic> messages = <dynamic>[].obs;
   late final Rx<SuperChatItem?> fsSC = Rx<SuperChatItem?>(null);
   late final RxList<SuperChatItem> superChatMsg = <SuperChatItem>[].obs;
   RxBool disableAutoScroll = false.obs;
+  bool autoScroll = true;
   LiveMessageStream? _msgStream;
   late final ScrollController scrollController;
   late final RxInt pageIndex = 0.obs;
@@ -297,6 +299,16 @@ class LiveRoomController extends GetxController {
   }
 
   void scrollToBottom([_]) {
+    EasyThrottle.throttle(
+      'liveDm',
+      const Duration(milliseconds: 500),
+      () => WidgetsBinding.instance.addPostFrameCallback(
+        _scrollToBottom,
+      ),
+    );
+  }
+
+  void _scrollToBottom([_]) {
     if (scrollController.hasClients) {
       scrollController.animateTo(
         scrollController.position.maxScrollExtent,
@@ -319,15 +331,11 @@ class LiveRoomController extends GetxController {
 
   @pragma('vm:notify-debugger-on-exception')
   Future<void> prefetch() async {
-    final res = await LiveHttp.liveRoomDanmaPrefetch(roomId: roomId);
-    if (res['status']) {
-      if (res['data'] case List list) {
-        try {
-          messages.addAll(
-            list.cast<Map<String, dynamic>>().map(DanmakuMsg.fromPrefetch),
-          );
-          WidgetsBinding.instance.addPostFrameCallback(scrollToBottom);
-        } catch (_) {}
+    final res = await LiveHttp.liveRoomDmPrefetch(roomId: roomId);
+    if (res case Success(:final response)) {
+      if (response != null && response.isNotEmpty) {
+        messages.addAll(response);
+        scrollToBottom();
       }
     }
   }
@@ -424,6 +432,19 @@ class LiveRoomController extends GetxController {
           ..init();
   }
 
+  void addDm(dynamic msg, [DanmakuContentItem<DanmakuExtra>? item]) {
+    messages.add(msg);
+
+    if (plPlayerController.showDanmaku) {
+      if (item != null) {
+        danmakuController?.addDanmaku(item);
+      }
+      if (autoScroll && !disableAutoScroll.value) {
+        scrollToBottom();
+      }
+    }
+  }
+
   @pragma('vm:notify-debugger-on-exception')
   void _danmakuListener(dynamic obj) {
     try {
@@ -459,7 +480,7 @@ class LiveRoomController extends GetxController {
               name: extra['reply_uname'],
             );
           }
-          messages.add(
+          addDm(
             DanmakuMsg(
               name: name,
               uid: uid,
@@ -471,31 +492,17 @@ class LiveRoomController extends GetxController {
               extra: liveExtra,
               reply: reply,
             ),
+            DanmakuContentItem(
+              msg,
+              color: DanmakuOptions.blockColorful
+                  ? Colors.white
+                  : DmUtils.decimalToColor(extra['color']),
+              type: DmUtils.getPosition(extra['mode']),
+              // extra['send_from_me'] is invalid
+              selfSend: isLogin && uid == mid,
+              extra: liveExtra,
+            ),
           );
-
-          if (plPlayerController.showDanmaku) {
-            danmakuController?.addDanmaku(
-              DanmakuContentItem(
-                msg,
-                color: DanmakuOptions.blockColorful
-                    ? Colors.white
-                    : DmUtils.decimalToColor(extra['color']),
-                type: DmUtils.getPosition(extra['mode']),
-                // extra['send_from_me'] is invalid
-                selfSend: isLogin && uid == mid,
-                extra: liveExtra,
-              ),
-            );
-            if (!disableAutoScroll.value) {
-              EasyThrottle.throttle(
-                'liveDm',
-                const Duration(milliseconds: 500),
-                () => WidgetsBinding.instance.addPostFrameCallback(
-                  scrollToBottom,
-                ),
-              );
-            }
-          }
           break;
         case 'SUPER_CHAT_MESSAGE' when showSuperChat:
           final item = SuperChatItem.fromJson(obj['data']);
@@ -505,7 +512,29 @@ class LiveRoomController extends GetxController {
               endTime: DateTime.now().millisecondsSinceEpoch ~/ 1000 + 10,
             );
           }
+          addDm(item);
           break;
+        case 'SUPER_CHAT_MESSAGE_DELETE' when showSuperChat:
+          if (obj['roomid'] == roomId) {
+            final ids = obj['data']?['ids'] as List?;
+            if (ids != null && ids.isNotEmpty) {
+              if (superChatType == .valid) {
+                superChatMsg.removeWhere((e) => ids.contains(e.id));
+              } else {
+                bool? refresh;
+                for (final id in ids) {
+                  if (superChatMsg.firstWhereOrNull((e) => e.id == id)
+                      case final item?) {
+                    item.deleted = true;
+                    refresh ??= true;
+                  }
+                }
+                if (refresh ?? false) {
+                  superChatMsg.refresh();
+                }
+              }
+            }
+          }
         case 'WATCHED_CHANGE':
           watchedShow.value = obj['data']['text_large'];
           break;
@@ -585,6 +614,29 @@ class LiveRoomController extends GetxController {
             ? const Duration(milliseconds: 400)
             : const Duration(milliseconds: 500),
       ),
+    );
+  }
+
+  void reportSC(SuperChatItem item) {
+    if (!Accounts.main.isLogin) {
+      SmartDialog.showToast('账号未登录');
+      return;
+    }
+    autoWrapReportDialog(
+      Get.context!,
+      ban: false,
+      ReportOptions.liveDanmakuReport,
+      (reasonType, reasonDesc, banUid) {
+        return LiveHttp.superChatReport(
+          id: item.id,
+          roomId: roomId,
+          uid: item.uid,
+          msg: item.message,
+          reason: ReportOptions.liveDanmakuReport['']![reasonType]!,
+          ts: item.ts,
+          token: item.token,
+        );
+      },
     );
   }
 }

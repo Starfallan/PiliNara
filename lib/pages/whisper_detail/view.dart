@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io' show File;
 
+import 'package:PiliPlus/common/widgets/dialog/report.dart';
 import 'package:PiliPlus/common/widgets/flutter/text_field/text_field.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/loading_widget.dart';
@@ -19,6 +20,7 @@ import 'package:PiliPlus/utils/extension/iterable_ext.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/extension/widget_ext.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
+import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/material.dart' hide TextField;
@@ -168,14 +170,18 @@ class _WhisperDetailPageState
                     _whisperDetailController.onLoadMore();
                   }
                   final item = response[index];
+                  final isOwner =
+                      item.senderUid.toInt() ==
+                      _whisperDetailController.account.mid;
                   return ChatItem(
                     item: item,
                     eInfos: _whisperDetailController.eInfos,
-                    onLongPress:
-                        item.senderUid.toInt() ==
-                            _whisperDetailController.account.mid
-                        ? () => onLongPress(index, item)
+                    onLongPress: () => onLongPress(index, item, isOwner),
+                    onSecondaryTapUp: PlatformUtils.isDesktop
+                        ? (e) =>
+                              _showMenu(e.globalPosition, index, item, isOwner)
                         : null,
+                    isOwner: isOwner,
                   );
                 },
                 separatorBuilder: (context, index) =>
@@ -189,34 +195,86 @@ class _WhisperDetailPageState
     };
   }
 
-  void onLongPress(int index, Msg item) {
+  void _showMenu(Offset offset, int index, Msg item, bool isOwner) {
+    showMenu(
+      context: context,
+      position: PageUtils.menuPosition(offset),
+      items: [
+        if (isOwner)
+          PopupMenuItem(
+            height: 42,
+            onTap: () => _whisperDetailController.sendMsg(
+              message: '${item.msgKey}',
+              onClearText: editController.clear,
+              msgType: 5,
+              index: index,
+            ),
+            child: const Text('撤回', style: TextStyle(fontSize: 14)),
+          )
+        else
+          PopupMenuItem(
+            height: 42,
+            onTap: () => autoWrapReportDialog(
+              context,
+              ban: false,
+              ReportOptions.imMsgReport,
+              (reasonType, reasonDesc, banUid) =>
+                  _whisperDetailController.onReport(
+                    item,
+                    reasonType,
+                    reasonType == 0
+                        ? reasonDesc!
+                        : ReportOptions.imMsgReport['']![reasonType]!,
+                  ),
+            ),
+            child: const Text('举报', style: TextStyle(fontSize: 14)),
+          ),
+      ],
+    );
+  }
+
+  void onLongPress(int index, Msg item, bool isOwner) {
+    Feedback.forLongPress(context);
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           clipBehavior: Clip.hardEdge,
           contentPadding: const EdgeInsets.symmetric(vertical: 12),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                onTap: () {
-                  Get.back();
-                  _whisperDetailController.sendMsg(
-                    message: '${item.msgKey}',
-                    onClearText: editController.clear,
-                    msgType: 5,
-                    index: index,
-                  );
-                },
-                dense: true,
-                title: const Text(
-                  '撤回',
-                  style: TextStyle(fontSize: 14),
+          content: isOwner
+              ? ListTile(
+                  onTap: () {
+                    Get.back();
+                    _whisperDetailController.sendMsg(
+                      message: '${item.msgKey}',
+                      onClearText: editController.clear,
+                      msgType: 5,
+                      index: index,
+                    );
+                  },
+                  dense: true,
+                  title: const Text('撤回', style: TextStyle(fontSize: 14)),
+                )
+              : ListTile(
+                  onTap: () {
+                    Get.back();
+                    autoWrapReportDialog(
+                      context,
+                      ban: false,
+                      ReportOptions.imMsgReport,
+                      (reasonType, reasonDesc, banUid) =>
+                          _whisperDetailController.onReport(
+                            item,
+                            reasonType,
+                            reasonType == 0
+                                ? reasonDesc!
+                                : ReportOptions.imMsgReport['']![reasonType]!,
+                          ),
+                    );
+                  },
+                  dense: true,
+                  title: const Text('举报', style: TextStyle(fontSize: 14)),
                 ),
-              ),
-            ],
-          ),
         );
       },
     );
@@ -359,9 +417,7 @@ class _WhisperDetailPageState
   }
 
   @override
-  Future<void> onMention([bool fromClick = false]) {
-    return Future.syncValue(null);
-  }
+  Future<void>? onMention([bool fromClick = false]) => null;
 
   @override
   void onSave() {}

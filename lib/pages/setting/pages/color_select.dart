@@ -39,8 +39,7 @@ class Item {
 
 class _ColorSelectPageState extends State<ColorSelectPage> {
   final ctr = Get.put(ColorSelectController());
-  FlexSchemeVariant _dynamicSchemeVariant =
-      FlexSchemeVariant.values[Pref.schemeVariant];
+  FlexSchemeVariant _dynamicSchemeVariant = Pref.schemeVariant;
 
   @override
   Widget build(BuildContext context) {
