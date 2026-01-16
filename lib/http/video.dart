@@ -38,7 +38,7 @@ import 'package:flutter/foundation.dart' show compute;
 
 /// view层根据 status 判断渲染逻辑
 abstract final class VideoHttp {
-  static RegExp zoneRegExp = RegExp(Pref.banWordForZone, caseSensitive: false);
+  static RegExp zoneRegExp = RegExp(Pref.parseBanWordToRegex(Pref.banWordForZone), caseSensitive: false);
   static bool enableFilter = zoneRegExp.pattern.isNotEmpty;
 
   // 首页推荐视频

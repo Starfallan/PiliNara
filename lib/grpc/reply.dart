@@ -10,7 +10,7 @@ import 'package:fixnum/fixnum.dart';
 abstract final class ReplyGrpc {
   static bool antiGoodsReply = Pref.antiGoodsReply;
   static RegExp replyRegExp = RegExp(
-    Pref.banWordForReply,
+    Pref.parseBanWordToRegex(Pref.banWordForReply),
     caseSensitive: false,
   );
   static bool enableFilter = replyRegExp.pattern.isNotEmpty;

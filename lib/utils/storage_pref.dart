@@ -59,6 +59,20 @@ abstract final class Pref {
     _localCache.put(LocalCacheKey.blackMids, blackMidsSet);
   }
 
+  static Set<int> get dynamicsBlockedMids =>
+      _localCache.get(LocalCacheKey.dynamicsBlockedMids, defaultValue: <int>{});
+
+  static set dynamicsBlockedMids(Set<int> blockedMidsSet) {
+    _localCache.put(LocalCacheKey.dynamicsBlockedMids, blockedMidsSet);
+  }
+
+  static Set<int> get recommendBlockedMids =>
+      _localCache.get(LocalCacheKey.recommendBlockedMids, defaultValue: <int>{});
+
+  static set recommendBlockedMids(Set<int> blockedMidsSet) {
+    _localCache.put(LocalCacheKey.recommendBlockedMids, blockedMidsSet);
+  }
+
   static RuleFilter get danmakuFilterRule => _localCache.get(
     LocalCacheKey.danmakuFilterRules,
     defaultValue: RuleFilter.empty(),
@@ -580,6 +594,54 @@ abstract final class Pref {
 
   static String get banWordForDyn =>
       _setting.get(SettingBoxKey.banWordForDyn, defaultValue: '');
+
+  /// Helper method to parse ban word storage format into regex pattern
+  /// Supports both old (pipe-separated) and new (newline-separated) formats
+  /// Returns a regex pattern string with proper alternation
+  static String parseBanWordToRegex(String stored) {
+    if (stored.isEmpty) return '';
+    
+    List<String> items;
+    
+    // Check if it's the old pipe-separated format (no newlines)
+    if (!stored.contains('\n') && stored.contains('|')) {
+      // Old format: pipe-separated
+      // Heuristic: if it looks like multiple short items, it's old format
+      final parts = stored.split('|').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      
+      if (parts.length > 1) {
+        final hasComplexRegex = parts.any((p) => 
+          p.contains('(') || p.contains('[') || p.contains('{') || 
+          p.contains('\\') || p.contains('^') || p.contains('\$')
+        );
+        
+        if (!hasComplexRegex) {
+          // Old format with simple keywords
+          items = parts;
+        } else {
+          // Single complex regex - use as-is
+          return stored;
+        }
+      } else {
+        // Single item, keep as-is
+        return stored;
+      }
+    } else {
+      // New format: newline-separated
+      items = stored.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    }
+    
+    if (items.isEmpty) return '';
+    
+    // Build regex by joining all patterns with alternation
+    return items.map((item) {
+      // If the item contains '|' and isn't already grouped, wrap it
+      if (item.contains('|') && !item.startsWith('(')) {
+        return '($item)';
+      }
+      return item;
+    }).join('|');
+  }
 
   static bool get enableLog =>
       _setting.get(SettingBoxKey.enableLog, defaultValue: true);
