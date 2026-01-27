@@ -406,6 +406,9 @@ SettingsModel getListUidModel({
         SmartDialog.showToast('已保存');
       }
     },
+  );
+}
+
 SettingsModel getPopupMenuModel({
   required String title,
   Widget? leading,
