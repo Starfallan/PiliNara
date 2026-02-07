@@ -805,6 +805,13 @@ class _AudioPageState extends State<AudioPage> {
           ),
         ),
         IconButton(
+          onPressed: () => PageUtils.scheduleExit(context, false),
+          icon: const Icon(
+            size: 26,
+            Icons.schedule,
+          ),
+        ),
+        IconButton(
           onPressed: _controller.playPrev,
           icon: const Icon(
             size: 40,
