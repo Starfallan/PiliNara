@@ -1,0 +1,24 @@
+{
+    "name": "Flutter Android Dev",
+    "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+    "features": {
+        // 安装 Java 17
+        "ghcr.io/devcontainers/features/java:1": {
+            "version": "17",
+            "jdkDistro": "zulu"
+        },
+        // 安装 Flutter (它会自动处理 Android SDK)
+        "ghcr.io/lucas-moura/devcontainer-features/flutter:1": {
+            "version": "3.38.6"
+        }
+    },
+    "postCreateCommand": "bash .devcontainer/post-install.sh",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "Dart-Code.flutter",
+                "Dart-Code.dart-code"
+            ]
+        }
+    }
+}

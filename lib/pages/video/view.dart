@@ -47,6 +47,7 @@ import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
 import 'package:PiliPlus/plugin/pl_player/view.dart';
 import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/services/shutdown_timer_service.dart';
+import 'package:PiliPlus/services/pip_overlay_service.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/extension/scroll_controller_ext.dart';
@@ -130,6 +131,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   @override
   void initState() {
     super.initState();
+    if (PipOverlayService.isInPipMode) {
+      PipOverlayService.stopPip(callOnClose: false, immediate: true);
+    }
 
     PlPlayerController.setPlayCallBack(playCallBack);
     videoDetailController = Get.put(VideoDetailController(), tag: heroTag);
@@ -322,6 +326,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
   @override
   void dispose() {
+    final isInAppPip = PipOverlayService.isInPipMode;
     plPlayerController
       ?..removeStatusLister(playerListener)
       ..removePositionListener(positionListener);
@@ -332,7 +337,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       tag: videoDetailController.heroTag,
     );
 
-    if (!Get.previousRoute.startsWith('/video')) {
+    if (!Get.previousRoute.startsWith('/video') && !isInAppPip) {
       if (Platform.isAndroid && !videoDetailController.setSystemBrightness) {
         ScreenBrightnessPlatform.instance.resetApplicationScreenBrightness();
       }
@@ -353,12 +358,16 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     }
     shutdownTimerService.handleWaitingFinished();
     if (!videoDetailController.plPlayerController.isCloseAll) {
-      videoPlayerServiceHandler?.onVideoDetailDispose(heroTag);
-      if (plPlayerController != null) {
+      if (isInAppPip) {
         videoDetailController.makeHeartBeat();
-        plPlayerController!.dispose();
       } else {
-        PlPlayerController.updatePlayCount();
+        videoPlayerServiceHandler?.onVideoDetailDispose(heroTag);
+        if (plPlayerController != null) {
+          videoDetailController.makeHeartBeat();
+          plPlayerController!.dispose();
+        } else {
+          PlPlayerController.updatePlayCount();
+        }
       }
     }
     PageUtils.routeObserver.unsubscribe(this);
@@ -2187,11 +2196,55 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     if (plPlayerController?.onPopInvokedWithResult(didPop, result) ?? false) {
       return;
     }
+    if (didPop) {
+      _startInAppPipIfNeeded();
+    }
     if (PlatformUtils.isMobile &&
         !videoDetailController.horizontalScreen &&
         !isPortrait) {
       verticalScreenForTwoSeconds();
     }
+  }
+
+  bool _shouldStartInAppPip() {
+    if (PipOverlayService.isInPipMode) {
+      return false;
+    }
+    plPlayerController ??= videoDetailController.plPlayerController;
+    final controller = plPlayerController;
+    if (controller == null || controller.videoController == null) {
+      return false;
+    }
+    if (controller.isDesktopPip || controller.isPipMode) {
+      return false;
+    }
+    if (!videoDetailController.autoPlay.value) {
+      return false;
+    }
+    if (VideoStackManager.isReturningToVideo()) {
+      return false;
+    }
+    return true;
+  }
+
+  void _startInAppPipIfNeeded() {
+    if (!_shouldStartInAppPip()) {
+      return;
+    }
+    PipOverlayService.startPip(
+      context: context,
+      videoPlayerBuilder: (_) => plPlayer(
+        width: PipOverlayService.pipWidth,
+        height: PipOverlayService.pipHeight,
+        isPipMode: true,
+      ),
+      onClose: () {
+        PipOverlayService.stopPip(callOnClose: false, immediate: true);
+      },
+      onTapToReturn: () {
+        Get.toNamed('/videoV', arguments: videoDetailController.args);
+      },
+    );
   }
 
   void onShowMemberPage(int? mid) {

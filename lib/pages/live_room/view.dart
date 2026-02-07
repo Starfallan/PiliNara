@@ -29,6 +29,7 @@ import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/danmaku_options.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
 import 'package:PiliPlus/plugin/pl_player/view.dart';
+import 'package:PiliPlus/services/live_pip_overlay_service.dart';
 import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/extension/size_ext.dart';
@@ -75,6 +76,11 @@ class _LiveRoomPageState extends State<LiveRoomPage>
       LiveRoomController(heroTag),
       tag: heroTag,
     );
+    if (LivePipOverlayService.isCurrentLiveRoom(
+      _liveRoomController.roomId,
+    )) {
+      LivePipOverlayService.stopLivePip(callOnClose: false);
+    }
     plPlayerController = _liveRoomController.plPlayerController;
     PlPlayerController.setPlayCallBack(plPlayerController.play);
     plPlayerController
@@ -152,15 +158,22 @@ class _LiveRoomPageState extends State<LiveRoomPage>
 
   @override
   void dispose() {
-    videoPlayerServiceHandler?.onVideoDetailDispose(heroTag);
+    final isInLivePip =
+        LivePipOverlayService.isCurrentLiveRoom(_liveRoomController.roomId);
+    if (!isInLivePip) {
+      videoPlayerServiceHandler?.onVideoDetailDispose(heroTag);
+    }
     WidgetsBinding.instance.removeObserver(this);
     if (Platform.isAndroid && !plPlayerController.setSystemBrightness) {
       ScreenBrightnessPlatform.instance.resetApplicationScreenBrightness();
     }
-    PlPlayerController.setPlayCallBack(null);
-    plPlayerController
-      ..removeStatusLister(playerListener)
-      ..dispose();
+    if (!isInLivePip) {
+      PlPlayerController.setPlayCallBack(null);
+    }
+    plPlayerController.removeStatusLister(playerListener);
+    if (!isInLivePip) {
+      plPlayerController.dispose();
+    }
     PageUtils.routeObserver.unsubscribe(this);
     for (final e in LiveContributionRankType.values) {
       Get.delete<ContributionRankController>(
@@ -356,8 +369,48 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     }
     return PopScope(
       canPop: !isFullScreen && !plPlayerController.isDesktopPip,
-      onPopInvokedWithResult: plPlayerController.onPopInvokedWithResult,
+      onPopInvokedWithResult: _onPopInvokedWithResult,
       child: player,
+    );
+  }
+
+  void _onPopInvokedWithResult(bool didPop, result) {
+    if (plPlayerController.onPopInvokedWithResult(didPop, result)) {
+      return;
+    }
+    if (didPop) {
+      _startLivePipIfNeeded();
+    }
+  }
+
+  bool _shouldStartLivePip() {
+    if (LivePipOverlayService.isInPipMode) {
+      return false;
+    }
+    if (plPlayerController.isDesktopPip || plPlayerController.isPipMode) {
+      return false;
+    }
+    if (!plPlayerController.isLive) {
+      return false;
+    }
+    return true;
+  }
+
+  void _startLivePipIfNeeded() {
+    if (!_shouldStartLivePip()) {
+      return;
+    }
+    LivePipOverlayService.startLivePip(
+      context: context,
+      heroTag: heroTag,
+      roomId: _liveRoomController.roomId,
+      plPlayerController: plPlayerController,
+      onClose: () {
+        LivePipOverlayService.stopLivePip(callOnClose: false);
+      },
+      onReturn: () {
+        Get.toNamed('/liveRoom', arguments: _liveRoomController.roomId);
+      },
     );
   }
 

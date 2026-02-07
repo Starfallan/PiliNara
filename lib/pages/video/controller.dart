@@ -55,6 +55,7 @@ import 'package:PiliPlus/plugin/pl_player/models/data_source.dart';
 import 'package:PiliPlus/plugin/pl_player/models/heart_beat_type.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/services/download/download_service.dart';
+import 'package:PiliPlus/services/pip_overlay_service.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/duration_utils.dart';
 import 'package:PiliPlus/utils/extension/context_ext.dart';
@@ -312,6 +313,7 @@ class VideoDetailController extends GetxController
   @override
   void onInit() {
     super.onInit();
+    VideoStackManager.increment();
     args = Get.arguments;
     videoType = args['videoType'];
     if (videoType == VideoType.pgc) {
@@ -1655,6 +1657,7 @@ class VideoDetailController extends GetxController
 
   @override
   void onClose() {
+    VideoStackManager.decrement();
     cancelSkipTimer();
     positionSubscription?.cancel();
     positionSubscription = null;
