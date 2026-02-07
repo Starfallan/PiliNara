@@ -1,10 +1,10 @@
 import 'package:PiliPlus/common/constants.dart';
-import 'package:PiliPlus/pages/setting/widgets/list_editor_dialog.dart';
 import 'package:PiliPlus/models/common/enum_with_label.dart';
 import 'package:PiliPlus/pages/setting/widgets/normal_item.dart';
 import 'package:PiliPlus/pages/setting/widgets/popup_item.dart';
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/switch_item.dart';
+import 'package:PiliPlus/pages/setting/widgets/list_editor_dialog.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:flutter/material.dart' hide PopupMenuItemSelected;
 import 'package:flutter/services.dart' show FilteringTextInputFormatter;
@@ -150,153 +150,11 @@ class SwitchModel extends SettingsModel {
   );
 }
 
-SettingsModel getBanWordModel({
-  required String title,
-  required String key,
-  required ValueChanged<RegExp> onChanged,
-}) {
-  String banWord = GStorage.setting.get(key, defaultValue: '');
-  return NormalModel(
-    leading: const Icon(Icons.filter_alt_outlined),
-    title: title,
-    getSubtitle: () => banWord.isEmpty ? "点击添加" : banWord,
-    onTap: (context, setState) {
-      String editValue = banWord;
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          constraints: StyleString.dialogFixedConstraints,
-          title: Text(title),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('使用|隔开，如：尝试|测试'),
-              TextFormField(
-                autofocus: true,
-                initialValue: editValue,
-                textInputAction: TextInputAction.newline,
-                minLines: 1,
-                maxLines: 4,
-                onChanged: (value) => editValue = value,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: Get.back,
-              child: Text(
-                '取消',
-                style: TextStyle(color: ColorScheme.of(context).outline),
-              ),
-            ),
-            TextButton(
-              child: const Text('保存'),
-              onPressed: () {
-                Get.back();
-                banWord = editValue;
-                setState();
-                onChanged(RegExp(banWord, caseSensitive: false));
-                SmartDialog.showToast('已保存');
-                GStorage.setting.put(key, banWord);
-              },
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
-
-SettingsModel getVideoFilterSelectModel({
-  required String title,
-  String? subtitle,
-  String? suffix,
-  required String key,
-  required List<int> values,
-  int defaultValue = 0,
-  bool isFilter = true,
-  ValueChanged<int>? onChanged,
-}) {
-  assert(!isFilter || onChanged != null);
-  int value = GStorage.setting.get(key, defaultValue: defaultValue);
-  return NormalModel(
-    title: '$title${isFilter ? '过滤' : ''}',
-    leading: const Icon(Icons.timelapse_outlined),
-    subtitle: subtitle,
-    getSubtitle: subtitle == null
-        ? () => isFilter
-              ? '过滤掉$title小于「$value${suffix ?? ""}」的视频'
-              : '当前$title:「$value${suffix ?? ""}」'
-        : null,
-    onTap: (context, setState) async {
-      var result = await showDialog<int>(
-        context: context,
-        builder: (context) => SelectDialog<int>(
-          title: '选择$title${isFilter ? '（0即不过滤）' : ''}',
-          value: value,
-          values:
-              (values
-                    ..addIf(!values.contains(value), value)
-                    ..sort())
-                  .map(
-                    (e) => (e, suffix == null ? e.toString() : '$e $suffix'),
-                  )
-                  .toList()
-                ..add((-1, '自定义')),
-        ),
-      );
-      if (result != null) {
-        if (result == -1 && context.mounted) {
-          String valueStr = '';
-          await showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: Text('自定义$title'),
-              content: TextField(
-                autofocus: true,
-                onChanged: (value) => valueStr = value,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: InputDecoration(suffixText: suffix),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: Get.back,
-                  child: Text(
-                    '取消',
-                    style: TextStyle(color: ColorScheme.of(context).outline),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    try {
-                      result = int.parse(valueStr);
-                      Get.back();
-                    } catch (e) {
-                      SmartDialog.showToast(e.toString());
-                    }
-                  },
-                  child: const Text('确定'),
-                ),
-              ],
-            ),
-          );
-        }
-        if (result != -1) {
-          value = result!;
-          setState();
-          onChanged?.call(result!);
-          GStorage.setting.put(key, result);
-        }
-      }
-    },
-  );
-}
-
 /// Creates a list-based keyword filter model using ListEditorDialog
 /// Items are stored as newline-separated strings (instead of pipe-separated)
 /// to support regex patterns containing '|' character
+/// 
+/// 使用 getListBanWordModel 替代了上游的 getBanWordModel
 SettingsModel getListBanWordModel({
   required String title,
   required String key,
@@ -312,13 +170,9 @@ SettingsModel getListBanWordModel({
     // If it contains no newlines but has pipes, it's likely old format
     if (!data.contains('\n') && data.contains('|')) {
       // Old format: pipe-separated
-      // But we need to be careful - single regex pattern can also have pipes
-      // Heuristic: if it looks like multiple short items separated by pipes,
-      // it's probably old format. If it's a complex regex, keep it as-is.
       final parts = data.split('|').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
       
-      // If after splitting we get multiple items and none look like complex regex
-      // (e.g., don't contain parentheses, brackets, etc.), treat as old format
+      // Heuristic: check for complex regex
       if (parts.length > 1) {
         final hasComplexRegex = parts.any((p) => 
           p.contains('(') || p.contains('[') || p.contains('{') || 
@@ -387,6 +241,8 @@ SettingsModel getListBanWordModel({
 }
 
 /// Creates a list-based UID filter model using ListEditorDialog
+/// 
+/// 使用 getListUidModel 替代了上游的 getUidModel
 SettingsModel getListUidModel({
   required String title,
   required Set<int> Function() getUids,
@@ -441,60 +297,89 @@ SettingsModel getListUidModel({
   );
 }
 
-SettingsModel getPopupMenuModel({
+SettingsModel getVideoFilterSelectModel({
   required String title,
-  Widget? leading,
   String? subtitle,
+  String? suffix,
   required String key,
-  required List<EnumWithLabel> values,
-  int defaultIndex = 0,
+  required List<int> values,
+  int defaultValue = 0,
+  bool isFilter = true,
+  ValueChanged<int>? onChanged,
 }) {
-  // final globalKey = GlobalKey<PopupMenuButtonState<EnumWithLabel>>();
+  assert(!isFilter || onChanged != null);
+  int value = GStorage.setting.get(key, defaultValue: defaultValue);
   return NormalModel(
-    title: title,
+    title: '$title${isFilter ? '过滤' : ''}',
+    leading: const Icon(Icons.timelapse_outlined),
     subtitle: subtitle,
-    leading: leading,
-    // onTap: (context, setState) => globalKey.currentState?.showButtonMenu(),
-    getTrailing: () => Builder(
-      builder: (context) {
-        final color = ColorScheme.of(context).secondary;
-        final v = values[GStorage.setting.get(key, defaultValue: defaultIndex)];
-        return PopupMenuButton(
-          // key: globalKey,
-          padding: .zero,
-          initialValue: v,
-          onSelected: (value) async {
-            await GStorage.setting.put(key, value.index);
-            if (context.mounted) {
-              (context as Element).markNeedsBuild();
-            }
-          },
-          itemBuilder: (context) => values
-              .map((i) => PopupMenuItem(value: i, child: Text(i.label)))
-              .toList(),
-          child: Padding(
-            padding: const .symmetric(vertical: 8),
-            child: Text.rich(
-              style: TextStyle(fontSize: 14, height: 1, color: color),
-              strutStyle: const StrutStyle(leading: 0, height: 1, fontSize: 14),
-              TextSpan(
-                children: [
-                  TextSpan(text: v.label),
-                  WidgetSpan(
-                    alignment: .middle,
-                    child: Icon(
-                      size: 14,
-                      MdiIcons.unfoldMoreHorizontal,
-                      color: color,
-                    ),
-                  ),
-                ],
-                style: TextStyle(color: color),
+    getSubtitle: subtitle == null
+        ? () => isFilter
+              ? '过滤掉$title小于「$value${suffix ?? ""}」的视频'
+              : '当前$title:「$value${suffix ?? ""}」'
+        : null,
+    onTap: (context, setState) async {
+      var result = await showDialog<int>(
+        context: context,
+        builder: (context) => SelectDialog<int>(
+          title: '选择$title${isFilter ? '（0即不过滤）' : ''}',
+          value: value,
+          values:
+              (values
+                    ..addIf(!values.contains(value), value)
+                    ..sort())
+                  .map(
+                    (e) => (e, suffix == null ? e.toString() : '$e $suffix'),
+                  )
+                  .toList()
+                ..add((-1, '自定义')),
+        ),
+      );
+      if (result != null) {
+        if (result == -1 && context.mounted) {
+          String valueStr = '';
+          await showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text('自定义$title'),
+              content: TextField(
+                autofocus: true,
+                onChanged: (value) => valueStr = value,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: InputDecoration(suffixText: suffix),
               ),
+              actions: [
+                TextButton(
+                  onPressed: Get.back,
+                  child: Text(
+                    '取消',
+                    style: TextStyle(color: ColorScheme.of(context).outline),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    // 上游修复：增加了 try-catch 防止解析错误
+                    try {
+                      result = int.parse(valueStr);
+                      Get.back();
+                    } catch (e) {
+                      SmartDialog.showToast(e.toString());
+                    }
+                  },
+                  child: const Text('确定'),
+                ),
+              ],
             ),
-          ),
-        );
-      },
-    ),
+          );
+        }
+        if (result != -1) {
+          value = result!;
+          setState();
+          onChanged?.call(result!);
+          GStorage.setting.put(key, result);
+        }
+      }
+    },
   );
 }
