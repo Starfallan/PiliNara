@@ -86,6 +86,11 @@ class _AudioPageState extends State<AudioPage> {
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
         actions: [
+          // 在听视频界面添加定时关闭按钮
+          IconButton(
+            onPressed: () => PageUtils.scheduleExit(context, false),
+            icon: const Icon(Icons.schedule),
+          ),
           Builder(
             builder: (context) {
               return PopupMenuButton<ListOrder>(
@@ -802,13 +807,6 @@ class _AudioPageState extends State<AudioPage> {
               size: 26,
               _controller.playMode.value.icon,
             ),
-          ),
-        ),
-        IconButton(
-          onPressed: () => PageUtils.scheduleExit(context, false),
-          icon: const Icon(
-            size: 26,
-            Icons.schedule,
           ),
         ),
         IconButton(
