@@ -157,6 +157,12 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         Get.put(savedController, tag: heroTag);
         PipOverlayService.stopPip(callOnClose: false, immediate: true);
         _logSponsorBlock('Restored controller from PiP, hashCode: ${savedController.hashCode}, segmentList.length: ${savedController.segmentList.length}');
+        
+        // 强制刷新 UI 状态
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          videoDetailController.videoState.refresh();
+          videoDetailController.cid.refresh();
+        });
       } else {
         // 没有保存的控制器，创建新的
         PipOverlayService.stopPip(callOnClose: false, immediate: true);
@@ -171,22 +177,51 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     }
 
     if (videoDetailController.showReply) {
-      _videoReplyController = Get.put(
-        VideoReplyController(
-          aid: videoDetailController.aid,
-          videoType: videoDetailController.videoType,
-          heroTag: heroTag,
-        ),
-        tag: heroTag,
-      );
+      // 尝试从 PiP 恢复 ReplyController
+      final savedReplyController = fromPip ? PipOverlayService.getAdditionalController<VideoReplyController>('reply') : null;
+      if (savedReplyController != null) {
+        _videoReplyController = savedReplyController;
+        Get.put(savedReplyController, tag: heroTag);
+        _logSponsorBlock('Restored VideoReplyController from PiP');
+      } else {
+        _videoReplyController = Get.put(
+          VideoReplyController(
+            aid: videoDetailController.aid,
+            videoType: videoDetailController.videoType,
+            heroTag: heroTag,
+          ),
+          tag: heroTag,
+        );
+      }
     }
 
+    // 尝试从 PiP 恢复 IntroController
+    final savedIntroController = fromPip ? PipOverlayService.getAdditionalController('intro') : null;
+    
     if (videoDetailController.isFileSource) {
-      localIntroController = Get.put(LocalIntroController(), tag: heroTag);
+      if (savedIntroController != null && savedIntroController is LocalIntroController) {
+        localIntroController = savedIntroController;
+        Get.put(localIntroController, tag: heroTag);
+        _logSponsorBlock('Restored LocalIntroController from PiP');
+      } else {
+        localIntroController = Get.put(LocalIntroController(), tag: heroTag);
+      }
     } else if (videoDetailController.isUgc) {
-      ugcIntroController = Get.put(UgcIntroController(), tag: heroTag);
+      if (savedIntroController != null && savedIntroController is UgcIntroController) {
+        ugcIntroController = savedIntroController;
+        Get.put(ugcIntroController, tag: heroTag);
+        _logSponsorBlock('Restored UgcIntroController from PiP');
+      } else {
+        ugcIntroController = Get.put(UgcIntroController(), tag: heroTag);
+      }
     } else {
-      pgcIntroController = Get.put(PgcIntroController(), tag: heroTag);
+      if (savedIntroController != null && savedIntroController is PgcIntroController) {
+        pgcIntroController = savedIntroController;
+        Get.put(pgcIntroController, tag: heroTag);
+        _logSponsorBlock('Restored PgcIntroController from PiP');
+      } else {
+        pgcIntroController = Get.put(PgcIntroController(), tag: heroTag);
+      }
     }
 
     if (fromPip) {
@@ -205,22 +240,17 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
       _logSponsorBlock('Returning from PiP, segmentList.length: ${videoDetailController.segmentList.length}');
 
-      videoDetailController.videoState.value = LoadingState.loading();
-      videoDetailController
-          .queryVideoUrl(
-            defaultST: videoDetailController.playedTime,
-            fromReset: true,
-            reinitializePlayer: false,
-          )
-          .then((_) {
-            if (videoDetailController.videoState.value is! Error) {
-              videoDetailController.videoState.value = const Success(null);
-            }
-            _logSponsorBlock('After queryVideoUrl, segmentList.length: ${videoDetailController.segmentList.length}');
-          })
-          .catchError((e) {
-            videoDetailController.videoState.value = Error(e.toString());
-          });
+      // 不重新查询，直接设置为成功状态
+      videoDetailController.videoState.value = const Success(null);
+      
+      // 确保 SponsorBlock 监听器正常工作
+      if (videoDetailController.plPlayerController.enableSponsorBlock && 
+          videoDetailController.segmentList.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          videoDetailController.initSkip();
+          _logSponsorBlock('Re-initialized SponsorBlock after PiP return, segmentList.length: ${videoDetailController.segmentList.length}');
+        });
+      }
     } else {
       videoSourceInit();
     }
@@ -2329,8 +2359,31 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     _isEnteringPipMode = true;
     _logSponsorBlock('Starting PiP mode, segmentList.length: ${videoDetailController.segmentList.length}');
 
+    // 保存所有相关控制器
+    final additionalControllers = <String, dynamic>{};
+    if (videoDetailController.showReply) {
+      try {
+        additionalControllers['reply'] = Get.find<VideoReplyController>(tag: heroTag);
+      } catch (_) {}
+    }
+    if (videoDetailController.isFileSource) {
+      try {
+        additionalControllers['intro'] = Get.find<LocalIntroController>(tag: heroTag);
+      } catch (_) {}
+    } else if (videoDetailController.isUgc) {
+      try {
+        additionalControllers['intro'] = Get.find<UgcIntroController>(tag: heroTag);
+      } catch (_) {}
+    } else {
+      try {
+        additionalControllers['intro'] = Get.find<PgcIntroController>(tag: heroTag);
+      } catch (_) {}
+    }
+    _logSponsorBlock('Saved ${additionalControllers.length} additional controllers');
+
     PipOverlayService.startPip(
       controller: videoDetailController,
+      additionalControllers: additionalControllers,
       context: context,
       videoPlayerBuilder: (_) => plPlayer(
         width: PipOverlayService.pipWidth,
@@ -2355,7 +2408,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         
         // 重置标志
         _isEnteringPipMode = false;
-        _logSponsorBlock('Tap to return from PiP, segmentList.length: ${videoDetailController.segmentList.length}');
+        _logSponsorBlock('Tap to return from PiP, args contains: bvid=${args['bvid']}, cid=${args['cid']}, heroTag=${args['heroTag']}, title=${args['title']}, segmentList.length: ${videoDetailController.segmentList.length}');
         
         Get.toNamed('/videoV', arguments: args);
       },

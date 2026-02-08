@@ -47,8 +47,8 @@ class LiveRoomController extends GetxController {
   LiveRoomController(this.heroTag);
   final String heroTag;
 
-  late final int roomId;
-  late final bool isReturningFromPip;
+  int roomId = Get.arguments;
+  bool isReturningFromPip = false;
   int? ruid;
   DanmakuController<DanmakuExtra>? danmakuController;
   PlPlayerController plPlayerController = PlPlayerController.getInstance(
@@ -57,6 +57,9 @@ class LiveRoomController extends GetxController {
 
   RxBool isLoaded = false.obs;
   Rx<RoomInfoH5Data?> roomInfoH5 = Rx<RoomInfoH5Data?>(null);
+  
+  // PiP 模式标志
+  RxBool isInPipMode = false.obs;
 
   Rx<int?> liveTime = Rx<int?>(null);
   Timer? liveTimeTimer;
@@ -185,19 +188,23 @@ class LiveRoomController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    final args = Get.arguments;
-    if (args is Map) {
-      roomId = (args['roomId'] as int?) ?? (args['id'] as int? ?? 0);
-      isReturningFromPip = args['fromPip'] == true;
-    } else {
-      roomId = args as int;
-      isReturningFromPip = false;
-    }
     scrollController = ScrollController()..addListener(listener);
     final account = Accounts.heartbeat;
     isLogin = account.isLogin;
     mid = account.mid;
-    queryLiveUrl(reinitializePlayer: !isReturningFromPip);
+    
+    // 检查是否从 PiP 返回
+    isReturningFromPip = LivePipOverlayService.isCurrentLiveRoom(roomId);
+    
+    if (!isReturningFromPip) {
+      // 正常流程：查询直播流地址
+      queryLiveUrl();
+    } else {
+      // 从 PiP 返回：播放器已在运行，只需恢复状态
+      isPortrait.value = plPlayerController.isVertical;
+      isLoaded.value = true;
+    }
+    
     queryLiveInfoH5();
     if (isLogin && !Pref.historyPause) {
       VideoHttp.roomEntryAction(roomId: roomId);

@@ -34,6 +34,7 @@ class PipOverlayService {
   
   // 保存控制器引用，防止被 GC
   static dynamic _savedController;
+  static final Map<String, dynamic> _savedControllers = {};
 
   static void startPip({
     required BuildContext context,
@@ -41,6 +42,7 @@ class PipOverlayService {
     VoidCallback? onClose,
     VoidCallback? onTapToReturn,
     dynamic controller,
+    Map<String, dynamic>? additionalControllers,
   }) {
     if (isInPipMode) {
       return;
@@ -50,6 +52,9 @@ class PipOverlayService {
     _onCloseCallback = onClose;
     _onTapToReturnCallback = onTapToReturn;
     _savedController = controller;
+    if (additionalControllers != null) {
+      _savedControllers.addAll(additionalControllers);
+    }
 
     _overlayEntry = OverlayEntry(
       builder: (context) => PipWidget(
@@ -81,6 +86,8 @@ class PipOverlayService {
   }
 
   static T? getSavedController<T>() => _savedController as T?;
+  
+  static T? getAdditionalController<T>(String key) => _savedControllers[key] as T?;
 
   static void stopPip({bool callOnClose = true, bool immediate = false}) {
     if (!isInPipMode && _overlayEntry == null) {
@@ -93,6 +100,7 @@ class PipOverlayService {
     _onCloseCallback = null;
     _onTapToReturnCallback = null;
     _savedController = null;
+    _savedControllers.clear();
 
     final overlayToRemove = _overlayEntry;
     _overlayEntry = null;

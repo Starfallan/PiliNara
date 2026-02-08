@@ -905,10 +905,13 @@ class VideoDetailController extends GetxController
                       onSkip(item, isSeek: false);
                       break;
                     case SkipType.skipOnce:
+                      _logSponsorBlock('Detected skip-once segment at ${item.segment.first}ms, hasSkipped: ${item.hasSkipped}');
                       if (!item.hasSkipped) {
                         item.hasSkipped = true;
-                        _logSponsorBlock('Skip-once segment at ${item.segment.first}ms');
+                        _logSponsorBlock('Calling onSkip for segment at ${item.segment.first}ms');
                         onSkip(item, isSeek: false);
+                      } else {
+                        _logSponsorBlock('Segment already skipped, ignoring');
                       }
                       break;
                     case SkipType.skipManually:
@@ -1024,10 +1027,12 @@ class VideoDetailController extends GetxController
     bool isSeek = true,
   }) async {
     try {
+      _logSponsorBlock('Attempting to skip segment: ${item.segment.first}ms -> ${item.segment.second}ms');
       await plPlayerController.seekTo(
         Duration(milliseconds: item.segment.second),
         isSeek: isSeek,
       );
+      _logSponsorBlock('Successfully skipped to ${item.segment.second}ms');
       if (isSkip) {
         if (autoPlay.value && Pref.blockToast) {
           _showBlockToast('已跳过${item.segmentType.shortTitle}片段');
@@ -1038,7 +1043,8 @@ class VideoDetailController extends GetxController
       } else {
         _showBlockToast('已跳至${item.segmentType.shortTitle}');
       }
-    } catch (e) {
+    } catch (e, s) {
+      _logSponsorBlock('Failed to skip: $e');
       if (kDebugMode) debugPrint('failed to skip: $e');
       if (isSkip) {
         _showBlockToast('${item.segmentType.shortTitle}片段跳过失败');

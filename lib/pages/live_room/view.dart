@@ -78,34 +78,17 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     final args = Get.arguments;
     final bool fromPip = args is Map && args['fromPip'] == true;
     
-    // 如果从 PiP 返回，尝试恢复保存的控制器
+    // 总是创建/获取控制器，但 onInit 会检测 PiP 状态
+    _liveRoomController = Get.put(
+      LiveRoomController(heroTag),
+      tag: heroTag,
+    );
+    
+    // 如果从 PiP 返回，停止 PiP 覆盖层
     if (fromPip && LivePipOverlayService.isInPipMode) {
-      final savedController = LivePipOverlayService.getSavedController<dynamic>();
-      if (savedController != null) {
-        _liveRoomController = savedController;
-        Get.put(_liveRoomController, tag: heroTag);
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          LivePipOverlayService.stopLivePip(callOnClose: false);
-        });
-      } else {
-        _liveRoomController = Get.put(
-          LiveRoomController(heroTag),
-          tag: heroTag,
-        );
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          LivePipOverlayService.stopLivePip(callOnClose: false);
-        });
-      }
-    } else {
-      _liveRoomController = Get.put(
-        LiveRoomController(heroTag),
-        tag: heroTag,
-      );
-      if (LivePipOverlayService.isCurrentLiveRoom(
-        _liveRoomController.roomId,
-      )) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
         LivePipOverlayService.stopLivePip(callOnClose: false);
-      }
+      });
     }
     plPlayerController = _liveRoomController.plPlayerController;
     PlPlayerController.setPlayCallBack(plPlayerController.play);
