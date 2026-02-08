@@ -40,8 +40,12 @@ class LocalIntroController extends CommonIntroController {
 
   late final Set<String> aidSet = {};
 
+  // 是否正在进入应用内小窗
+  bool isEnteringPip = false;
+
   @override
   void onClose() {
+    if (isEnteringPip) return;
     aidSet.clear();
     videoPlayerServiceHandler?.onVideoDetailDispose(heroTag);
     super.onClose();

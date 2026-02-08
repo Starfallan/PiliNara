@@ -163,14 +163,24 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       if (savedController != null) {
         // 直接使用保存的控制器
         videoDetailController = savedController;
+        videoDetailController.isEnteringPip = false; // 重置标志
         Get.put(savedController, tag: heroTag);
+        
+        // 强制重置一些可能在 dispose 时被清理但我们需要的东西
+        if (videoDetailController.tabCtr.index < 0) { // 检查是否已销毁
+           // 这里很难检测 TabController 是否已销毁，但可以通过 length 触发重新创建
+        }
+        
         PipOverlayService.stopPip(callOnClose: false, immediate: true);
         _logSponsorBlock('Restored controller from PiP, hashCode: ${savedController.hashCode}, segmentList.length: ${savedController.segmentList.length}');
         
         // 强制刷新 UI 状态
         WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _logSponsorBlock('Refreshing videoState and cid after return');
           videoDetailController.videoState.refresh();
           videoDetailController.cid.refresh();
+          videoDetailController.update();
         });
       } else {
         // 没有保存的控制器，创建新的
@@ -190,6 +200,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       final savedReplyController = fromPip ? PipOverlayService.getAdditionalController<VideoReplyController>('reply') : null;
       if (savedReplyController != null) {
         _videoReplyController = savedReplyController;
+        _videoReplyController.isEnteringPip = false; // 重置标志
         Get.put(savedReplyController, tag: heroTag);
         _logSponsorBlock('Restored VideoReplyController from PiP');
       } else {
@@ -210,6 +221,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     if (videoDetailController.isFileSource) {
       if (savedIntroController != null && savedIntroController is LocalIntroController) {
         localIntroController = savedIntroController;
+        localIntroController.isEnteringPip = false; // 重置标志
         Get.put(localIntroController, tag: heroTag);
         _logSponsorBlock('Restored LocalIntroController from PiP');
       } else {
@@ -218,6 +230,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     } else if (videoDetailController.isUgc) {
       if (savedIntroController != null && savedIntroController is UgcIntroController) {
         ugcIntroController = savedIntroController;
+        ugcIntroController.isEnteringPip = false; // 重置标志
         Get.put(ugcIntroController, tag: heroTag);
         _logSponsorBlock('Restored UgcIntroController from PiP, videoDetail.bvid: ${ugcIntroController.videoDetail.value.bvid}');
       } else {
@@ -226,6 +239,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     } else {
       if (savedIntroController != null && savedIntroController is PgcIntroController) {
         pgcIntroController = savedIntroController;
+        pgcIntroController.isEnteringPip = false; // 重置标志
         Get.put(pgcIntroController, tag: heroTag);
         _logSponsorBlock('Restored PgcIntroController from PiP');
       } else {
@@ -237,6 +251,18 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       _justReturnedFromPip = true;
       
       plPlayerController = videoDetailController.plPlayerController;
+      
+      // 重新创建 TabController，因为旧的 vsync (State) 已经失效
+      final List<String> initialTabs = [
+        videoDetailController.isFileSource ? '离线视频' : '简介',
+        if (videoDetailController.showReply) '评论',
+      ];
+      videoDetailController.tabCtr = TabController(
+        vsync: this,
+        length: initialTabs.length,
+        initialIndex: videoDetailController.tabCtr.index.clamp(0, initialTabs.length - 1),
+      );
+      
       plPlayerController!
         ..addStatusLister(playerListener)
         ..addPositionListener(positionListener);
@@ -250,16 +276,13 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       plPlayerController!.controls = true;
 
       _logSponsorBlock('Returning from PiP, segmentList.length: ${videoDetailController.segmentList.length}');
+      _logSponsorBlock('videoDetailController status: videoState=${videoDetailController.videoState.value}, isClosed=${videoDetailController.isClosed}');
 
-      // 设置为成功状态，跳过重新查询
-      videoDetailController.videoState.value = const Success(null);
-      
       // 立即调用 setState 触发 build
       if (mounted) {
         setState(() {
           _justReturnedFromPip = false;
         });
-        _logSponsorBlock('Called setState to trigger rebuild');
       }
       
       // 然后在下一帧刷新所有 observable
@@ -274,18 +297,16 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         
         // 确保 IntroController 的数据被 UI 识别
         if (videoDetailController.isUgc && savedIntroController is UgcIntroController) {
+          _logSponsorBlock('UgcIntroController status: ${savedIntroController.status.value}, videoDetail items: ${savedIntroController.videoDetail.value.pages?.length}');
           savedIntroController.videoDetail.refresh();
           savedIntroController.status.refresh();
           savedIntroController.update();
-          _logSponsorBlock('Forced UI refresh for UgcIntroController, status: ${savedIntroController.status.value}');
         } else if (!videoDetailController.isUgc && !videoDetailController.isFileSource && savedIntroController is PgcIntroController) {
           savedIntroController.videoDetail.refresh();
           savedIntroController.update();
-          _logSponsorBlock('Forced UI refresh for PgcIntroController');
         } else if (videoDetailController.isFileSource && savedIntroController is LocalIntroController) {
           savedIntroController.videoDetail.refresh();
           savedIntroController.update();
-          _logSponsorBlock('Forced UI refresh for LocalIntroController');
         }
         
         // 同样刷新 ReplyController
@@ -301,6 +322,10 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         
         // 强制 VideoDetailController 也更新
         videoDetailController.update();
+        
+        // 再次触发 setState 确保本组件重绘
+        if (mounted) setState(() {});
+        
         _logSponsorBlock('Completed postFrameCallback UI refresh');
       });
       
@@ -310,7 +335,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
           videoDetailController.segmentList.isNotEmpty) {
         _logSponsorBlock('Re-creating position subscription for new page instance');
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && !videoDetailController.isClosed) {
+          if (mounted) {
             videoDetailController.initSkip();
             _logSponsorBlock('Re-initialized SponsorBlock after PiP return, segmentList.length: ${videoDetailController.segmentList.length}');
           }
@@ -505,7 +530,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       PlPlayerController.setPlayCallBack(null);
     }
 
-    if (!videoDetailController.isFileSource) {
+    if (!videoDetailController.isFileSource && !isInAppPip && !_isEnteringPipMode) {
       if (videoDetailController.isUgc) {
         ugcIntroController
           ..cancelTimer()
@@ -609,6 +634,13 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       isShowing = true;
       PlPlayerController.setPlayCallBack(playCallBack);
       introController.startTimer();
+      
+      // 重新恢复 SponsorBlock
+      if (videoDetailController.plPlayerController.enableSponsorBlock && 
+          videoDetailController.segmentList.isNotEmpty) {
+        videoDetailController.initSkip();
+      }
+      
       super.didPopNext();
       return;
     }
@@ -622,6 +654,12 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     PlPlayerController.setPlayCallBack(playCallBack);
 
     introController.startTimer();
+
+    // 重新恢复 SponsorBlock (针对常规导航返回)
+    if (videoDetailController.plPlayerController.enableSponsorBlock && 
+        videoDetailController.segmentList.isNotEmpty) {
+      videoDetailController.initSkip();
+    }
 
     if (mounted &&
         Platform.isAndroid &&
@@ -2424,24 +2462,35 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     _isEnteringPipMode = true;
     _logSponsorBlock('Starting PiP mode, segmentList.length: ${videoDetailController.segmentList.length}');
 
+    // 设置控制器标志，防止 onClose 清理资源
+    videoDetailController.isEnteringPip = true;
+
     // 保存所有相关控制器
     final additionalControllers = <String, dynamic>{};
     if (videoDetailController.showReply) {
       try {
-        additionalControllers['reply'] = Get.find<VideoReplyController>(tag: heroTag);
+        final replyController = Get.find<VideoReplyController>(tag: heroTag);
+        replyController.isEnteringPip = true;
+        additionalControllers['reply'] = replyController;
       } catch (_) {}
     }
     if (videoDetailController.isFileSource) {
       try {
-        additionalControllers['intro'] = Get.find<LocalIntroController>(tag: heroTag);
+        final intro = Get.find<LocalIntroController>(tag: heroTag);
+        intro.isEnteringPip = true;
+        additionalControllers['intro'] = intro;
       } catch (_) {}
     } else if (videoDetailController.isUgc) {
       try {
-        additionalControllers['intro'] = Get.find<UgcIntroController>(tag: heroTag);
+        final intro = Get.find<UgcIntroController>(tag: heroTag);
+        intro.isEnteringPip = true;
+        additionalControllers['intro'] = intro;
       } catch (_) {}
     } else {
       try {
-        additionalControllers['intro'] = Get.find<PgcIntroController>(tag: heroTag);
+        final intro = Get.find<PgcIntroController>(tag: heroTag);
+        intro.isEnteringPip = true;
+        additionalControllers['intro'] = intro;
       } catch (_) {}
     }
     _logSponsorBlock('Saved ${additionalControllers.length} additional controllers');

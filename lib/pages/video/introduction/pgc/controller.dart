@@ -19,6 +19,7 @@ import 'package:PiliPlus/pages/dynamics_repost/view.dart';
 import 'package:PiliPlus/pages/video/pay_coins/view.dart';
 import 'package:PiliPlus/pages/video/reply/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
+import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/utils/extension/iterable_ext.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
@@ -42,6 +43,9 @@ class PgcIntroController extends CommonIntroController {
 
   late final bool isPgc;
   late final PgcInfoModel pgcItem;
+
+  // 是否正在进入应用内小窗
+  bool isEnteringPip = false;
 
   @override
   (Object, int) get getFavRidType => (epId!, 24);
@@ -72,6 +76,17 @@ class PgcIntroController extends CommonIntroController {
       }
       queryVideoTags();
     }
+  }
+
+  @override
+  void onClose() {
+    try {
+      throw Exception('[PgcIntroController] onClose() called, isEnteringPip: $isEnteringPip');
+    } catch (e, s) {
+      logger.e('[PiP Debug]', error: e, stackTrace: s);
+    }
+    if (isEnteringPip) return;
+    super.onClose();
   }
 
   // 获取点赞/投币/收藏状态

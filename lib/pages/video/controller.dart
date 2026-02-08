@@ -107,6 +107,9 @@ class VideoDetailController extends GetxController
   late final RxList<MediaListItemModel> mediaList = <MediaListItemModel>[].obs;
   late String watchLaterTitle;
 
+  // 是否正在进入应用内小窗
+  bool isEnteringPip = false;
+
   /// tabs相关配置
   late TabController tabCtr;
 
@@ -879,7 +882,8 @@ class VideoDetailController extends GetxController
   }
 
   void initSkip() {
-    if (isClosed) return;
+    if (plPlayerController.videoPlayerController == null) return;
+    _lastPos = -1;
     if (segmentList.isNotEmpty) {
       _logSponsorBlock('initSkip() called, segmentList.length: ${segmentList.length}');
       
@@ -902,16 +906,13 @@ class VideoDetailController extends GetxController
               
               // 每 5 秒打印一次位置，确认 stream 在工作
               if (currentPos % 5 == 0) {
-                _logSponsorBlock('Position update: ${currentPos}s (${msPos}ms)');
+                _logSponsorBlock('Position update: ${currentPos}s (${msPos}ms), segmentList.length: ${segmentList.length}');
               }
               
               for (SegmentModel item in segmentList) {
-                // if (kDebugMode) {
-                //   debugPrint(
-                //       '${position.inSeconds},,${item.segment.first},,${item.segment.second},,${item.skipType.name},,${item.hasSkipped}');
-                // }
-                if (msPos <= item.segment.first &&
-                    item.segment.first <= msPos + 1000) {
+                // 判断当前位置是否到达 segment 的开始位置 (1秒偏差内)
+                if (msPos <= item.segment.first && item.segment.first < msPos + 1000) {
+                  _logSponsorBlock('Hit segment start: currentPos=$msPos, segmentStart=${item.segment.first}, hasSkipped=${item.hasSkipped}');
                   switch (item.skipType) {
                     case SkipType.alwaysSkip:
                       _logSponsorBlock('Auto-skipping segment at ${item.segment.first}ms');
@@ -1722,6 +1723,13 @@ class VideoDetailController extends GetxController
 
   @override
   void onClose() {
+    _logSponsorBlock('onClose() called, isEnteringPip: $isEnteringPip');
+    if (isEnteringPip) {
+      // 正在进入小窗，保留资源
+      _logSponsorBlock('onClose() skipping cleanup because isEnteringPip is true');
+      return;
+    }
+    _logSponsorBlock('onClose() proceeding with cleanup');
     VideoStackManager.decrement();
     cancelSkipTimer();
     positionSubscription?.cancel();
