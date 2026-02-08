@@ -37,6 +37,7 @@ class PipOverlayService {
     required Widget Function(bool isPipMode) videoPlayerBuilder,
     VoidCallback? onClose,
     VoidCallback? onTapToReturn,
+    dynamic controller,
   }) {
     if (isInPipMode) {
       return;
@@ -45,6 +46,7 @@ class PipOverlayService {
     isInPipMode = true;
     _onCloseCallback = onClose;
     _onTapToReturnCallback = onTapToReturn;
+    _savedController = controller;
 
     _overlayEntry = OverlayEntry(
       builder: (context) => PipWidget(
@@ -75,6 +77,8 @@ class PipOverlayService {
     });
   }
 
+  static T? getSavedController<T>() => _savedController as T?;
+
   static void stopPip({bool callOnClose = true, bool immediate = false}) {
     if (!isInPipMode && _overlayEntry == null) {
       return;
@@ -85,6 +89,7 @@ class PipOverlayService {
     final closeCallback = callOnClose ? _onCloseCallback : null;
     _onCloseCallback = null;
     _onTapToReturnCallback = null;
+    _savedController = null;
 
     final overlayToRemove = _overlayEntry;
     _overlayEntry = null;

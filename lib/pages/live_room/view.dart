@@ -77,18 +77,35 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     WidgetsBinding.instance.addObserver(this);
     final args = Get.arguments;
     final bool fromPip = args is Map && args['fromPip'] == true;
-    _liveRoomController = Get.put(
-      LiveRoomController(heroTag),
-      tag: heroTag,
-    );
-    if (fromPip) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+    
+    // 如果从 PiP 返回，尝试恢复保存的控制器
+    if (fromPip && LivePipOverlayService.isInPipMode) {
+      final savedController = LivePipOverlayService.getSavedController<dynamic>();
+      if (savedController != null) {
+        _liveRoomController = savedController;
+        Get.put(_liveRoomController, tag: heroTag);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          LivePipOverlayService.stopLivePip(callOnClose: false);
+        });
+      } else {
+        _liveRoomController = Get.put(
+          LiveRoomController(heroTag),
+          tag: heroTag,
+        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          LivePipOverlayService.stopLivePip(callOnClose: false);
+        });
+      }
+    } else {
+      _liveRoomController = Get.put(
+        LiveRoomController(heroTag),
+        tag: heroTag,
+      );
+      if (LivePipOverlayService.isCurrentLiveRoom(
+        _liveRoomController.roomId,
+      )) {
         LivePipOverlayService.stopLivePip(callOnClose: false);
-      });
-    } else if (LivePipOverlayService.isCurrentLiveRoom(
-      _liveRoomController.roomId,
-    )) {
-      LivePipOverlayService.stopLivePip(callOnClose: false);
+      }
     }
     plPlayerController = _liveRoomController.plPlayerController;
     PlPlayerController.setPlayCallBack(plPlayerController.play);
@@ -212,8 +229,6 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     plPlayerController.removeStatusLister(playerListener);
     if (!isInLivePip && !_isEnteringPipMode) {
       plPlayerController.dispose();
-      // 彻底清理控制器
-      Get.delete<LiveRoomController>(tag: heroTag, force: true);
     }
     PageUtils.routeObserver.unsubscribe(this);
     for (final e in LiveContributionRankType.values) {
@@ -447,14 +462,12 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     // 继续播放直播消息
     _liveRoomController.startLiveMsg();
 
-    // 提升为永久控制器
-    Get.put(_liveRoomController, tag: heroTag, permanent: true);
-
     LivePipOverlayService.startLivePip(
       context: context,
       heroTag: heroTag,
       roomId: _liveRoomController.roomId,
       plPlayerController: plPlayerController,
+      controller: _liveRoomController,
       onClose: () {
         _isEnteringPipMode = false;
         _handleLivePipCloseCleanup();

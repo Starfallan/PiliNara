@@ -15,10 +15,15 @@ class LivePipOverlayService {
 
   static VoidCallback? _onCloseCallback;
   static VoidCallback? _onReturnCallback;
+  
+  // 保存控制器引用，防止被 GC
+  static dynamic _savedController;
 
   static bool get isInPipMode => _isInPipMode;
 
   static int? get currentRoomId => _currentRoomId;
+  
+  static T? getSavedController<T>() => _savedController as T?;
 
   static void startLivePip({
     required BuildContext context,
@@ -27,6 +32,7 @@ class LivePipOverlayService {
     required PlPlayerController plPlayerController,
     VoidCallback? onClose,
     VoidCallback? onReturn,
+    dynamic controller,
   }) {
     if (_isInPipMode) {
       stopLivePip(callOnClose: true);
@@ -37,6 +43,7 @@ class LivePipOverlayService {
     _currentRoomId = roomId;
     _onCloseCallback = onClose;
     _onReturnCallback = onReturn;
+    _savedController = controller;
 
     _overlayEntry = OverlayEntry(
       builder: (context) => LivePipWidget(
@@ -89,6 +96,7 @@ class LivePipOverlayService {
     final closeCallback = callOnClose ? _onCloseCallback : null;
     _onCloseCallback = null;
     _onReturnCallback = null;
+    _savedController = null;
 
     final overlayToRemove = _overlayEntry;
     _overlayEntry = null;

@@ -145,16 +145,30 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   void initState() {
     super.initState();
     final bool fromPip = Get.arguments['fromPip'] ?? false;
-    if (PipOverlayService.isInPipMode) {
-      if (fromPip) {
+    
+    PlPlayerController.setPlayCallBack(playCallBack);
+    
+    // 如果从 PiP 返回，尝试恢复保存的控制器
+    if (fromPip && PipOverlayService.isInPipMode) {
+      final savedController = PipOverlayService.getSavedController<VideoDetailController>();
+      if (savedController != null) {
+        // 直接使用保存的控制器
+        videoDetailController = savedController;
+        Get.put(savedController, tag: heroTag);
         PipOverlayService.stopPip(callOnClose: false, immediate: true);
+        _logSponsorBlock('Restored controller from PiP, hashCode: ${savedController.hashCode}, segmentList.length: ${savedController.segmentList.length}');
       } else {
+        // 没有保存的控制器，创建新的
+        PipOverlayService.stopPip(callOnClose: false, immediate: true);
+        videoDetailController = Get.put(VideoDetailController(), tag: heroTag);
+      }
+    } else {
+      // 非 PiP 返回，正常流程
+      if (PipOverlayService.isInPipMode) {
         PipOverlayService.stopPip(callOnClose: false);
       }
+      videoDetailController = Get.put(VideoDetailController(), tag: heroTag);
     }
-
-    PlPlayerController.setPlayCallBack(playCallBack);
-    videoDetailController = Get.put(VideoDetailController(), tag: heroTag);
 
     if (videoDetailController.showReply) {
       _videoReplyController = Get.put(
@@ -420,8 +434,6 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         } else {
           PlPlayerController.updatePlayCount();
         }
-        // 如果没有进入 PiP 模式，彻底清理控制器（由于它现在可能是 permanent 的）
-        Get.delete<VideoDetailController>(tag: heroTag, force: true);
       }
     }
     PageUtils.routeObserver.unsubscribe(this);
@@ -2317,10 +2329,8 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     _isEnteringPipMode = true;
     _logSponsorBlock('Starting PiP mode, segmentList.length: ${videoDetailController.segmentList.length}');
 
-    // 将控制器设为永久，防止页面销毁时被回收
-    Get.put(videoDetailController, tag: heroTag, permanent: true);
-
     PipOverlayService.startPip(
+      controller: videoDetailController,
       context: context,
       videoPlayerBuilder: (_) => plPlayer(
         width: PipOverlayService.pipWidth,
@@ -2377,8 +2387,6 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     } else {
       PlPlayerController.updatePlayCount();
     }
-    // 彻底清理永久控制器
-    Get.delete<VideoDetailController>(tag: heroTag, force: true);
   }
 
   void onShowMemberPage(int? mid) {
