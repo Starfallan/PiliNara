@@ -48,6 +48,7 @@ import 'package:flutter/material.dart' hide PageView;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:screen_brightness_platform_interface/screen_brightness_platform_interface.dart';
+import 'package:PiliPlus/services/logger.dart';
 
 class LiveRoomPage extends StatefulWidget {
   const LiveRoomPage({super.key});
@@ -488,7 +489,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
       _isEnteringPipMode = false;
       _liveRoomController.isInPipMode.value = false;
       if (1) {
-        looger.e('Failed to start live PiP: $e');
+        logger.e('Failed to start live PiP: $e');
       }
     }
   }
