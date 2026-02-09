@@ -151,9 +151,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     VideoStackManager.increment(); // 追踪视频页面层级
     final bool fromPip = Get.arguments['fromPip'] ?? false;
     
-    // 如果有直播间 PiP 在运行，关闭它
+    // 如果有直播间 PiP 在运行，关闭它（采用非销毁式，避免干扰视频播放器单例）
     if (LivePipOverlayService.isInPipMode && !fromPip) {
-      LivePipOverlayService.stopLivePip(callOnClose: true);
+      LivePipOverlayService.stopLivePip(callOnClose: false);
     }
     
     PlPlayerController.setPlayCallBack(playCallBack);
