@@ -115,6 +115,7 @@ class LivePipOverlayService {
     }
 
     _isInPipMode = false;
+    isNativePip = false;
     _currentLiveHeroTag = null;
     _currentRoomId = null;
 

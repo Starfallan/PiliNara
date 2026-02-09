@@ -558,34 +558,36 @@ class PlPlayerController {
     }
 
     if (Platform.isAndroid && autoPiP) {
-      Utils.sdkInt.then((sdkInt) {
-        if (sdkInt < 36) {
-          Utils.channel.setMethodCallHandler((call) async {
-            if (call.method == 'onUserLeaveHint') {
-              final bool isInInAppPip =
-                  PipOverlayService.isInPipMode ||
-                  LivePipOverlayService.isInPipMode;
-              if (playerStatus.playing && (_isCurrVideoPage || isInInAppPip)) {
-                enterPip();
-              }
-            } else if (call.method == 'onPipChanged') {
-              final bool isInPip = call.arguments as bool;
-              if (!isInPip &&
-                  isNativePip.value &&
-                  (PipOverlayService.isInPipMode ||
-                      LivePipOverlayService.isInPipMode)) {
-                if (PipOverlayService.isInPipMode) {
-                  PipOverlayService.onTapToReturn();
-                } else if (LivePipOverlayService.isInPipMode) {
-                  LivePipOverlayService.onReturn();
-                }
-              }
-              isNativePip.value = isInPip;
-              PipOverlayService.isNativePip = isInPip;
-              LivePipOverlayService.isNativePip = isInPip;
+      Utils.channel.setMethodCallHandler((call) async {
+        if (call.method == 'onUserLeaveHint') {
+          // 对于 SDK < 31，或者新 API 未生效时，手动触发 PiP
+          final bool isInInAppPip =
+              PipOverlayService.isInPipMode ||
+              LivePipOverlayService.isInPipMode;
+          // 如果没有开启自动 PiP (shouldSetPip) 或者是旧版本 SDK，则手动触发
+          if (playerStatus.playing && (_isCurrVideoPage || isInInAppPip)) {
+            enterPip();
+          }
+        } else if (call.method == 'onPipChanged') {
+          final bool isInPip = call.arguments as bool;
+          if (!isInPip &&
+              isNativePip.value &&
+              (PipOverlayService.isInPipMode ||
+                  LivePipOverlayService.isInPipMode)) {
+            if (PipOverlayService.isInPipMode) {
+              PipOverlayService.onTapToReturn();
+            } else if (LivePipOverlayService.isInPipMode) {
+              LivePipOverlayService.onReturn();
             }
-          });
-        } else {
+          }
+          isNativePip.value = isInPip;
+          PipOverlayService.isNativePip = isInPip;
+          LivePipOverlayService.isNativePip = isInPip;
+        }
+      });
+
+      Utils.sdkInt.then((sdkInt) {
+        if (sdkInt >= 36) {
           _shouldSetPip = true;
         }
       });

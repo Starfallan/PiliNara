@@ -2547,9 +2547,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       controller: videoDetailController,
       additionalControllers: additionalControllers,
       context: context,
-      videoPlayerBuilder: (_) => plPlayer(
-        width: PipOverlayService.pipWidth,
-        height: PipOverlayService.pipHeight,
+      videoPlayerBuilder: (isNative, w, h) => plPlayer(
+        width: w,
+        height: h,
         isPipMode: true,
       ),
       onClose: () {

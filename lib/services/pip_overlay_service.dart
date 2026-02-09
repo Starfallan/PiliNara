@@ -66,7 +66,8 @@ class PipOverlayService {
 
   static void startPip({
     required BuildContext context,
-    required Widget Function(bool isPipMode) videoPlayerBuilder,
+    required Widget Function(bool isNative, double width, double height)
+    videoPlayerBuilder,
     VoidCallback? onClose,
     VoidCallback? onTapToReturn,
     dynamic controller,
@@ -123,6 +124,7 @@ class PipOverlayService {
     }
 
     isInPipMode = false;
+    isNativePip = false;
 
     final closeCallback = callOnClose ? _onCloseCallback : null;
     _onCloseCallback = null;
@@ -153,7 +155,8 @@ class PipOverlayService {
 }
 
 class PipWidget extends StatefulWidget {
-  final Widget Function(bool isPipMode) videoPlayerBuilder;
+  final Widget Function(bool isNative, double width, double height)
+  videoPlayerBuilder;
   final VoidCallback onClose;
   final VoidCallback onTapToReturn;
 
@@ -305,7 +308,11 @@ class _PipWidgetState extends State<PipWidget> {
                 children: [
                   Positioned.fill(
                     child: AbsorbPointer(
-                      child: widget.videoPlayerBuilder(isNative),
+                      child: widget.videoPlayerBuilder(
+                        isNative,
+                        currentWidth,
+                        currentHeight,
+                      ),
                     ),
                   ),
                   if (!isNative && _showControls) ...[
