@@ -1652,6 +1652,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                       BottomControl(
                         maxWidth: maxWidth,
                         isFullScreen: isFullScreen,
+                        isPipMode: widget.isPipMode,
                         controller: plPlayerController,
                         videoDetailController: videoDetailController,
                         buildBottomControl: () => buildBottomControl(
@@ -1798,7 +1799,8 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                                 : null,
                           ),
                         ),
-                      if (plPlayerController.showDmChart &&
+                      if (!widget.isPipMode &&
+                          plPlayerController.showDmChart &&
                           videoDetailController.showDmTrendChart.value)
                         if (videoDetailController.dmTrend.value?.dataOrNull
                             case final list?)
