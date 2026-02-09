@@ -30,6 +30,8 @@ import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/plugin/pl_player/models/video_fit_type.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
 import 'package:PiliPlus/services/service_locator.dart';
+import 'package:PiliPlus/services/pip_overlay_service.dart';
+import 'package:PiliPlus/services/live_pip_overlay_service.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/extension/box_ext.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
@@ -132,6 +134,8 @@ class PlPlayerController {
 
   /// 全屏状态
   final RxBool isFullScreen = false.obs;
+  // 系统原生 PiP 状态
+  final RxBool isNativePip = false.obs;
   // 默认投稿视频格式
   bool isLive = false;
 
@@ -558,9 +562,27 @@ class PlPlayerController {
         if (sdkInt < 36) {
           Utils.channel.setMethodCallHandler((call) async {
             if (call.method == 'onUserLeaveHint') {
-              if (playerStatus.playing && _isCurrVideoPage) {
+              final bool isInInAppPip =
+                  PipOverlayService.isInPipMode ||
+                  LivePipOverlayService.isInPipMode;
+              if (playerStatus.playing && (_isCurrVideoPage || isInInAppPip)) {
                 enterPip();
               }
+            } else if (call.method == 'onPipChanged') {
+              final bool isInPip = call.arguments as bool;
+              if (!isInPip &&
+                  isNativePip.value &&
+                  (PipOverlayService.isInPipMode ||
+                      LivePipOverlayService.isInPipMode)) {
+                if (PipOverlayService.isInPipMode) {
+                  PipOverlayService.onTapToReturn();
+                } else if (LivePipOverlayService.isInPipMode) {
+                  LivePipOverlayService.onReturn();
+                }
+              }
+              isNativePip.value = isInPip;
+              PipOverlayService.isNativePip = isInPip;
+              LivePipOverlayService.isNativePip = isInPip;
             }
           });
         } else {
@@ -1012,7 +1034,10 @@ class PlPlayerController {
         WakelockPlus.toggle(enable: event);
         if (event) {
           if (_shouldSetPip) {
-            if (_isCurrVideoPage) {
+            final bool isInInAppPip =
+                PipOverlayService.isInPipMode ||
+                LivePipOverlayService.isInPipMode;
+            if (_isCurrVideoPage || isInInAppPip) {
               enterPip(isAuto: true);
             } else {
               _disableAutoEnterPip();

@@ -10,11 +10,21 @@ import 'package:get/get.dart';
 class LivePipOverlayService {
   static OverlayEntry? _overlayEntry;
   static bool _isInPipMode = false;
+  static final RxBool _isNativePip = false.obs;
+  static bool get isNativePip => _isNativePip.value;
+  static set isNativePip(bool value) => _isNativePip.value = value;
   static String? _currentLiveHeroTag;
   static int? _currentRoomId;
 
   static VoidCallback? _onCloseCallback;
   static VoidCallback? _onReturnCallback;
+
+  static void onReturn() {
+    final callback = _onReturnCallback;
+    _onCloseCallback = null;
+    _onReturnCallback = null;
+    callback?.call();
+  }
   
   // 保存控制器引用，防止被 GC
   static dynamic _savedController;
@@ -175,20 +185,9 @@ class _LivePipWidgetState extends State<LivePipWidget> {
   bool _showControls = true;
   Timer? _hideTimer;
 
-  late final Widget _videoPlayerWidget;
-
   @override
   void initState() {
     super.initState();
-    _videoPlayerWidget = PLVideoPlayer(
-      maxWidth: _width,
-      maxHeight: _height,
-      isPipMode: true,
-      plPlayerController: widget.plPlayerController,
-      headerControl: const SizedBox.shrink(),
-      bottomControl: const SizedBox.shrink(),
-      danmuWidget: const SizedBox.shrink(),
-    );
     _startHideTimer();
   }
 
@@ -229,108 +228,128 @@ class _LivePipWidgetState extends State<LivePipWidget> {
     _left ??= screenSize.width - _width - 16;
     _top ??= screenSize.height - _height - 100;
 
-    return Positioned(
-      left: _left!,
-      top: _top!,
-      child: GestureDetector(
-        onTap: _onTap,
-        onPanStart: (_) {
-          _hideTimer?.cancel();
-        },
-        onPanUpdate: (details) {
-          setState(() {
-            _left = (_left! + details.delta.dx).clamp(
-              0.0,
-              screenSize.width - _width,
-            );
-            _top = (_top! + details.delta.dy).clamp(
-              0.0,
-              screenSize.height - _height,
-            );
-          });
-        },
-        onPanEnd: (_) {
-          if (_showControls) {
-            _startHideTimer();
-          }
-        },
-        child: Container(
-          width: _width,
-          height: _height,
-          decoration: BoxDecoration(
-            color: Colors.black,
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.6),
-                blurRadius: 12,
-                spreadRadius: 2,
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: AbsorbPointer(
-                    child: _videoPlayerWidget,
-                  ),
-                ),
-                if (_showControls) ...[
+    return Obx(() {
+      final bool isNative = LivePipOverlayService.isNativePip;
+      final double currentWidth = isNative ? screenSize.width : _width;
+      final double currentHeight = isNative ? screenSize.height : _height;
+      final double currentLeft = isNative ? 0 : _left!;
+      final double currentTop = isNative ? 0 : _top!;
+
+      return Positioned(
+        left: currentLeft,
+        top: currentTop,
+        child: GestureDetector(
+          onTap: isNative ? null : _onTap,
+          onPanStart: isNative ? null : (_) {
+            _hideTimer?.cancel();
+          },
+          onPanUpdate: isNative ? null : (details) {
+            setState(() {
+              _left = (_left! + details.delta.dx).clamp(
+                0.0,
+                screenSize.width - _width,
+              );
+              _top = (_top! + details.delta.dy).clamp(
+                0.0,
+                screenSize.height - _height,
+              );
+            });
+          },
+          onPanEnd: isNative ? null : (_) {
+            if (_showControls) {
+              _startHideTimer();
+            }
+          },
+          child: Container(
+            width: currentWidth,
+            height: currentHeight,
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius:
+                  isNative ? BorderRadius.zero : BorderRadius.circular(8),
+              boxShadow: isNative
+                  ? []
+                  : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      blurRadius: 12,
+                      spreadRadius: 2,
+                    ),
+                  ],
+            ),
+            child: ClipRRect(
+              borderRadius:
+                  isNative ? BorderRadius.zero : BorderRadius.circular(8),
+              child: Stack(
+                children: [
                   Positioned.fill(
-                    child: Container(
-                      color: Colors.black.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: GestureDetector(
-                      onTap: () {
-                        _hideTimer?.cancel();
-                        widget.onClose();
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.7),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.close,
-                          color: Colors.white,
-                          size: 18,
-                        ),
+                    child: AbsorbPointer(
+                      child: PLVideoPlayer(
+                        maxWidth: currentWidth,
+                        maxHeight: currentHeight,
+                        isPipMode: true,
+                        plPlayerController: widget.plPlayerController,
+                        headerControl: const SizedBox.shrink(),
+                        bottomControl: const SizedBox.shrink(),
+                        danmuWidget: const SizedBox.shrink(),
                       ),
                     ),
                   ),
-                  Center(
-                    child: GestureDetector(
-                      onTap: () {
-                        _hideTimer?.cancel();
-                        widget.onReturn();
-                      },
+                  if (!isNative && _showControls) ...[
+                    Positioned.fill(
                       child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.7),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.open_in_full,
-                          color: Colors.white,
-                          size: 28,
+                        color: Colors.black.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: GestureDetector(
+                        onTap: () {
+                          _hideTimer?.cancel();
+                          widget.onClose();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.7),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 18,
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                    Center(
+                      child: GestureDetector(
+                        onTap: () {
+                          _hideTimer?.cancel();
+                          widget.onReturn();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.7),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.open_in_full,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
+    });
   }
 }
