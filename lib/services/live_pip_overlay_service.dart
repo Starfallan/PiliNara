@@ -192,8 +192,9 @@ class LivePipWidget extends StatefulWidget {
 class _LivePipWidgetState extends State<LivePipWidget> {
   double? _left;
   double? _top;
-  double get _width => LivePipOverlayService.isVertical ? 112 : 200;
-  double get _height => LivePipOverlayService.isVertical ? 200 : 112;
+  double _scale = 1.0;
+  double get _width => (LivePipOverlayService.isVertical ? 112 : 200) * _scale;
+  double get _height => (LivePipOverlayService.isVertical ? 200 : 112) * _scale;
 
   bool _showControls = true;
   Timer? _hideTimer;
@@ -234,6 +235,28 @@ class _LivePipWidgetState extends State<LivePipWidget> {
     }
   }
 
+  void _onDoubleTap() {
+    setState(() {
+      if (_scale < 1.1) {
+        _scale = 1.5;
+      } else if (_scale < 1.6) {
+        _scale = 2.0;
+      } else {
+        _scale = 1.0;
+      }
+
+      // 缩放后立即计算并约束位置，防止按钮或部分窗口超出屏幕
+      final screenSize = MediaQuery.of(context).size;
+      _left = (_left ?? 0.0)
+          .clamp(0.0, max(0.0, screenSize.width - _width))
+          .toDouble();
+      _top = (_top ?? 0.0)
+          .clamp(0.0, max(0.0, screenSize.height - _height))
+          .toDouble();
+    });
+    _startHideTimer();
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
@@ -253,6 +276,7 @@ class _LivePipWidgetState extends State<LivePipWidget> {
         top: currentTop,
         child: GestureDetector(
           onTap: isNative ? null : _onTap,
+          onDoubleTap: isNative ? null : _onDoubleTap,
           onPanStart: isNative ? null : (_) {
             _hideTimer?.cancel();
           },

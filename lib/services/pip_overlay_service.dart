@@ -244,17 +244,25 @@ class _PipWidgetState extends State<PipWidget> {
   }
 
   void _onDoubleTap() {
-    final controller =
-        PipOverlayService.getSavedController<VideoDetailController>();
-    final plController = controller?.plPlayerController;
-    if (plController != null) {
-      if (plController.playerStatus.value == PlayerStatus.playing) {
-        plController.pause();
+    setState(() {
+      if (_scale < 1.1) {
+        _scale = 1.5;
+      } else if (_scale < 1.6) {
+        _scale = 2.0;
       } else {
-        plController.play();
+        _scale = 1.0;
       }
-      _resetHideTimer();
-    }
+
+      // 缩放后立即计算并约束位置，防止按钮或部分窗口超出屏幕
+      final screenSize = MediaQuery.of(context).size;
+      _left = (_left ?? 0.0)
+          .clamp(0.0, max(0.0, screenSize.width - _width))
+          .toDouble();
+      _top = (_top ?? 0.0)
+          .clamp(0.0, max(0.0, screenSize.height - _height))
+          .toDouble();
+    });
+    _startHideTimer();
   }
 
   @override
