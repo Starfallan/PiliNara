@@ -80,10 +80,14 @@ class PgcIntroController extends CommonIntroController {
 
   @override
   void onClose() {
-    try {
-      throw Exception('[PgcIntroController] onClose() called, isEnteringPip: $isEnteringPip');
-    } catch (e, s) {
-      logger.e('[PiP Debug]', error: e, stackTrace: s);
+    if (Pref.enableLog || kDebugMode) {
+      try {
+        throw Exception(
+          '[PgcIntroController] onClose() called, isEnteringPip: $isEnteringPip',
+        );
+      } catch (e, s) {
+        logger.e('[PiP Debug]', error: e, stackTrace: s);
+      }
     }
     if (isEnteringPip) return;
     super.onClose();

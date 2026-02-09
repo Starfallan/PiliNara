@@ -35,6 +35,7 @@ class VideoStackManager {
   }
 
   static void _log(String msg) {
+    if (!Pref.enableLog && !kDebugMode) return;
     try {
       throw Exception('[VideoStackManager] $msg');
     } catch (e, s) {

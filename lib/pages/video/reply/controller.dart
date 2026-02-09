@@ -79,10 +79,14 @@ class VideoReplyController extends ReplyController<MainListReply>
 
   @override
   void onClose() {
-    try {
-      throw Exception('[VideoReplyController] onClose() called, isEnteringPip: $isEnteringPip');
-    } catch (e, s) {
-      logger.e('[PiP Debug]', error: e, stackTrace: s);
+    if (Pref.enableLog || kDebugMode) {
+      try {
+        throw Exception(
+          '[VideoReplyController] onClose() called, isEnteringPip: $isEnteringPip',
+        );
+      } catch (e, s) {
+        logger.e('[PiP Debug]', error: e, stackTrace: s);
+      }
     }
     if (isEnteringPip) return;
     _fabAnimationCtr.dispose();

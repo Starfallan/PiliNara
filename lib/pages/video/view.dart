@@ -104,6 +104,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   late final LocalIntroController localIntroController;
 
   void _logSponsorBlock(String message) {
+    if (!Pref.enableLog && !kDebugMode) return;
     try {
       final logMsg = '[${videoDetailController.hashCode}] [SponsorBlock] $message';
       throw Exception(logMsg);
