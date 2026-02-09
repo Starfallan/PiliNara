@@ -320,6 +320,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
           return PLVideoPlayer(
             maxWidth: width,
             maxHeight: height,
+            isPipMode: isPipMode,
             fill: fill,
             alignment: alignment,
             plPlayerController: plPlayerController,

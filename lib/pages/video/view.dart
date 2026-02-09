@@ -1596,6 +1596,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
           : PLVideoPlayer(
               maxWidth: width,
               maxHeight: height,
+              isPipMode: isPipMode,
               plPlayerController: plPlayerController!,
               videoDetailController: videoDetailController,
               introController: introController,

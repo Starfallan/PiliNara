@@ -90,6 +90,7 @@ class PLVideoPlayer extends StatefulWidget {
     this.danmuWidget,
     this.showEpisodes,
     this.showViewPoints,
+    this.isPipMode = false,
     this.fill = Colors.black,
     this.alignment = Alignment.center,
     super.key,
@@ -113,6 +114,7 @@ class PLVideoPlayer extends StatefulWidget {
   ])?
   showEpisodes;
   final VoidCallback? showViewPoints;
+  final bool isPipMode;
   final Color fill;
   final Alignment alignment;
 
@@ -1780,11 +1782,12 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                             segments: videoDetailController.segmentProgressList,
                           ),
                         ),
-                      if (plPlayerController.showViewPoints &&
+                      if (!widget.isPipMode &&
+                          plPlayerController.showViewPoints &&
                           videoDetailController.viewPointList.isNotEmpty &&
                           videoDetailController.showVP.value)
                         Padding(
-                          padding: const .only(bottom: 4.25),
+                          padding: const EdgeInsets.only(bottom: 4.25),
                           child: ViewPointSegmentProgressBar(
                             segments: videoDetailController.viewPointList,
                             onSeek: PlatformUtils.isMobile

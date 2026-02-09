@@ -183,6 +183,7 @@ class _LivePipWidgetState extends State<LivePipWidget> {
     _videoPlayerWidget = PLVideoPlayer(
       maxWidth: _width,
       maxHeight: _height,
+      isPipMode: true,
       plPlayerController: widget.plPlayerController,
       headerControl: const SizedBox.shrink(),
       bottomControl: const SizedBox.shrink(),
