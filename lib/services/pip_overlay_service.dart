@@ -46,6 +46,7 @@ class VideoStackManager {
 class PipOverlayService {
   static const double pipWidth = 200;
   static const double pipHeight = 112;
+  static bool isVertical = false;
 
   static OverlayEntry? _overlayEntry;
   static bool isInPipMode = false;
@@ -81,6 +82,11 @@ class PipOverlayService {
     }
 
     isInPipMode = true;
+    isVertical = false;
+    if (controller is VideoDetailController) {
+      isVertical = controller.isVertical.value;
+    }
+
     _onCloseCallback = onClose;
     _onTapToReturnCallback = onTapToReturn;
     _savedController = controller;
@@ -179,8 +185,16 @@ class _PipWidgetState extends State<PipWidget> {
   double? _top;
   double _scale = 1.0;
 
-  double get _width => PipOverlayService.pipWidth * _scale;
-  double get _height => PipOverlayService.pipHeight * _scale;
+  double get _width =>
+      (PipOverlayService.isVertical
+          ? PipOverlayService.pipHeight
+          : PipOverlayService.pipWidth) *
+      _scale;
+  double get _height =>
+      (PipOverlayService.isVertical
+          ? PipOverlayService.pipWidth
+          : PipOverlayService.pipHeight) *
+      _scale;
 
   bool _showControls = true;
   Timer? _hideTimer;

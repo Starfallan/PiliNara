@@ -11,6 +11,7 @@ import 'package:get/get.dart';
 class LivePipOverlayService {
   static OverlayEntry? _overlayEntry;
   static bool _isInPipMode = false;
+  static bool isVertical = false;
   static final RxBool _isNativePip = false.obs;
   static bool get isNativePip => _isNativePip.value;
   static set isNativePip(bool value) => _isNativePip.value = value;
@@ -51,6 +52,7 @@ class LivePipOverlayService {
     }
 
     _isInPipMode = true;
+    isVertical = plPlayerController.isVertical;
     _currentLiveHeroTag = heroTag;
     _currentRoomId = roomId;
     _onCloseCallback = onClose;
@@ -181,8 +183,8 @@ class LivePipWidget extends StatefulWidget {
 class _LivePipWidgetState extends State<LivePipWidget> {
   double? _left;
   double? _top;
-  final double _width = 200;
-  final double _height = 112;
+  double get _width => LivePipOverlayService.isVertical ? 112 : 200;
+  double get _height => LivePipOverlayService.isVertical ? 200 : 112;
 
   bool _showControls = true;
   Timer? _hideTimer;
