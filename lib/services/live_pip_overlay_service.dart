@@ -30,15 +30,13 @@ class LivePipOverlayService {
     _onReturnCallback = null;
     callback?.call();
   }
-  
+
   // 保存控制器引用，防止被 GC
   static dynamic _savedController;
   static PlPlayerController? _savedPlayerController;
 
   static bool get isInPipMode => _isInPipMode;
 
-  static int? get currentRoomId => _currentRoomId;
-  
   static T? getSavedController<T>() => _savedController as T?;
 
   static void startLivePip({
