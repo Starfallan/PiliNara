@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' show max;
 
 import 'package:PiliPlus/services/logger.dart';
 import 'package:flutter/foundation.dart';
@@ -228,8 +229,8 @@ class _PipWidgetState extends State<PipWidget> {
 
       // 缩放后立即计算并约束位置，防止按钮或部分窗口超出屏幕
       final screenSize = MediaQuery.of(context).size;
-      _left = (_left ?? 0).clamp(0.0, max(0.0, screenSize.width - _width));
-      _top = (_top ?? 0).clamp(0.0, max(0.0, screenSize.height - _height));
+      _left = (_left ?? 0.0).clamp(0.0, max(0.0, screenSize.width - _width)).toDouble();
+      _top = (_top ?? 0.0).clamp(0.0, max(0.0, screenSize.height - _height)).toDouble();
     });
     _startHideTimer();
   }
@@ -263,14 +264,18 @@ class _PipWidgetState extends State<PipWidget> {
           },
           onPanUpdate: isNative ? null : (details) {
             setState(() {
-              _left = (_left! + details.delta.dx).clamp(
-                0.0,
-                max(0.0, screenSize.width - _width),
-              );
-              _top = (_top! + details.delta.dy).clamp(
-                0.0,
-                max(0.0, screenSize.height - _height),
-              );
+              _left = (_left! + details.delta.dx)
+                  .clamp(
+                    0.0,
+                    max(0.0, screenSize.width - _width),
+                  )
+                  .toDouble();
+              _top = (_top! + details.delta.dy)
+                  .clamp(
+                    0.0,
+                    max(0.0, screenSize.height - _height),
+                  )
+                  .toDouble();
             });
           },
           onPanEnd: isNative ? null : (_) {
@@ -285,21 +290,17 @@ class _PipWidgetState extends State<PipWidget> {
             height: currentHeight,
             decoration: BoxDecoration(
               color: Colors.black,
-              borderRadius:
-                  isNative ? BorderRadius.zero : BorderRadius.circular(8),
-              boxShadow: isNative
-                  ? []
-                  : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      blurRadius: 10,
-                      spreadRadius: 2,
-                    ),
-                  ],
+              borderRadius: isNative ? BorderRadius.zero : BorderRadius.circular(8),
+              boxShadow: isNative ? [] : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.5),
+                  blurRadius: 10,
+                  spreadRadius: 2,
+                ),
+              ],
             ),
             child: ClipRRect(
-              borderRadius:
-                  isNative ? BorderRadius.zero : BorderRadius.circular(8),
+              borderRadius: isNative ? BorderRadius.zero : BorderRadius.circular(8),
               child: Stack(
                 children: [
                   Positioned.fill(
@@ -316,61 +317,62 @@ class _PipWidgetState extends State<PipWidget> {
                     Positioned(
                       top: 4,
                       right: 4,
-                    child: GestureDetector(
-                      onTap: () {
-                        _hideTimer?.cancel();
-                        setState(() {
-                          _isClosing = true;
-                        });
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          widget.onClose();
-                        });
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.7),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.close,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Center(
-                    child: GestureDetector(
-                      onTap: () {
-                        _hideTimer?.cancel();
-                        setState(() {
-                          _isClosing = true;
-                        });
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          widget.onTapToReturn();
-                        });
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.7),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.open_in_full,
-                          color: Colors.white,
-                          size: 24,
+                      child: GestureDetector(
+                        onTap: () {
+                          _hideTimer?.cancel();
+                          setState(() {
+                            _isClosing = true;
+                          });
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            widget.onClose();
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.7),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 18,
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                    Center(
+                      child: GestureDetector(
+                        onTap: () {
+                          _hideTimer?.cancel();
+                          setState(() {
+                            _isClosing = true;
+                          });
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            widget.onTapToReturn();
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.7),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.open_in_full,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
-      ),
+      );
     });
   }
 }

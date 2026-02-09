@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' show max;
 
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/view.dart';
@@ -247,12 +248,12 @@ class _LivePipWidgetState extends State<LivePipWidget> {
             setState(() {
               _left = (_left! + details.delta.dx).clamp(
                 0.0,
-                screenSize.width - _width,
-              );
+                max(0.0, screenSize.width - _width),
+              ).toDouble();
               _top = (_top! + details.delta.dy).clamp(
                 0.0,
-                screenSize.height - _height,
-              );
+                max(0.0, screenSize.height - _height),
+              ).toDouble();
             });
           },
           onPanEnd: isNative ? null : (_) {
