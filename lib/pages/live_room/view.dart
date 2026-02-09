@@ -78,28 +78,66 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     final args = Get.arguments;
-    final bool fromPip = args is Map && args['fromPip'] == true;
-    
-    // 如果有任何直播间 PiP 在运行，先关闭它（除非是从当前直播间 PiP 返回）
+
+    // 解析当前请求进入的房间号
+    int? currentEntryRoomId;
+    if (args is Map) {
+      currentEntryRoomId = (args['roomId'] as int?) ?? (args['id'] as int?);
+    } else if (args is int) {
+      currentEntryRoomId = args;
+    }
+
+    // 检测是否是从小窗返回，或者是进入一个已经在小窗中播放的房间
+    final bool isActuallyFromPip = args is Map && args['fromPip'] == true;
+    final bool isSameRoomAsPip =
+        currentEntryRoomId != null &&
+        LivePipOverlayService.isInPipMode &&
+        LivePipOverlayService.currentRoomId == currentEntryRoomId;
+
+    final bool fromPip = isActuallyFromPip || isSameRoomAsPip;
+
+    // 如果有任何直播间 PiP 在运行，且不是为了返回当前房间，则需要谨慎清理
     if (LivePipOverlayService.isInPipMode && !fromPip) {
-      // 关闭任何运行中的直播间 PiP
-      LivePipOverlayService.stopLivePip(callOnClose: true);
+      // 正在播放另一个房间的 PiP。
+      // 我们需要关闭它，但要避免销毁单例播放器（否则新页面无法自动播放）
+      final oldHeroTag = LivePipOverlayService.currentHeroTag;
+
+      // 1. 停止小窗覆盖层，不触发 onClose 回调（避免执行 _handleLivePipCloseCleanup 中的 plPlayerController.dispose()）
+      LivePipOverlayService.stopLivePip(callOnClose: false);
+
+      // 2. 手动清理旧控制器的业务逻辑
+      if (oldHeroTag != null &&
+          Get.isRegistered<LiveRoomController>(tag: oldHeroTag)) {
+        try {
+          final oldController = Get.find<LiveRoomController>(tag: oldHeroTag);
+          // 重置标志位，确保 oldController.onClose() 能够执行 WebSocket 等清理逻辑
+          oldController.isInPipMode.value = false;
+          Get.delete<LiveRoomController>(tag: oldHeroTag, force: true);
+        } catch (e) {
+          debugPrint('Error cleaning up old live controller: $e');
+        }
+      }
     }
 
     // 如果有视频小窗在运行，关闭它
     if (PipOverlayService.isInPipMode) {
-      PipOverlayService.stopPip(callOnClose: true);
+      // 同样采用非销毁式关闭，避免干扰直播间播放
+      PipOverlayService.stopPip(callOnClose: false);
+      // 手动清理可能存在的视频控制器（这部分通常由 stopPip(callOnClose: true) 触发）
+      // 这里可以根据实际需要决定是否深度手动清理，为了安全起见也可以暂时保持 callOnClose: true 
+      // 但鉴于用户反馈，先保持 stopLivePip 的优化
     }
-    
+
     // 总是创建/获取控制器，传入 fromPip 标志
     _liveRoomController = Get.put(
       LiveRoomController(heroTag, fromPip: fromPip),
       tag: heroTag,
     );
-    
-    // 如果从 PiP 返回，停止 PiP 覆盖层
+
+    // 如果是从已存小窗逻辑返回（不管是点击小窗按钮还是点击列表项）
     if (fromPip && LivePipOverlayService.isInPipMode) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        // 确保小窗覆盖层被移除，但不清理播放器
         LivePipOverlayService.stopLivePip(callOnClose: false);
       });
     }

@@ -21,6 +21,9 @@ class LivePipOverlayService {
   static VoidCallback? _onCloseCallback;
   static VoidCallback? _onReturnCallback;
 
+  static String? get currentHeroTag => _currentLiveHeroTag;
+  static int? get currentRoomId => _currentRoomId;
+
   static void onReturn() {
     final callback = _onReturnCallback;
     _onCloseCallback = null;

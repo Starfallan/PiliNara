@@ -200,10 +200,10 @@ class LiveRoomController extends GetxController {
     final account = Accounts.heartbeat;
     isLogin = account.isLogin;
     mid = account.mid;
-    
-    // 使用构造函数传入的 fromPip 标志
-    isReturningFromPip = fromPip && LivePipOverlayService.isCurrentLiveRoom(roomId);
-    
+
+    // 直接透传构造函数传入的 fromPip 标志，因为它在 view.dart 中已经经过了校验
+    isReturningFromPip = fromPip;
+
     if (!isReturningFromPip) {
       // 正常流程：查询直播流地址
       queryLiveUrl();
