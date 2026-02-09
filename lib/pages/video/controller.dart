@@ -317,7 +317,7 @@ class VideoDetailController extends GetxController
   @override
   void onInit() {
     super.onInit();
-    VideoStackManager.increment();
+    _logSponsorBlock('onInit() called');
     args = Get.arguments;
     videoType = args['videoType'];
     if (videoType == VideoType.pgc) {
@@ -1724,8 +1724,6 @@ class VideoDetailController extends GetxController
   @override
   void onClose() {
     _logSponsorBlock('onClose() called, isEnteringPip: $isEnteringPip');
-    // 无论是否进入小窗，页面关闭即减少计数
-    VideoStackManager.decrement();
     
     if (isEnteringPip) {
       // 正在进入小窗，保留资源

@@ -148,6 +148,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   @override
   void initState() {
     super.initState();
+    VideoStackManager.increment(); // 追踪视频页面层级
     final bool fromPip = Get.arguments['fromPip'] ?? false;
     
     // 如果有直播间 PiP 在运行，关闭它
@@ -165,9 +166,6 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         videoDetailController = savedController;
         videoDetailController.isEnteringPip = false; // 重置标志
         Get.put(savedController, tag: heroTag);
-        
-        // 恢复页面计数
-        VideoStackManager.increment();
         
         // 强制重置一些可能在 dispose 时被清理但我们需要的东西
         if (videoDetailController.tabCtr.index < 0) { // 检查是否已销毁
@@ -515,6 +513,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
   @override
   void dispose() {
+    VideoStackManager.decrement(); // 减少视频页面层级追踪
     final isInAppPip = PipOverlayService.isInPipMode;
     plPlayerController
       ?..removeStatusLister(playerListener)
@@ -2437,20 +2436,25 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
   bool _shouldStartInAppPip() {
     if (PipOverlayService.isInPipMode) {
+      _logSponsorBlock('Reject PiP: already in PiP mode');
       return false;
     }
     plPlayerController ??= videoDetailController.plPlayerController;
     final controller = plPlayerController;
     if (controller == null || controller.videoController == null) {
+      _logSponsorBlock('Reject PiP: controller or videoController is null');
       return false;
     }
     if (controller.isDesktopPip || controller.isPipMode) {
+      _logSponsorBlock('Reject PiP: isDesktopPip=${controller.isDesktopPip}, isPipMode=${controller.isPipMode}');
       return false;
     }
     if (!videoDetailController.autoPlay.value) {
+      _logSponsorBlock('Reject PiP: autoPlay is false');
       return false;
     }
     if (VideoStackManager.isReturningToVideo()) {
+      _logSponsorBlock('Reject PiP: isReturningToVideo is true (Stack Count > 1)');
       return false;
     }
     return true;

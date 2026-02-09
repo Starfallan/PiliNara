@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:PiliPlus/services/logger.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -9,16 +10,30 @@ class VideoStackManager {
 
   static void increment() {
     _videoPageCount++;
+    _log('increment: count = $_videoPageCount');
   }
 
   static void decrement() {
     if (_videoPageCount > 0) {
       _videoPageCount--;
+      _log('decrement: count = $_videoPageCount');
     }
   }
 
   static bool isReturningToVideo() {
-    return _videoPageCount > 1;
+    final result = _videoPageCount > 1;
+    if (result) {
+      _log('isReturningToVideo check: true (count = $_videoPageCount)');
+    }
+    return result;
+  }
+
+  static void _log(String msg) {
+    try {
+      throw Exception('[VideoStackManager] $msg');
+    } catch (e, s) {
+      logger.e('[PiP Debug]', error: e, stackTrace: s);
+    }
   }
 }
 
