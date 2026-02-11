@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-rm /usr/bin/piliplus
+rm /usr/bin/pilinara
 if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
     if [ -x /usr/bin/update-desktop-database ]; then
         echo "updating desktop database..."

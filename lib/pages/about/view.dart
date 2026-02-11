@@ -179,6 +179,12 @@ Commit Hash: ${BuildConfig.commitHash}''',
             title: const Text('Source Code'),
             subtitle: Text(Constants.sourceCodeUrl, style: subTitleStyle),
           ),
+          ListTile(
+            onTap: () => PageUtils.launchURL(Constants.upstreamCodeUrl),
+            leading: const Icon(Icons.code),
+            title: const Text('Upstream Code'),
+            subtitle: Text(Constants.upstreamCodeUrl, style: subTitleStyle),
+          ),
           if (Platform.isAndroid)
             ListTile(
               onTap: () => Utils.channel.invokeMethod('linkVerifySettings'),

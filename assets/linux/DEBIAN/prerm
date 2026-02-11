@@ -2,7 +2,7 @@
 
 if [ "$1" = "remove" ] || [ "$1" = "deconfigure" ]; then
     echo "Stopping PiliNara if running..."
-    pkill -x piliplus || true
+    pkill -x pilinara || true
 fi
 
 exit 0

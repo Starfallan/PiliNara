@@ -9,7 +9,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.piliplus"
+    namespace = "com.example.pilinara"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
