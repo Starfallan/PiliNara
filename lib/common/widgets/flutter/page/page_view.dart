@@ -114,7 +114,7 @@ class PageView<T extends HorizontalDragGestureRecognizer>
     required this.horizontalDragGestureRecognizer,
   }) : childrenDelegate = SliverChildListDelegate(children);
 
-  final T horizontalDragGestureRecognizer;
+  final GestureRecognizerFactoryConstructor<T> horizontalDragGestureRecognizer;
 
   /// Creates a scrollable list that works page by page using widgets that are
   /// created on demand.

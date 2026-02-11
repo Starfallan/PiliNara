@@ -12,6 +12,7 @@ import 'package:PiliPlus/models_new/sponsor_block/user_info.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 
 /// https://github.com/hanydd/BilibiliSponsorBlock/wiki/API
 abstract final class SponsorBlock {
@@ -19,10 +20,12 @@ abstract final class SponsorBlock {
   static final options = Options(
     followRedirects: true,
     // https://github.com/hanydd/BilibiliSponsorBlock/wiki/API#1-%E5%85%AC%E7%94%A8%E5%8F%82%E6%95%B0
-    headers: {
-      'origin': Constants.appName,
-      'x-ext-version': BuildConfig.versionName,
-    },
+    headers: kDebugMode
+        ? null
+        : {
+            'origin': Constants.appName,
+            'x-ext-version': BuildConfig.versionName,
+          },
     validateStatus: (status) => true,
   );
 
@@ -142,7 +145,9 @@ abstract final class SponsorBlock {
         'videoID': bvid,
         'cid': cid.toString(),
         'userID': Pref.blockUserID,
-        'userAgent': '${Constants.appName}/${BuildConfig.versionName}',
+        'userAgent': kDebugMode
+            ? Constants.userAgent
+            : '${Constants.appName}/${BuildConfig.versionName}',
         'videoDuration': videoDuration,
         'segments': segments
             .map(

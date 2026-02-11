@@ -2,167 +2,261 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:PiliPlus/models/common/enum_with_label.dart';
+import 'package:PiliPlus/pages/video/introduction/ugc/widgets/menu_row.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
+import 'package:PiliPlus/utils/page_utils.dart';
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 
-class ShutdownTimerService with WidgetsBindingObserver {
-  static final ShutdownTimerService _instance =
-      ShutdownTimerService._internal();
-  Timer? _shutdownTimer;
-  Timer? _autoCloseDialogTimer;
-  //定时退出
-  int scheduledExitInMinutes = 0;
-  bool exitApp = false;
-  bool waitForPlayingCompleted = false;
-  bool isWaiting = false;
-  bool isInBackground = false;
-  factory ShutdownTimerService() => _instance;
-
-  ShutdownTimerService._internal() {
-    WidgetsBinding.instance.addObserver(this); // 添加观察者
-  }
-
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this); // 移除观察者
-    _shutdownTimer?.cancel();
-    _autoCloseDialogTimer?.cancel();
-    _instance.dispose();
-  }
+enum _ShutdownType with EnumWithLabel {
+  pause('暂停视频'),
+  exit('退出APP')
+  ;
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    isInBackground = state == AppLifecycleState.paused;
-  }
-
-  void startShutdownTimer() {
-    cancelShutdownTimer(); // Cancel any previous timer
-    if (scheduledExitInMinutes == 0) {
-      //使用toast提示用户已取消
-      SmartDialog.showToast("取消定时关闭");
-      return;
-    }
-    SmartDialog.showToast("设置 $scheduledExitInMinutes 分钟后定时关闭");
-    _shutdownTimer = Timer(
-      Duration(minutes: scheduledExitInMinutes),
-      _shutdownDecider,
-    );
-  }
-
-  void _showTimeUpButPauseDialog() {
-    SmartDialog.show(
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('定时关闭'),
-        content: const Text('时间到啦！'),
-        actions: <Widget>[
-          TextButton(
-            child: const Text('确认'),
-            onPressed: () {
-              cancelShutdownTimer();
-              SmartDialog.dismiss();
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showShutdownDialog() {
-    if (isInBackground) {
-      // if (kDebugMode) debugPrint("app在后台运行，不弹窗");
-      _executeShutdown();
-      return;
-    }
-    SmartDialog.show(
-      builder: (BuildContext dialogContext) {
-        // Start the 10-second timer to auto close the dialog
-        _autoCloseDialogTimer?.cancel();
-        _autoCloseDialogTimer = Timer(const Duration(seconds: 10), () {
-          SmartDialog.dismiss(); // Close the dialog
-          _executeShutdown();
-        });
-        return AlertDialog(
-          title: const Text('定时关闭'),
-          content: const Text('将在10秒后执行，是否需要取消？'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('取消关闭'),
-              onPressed: () {
-                _autoCloseDialogTimer?.cancel(); // Cancel the auto-close timer
-                cancelShutdownTimer(); // Cancel the shutdown timer
-                SmartDialog.dismiss(); // Close the dialog
-              },
-            ),
-          ],
-        );
-      },
-    ).whenComplete(() {
-      // Cleanup when the dialog is dismissed
-      _autoCloseDialogTimer?.cancel();
-    });
-  }
-
-  void _shutdownDecider() {
-    if (exitApp && !waitForPlayingCompleted) {
-      _showShutdownDialog();
-      return;
-    }
-    // PlPlayerController plPlayerController = PlPlayerController.getInstance();
-    PlayerStatus? playerStatus = PlPlayerController.getPlayerStatusIfExists();
-    if (!exitApp && !waitForPlayingCompleted) {
-      // if (!plPlayerController.playerStatus.playing) {
-      if (playerStatus == PlayerStatus.paused ||
-          playerStatus == PlayerStatus.completed) {
-        //仅提示用户
-        _showTimeUpButPauseDialog();
-      } else {
-        _showShutdownDialog();
-      }
-      return;
-    }
-    //waitForPlayingCompleted
-    if (playerStatus == PlayerStatus.paused ||
-        playerStatus == PlayerStatus.completed) {
-      // if (!plPlayerController.playerStatus.playing) {
-      _showShutdownDialog();
-      return;
-    }
-    SmartDialog.showToast("定时关闭时间已到，等待当前视频播放完成");
-    //监听播放完成
-    //该方法依赖耦合实现，不够优雅
-    isWaiting = true;
-  }
-
-  void handleWaitingFinished() {
-    if (isWaiting) {
-      _showShutdownDialog();
-      isWaiting = false;
-    }
-  }
-
-  void _executeShutdown() {
-    if (exitApp) {
-      PlPlayerController.pauseIfExists();
-      //退出app
-      exit(0);
-    } else {
-      //暂停播放
-      PlayerStatus? playerStatus = PlPlayerController.getPlayerStatusIfExists();
-      if (playerStatus == PlayerStatus.playing) {
-        PlPlayerController.pauseIfExists();
-        waitForPlayingCompleted = true;
-        SmartDialog.showToast("已暂停播放");
-      } else {
-        SmartDialog.showToast("当前未播放");
-      }
-    }
-  }
-
-  void cancelShutdownTimer() {
-    isWaiting = false;
-    _shutdownTimer?.cancel();
-  }
+  final String label;
+  const _ShutdownType(this.label);
 }
 
 final shutdownTimerService = ShutdownTimerService();
+
+class ShutdownTimerService {
+  ShutdownTimerService._internal();
+  factory ShutdownTimerService() => _instance;
+  static final ShutdownTimerService _instance =
+      ShutdownTimerService._internal();
+
+  VoidCallback? onPause;
+  ValueGetter<bool>? isPlaying;
+
+  Timer? _shutdownTimer;
+  bool get isActive => _shutdownTimer?.isActive ?? false;
+  int _durationInMinutes = 0;
+  _ShutdownType _shutdownType = .pause;
+
+  bool? _isWaiting;
+  bool get isWaiting => _isWaiting ?? false;
+  bool _waitUntilCompleted = false;
+
+  void _stopTimer() {
+    if (_shutdownTimer != null) {
+      _shutdownTimer!.cancel();
+      _shutdownTimer = null;
+    }
+  }
+
+  void reset([int durationInMinutes = 0]) {
+    _stopTimer();
+    _isWaiting = null;
+    _durationInMinutes = durationInMinutes;
+  }
+
+  void _startShutdownTimer(int durationInMinutes) {
+    reset(durationInMinutes);
+    if (durationInMinutes == 0) {
+      SmartDialog.showToast('取消定时关闭');
+      return;
+    }
+    SmartDialog.showToast('设置 ${_format(durationInMinutes)} 后定时关闭');
+    _shutdownTimer = Timer(
+      Duration(minutes: durationInMinutes),
+      _handleShutdown,
+    );
+  }
+
+  void _handleShutdown() {
+    switch (_shutdownType) {
+      case _ShutdownType.pause:
+        late final player = PlPlayerController.instance;
+        final isPlaying =
+            this.isPlaying?.call() ?? player?.playerStatus.isPlaying ?? false;
+        if (isPlaying) {
+          if (_waitUntilCompleted) {
+            _isWaiting = true;
+          } else {
+            _durationInMinutes = 0;
+            (onPause ?? player?.pause)?.call();
+            SmartDialog.showToast('定时时间已到，已暂停');
+          }
+        }
+      case _ShutdownType.exit:
+        if (_waitUntilCompleted) {
+          final isPlaying =
+              this.isPlaying?.call() ??
+              PlPlayerController.instance?.playerStatus.isPlaying ??
+              false;
+          if (isPlaying) {
+            _isWaiting = true;
+            return;
+          }
+        }
+        exit(0);
+    }
+  }
+
+  void handleWaiting() {
+    switch (_shutdownType) {
+      case _ShutdownType.pause:
+        _isWaiting = null;
+        _durationInMinutes = 0;
+        SmartDialog.showToast('定时时间已到，已暂停');
+      case _ShutdownType.exit:
+        exit(0);
+    }
+  }
+
+  static (int hour, int minute) _parseMinutes(int minutes) =>
+      (minutes ~/ 60, minutes % 60);
+
+  static String _format(int minutes) {
+    if (minutes == 60) return '60分钟';
+    final (int hour, int minute) = _parseMinutes(minutes);
+    if (hour > 0 && minute > 0) {
+      return '$hour小时$minute分钟';
+    } else if (hour > 0) {
+      return '$hour小时';
+    } else {
+      return '$minute分钟';
+    }
+  }
+
+  void showScheduleExitDialog(
+    BuildContext context, {
+    required bool isFullScreen,
+    bool isLive = false,
+  }) {
+    const Set<int> scheduleTimeMinutes = {0, 15, 30, 45, 60};
+    const TextStyle titleStyle = TextStyle(fontSize: 14);
+    if (isLive) {
+      _waitUntilCompleted = false;
+    }
+    PageUtils.showVideoBottomSheet(
+      context,
+      isFullScreen: () => isFullScreen,
+      child: StatefulBuilder(
+        builder: (_, setState) {
+          final ThemeData theme = Theme.of(context);
+          return Theme(
+            data: theme,
+            child: Padding(
+              padding: const .all(12),
+              child: Material(
+                clipBehavior: .hardEdge,
+                color: theme.colorScheme.surface,
+                borderRadius: const .all(.circular(12)),
+                child: ListView(
+                  padding: const .symmetric(vertical: 14),
+                  children: [
+                    const Center(child: Text('定时关闭', style: titleStyle)),
+                    const SizedBox(height: 10),
+                    ...{...scheduleTimeMinutes, _durationInMinutes}
+                        .sorted((a, b) => a.compareTo(b))
+                        .map(
+                          (minutes) => ListTile(
+                            dense: true,
+                            onTap: () {
+                              Navigator.pop(context);
+                              _startShutdownTimer(minutes);
+                            },
+                            title: Text(
+                              switch (minutes) {
+                                0 => '禁用',
+                                _ => _format(minutes),
+                              },
+                              style: titleStyle,
+                            ),
+                            trailing: _durationInMinutes == minutes
+                                ? Icon(
+                                    size: 20,
+                                    Icons.done,
+                                    color: theme.colorScheme.primary,
+                                  )
+                                : null,
+                          ),
+                        ),
+                    ListTile(
+                      dense: true,
+                      onTap: () {
+                        final (int hour, int minute) = _parseMinutes(
+                          _durationInMinutes,
+                        );
+                        showTimePicker(
+                          context: context,
+                          initialEntryMode: .inputOnly,
+                          initialTime: TimeOfDay(hour: hour, minute: minute),
+                          builder: (context, child) => MediaQuery(
+                            data: MediaQuery.of(
+                              context,
+                            ).copyWith(alwaysUse24HourFormat: true),
+                            child: child!,
+                          ),
+                        ).then((time) {
+                          if (time != null) {
+                            _startShutdownTimer(time.hour * 60 + time.minute);
+                            setState(() {});
+                          }
+                        });
+                      },
+                      title: const Text('自定义', style: titleStyle),
+                    ),
+                    if (!isLive) ...[
+                      Builder(
+                        builder: (context) {
+                          void onChanged([_]) {
+                            _waitUntilCompleted = !_waitUntilCompleted;
+                            (context as Element).markNeedsBuild();
+                          }
+
+                          return ListTile(
+                            dense: true,
+                            onTap: onChanged,
+                            title: const Text('额外等待视频播放完毕', style: titleStyle),
+                            trailing: Transform.scale(
+                              alignment: Alignment.centerRight,
+                              scale: 0.8,
+                              child: Switch(
+                                value: _waitUntilCompleted,
+                                onChanged: onChanged,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                    const SizedBox(height: 5),
+                    Padding(
+                      padding: const .only(left: 18),
+                      child: Builder(
+                        builder: (context) {
+                          return Row(
+                            spacing: 12,
+                            children: [
+                              const Text('倒计时结束:', style: titleStyle),
+                              ..._ShutdownType.values.map(
+                                (e) => ActionRowLineItem(
+                                  onTap: () {
+                                    _shutdownType = e;
+                                    (context as Element).markNeedsBuild();
+                                  },
+                                  text: ' ${e.label} ',
+                                  selectStatus: _shutdownType == e,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}

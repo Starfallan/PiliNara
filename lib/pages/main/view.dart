@@ -172,18 +172,19 @@ class _MainAppState extends PopScopeState<MainApp>
 
   void _onHideWindow() {
     if (_mainController.pauseOnMinimize) {
-      _mainController.isPlaying =
-          PlPlayerController.instance?.playerStatus.value ==
-          PlayerStatus.playing;
-      PlPlayerController.pauseIfExists();
+      if (PlPlayerController.instance case final player?) {
+        if (_mainController.isPlaying = player.playerStatus.isPlaying) {
+          player.pause();
+        }
+      } else {
+        _mainController.isPlaying = false;
+      }
     }
   }
 
   void _onShowWindow() {
-    if (_mainController.pauseOnMinimize) {
-      if (_mainController.isPlaying) {
-        PlPlayerController.playIfExists();
-      }
+    if (_mainController.pauseOnMinimize && _mainController.isPlaying) {
+      PlPlayerController.instance?.play();
     }
   }
 

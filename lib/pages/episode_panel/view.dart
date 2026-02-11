@@ -235,12 +235,8 @@ class _EpisodePanelState extends State<EpisodePanel>
     if (_isMulti) {
       return TabBarView<TabBarDragGestureRecognizer>(
         controller: _tabController,
-        horizontalDragGestureRecognizer: TabBarDragGestureRecognizer(
-          isDxAllowed: (double dx) => enableSlide
-              ? dx > CommonSlideMixin.offset &&
-                    dx < maxWidth - CommonSlideMixin.offset
-              : true,
-        ),
+        horizontalDragGestureRecognizer: () =>
+            TabBarDragGestureRecognizer(isDxAllowed: isDxAllowed),
         children: List.generate(
           widget.list.length,
           (index) => _buildBody(

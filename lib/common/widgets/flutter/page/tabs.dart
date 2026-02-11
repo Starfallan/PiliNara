@@ -38,7 +38,7 @@ class TabBarView<T extends HorizontalDragGestureRecognizer>
     required this.horizontalDragGestureRecognizer,
   });
 
-  final T horizontalDragGestureRecognizer;
+  final GestureRecognizerFactoryConstructor<T> horizontalDragGestureRecognizer;
 
   /// This widget's selection and animation state.
   ///

@@ -172,7 +172,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
       return;
     }
 
-    if (plPlayerController.playerStatus.playing &&
+    if (plPlayerController.playerStatus.isPlaying &&
         plPlayerController.cid == null) {
       _liveRoomController
         ..danmakuController?.resume()
@@ -197,7 +197,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     plPlayerController.removeStatusLister(playerListener);
 
     // 如果正在播放且不是全屏状态，启动小窗
-    if (plPlayerController.playerStatus.playing && !isFullScreen) {
+    if (plPlayerController.playerStatus.isPlaying && !isFullScreen) {
       _startLivePipIfNeeded();
     } else {
       // 不启动小窗，只暂停
@@ -206,14 +206,14 @@ class _LiveRoomPageState extends State<LiveRoomPage>
         ..danmakuController?.pause()
         ..cancelLiveTimer()
         ..closeLiveMsg()
-        ..isPlaying = plPlayerController.playerStatus.playing;
+        ..isPlaying = plPlayerController.playerStatus.isPlaying;
     }
 
     super.didPushNext();
   }
 
-  void playerListener(PlayerStatus? status) {
-    if (status == PlayerStatus.playing) {
+  void playerListener(PlayerStatus status) {
+    if (status.isPlaying) {
       _liveRoomController
         ..danmakuController?.resume()
         ..startLiveTimer()
@@ -904,7 +904,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
               onPageChanged: (value) =>
                   _liveRoomController.pageIndex.value = value,
               horizontalDragGestureRecognizer:
-                  CustomHorizontalDragGestureRecognizer(),
+                  CustomHorizontalDragGestureRecognizer.new,
               children: [
                 KeepAliveWrapper(builder: (context) => chat()),
                 SuperChatPanel(

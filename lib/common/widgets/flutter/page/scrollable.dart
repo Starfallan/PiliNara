@@ -105,7 +105,7 @@ class Scrollable<T extends HorizontalDragGestureRecognizer>
     required this.horizontalDragGestureRecognizer,
   }) : assert(semanticChildCount == null || semanticChildCount >= 0);
 
-  final T horizontalDragGestureRecognizer;
+  final GestureRecognizerFactoryConstructor<T> horizontalDragGestureRecognizer;
 
   /// {@template flutter.widgets.Scrollable.axisDirection}
   /// The direction in which this widget scrolls.
@@ -815,7 +815,7 @@ class ScrollableState<T extends HorizontalDragGestureRecognizer>
         case Axis.horizontal:
           _gestureRecognizers = <Type, GestureRecognizerFactory>{
             T: GestureRecognizerFactoryWithHandlers<T>(
-              () => widget.horizontalDragGestureRecognizer,
+              widget.horizontalDragGestureRecognizer,
               (T instance) {
                 instance
                   ..onDown = _handleDragDown

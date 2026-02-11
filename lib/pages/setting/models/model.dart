@@ -404,9 +404,7 @@ SettingsModel getVideoFilterSelectModel({
               (values
                     ..addIf(!values.contains(value), value)
                     ..sort())
-                  .map(
-                    (e) => (e, suffix == null ? e.toString() : '$e $suffix'),
-                  )
+                  .map((e) => (e, suffix == null ? e.toString() : '$e $suffix'))
                   .toList()
                 ..add((-1, '自定义')),
         ),
@@ -452,8 +450,8 @@ SettingsModel getVideoFilterSelectModel({
         if (result != -1) {
           value = result!;
           setState();
-          onChanged?.call(result!);
-          GStorage.setting.put(key, result);
+          onChanged?.call(value);
+          GStorage.setting.put(key, value);
         }
       }
     },

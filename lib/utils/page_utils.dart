@@ -16,8 +16,6 @@ import 'package:PiliPlus/pages/common/publish/publish_route.dart';
 import 'package:PiliPlus/pages/contact/view.dart';
 import 'package:PiliPlus/pages/fav_panel/view.dart';
 import 'package:PiliPlus/pages/share/view.dart';
-import 'package:PiliPlus/pages/video/introduction/ugc/widgets/menu_row.dart';
-import 'package:PiliPlus/services/shutdown_timer_service.dart';
 import 'package:PiliPlus/utils/app_scheme.dart';
 import 'package:PiliPlus/utils/extension/context_ext.dart';
 import 'package:PiliPlus/utils/extension/extension.dart';
@@ -34,7 +32,6 @@ import 'package:PiliPlus/utils/utils.dart';
 import 'package:floating/floating.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show FilteringTextInputFormatter;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -108,188 +105,6 @@ abstract final class PageUtils {
         isScrollControlled: true,
       );
     }
-  }
-
-  static void scheduleExit(
-    BuildContext context,
-    isFullScreen, [
-    bool isLive = false,
-  ]) {
-    if (!context.mounted) {
-      return;
-    }
-    const List<int> scheduleTimeChoices = [0, 15, 30, 45, 60];
-    const TextStyle titleStyle = TextStyle(fontSize: 14);
-    if (isLive) {
-      shutdownTimerService.waitForPlayingCompleted = false;
-    }
-    showVideoBottomSheet(
-      context,
-      isFullScreen: () => isFullScreen,
-      child: StatefulBuilder(
-        builder: (_, setState) {
-          void onTap(int choice) {
-            if (choice == -1) {
-              String duration = '';
-              showDialog(
-                context: context,
-                builder: (context) {
-                  final theme = Theme.of(context);
-                  return AlertDialog(
-                    title: const Text('自定义时长'),
-                    content: TextField(
-                      autofocus: true,
-                      onChanged: (value) => duration = value,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      decoration: const InputDecoration(suffixText: 'min'),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: Get.back,
-                        child: Text(
-                          '取消',
-                          style: TextStyle(color: theme.colorScheme.outline),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          try {
-                            final choice = int.parse(duration);
-                            Get.back();
-                            shutdownTimerService
-                              ..scheduledExitInMinutes = choice
-                              ..startShutdownTimer();
-                            setState(() {});
-                          } catch (e) {
-                            SmartDialog.showToast(e.toString());
-                          }
-                        },
-                        child: const Text('确定'),
-                      ),
-                    ],
-                  );
-                },
-              );
-            } else {
-              Get.back();
-              shutdownTimerService.scheduledExitInMinutes = choice;
-              shutdownTimerService.startShutdownTimer();
-            }
-          }
-
-          final ThemeData theme = Theme.of(context);
-          return Theme(
-            data: theme,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Material(
-                clipBehavior: Clip.hardEdge,
-                color: theme.colorScheme.surface,
-                borderRadius: const BorderRadius.all(Radius.circular(12)),
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  children: [
-                    const Center(child: Text('定时关闭', style: titleStyle)),
-                    const SizedBox(height: 10),
-                    ...[
-                      ...[
-                        ...scheduleTimeChoices,
-                        if (!scheduleTimeChoices.contains(
-                          shutdownTimerService.scheduledExitInMinutes,
-                        ))
-                          shutdownTimerService.scheduledExitInMinutes,
-                      ]..sort(),
-                      -1,
-                    ].map(
-                      (choice) => ListTile(
-                        dense: true,
-                        onTap: () => onTap(choice),
-                        title: Text(
-                          choice == -1
-                              ? '自定义'
-                              : choice == 0
-                              ? "禁用"
-                              : "$choice分钟后",
-                          style: titleStyle,
-                        ),
-                        trailing:
-                            shutdownTimerService.scheduledExitInMinutes ==
-                                choice
-                            ? Icon(
-                                size: 20,
-                                Icons.done,
-                                color: theme.colorScheme.primary,
-                              )
-                            : null,
-                      ),
-                    ),
-                    if (!isLive) ...[
-                      Builder(
-                        builder: (context) {
-                          return ListTile(
-                            dense: true,
-                            onTap: () {
-                              shutdownTimerService.waitForPlayingCompleted =
-                                  !shutdownTimerService.waitForPlayingCompleted;
-                              (context as Element).markNeedsBuild();
-                            },
-                            title: const Text("额外等待视频播放完毕", style: titleStyle),
-                            trailing: Transform.scale(
-                              alignment: Alignment.centerRight,
-                              scale: 0.8,
-                              child: Switch(
-                                value: shutdownTimerService
-                                    .waitForPlayingCompleted,
-                                onChanged: (value) {
-                                  shutdownTimerService.waitForPlayingCompleted =
-                                      value;
-                                  (context as Element).markNeedsBuild();
-                                },
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                    const SizedBox(height: 10),
-                    Builder(
-                      builder: (context) {
-                        return Row(
-                          children: [
-                            const SizedBox(width: 18),
-                            const Text('倒计时结束:', style: titleStyle),
-                            const Spacer(),
-                            ActionRowLineItem(
-                              onTap: () {
-                                shutdownTimerService.exitApp = false;
-                                (context as Element).markNeedsBuild();
-                              },
-                              text: " 暂停视频 ",
-                              selectStatus: !shutdownTimerService.exitApp,
-                            ),
-                            const Spacer(),
-                            ActionRowLineItem(
-                              onTap: () {
-                                shutdownTimerService.exitApp = true;
-                                (context as Element).markNeedsBuild();
-                              },
-                              text: " 退出APP ",
-                              selectStatus: shutdownTimerService.exitApp,
-                            ),
-                            const SizedBox(width: 25),
-                          ],
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
   }
 
   static Future<void> pushDynFromId({
@@ -575,24 +390,17 @@ abstract final class PageUtils {
     List<SourceModel> imgList,
     int index,
   ) {
-    final animController = AnimationController(
-      vsync: state,
-      duration: Duration.zero,
-      reverseDuration: Duration.zero,
-    );
     state.showBottomSheet(
       constraints: const BoxConstraints(),
       (context) => InteractiveviewerGallery(
         sources: imgList,
         initIndex: index,
         quality: GlobalData().imgQuality,
-        onClose: animController.dispose,
       ),
       enableDrag: false,
       elevation: 0.0,
       backgroundColor: Colors.transparent,
-      transitionAnimationController: animController,
-      sheetAnimationStyle: const AnimationStyle(duration: Duration.zero),
+      sheetAnimationStyle: AnimationStyle.noAnimation,
     );
   }
 

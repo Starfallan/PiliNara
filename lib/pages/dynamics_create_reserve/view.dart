@@ -1,4 +1,4 @@
-import 'package:PiliPlus/common/widgets/flutter/time_picker.dart';
+import 'package:PiliPlus/common/widgets/time_picker.dart';
 import 'package:PiliPlus/pages/dynamics_create_reserve/controller.dart';
 import 'package:PiliPlus/utils/date_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';

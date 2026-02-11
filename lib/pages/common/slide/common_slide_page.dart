@@ -24,6 +24,13 @@ mixin CommonSlideMixin<T extends CommonSlidePage> on State<T>, TickerProvider {
 
   static bool slideDismissReplyPage = Pref.slideDismissReplyPage;
 
+  bool isDxAllowed(double dx) {
+    return enableSlide
+        ? dx > CommonSlideMixin.offset &&
+              dx < maxWidth - CommonSlideMixin.offset
+        : true;
+  }
+
   @override
   void initState() {
     super.initState();

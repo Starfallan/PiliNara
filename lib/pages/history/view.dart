@@ -139,7 +139,7 @@ class _HistoryPageState extends State<HistoryPage>
                             : const CustomTabBarViewScrollPhysics(),
                         controller: _historyController.tabController,
                         horizontalDragGestureRecognizer:
-                            CustomHorizontalDragGestureRecognizer(),
+                            CustomHorizontalDragGestureRecognizer.new,
                         children: [
                           KeepAliveWrapper(builder: (context) => child),
                           ..._historyController.tabs.map(

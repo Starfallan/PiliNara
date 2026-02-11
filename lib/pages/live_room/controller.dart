@@ -614,7 +614,7 @@ class LiveRoomController extends GetxController {
   }
 
   Future<void> onLike() async {
-    if (!isLogin) {
+    if (!Accounts.main.isLogin) {
       likeClickTime.value = 0;
       return;
     }
@@ -633,7 +633,7 @@ class LiveRoomController extends GetxController {
   }
 
   void onSendDanmaku([bool fromEmote = false]) {
-    if (!isLogin) {
+    if (!Accounts.main.isLogin) {
       SmartDialog.showToast('账号未登录');
       return;
     }

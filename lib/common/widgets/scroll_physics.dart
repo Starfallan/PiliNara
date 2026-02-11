@@ -9,7 +9,7 @@ Widget videoTabBarView({
 }) => TabBarView<CustomHorizontalDragGestureRecognizer>(
   controller: controller,
   physics: const CustomTabBarViewScrollPhysics(parent: ClampingScrollPhysics()),
-  horizontalDragGestureRecognizer: CustomHorizontalDragGestureRecognizer(),
+  horizontalDragGestureRecognizer: CustomHorizontalDragGestureRecognizer.new,
   children: children,
 );
 
@@ -19,7 +19,7 @@ Widget tabBarView({
 }) => TabBarView<CustomHorizontalDragGestureRecognizer>(
   physics: const CustomTabBarViewScrollPhysics(),
   controller: controller,
-  horizontalDragGestureRecognizer: CustomHorizontalDragGestureRecognizer(),
+  horizontalDragGestureRecognizer: CustomHorizontalDragGestureRecognizer.new,
   children: children,
 );
 
