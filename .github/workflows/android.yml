@@ -1,0 +1,116 @@
+name: Android
+
+on:
+    pull_request:
+        types:
+            - opened
+            - synchronize
+            - reopened
+            - ready_for_review
+        paths-ignore:
+            - "**.md"
+    workflow_dispatch:
+        inputs:
+            build_android:
+                description: "Build Android"
+                required: false
+                default: true
+                type: boolean
+
+            tag:
+                description: "tag"
+                required: false
+                default: ""
+                type: string
+
+jobs:
+    android:
+        if: ${{ github.event_name == 'pull_request' || github.event.inputs.build_android == 'true' }}
+        name: Release Android
+        runs-on: ubuntu-latest
+        permissions: write-all
+
+        steps:
+            - name: 代码迁出
+              uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0
+
+            - name: 构建Java环境
+              uses: actions/setup-java@v5
+              with:
+                  distribution: "zulu"
+                  java-version: "17"
+                  cache: "gradle"
+                  cache-dependency-path: |
+                      android/*.gradle*
+                      android/**/gradle-wrapper.properties
+
+            - name: 安装Flutter
+              uses: subosito/flutter-action@v2
+              id: flutter-action
+              with:
+                  channel: stable
+                  flutter-version-file: pubspec.yaml
+                  cache: true
+
+            - name: apply bottom sheet patch
+              working-directory: ${{ env.FLUTTER_ROOT }}
+              run: git apply $GITHUB_WORKSPACE/lib/scripts/bottom_sheet_patch.diff
+              continue-on-error: true
+
+            - name: Write key
+              if: github.event_name == 'workflow_dispatch'
+              run: |
+                  if [ ! -z "${{ secrets.SIGN_KEYSTORE_BASE64 }}" ]; then
+                    echo "${{ secrets.SIGN_KEYSTORE_BASE64 }}" | base64 --decode > android/app/key.jks
+                    echo storeFile='key.jks' >> android/key.properties
+                    echo storePassword='${{ secrets.KEYSTORE_PASSWORD }}' >> android/key.properties
+                    echo keyAlias='${{ secrets.KEY_ALIAS }}' >> android/key.properties
+                    echo keyPassword='${{ secrets.KEY_PASSWORD }}' >> android/key.properties
+                  fi
+
+            - name: Set and Extract version
+              shell: pwsh
+              run: lib/scripts/build.ps1 android
+
+            - name: flutter build apk
+              run: flutter build apk --release --split-per-abi --dart-define-from-file=pili_release.json --pub
+
+            - name: rename
+              run: |
+                  for file in build/app/outputs/flutter-apk/app-*-release.apk; do
+                    abi=$(echo "$file" | sed -E 's|.*app-(.*)-release\.apk|\1|')
+                    mv "$file" "PiliPlus_android_${{ env.version }}_${abi}.apk"
+                  done
+              shell: bash
+
+            - name: Release
+              if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '' }}
+              uses: softprops/action-gh-release@v2
+              with:
+                  tag_name: ${{ github.event.inputs.tag }}
+                  name: ${{ github.event.inputs.tag }}
+                  files: |
+                      PiliPlus_android_*.apk
+
+            - name: 上传
+              uses: actions/upload-artifact@v5
+              with:
+                  name: Android_arm64-v8a
+                  path: |
+                      PiliPlus_android_*_arm64-v8a.apk
+
+            - name: 上传
+              uses: actions/upload-artifact@v5
+              with:
+                  name: Android_armeabi-v7a
+                  path: |
+                      PiliPlus_android_*_armeabi-v7a.apk
+
+            - name: 上传
+              uses: actions/upload-artifact@v5
+              with:
+                  name: Android_x86_64
+                  path: |
+                      PiliPlus_android_*_x86_64.apk

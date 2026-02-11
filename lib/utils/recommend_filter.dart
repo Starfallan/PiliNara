@@ -8,10 +8,11 @@ abstract final class RecommendFilter {
   static bool exemptFilterForFollowed = Pref.exemptFilterForFollowed;
   static bool applyFilterToRelatedVideos = Pref.applyFilterToRelatedVideos;
   static RegExp rcmdRegExp = RegExp(
-    Pref.banWordForRecommend,
+    Pref.parseBanWordToRegex(Pref.banWordForRecommend),
     caseSensitive: false,
   );
   static bool enableFilter = rcmdRegExp.pattern.isNotEmpty;
+  static Map<int, String> recommendBlockedMids = Pref.recommendBlockedMids;
 
   static bool filter(BaseVideoItemModel videoItem) {
     //由于相关视频中没有已关注标签，只能视为非关注视频
@@ -35,10 +36,17 @@ abstract final class RecommendFilter {
     return (enableFilter && rcmdRegExp.hasMatch(title));
   }
 
+  static bool filterUser(int? mid) {
+    return recommendBlockedMids.isNotEmpty && 
+           mid != null && 
+           recommendBlockedMids.containsKey(mid);
+  }
+
   static bool filterAll(BaseVideoItemModel videoItem) {
     return (videoItem.duration > 0 &&
             videoItem.duration < minDurationForRcmd) ||
         filterLikeRatio(videoItem.stat.like, videoItem.stat.view) ||
-        filterTitle(videoItem.title);
+        filterTitle(videoItem.title) ||
+        filterUser(videoItem.owner.mid);
   }
 }

@@ -53,6 +53,8 @@ import 'package:PiliPlus/plugin/pl_player/models/data_source.dart';
 import 'package:PiliPlus/plugin/pl_player/models/heart_beat_type.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/services/download/download_service.dart';
+import 'package:PiliPlus/services/logger.dart';
+import 'package:PiliPlus/services/pip_overlay_service.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/extension/context_ext.dart';
 import 'package:PiliPlus/utils/extension/iterable_ext.dart';
@@ -100,6 +102,9 @@ class VideoDetailController extends GetxController
   late bool _mediaDesc = false;
   late final RxList<MediaListItemModel> mediaList = <MediaListItemModel>[].obs;
   late String watchLaterTitle;
+
+  // 是否正在进入应用内小窗
+  bool isEnteringPip = false;
 
   /// tabs相关配置
   late TabController tabCtr;
@@ -508,7 +513,6 @@ class VideoDetailController extends GetxController
 
   @override
   Widget buildItem(Object item, Animation<double> animation) {
-    final theme = Get.theme;
     return Align(
       alignment: Alignment.centerLeft,
       child: SlideTransition(
@@ -766,6 +770,7 @@ class VideoDetailController extends GetxController
   Future<void> queryVideoUrl({
     Duration? defaultST,
     bool fromReset = false,
+    bool reinitializePlayer = true,
   }) async {
     if (isFileSource) {
       return _initPlayerIfNeeded();
@@ -842,7 +847,16 @@ class VideoDetailController extends GetxController
         setVideoHeight();
         currentDecodeFormats = VideoDecodeFormatType.fromString('avc1');
         currentVideoQa.value = videoQuality;
-        await _initPlayerIfNeeded();
+        if (reinitializePlayer) {
+          await _initPlayerIfNeeded();
+        } else {
+          // 从 PiP 返回时，重新初始化 SponsorBlock
+          if (plPlayerController.enableSponsorBlock && segmentList.isNotEmpty) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              initSkip();
+            });
+          }
+        }
         isQuerying = false;
         return;
       }
@@ -941,7 +955,17 @@ class VideoDetailController extends GetxController
       } else {
         audioUrl = '';
       }
-      await _initPlayerIfNeeded();
+      if (reinitializePlayer) {
+        await _initPlayerIfNeeded();
+      } else {
+        // 从 PiP 返回时，播放器已在运行，但需要重新初始化 SponsorBlock 的跳过监听器
+        if (plPlayerController.enableSponsorBlock && segmentList.isNotEmpty) {
+          // 等待播放器就绪
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            initSkip();
+          });
+        }
+      }
     } else {
       _autoPlay.value = false;
       videoState.value = result..toast();
@@ -1192,6 +1216,11 @@ class VideoDetailController extends GetxController
 
   @override
   void onClose() {
+    if (isEnteringPip) {
+      // 正在进入小窗，保留资源
+      return;
+    }
+    cancelBlockListener();
     cid.close();
     if (isFileSource) {
       cacheLocalProgress();
@@ -1246,7 +1275,7 @@ class VideoDetailController extends GetxController
       }
 
       // sponsor block
-      if (blockConfig.enableBlock) {
+      if (blockConfig.enableBlock && !PipOverlayService.isInPipMode) {
         resetBlock();
       }
 
@@ -1514,6 +1543,8 @@ class VideoDetailController extends GetxController
       ),
     );
   }
+
+  ThemeData get theme => Get.theme;
 
   @pragma('vm:notify-debugger-on-exception')
   Future<void> onCast() async {

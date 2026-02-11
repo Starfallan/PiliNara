@@ -23,6 +23,7 @@ import 'package:PiliPlus/pages/common/slide/common_slide_page.dart';
 import 'package:PiliPlus/pages/home/controller.dart';
 import 'package:PiliPlus/pages/main/controller.dart';
 import 'package:PiliPlus/pages/setting/models/model.dart';
+import 'package:PiliPlus/pages/setting/widgets/merge_danmaku_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/slide_dialog.dart';
 import 'package:PiliPlus/pages/video/reply/widgets/reply_item_grpc.dart';
@@ -213,7 +214,7 @@ List<SettingsModel> get extraSettings => [
     setKey: SettingBoxKey.continuePlayingPart,
     defaultVal: true,
   ),
-  getBanWordModel(
+  getListBanWordModel(
     title: '评论关键词过滤',
     key: SettingBoxKey.banWordForReply,
     onChanged: (value) {
@@ -221,7 +222,7 @@ List<SettingsModel> get extraSettings => [
       ReplyGrpc.enableFilter = value.pattern.isNotEmpty;
     },
   ),
-  getBanWordModel(
+  getListBanWordModel(
     title: '动态关键词过滤',
     key: SettingBoxKey.banWordForDyn,
     onChanged: (value) {
@@ -259,12 +260,25 @@ List<SettingsModel> get extraSettings => [
     setKey: SettingBoxKey.showVipDanmaku,
     defaultVal: true,
   ),
-  const SwitchModel(
+  NormalModel(
     title: '合并弹幕',
-    subtitle: '合并一段时间内获取到的相同弹幕',
-    leading: Icon(Icons.merge),
-    setKey: SettingBoxKey.mergeDanmaku,
-    defaultVal: false,
+    getSubtitle: () {
+      final enabled = Pref.mergeDanmaku;
+      if (!enabled) return '已关闭';
+      final threshold = Pref.danmakuEnlargeThreshold;
+      final logBase = Pref.danmakuEnlargeLogBase;
+      return '门槛: $threshold, 底数: $logBase';
+    },
+    leading: const Icon(Icons.merge),
+    onTap: (context, setState) async {
+      final result = await showDialog(
+        context: context,
+        builder: (context) => const MergeDanmakuDialog(),
+      );
+      if (result == true) {
+        setState();
+      }
+    },
   ),
   const SwitchModel(
     title: '显示热门推荐',

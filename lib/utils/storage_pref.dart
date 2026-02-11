@@ -65,6 +65,42 @@ abstract final class Pref {
   static set blackMids(Set<int> blackMidsSet) =>
       _localCache.put(LocalCacheKey.blackMids, blackMidsSet);
 
+  static Set<int> get dynamicsBlockedMids =>
+      _localCache.get(LocalCacheKey.dynamicsBlockedMids, defaultValue: <int>{});
+
+  static set dynamicsBlockedMids(Set<int> blockedMidsSet) {
+    _localCache.put(LocalCacheKey.dynamicsBlockedMids, blockedMidsSet);
+  }
+
+  static Map<int, String> get recommendBlockedMids {
+    final data = _localCache.get(LocalCacheKey.recommendBlockedMids);
+    
+    // 向后兼容：如果是旧的 Set<int> 格式，转换为 Map<int, String>
+    if (data is Set) {
+      final map = <int, String>{};
+      for (final mid in data) {
+        if (mid is int) {
+          map[mid] = 'UID:$mid'; // 旧数据使用默认名称
+        }
+      }
+      // 自动迁移数据
+      _localCache.put(LocalCacheKey.recommendBlockedMids, map);
+      return map;
+    }
+    
+    // 如果是新格式 Map，直接返回
+    if (data is Map) {
+      return Map<int, String>.from(data);
+    }
+    
+    // 默认返回空 Map
+    return <int, String>{};
+  }
+
+  static set recommendBlockedMids(Map<int, String> blockedMidsMap) {
+    _localCache.put(LocalCacheKey.recommendBlockedMids, blockedMidsMap);
+  }
+
   static RuleFilter get danmakuFilterRule => _localCache.get(
     LocalCacheKey.danmakuFilterRules,
     defaultValue: RuleFilter.empty(),
@@ -449,6 +485,12 @@ abstract final class Pref {
   static bool get mergeDanmaku =>
       _setting.get(SettingBoxKey.mergeDanmaku, defaultValue: false);
 
+  static int get danmakuEnlargeThreshold =>
+      _setting.get(SettingBoxKey.danmakuEnlargeThreshold, defaultValue: 7);
+
+  static int get danmakuEnlargeLogBase =>
+      _setting.get(SettingBoxKey.danmakuEnlargeLogBase, defaultValue: 7);
+
   static bool get showHotRcmd =>
       _setting.get(SettingBoxKey.showHotRcmd, defaultValue: false);
 
@@ -605,6 +647,54 @@ abstract final class Pref {
 
   static String get banWordForDyn =>
       _setting.get(SettingBoxKey.banWordForDyn, defaultValue: '');
+
+  /// Helper method to parse ban word storage format into regex pattern
+  /// Supports both old (pipe-separated) and new (newline-separated) formats
+  /// Returns a regex pattern string with proper alternation
+  static String parseBanWordToRegex(String stored) {
+    if (stored.isEmpty) return '';
+    
+    List<String> items;
+    
+    // Check if it's the old pipe-separated format (no newlines)
+    if (!stored.contains('\n') && stored.contains('|')) {
+      // Old format: pipe-separated
+      // Heuristic: if it looks like multiple short items, it's old format
+      final parts = stored.split('|').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      
+      if (parts.length > 1) {
+        final hasComplexRegex = parts.any((p) => 
+          p.contains('(') || p.contains('[') || p.contains('{') || 
+          p.contains('\\') || p.contains('^') || p.contains('\$')
+        );
+        
+        if (!hasComplexRegex) {
+          // Old format with simple keywords
+          items = parts;
+        } else {
+          // Single complex regex - use as-is
+          return stored;
+        }
+      } else {
+        // Single item, keep as-is
+        return stored;
+      }
+    } else {
+      // New format: newline-separated
+      items = stored.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    }
+    
+    if (items.isEmpty) return '';
+    
+    // Build regex by joining all patterns with alternation
+    return items.map((item) {
+      // If the item contains '|' and isn't already grouped, wrap it
+      if (item.contains('|') && !item.startsWith('(')) {
+        return '($item)';
+      }
+      return item;
+    }).join('|');
+  }
 
   static bool get enableLog =>
       _setting.get(SettingBoxKey.enableLog, defaultValue: true);

@@ -47,7 +47,10 @@ import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
 import 'package:PiliPlus/plugin/pl_player/view.dart';
 import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/services/shutdown_timer_service.dart'
-    show shutdownTimerService;
+    show ShutdownTimerService, shutdownTimerService;
+import 'package:PiliPlus/services/logger.dart';
+import 'package:PiliPlus/services/pip_overlay_service.dart';
+import 'package:PiliPlus/services/live_pip_overlay_service.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/extension/scroll_controller_ext.dart';
@@ -56,6 +59,7 @@ import 'package:PiliPlus/utils/image_utils.dart';
 import 'package:PiliPlus/utils/num_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:auto_orientation/auto_orientation.dart';
@@ -84,6 +88,12 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   late final VideoReplyController _videoReplyController;
   PlPlayerController? plPlayerController;
 
+  // 标志位：是否正在进入 PiP 模式（用于防止 dispose/didPushNext 时清理播放器状态）
+  bool _isEnteringPipMode = false;
+  
+  // 标志位：是否刚从 PiP 返回（用于触发 UI 重建）
+  bool _justReturnedFromPip = false;
+
   // intro ctr
   late final CommonIntroController introController =
       videoDetailController.isFileSource
@@ -94,6 +104,16 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   late final UgcIntroController ugcIntroController;
   late final PgcIntroController pgcIntroController;
   late final LocalIntroController localIntroController;
+
+  void _logSponsorBlock(String message) {
+    if (!Pref.enableLog && !kDebugMode) return;
+    try {
+      final logMsg = '[${videoDetailController.hashCode}] [SponsorBlock] $message';
+      throw Exception(logMsg);
+    } catch (e, s) {
+      logger.e('[SponsorBlock] $message', error: e, stackTrace: s);
+    }
+  }
 
   bool get autoExitFullscreen =>
       videoDetailController.plPlayerController.autoExitFullscreen;
@@ -131,30 +151,207 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   @override
   void initState() {
     super.initState();
-
+    VideoStackManager.increment(); // 追踪视频页面层级
+    final bool fromPip = Get.arguments['fromPip'] ?? false;
+    
+    // 如果有直播间 PiP 在运行，关闭它（采用非销毁式，避免干扰视频播放器单例）
+    if (LivePipOverlayService.isInPipMode && !fromPip) {
+      LivePipOverlayService.stopLivePip(callOnClose: false);
+    }
+    
     PlPlayerController.setPlayCallBack(playCallBack);
-    videoDetailController = Get.put(VideoDetailController(), tag: heroTag);
+    
+    // 如果从 PiP 返回，尝试恢复保存的控制器
+    if (fromPip && PipOverlayService.isInPipMode) {
+      final savedController = PipOverlayService.getSavedController<VideoDetailController>();
+      if (savedController != null) {
+        // 直接使用保存的控制器
+        videoDetailController = savedController;
+        videoDetailController.isEnteringPip = false; // 重置标志
+        Get.put(savedController, tag: heroTag);
+        
+        // 强制重置一些可能在 dispose 时被清理但我们需要的东西
+        if (videoDetailController.tabCtr.index < 0) { // 检查是否已销毁
+           // 这里很难检测 TabController 是否已销毁，但可以通过 length 触发重新创建
+        }
+        
+        PipOverlayService.stopPip(callOnClose: false, immediate: true);
+        _logSponsorBlock('Restored controller from PiP, hashCode: ${savedController.hashCode}, segmentList.length: ${savedController.segmentList.length}');
+        
+        // 强制刷新 UI 状态
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _logSponsorBlock('Refreshing videoState and cid after return');
+          videoDetailController.videoState.refresh();
+          videoDetailController.cid.refresh();
+          videoDetailController.update();
+        });
+      } else {
+        // 没有保存的控制器，创建新的
+        PipOverlayService.stopPip(callOnClose: false, immediate: true);
+        videoDetailController = Get.put(VideoDetailController(), tag: heroTag);
+      }
+    } else {
+      // 非 PiP 返回，正常流程（包括原页面还留在栈中或由于某些原因被销毁重构）
+      if (PipOverlayService.isInPipMode) {
+        final savedController =
+            PipOverlayService.getSavedController<VideoDetailController>();
+        // 如果小窗内的控制器正是我们要打开的这个（aid 匹配），则立即关闭小窗
+        // 这里如果是同一个 aid，Get.put 会自动找回之前的控制器实例，因此我们只需确保 Overlay 关闭
+        PipOverlayService.stopPip(callOnClose: false, immediate: true);
+      }
+      videoDetailController = Get.put(VideoDetailController(), tag: heroTag);
+    }
 
     if (videoDetailController.showReply) {
-      _videoReplyController = Get.put(
-        VideoReplyController(
-          aid: videoDetailController.aid,
-          videoType: videoDetailController.videoType,
-          heroTag: heroTag,
-        ),
-        tag: heroTag,
-      );
+      // 尝试从 PiP 恢复 ReplyController
+      final savedReplyController = fromPip ? PipOverlayService.getAdditionalController<VideoReplyController>('reply') : null;
+      if (savedReplyController != null) {
+        _videoReplyController = savedReplyController;
+        _videoReplyController.isEnteringPip = false; // 重置标志
+        Get.put(savedReplyController, tag: heroTag);
+        _logSponsorBlock('Restored VideoReplyController from PiP');
+      } else {
+        _videoReplyController = Get.put(
+          VideoReplyController(
+            aid: videoDetailController.aid,
+            videoType: videoDetailController.videoType,
+            heroTag: heroTag,
+          ),
+          tag: heroTag,
+        );
+      }
     }
 
+    // 尝试从 PiP 恢复 IntroController
+    final savedIntroController = fromPip ? PipOverlayService.getAdditionalController('intro') : null;
+    
     if (videoDetailController.isFileSource) {
-      localIntroController = Get.put(LocalIntroController(), tag: heroTag);
+      if (savedIntroController != null && savedIntroController is LocalIntroController) {
+        localIntroController = savedIntroController;
+        localIntroController.isEnteringPip = false; // 重置标志
+        Get.put(localIntroController, tag: heroTag);
+        _logSponsorBlock('Restored LocalIntroController from PiP');
+      } else {
+        localIntroController = Get.put(LocalIntroController(), tag: heroTag);
+      }
     } else if (videoDetailController.isUgc) {
-      ugcIntroController = Get.put(UgcIntroController(), tag: heroTag);
+      if (savedIntroController != null && savedIntroController is UgcIntroController) {
+        ugcIntroController = savedIntroController;
+        ugcIntroController.isEnteringPip = false; // 重置标志
+        Get.put(ugcIntroController, tag: heroTag);
+        _logSponsorBlock('Restored UgcIntroController from PiP, videoDetail.bvid: ${ugcIntroController.videoDetail.value.bvid}');
+      } else {
+        ugcIntroController = Get.put(UgcIntroController(), tag: heroTag);
+      }
     } else {
-      pgcIntroController = Get.put(PgcIntroController(), tag: heroTag);
+      if (savedIntroController != null && savedIntroController is PgcIntroController) {
+        pgcIntroController = savedIntroController;
+        pgcIntroController.isEnteringPip = false; // 重置标志
+        Get.put(pgcIntroController, tag: heroTag);
+        _logSponsorBlock('Restored PgcIntroController from PiP');
+      } else {
+        pgcIntroController = Get.put(PgcIntroController(), tag: heroTag);
+      }
     }
 
-    videoSourceInit();
+    if (fromPip) {
+      _justReturnedFromPip = true;
+      
+      plPlayerController = videoDetailController.plPlayerController;
+      
+      // 重新创建 TabController，因为旧的 vsync (State) 已经失效
+      final List<String> initialTabs = [
+        videoDetailController.isFileSource ? '离线视频' : '简介',
+        if (videoDetailController.showReply) '评论',
+      ];
+      videoDetailController.tabCtr = TabController(
+        vsync: this,
+        length: initialTabs.length,
+        initialIndex: videoDetailController.tabCtr.index.clamp(0, initialTabs.length - 1),
+      );
+      
+      plPlayerController!
+        ..addStatusLister(playerListener)
+        ..addPositionListener(positionListener);
+
+      if (plPlayerController!.isFullScreen.value) {
+        plPlayerController!.triggerFullScreen(status: false);
+      }
+      if (plPlayerController!.playerStatus.value != PlayerStatus.playing) {
+        plPlayerController!.play();
+      }
+      plPlayerController!.controls = true;
+
+      _logSponsorBlock('Returning from PiP, segmentList.length: ${videoDetailController.segmentList.length}');
+      _logSponsorBlock('videoDetailController status: videoState=${videoDetailController.videoState.value}, isClosed=${videoDetailController.isClosed}');
+
+      // 立即调用 setState 触发 build
+      if (mounted) {
+        setState(() {
+          _justReturnedFromPip = false;
+        });
+      }
+      
+      // 然后在下一帧刷新所有 observable
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        
+        _logSponsorBlock('First postFrameCallback executing');
+        
+        videoDetailController.videoState.refresh();
+        videoDetailController.cid.refresh();
+        videoDetailController.cover.refresh();
+        
+        // 确保 IntroController 的数据被 UI 识别
+        if (videoDetailController.isUgc && savedIntroController is UgcIntroController) {
+          _logSponsorBlock('UgcIntroController status: ${savedIntroController.status.value}, videoDetail items: ${savedIntroController.videoDetail.value.pages?.length}');
+          savedIntroController.videoDetail.refresh();
+          savedIntroController.status.refresh();
+          savedIntroController.update();
+        } else if (!videoDetailController.isUgc && !videoDetailController.isFileSource && savedIntroController is PgcIntroController) {
+          savedIntroController.videoDetail.refresh();
+          savedIntroController.update();
+        } else if (videoDetailController.isFileSource && savedIntroController is LocalIntroController) {
+          savedIntroController.videoDetail.refresh();
+          savedIntroController.update();
+        }
+        
+        // 同样刷新 ReplyController
+        if (videoDetailController.showReply) {
+          try {
+            final replyController = Get.find<VideoReplyController>(tag: heroTag);
+            replyController.update();
+            _logSponsorBlock('Forced UI refresh for VideoReplyController');
+          } catch (e) {
+            _logSponsorBlock('Failed to refresh VideoReplyController: $e');
+          }
+        }
+        
+        // 强制 VideoDetailController 也更新
+        videoDetailController.update();
+        
+        // 再次触发 setState 确保本组件重绘
+        if (mounted) setState(() {});
+        
+        _logSponsorBlock('Completed postFrameCallback UI refresh');
+      });
+      
+      // 确保 SponsorBlock 监听器正常工作
+      // 从 PiP 返回时，必须重新创建 positionSubscription，因为是新页面实例
+      if (videoDetailController.plPlayerController.enableSponsorBlock && 
+          videoDetailController.segmentList.isNotEmpty) {
+        _logSponsorBlock('Re-creating position subscription for new page instance');
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            videoDetailController.initSkip();
+            _logSponsorBlock('Re-initialized SponsorBlock after PiP return, segmentList.length: ${videoDetailController.segmentList.length}');
+          }
+        });
+      }
+    } else {
+      videoSourceInit();
+    }
     autoScreen();
 
     WidgetsBinding.instance.addObserver(this);
@@ -325,6 +522,8 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
   @override
   void dispose() {
+    VideoStackManager.decrement(); // 减少视频页面层级追踪
+    final isInAppPip = PipOverlayService.isInPipMode;
     plPlayerController
       ?..removeStatusLister(playerListener)
       ..removePositionListener(positionListener);
@@ -335,14 +534,14 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       tag: videoDetailController.heroTag,
     );
 
-    if (!Get.previousRoute.startsWith('/video')) {
+    if (!Get.previousRoute.startsWith('/video') && !isInAppPip) {
       if (Platform.isAndroid && !videoDetailController.setSystemBrightness) {
         ScreenBrightnessPlatform.instance.resetApplicationScreenBrightness();
       }
       PlPlayerController.setPlayCallBack(null);
     }
 
-    if (!videoDetailController.isFileSource) {
+    if (!videoDetailController.isFileSource && !isInAppPip && !_isEnteringPipMode) {
       if (videoDetailController.isUgc) {
         ugcIntroController
           ..cancelTimer()
@@ -355,12 +554,16 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       AutoOrientation.portraitUpMode();
     }
     if (!videoDetailController.plPlayerController.isCloseAll) {
-      videoPlayerServiceHandler?.onVideoDetailDispose(heroTag);
-      if (plPlayerController != null) {
+      if (isInAppPip || _isEnteringPipMode) {
         videoDetailController.makeHeartBeat();
-        plPlayerController!.dispose();
       } else {
-        PlPlayerController.updatePlayCount();
+        videoPlayerServiceHandler?.onVideoDetailDispose(heroTag);
+        if (plPlayerController != null) {
+          videoDetailController.makeHeartBeat();
+          plPlayerController!.dispose();
+        } else {
+          PlPlayerController.updatePlayCount();
+        }
       }
     }
     PageUtils.routeObserver.unsubscribe(this);
@@ -385,7 +588,24 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       ScreenBrightnessPlatform.instance.resetApplicationScreenBrightness();
     }
 
-    videoDetailController.cancelBlockListener();
+    // 判断是否即将开启应用内小窗
+    final bool willStartPip =
+        plPlayerController != null &&
+        plPlayerController!.playerStatus.isPlaying &&
+        !plPlayerController!.isFullScreen.value &&
+        _shouldStartInAppPip();
+
+    // 只在非 PiP 模式且即将不开启小窗时取消 blockListener
+    if (!_isEnteringPipMode && !PipOverlayService.isInPipMode && !willStartPip) {
+      _logSponsorBlock(
+        'didPushNext() cancelling blockListener (not entering PiP)',
+      );
+      videoDetailController.cancelBlockListener();
+    } else {
+      _logSponsorBlock(
+        'didPushNext() preserving blockListener (entering PiP or in PiP mode)',
+      );
+    }
 
     introController.cancelTimer();
 
@@ -396,8 +616,17 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       videoDetailController.makeHeartBeat();
       plPlayerController!
         ..removeStatusLister(playerListener)
-        ..removePositionListener(positionListener)
-        ..pause();
+        ..removePositionListener(positionListener);
+
+      // 如果满足开启小窗条件
+      if (willStartPip) {
+        _startInAppPipIfNeeded();
+      } else {
+        // 只在非 PiP 模式时暂停
+        if (!_isEnteringPipMode && !PipOverlayService.isInPipMode && !willStartPip) {
+          plPlayerController!.pause();
+        }
+      }
     }
     isShowing = false;
     super.didPushNext();
@@ -418,6 +647,39 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     WidgetsBinding.instance.addObserver(this);
 
     plPlayerController?.isLive = false;
+
+    // 如果是从应用内小窗返回（例如从子页面 Pop 回来，或者手动点击展开）
+    if (PipOverlayService.isInPipMode) {
+      final savedController =
+          PipOverlayService.getSavedController<VideoDetailController>();
+      if (savedController == videoDetailController) {
+        _logSponsorBlock(
+          'Returning to video page with matching active PiP, closing PiP overlay',
+        );
+        PipOverlayService.stopPip(callOnClose: false, immediate: true);
+        videoDetailController.isEnteringPip = false;
+        // 小窗模式下控制栏可能被隐藏了，恢复它
+        plPlayerController?.controls = true;
+      }
+    }
+
+    // 如果是从开启新页面方式（Get.toNamed）从小窗手动返回，播放器应已在运行，跳过部分重置逻辑
+    final bool fromPip = Get.arguments?['fromPip'] ?? false;
+    if (fromPip) {
+      isShowing = true;
+      PlPlayerController.setPlayCallBack(playCallBack);
+      introController.startTimer();
+
+      // 重新恢复 SponsorBlock
+      if (videoDetailController.plPlayerController.enableSponsorBlock &&
+          videoDetailController.segmentList.isNotEmpty) {
+        videoDetailController.initSkip();
+      }
+
+      super.didPopNext();
+      return;
+    }
+
     if (videoDetailController.plPlayerController.playerStatus.isPlaying &&
         videoDetailController.playerStatus != PlayerStatus.playing) {
       videoDetailController.plPlayerController.pause();
@@ -427,6 +689,12 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     PlPlayerController.setPlayCallBack(playCallBack);
 
     introController.startTimer();
+
+    // 重新恢复 SponsorBlock (针对常规导航返回)
+    if (videoDetailController.plPlayerController.enableSponsorBlock && 
+        videoDetailController.segmentList.isNotEmpty) {
+      videoDetailController.initSkip();
+    }
 
     if (mounted &&
         Platform.isAndroid &&
@@ -1360,6 +1628,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
           : PLVideoPlayer(
               maxWidth: width,
               maxHeight: height,
+              isPipMode: isPipMode,
               plPlayerController: plPlayerController!,
               videoDetailController: videoDetailController,
               introController: introController,
@@ -2188,10 +2457,157 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     if (plPlayerController?.onPopInvokedWithResult(didPop, result) ?? false) {
       return;
     }
+    if (didPop) {
+      _startInAppPipIfNeeded();
+    }
     if (PlatformUtils.isMobile &&
         !videoDetailController.horizontalScreen &&
         !isPortrait) {
       verticalScreenForTwoSeconds();
+    }
+  }
+
+  bool _shouldStartInAppPip() {
+    _logSponsorBlock('Checking PiP: count=${VideoStackManager.getCount()}, previousRoute=${Get.previousRoute}');
+    if (!GStorage.setting.get(SettingBoxKey.enableInAppPip, defaultValue: true)) {
+      _logSponsorBlock('Reject PiP: in-app PiP is disabled in settings');
+      return false;
+    }
+    if (PipOverlayService.isInPipMode) {
+      _logSponsorBlock('Reject PiP: already in PiP mode');
+      return false;
+    }
+    plPlayerController ??= videoDetailController.plPlayerController;
+    final controller = plPlayerController;
+    if (controller == null || controller.videoController == null) {
+      _logSponsorBlock('Reject PiP: controller or videoController is null');
+      return false;
+    }
+    if (controller.isDesktopPip || controller.isPipMode) {
+      _logSponsorBlock('Reject PiP: isDesktopPip=${controller.isDesktopPip}, isPipMode=${controller.isPipMode}');
+      return false;
+    }
+    if (!videoDetailController.autoPlay) {
+      _logSponsorBlock('Reject PiP: autoPlay is false');
+      return false;
+    }
+
+    // 如果即将进入听视频界面，不开启小窗
+    if (Get.currentRoute == '/audio') {
+      _logSponsorBlock('Reject PiP: Navigating to audio page');
+      return false;
+    }
+
+    final prevRoute = Get.previousRoute;
+    if (VideoStackManager.isReturningToVideo()) {
+      // 如果返回的页面不是视频或直播详情页，允许开启小窗
+      if (!prevRoute.startsWith('/video') && !prevRoute.startsWith('/liveRoom')) {
+        _logSponsorBlock('Allowing PiP: Returning to non-video page ($prevRoute)');
+      } else {
+        _logSponsorBlock('Reject PiP: isReturningToVideo is true (Stack Count = ${VideoStackManager.getCount()}, Previous = $prevRoute)');
+        return false;
+      }
+    }
+    return true;
+  }
+
+  void _startInAppPipIfNeeded() {
+    if (!_shouldStartInAppPip()) {
+      return;
+    }
+
+    // 设置标志，防止 didPushNext 清理 SponsorBlock 数据
+    _isEnteringPipMode = true;
+    _logSponsorBlock('Starting PiP mode, segmentList.length: ${videoDetailController.segmentList.length}');
+
+    // 设置控制器标志，防止 onClose 清理资源
+    videoDetailController.isEnteringPip = true;
+
+    // 保存所有相关控制器
+    final additionalControllers = <String, dynamic>{};
+    if (videoDetailController.showReply) {
+      try {
+        final replyController = Get.find<VideoReplyController>(tag: heroTag);
+        replyController.isEnteringPip = true;
+        additionalControllers['reply'] = replyController;
+      } catch (_) {}
+    }
+    if (videoDetailController.isFileSource) {
+      try {
+        final intro = Get.find<LocalIntroController>(tag: heroTag);
+        intro.isEnteringPip = true;
+        additionalControllers['intro'] = intro;
+      } catch (_) {}
+    } else if (videoDetailController.isUgc) {
+      try {
+        final intro = Get.find<UgcIntroController>(tag: heroTag);
+        intro.isEnteringPip = true;
+        additionalControllers['intro'] = intro;
+      } catch (_) {}
+    } else {
+      try {
+        final intro = Get.find<PgcIntroController>(tag: heroTag);
+        intro.isEnteringPip = true;
+        additionalControllers['intro'] = intro;
+      } catch (_) {}
+    }
+    _logSponsorBlock('Saved ${additionalControllers.length} additional controllers');
+
+    PipOverlayService.startPip(
+      controller: videoDetailController,
+      additionalControllers: additionalControllers,
+      context: context,
+      videoPlayerBuilder: (isNative, w, h) => plPlayer(
+        width: w,
+        height: h,
+        isPipMode: true,
+      ),
+      onClose: () {
+        _isEnteringPipMode = false;
+        _logSponsorBlock('PiP closed by user');
+        _handleInAppPipCloseCleanup();
+      },
+      onTapToReturn: () {
+        // 不取消 position subscription，让它在新页面继续工作
+        _logSponsorBlock('Returning from PiP, positionSubscription will be preserved');
+        final currentPosition = plPlayerController?.position;
+        final args = Map<String, dynamic>.from(videoDetailController.args);
+        final progress =
+            currentPosition?.inMilliseconds ??
+            videoDetailController.playedTime?.inMilliseconds;
+        if (progress != null) {
+          args['progress'] = progress;
+        }
+        args['fromPip'] = true;
+        
+        // 重置标志
+        _isEnteringPipMode = false;
+        _logSponsorBlock('Tap to return from PiP, args contains: bvid=${args['bvid']}, cid=${args['cid']}, heroTag=${args['heroTag']}, title=${args['title']}, segmentList.length: ${videoDetailController.segmentList.length}');
+        
+        Get.toNamed('/videoV', arguments: args);
+      },
+    );
+
+    // 不需要重新初始化 SponsorBlock，因为 positionSubscription 已经存在并在工作
+    // 重新调用 initSkip() 会取消并重新创建 subscription，可能导致失效
+    _logSponsorBlock('PiP started, positionSubscription preserved');
+  }
+
+  void _handleInAppPipCloseCleanup() {
+    if (videoDetailController.plPlayerController.isCloseAll) {
+      return;
+    }
+    if (Platform.isAndroid && !videoDetailController.setSystemBrightness) {
+      ScreenBrightnessPlatform.instance.resetApplicationScreenBrightness();
+    }
+    PlPlayerController.setPlayCallBack(null);
+    videoPlayerServiceHandler?.onVideoDetailDispose(heroTag);
+    plPlayerController ??= videoDetailController.plPlayerController;
+    if (plPlayerController != null) {
+      videoDetailController.makeHeartBeat();
+      plPlayerController!.dispose();
+    } else {
+      PlPlayerController.updatePlayCount();
     }
   }
 

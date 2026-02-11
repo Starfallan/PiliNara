@@ -25,6 +25,7 @@ import 'package:PiliPlus/pages/video/pay_coins/view.dart';
 import 'package:PiliPlus/pages/video/related/controller.dart';
 import 'package:PiliPlus/pages/video/reply/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
+import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/extension/context_ext.dart';
@@ -53,6 +54,9 @@ class UgcIntroController extends CommonIntroController with ReloadMixin {
   // 关注状态 默认未关注
   late final RxMap followStatus = {}.obs;
   late final RxMap staffRelations = {}.obs;
+
+  // 是否正在进入应用内小窗
+  bool isEnteringPip = false;
 
   // 是否点踩
   final RxBool hasDislike = false.obs;
@@ -547,6 +551,16 @@ class UgcIntroController extends CommonIntroController with ReloadMixin {
 
   @override
   void onClose() {
+    if (Pref.enableLog || kDebugMode) {
+      try {
+        throw Exception(
+          '[UgcIntroController] onClose() called, isEnteringPip: $isEnteringPip',
+        );
+      } catch (e, s) {
+        logger.e('[PiP Debug]', error: e, stackTrace: s);
+      }
+    }
+    if (isEnteringPip) return;
     expandableCtr.dispose();
     super.onClose();
   }

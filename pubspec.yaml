@@ -145,9 +145,11 @@ dependencies:
   #   git:
   #     url: https://github.com/bggRGjQaUbCoE/flutter_ns_danmaku.git
   #     ref: master
+  # canvas_danmaku 进行修改以支持单个弹幕字体大小功能
+  # 原始仓库: https://github.com/bggRGjQaUbCoE/canvas_danmaku.git (ref: main)
   canvas_danmaku:
     git:
-      url: https://github.com/bggRGjQaUbCoE/canvas_danmaku.git
+      url: https://github.com/Starfallan/canvas_danmaku.git
       ref: main
   # 状态栏图标控制
   # status_bar_control: ^3.2.1

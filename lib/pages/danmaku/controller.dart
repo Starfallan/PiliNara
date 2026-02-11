@@ -1,5 +1,6 @@
 import 'dart:collection';
 import 'dart:io' show File;
+import 'dart:math' show log;
 
 import 'package:PiliPlus/grpc/bilibili/community/service/dm/v1.pb.dart';
 import 'package:PiliPlus/grpc/dm.dart';
@@ -8,6 +9,7 @@ import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/danmaku_options.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/path_utils.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:path/path.dart' as path;
 
@@ -30,6 +32,21 @@ class PlDanmakuController {
   late final Set<int> _requestedSeg = HashSet();
 
   static const int segmentLength = 60 * 6 * 1000;
+  
+  // Default font size for standard danmaku (base before user scaling)
+  // This matches the base size used in view.dart: 15 * scale
+  static const int _defaultFontSize = 15;
+  
+  /// Get the current enlarge threshold from settings
+  /// Can be configured by user in danmaku settings
+  int get _enlargeThreshold => Pref.danmakuEnlargeThreshold;
+  
+  /// Get the current log base from settings  
+  /// Can be configured by user in danmaku settings
+  int get _logBase => Pref.danmakuEnlargeLogBase;
+  
+  /// Get precomputed log value for the current base
+  double get _logBaseValue => log(_logBase.toDouble());
 
   void dispose() {
     _dmSegMap.clear();
@@ -38,6 +55,30 @@ class PlDanmakuController {
 
   static int calcSegment(int progress) {
     return progress ~/ segmentLength;
+  }
+
+  /// Calculate the font size enlargement rate based on the number of merged danmaku
+  /// 
+  /// Formula adapted from Pakku.js for mobile screens:
+  /// - count <= threshold: return 1 (no enlargement)
+  /// - count > threshold: return log(count) / log(base)
+  /// Both threshold and base can be configured in settings
+  double _calcEnlargeRate(int count) {
+    if (count <= _enlargeThreshold) {
+      return 1.0;
+    }
+    return log(count) / _logBaseValue;
+  }
+
+  /// Calculate enlarged font size for merged danmaku
+  /// Base font size is typically 15 for standard danmaku
+  int _calcEnlargedFontSize(int baseFontSize, int count) {
+    return (baseFontSize * _calcEnlargeRate(count)).round();
+  }
+
+  /// Get the base font size from DanmakuElem, falling back to default if not set
+  static int _getBaseFontSize(DanmakuElem element) {
+    return element.fontsize != 0 ? element.fontsize : _defaultFontSize;
   }
 
   Future<void> queryDanmaku(int segmentIndex) async {
@@ -66,6 +107,8 @@ class PlDanmakuController {
   void handleDanmaku(List<DanmakuElem> elems) {
     if (elems.isEmpty) return;
     final uniques = HashMap<String, DanmakuElem>();
+    // Track base font sizes for merged danmaku to avoid recalculation
+    final baseFontSizes = HashMap<String, int>();
 
     final shouldFilter = _plPlayerController.filters.count != 0;
     final danmakuWeight = DanmakuOptions.danmakuWeight;
@@ -78,9 +121,16 @@ class PlDanmakuController {
         if (_mergeDanmaku) {
           final elem = uniques[element.content];
           if (elem == null) {
+            // First occurrence: initialize count
+            // Don't set fontsize yet - only set it when actually merged (count > 1)
+            baseFontSizes[element.content] = _defaultFontSize;
             uniques[element.content] = element..count = 1;
           } else {
+            // Subsequent occurrence: this is now a merged danmaku
             elem.count++;
+            final baseFontSize = baseFontSizes[element.content] ?? _defaultFontSize;
+            // Calculate enlarged font size (rate is 1.0 for count <= 5, increases after)
+            elem.fontsize = _calcEnlargedFontSize(baseFontSize, elem.count);
             continue;
           }
         }

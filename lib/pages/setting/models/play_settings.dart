@@ -190,6 +190,13 @@ List<SettingsModel> get playSettings => [
     setKey: SettingBoxKey.continuePlayInBackground,
     defaultVal: false,
   ),
+  const SwitchModel(
+    title: '应用内画中画',
+    subtitle: '支持在应用内以小窗形式播放视频',
+    leading: Icon(Icons.picture_in_picture_alt_outlined),
+    setKey: SettingBoxKey.enableInAppPip,
+    defaultVal: true,
+  ),
   if (Platform.isAndroid) ...[
     SwitchModel(
       title: '后台画中画',

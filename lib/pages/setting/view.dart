@@ -4,6 +4,7 @@ import 'package:PiliPlus/http/login.dart';
 import 'package:PiliPlus/models/common/setting_type.dart';
 import 'package:PiliPlus/pages/about/view.dart';
 import 'package:PiliPlus/pages/login/controller.dart';
+import 'package:PiliPlus/pages/setting/dynamics_setting.dart';
 import 'package:PiliPlus/pages/setting/extra_setting.dart';
 import 'package:PiliPlus/pages/setting/play_setting.dart';
 import 'package:PiliPlus/pages/setting/privacy_setting.dart';
@@ -56,6 +57,11 @@ class _SettingPageState extends State<SettingPage> {
       icon: Icon(Icons.explore_outlined),
     ),
     _SettingsModel(
+      type: SettingType.dynamicsSetting,
+      subtitle: '关键词过滤、屏蔽用户、带货动态屏蔽',
+      icon: Icon(Icons.dynamic_feed_outlined),
+    ),
+    _SettingsModel(
       type: SettingType.videoSetting,
       subtitle: '画质、音质、解码、缓冲、音频输出等',
       icon: Icon(Icons.video_settings_outlined),
@@ -72,7 +78,7 @@ class _SettingPageState extends State<SettingPage> {
     ),
     _SettingsModel(
       type: SettingType.extraSetting,
-      subtitle: '震动、搜索、收藏、ai、评论、动态、代理、更新检查等',
+      subtitle: '震动、搜索、收藏、ai、评论、代理、更新检查等',
       icon: Icon(Icons.extension_outlined),
     ),
     _SettingsModel(
@@ -115,6 +121,9 @@ class _SettingPageState extends State<SettingPage> {
                         showAppBar: false,
                       ),
                       SettingType.recommendSetting => const RecommendSetting(
+                        showAppBar: false,
+                      ),
+                      SettingType.dynamicsSetting => const DynamicsSetting(
                         showAppBar: false,
                       ),
                       SettingType.videoSetting => const VideoSetting(

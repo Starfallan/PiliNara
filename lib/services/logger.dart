@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:PiliPlus/utils/json_file_handler.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:catcher_2/catcher_2.dart';
+import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -10,7 +11,11 @@ import 'package:path_provider/path_provider.dart';
 final logger = PiliLogger();
 
 class PiliLogger extends Logger {
-  PiliLogger() : super();
+  PiliLogger()
+      : super(
+          filter: ProductionFilter(), // 使用生产环境过滤器，默认不打印普通日志
+          printer: PrettyPrinter(methodCount: 0),
+        );
 
   @override
   void log(
@@ -20,9 +25,20 @@ class PiliLogger extends Logger {
     StackTrace? stackTrace,
     DateTime? time,
   }) {
-    if (level == Level.error || level == Level.fatal) {
-      Catcher2.reportCheckedError(error, stackTrace);
+    // 如果日志开关关闭，且不是调试模式，则直接返回，不处理任何逻辑（节省性能）
+    if (!Pref.enableLog && !kDebugMode) {
+      return;
     }
+
+    if (Pref.enableLog && (level == Level.error || level == Level.fatal)) {
+      try {
+        Catcher2.reportCheckedError(error, stackTrace);
+      } catch (e) {
+        // Fallback if Catcher2 is not initialized or fails
+      }
+    }
+
+    // 只有在调试模式或者开启了日志时，才交给父类处理（打印到控制台等）
     super.log(level, message, error: error, stackTrace: stackTrace, time: time);
   }
 }

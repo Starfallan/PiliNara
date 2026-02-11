@@ -18,9 +18,11 @@ import 'package:PiliPlus/utils/extension/context_ext.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
+import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/image_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/request_utils.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
@@ -392,6 +394,29 @@ class AuthorPanel extends StatelessWidget {
                     );
                     SmartDialog.showToast(
                       '已临时屏蔽${moduleAuthor.name}(${moduleAuthor.mid!})，重启恢复',
+                    );
+                  } catch (_) {}
+                },
+                minLeadingWidth: 0,
+              ),
+              ListTile(
+                title: Text(
+                  '永久屏蔽：${moduleAuthor.name}',
+                  style: theme.textTheme.titleSmall,
+                ),
+                leading: const Icon(Icons.block_outlined, size: 19),
+                onTap: () {
+                  Get.back();
+                  onBlock?.call();
+                  try {
+                    final mid = moduleAuthor.mid!;
+                    final blockedMids = Pref.dynamicsBlockedMids;
+                    blockedMids.add(mid);
+                    Pref.dynamicsBlockedMids = blockedMids;
+                    GlobalData().dynamicsBlockedMids = blockedMids;
+                    DynamicsDataModel.dynamicsBlockedMids = blockedMids;
+                    SmartDialog.showToast(
+                      '已永久屏蔽${moduleAuthor.name}(${mid})，可在动态流设置中管理',
                     );
                   } catch (_) {}
                 },

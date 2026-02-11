@@ -40,6 +40,7 @@ mixin BlockMixin on GetxController {
   StreamSubscription<Duration>? _blockListener;
   StreamSubscription<Duration>? get blockListener => _blockListener;
   late final List<SegmentModel> _segmentList = <SegmentModel>[];
+  List<SegmentModel> get segmentList => _segmentList;
   late final RxList<Segment> segmentProgressList = <Segment>[].obs;
 
   Timer? _skipTimer;

@@ -287,6 +287,7 @@ class MyApp extends StatelessWidget {
       builder: FlutterSmartDialog.init(
         toastBuilder: (msg) => CustomToast(msg: msg),
         loadingBuilder: (msg) => LoadingWidget(msg: msg),
+        // 使用自定义的静态构建方法
         builder: _builder,
       ),
       navigatorObservers: [
@@ -299,25 +300,58 @@ class MyApp extends StatelessWidget {
     );
   }
 
+  // 修复后的 Builder 方法
   static Widget _builder(BuildContext context, Widget? child) {
-    final uiScale = Pref.uiScale;
     final mediaQuery = MediaQuery.of(context);
+    final uiScale = Pref.uiScale;
     final textScaler = TextScaler.linear(Pref.defaultTextScale);
+
+    // --- Fix for Flutter SDK bug on HyperOS windowed mode (Android only) ---
+    // https://github.com/flutter/flutter/issues/164092
+    // https://github.com/flutter/flutter/issues/161086
+    EdgeInsets effectiveViewPadding = mediaQuery.viewPadding;
+    EdgeInsets effectivePadding = mediaQuery.padding;
+
+    if (Platform.isAndroid) {
+      // Fallback padding values based on typical Android status/navigation bar heights
+      const fallbackPadding = EdgeInsets.only(top: 25, bottom: 35);
+
+      // Threshold for detecting abnormal padding:
+      // - Normal status bars are typically 20-48 dp
+      // - Values > 50 indicate the Flutter SDK bug on HyperOS windowed mode
+      // - Values == 0 are valid in fullscreen/immersive mode
+      // - Check both top AND bottom to avoid misdetecting during orientation changes
+      const maxNormalPadding = 50.0;
+
+      final hasAbnormalPadding = mediaQuery.viewPadding.top > maxNormalPadding &&
+          mediaQuery.viewPadding.bottom > maxNormalPadding;
+
+      if (hasAbnormalPadding) {
+        effectiveViewPadding = fallbackPadding;
+        effectivePadding = fallbackPadding;
+      }
+    }
+    // -----------------------------------------------------------------------
+
     if (uiScale != 1.0) {
       child = MediaQuery(
         data: mediaQuery.copyWith(
           textScaler: textScaler,
           size: mediaQuery.size / uiScale,
-          padding: mediaQuery.padding / uiScale,
+          padding: effectivePadding / uiScale, // 应用修正后的 padding
           viewInsets: mediaQuery.viewInsets / uiScale,
-          viewPadding: mediaQuery.viewPadding / uiScale,
+          viewPadding: effectiveViewPadding / uiScale, // 应用修正后的 viewPadding
           devicePixelRatio: mediaQuery.devicePixelRatio * uiScale,
         ),
         child: child!,
       );
     } else {
       child = MediaQuery(
-        data: mediaQuery.copyWith(textScaler: textScaler),
+        data: mediaQuery.copyWith(
+          textScaler: textScaler,
+          viewPadding: effectiveViewPadding, // 即使不缩放，也要应用修正值
+          padding: effectivePadding, // 即使不缩放，也要应用修正值
+        ),
         child: child!,
       );
     }

@@ -5,7 +5,10 @@ import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/models/common/video/video_type.dart';
 import 'package:PiliPlus/pages/common/reply_controller.dart';
 import 'package:PiliPlus/pages/video/controller.dart';
+import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/utils/id_utils.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -29,6 +32,9 @@ class VideoReplyController extends ReplyController<MainListReply>
   bool _isFabVisible = true;
   late final AnimationController _fabAnimationCtr;
   late final Animation<Offset> animation;
+
+  // 是否正在进入应用内小窗
+  bool isEnteringPip = false;
 
   @override
   void onInit() {
@@ -75,6 +81,16 @@ class VideoReplyController extends ReplyController<MainListReply>
 
   @override
   void onClose() {
+    if (Pref.enableLog || kDebugMode) {
+      try {
+        throw Exception(
+          '[VideoReplyController] onClose() called, isEnteringPip: $isEnteringPip',
+        );
+      } catch (e, s) {
+        logger.e('[PiP Debug]', error: e, stackTrace: s);
+      }
+    }
+    if (isEnteringPip) return;
     _fabAnimationCtr.dispose();
     super.onClose();
   }

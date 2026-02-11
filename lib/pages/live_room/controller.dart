@@ -24,6 +24,7 @@ import 'package:PiliPlus/pages/video/widgets/header_control.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/data_source.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/danmaku_options.dart';
+import 'package:PiliPlus/services/live_pip_overlay_service.dart';
 import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/tcp/live.dart';
 import 'package:PiliPlus/utils/accounts.dart';
@@ -44,10 +45,12 @@ import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 
 class LiveRoomController extends GetxController {
-  LiveRoomController(this.heroTag);
+  LiveRoomController(this.heroTag, {this.fromPip = false});
   final String heroTag;
+  final bool fromPip;
 
-  int roomId = Get.arguments;
+  late int roomId;
+  bool isReturningFromPip = false;
   int? ruid;
   DanmakuController<DanmakuExtra>? danmakuController;
   PlPlayerController plPlayerController = PlPlayerController.getInstance(
@@ -56,6 +59,9 @@ class LiveRoomController extends GetxController {
 
   RxBool isLoaded = false.obs;
   Rx<RoomInfoH5Data?> roomInfoH5 = Rx<RoomInfoH5Data?>(null);
+  
+  // PiP 模式标志
+  RxBool isInPipMode = false.obs;
 
   Rx<int?> liveTime = Rx<int?>(null);
   Timer? liveTimeTimer;
@@ -181,11 +187,32 @@ class LiveRoomController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    
+    // 从参数中提取 roomId（支持 int 或 Map 格式）
+    final args = Get.arguments;
+    if (args is Map) {
+      roomId = (args['roomId'] as int?) ?? (args['id'] as int? ?? 0);
+    } else {
+      roomId = args as int;
+    }
+    
     scrollController = ScrollController()..addListener(listener);
     final account = Accounts.heartbeat;
     isLogin = account.isLogin;
     mid = account.mid;
-    queryLiveUrl();
+
+    // 直接透传构造函数传入的 fromPip 标志，因为它在 view.dart 中已经经过了校验
+    isReturningFromPip = fromPip;
+
+    if (!isReturningFromPip) {
+      // 正常流程：查询直播流地址
+      queryLiveUrl();
+    } else {
+      // 从 PiP 返回：播放器已在运行，只需恢复状态
+      isPortrait.value = plPlayerController.isVertical;
+      isLoaded.value = true;
+    }
+    
     queryLiveInfoH5();
     if (isLogin && !Pref.historyPause) {
       VideoHttp.roomEntryAction(roomId: roomId);
@@ -199,6 +226,14 @@ class LiveRoomController extends GetxController {
     if (videoUrl == null) {
       return null;
     }
+    // 如果是从小窗返回，播放器已在播放，跳过初始化
+    if (isReturningFromPip) {
+      return null;
+    }
+    
+    // 确保播放器处于直播模式
+    plPlayerController.isLive = true;
+    
     return plPlayerController.setDataSource(
       DataSource(
         videoSource: videoUrl,
@@ -216,7 +251,7 @@ class LiveRoomController extends GetxController {
     );
   }
 
-  Future<void> queryLiveUrl() async {
+  Future<void> queryLiveUrl({bool reinitializePlayer = true}) async {
     currentQn ??= await Utils.isWiFi
         ? Pref.liveQuality
         : Pref.liveQualityCellular;
@@ -255,7 +290,9 @@ class LiveRoomController extends GetxController {
       currentQnDesc.value =
           LiveQuality.fromCode(currentQn)?.desc ?? currentQn.toString();
       videoUrl = VideoUtils.getLiveCdnUrl(item);
-      await playerInit();
+      if (reinitializePlayer) {
+        await playerInit();
+      }
       isLoaded.value = true;
     } else {
       _showDialog(res.toString());
@@ -391,21 +428,24 @@ class LiveRoomController extends GetxController {
 
   @override
   void onClose() {
-    closeLiveMsg();
-    cancelLikeTimer();
-    cancelLiveTimer();
-    savedDanmaku?.clear();
-    savedDanmaku = null;
-    messages.clear();
-    if (showSuperChat) {
-      superChatMsg.clear();
-      fsSC.value = null;
+    // 如果在小窗模式，不清理资源
+    if (!isInPipMode.value) {
+      closeLiveMsg();
+      cancelLikeTimer();
+      cancelLiveTimer();
+      savedDanmaku?.clear();
+      savedDanmaku = null;
+      messages.clear();
+      if (showSuperChat) {
+        superChatMsg.clear();
+        fsSC.value = null;
+      }
+      scrollController
+        ..removeListener(listener)
+        ..dispose();
+      pageController?.dispose();
+      danmakuController = null;
     }
-    scrollController
-      ..removeListener(listener)
-      ..dispose();
-    pageController?.dispose();
-    danmakuController = null;
     super.onClose();
   }
 

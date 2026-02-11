@@ -14,6 +14,8 @@ import 'package:PiliPlus/pages/audio/controller.dart';
 import 'package:PiliPlus/pages/video/introduction/ugc/widgets/action_item.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
 import 'package:PiliPlus/services/shutdown_timer_service.dart';
+import 'package:PiliPlus/services/pip_overlay_service.dart';
+import 'package:PiliPlus/services/live_pip_overlay_service.dart';
 import 'package:PiliPlus/utils/date_utils.dart';
 import 'package:PiliPlus/utils/duration_utils.dart';
 import 'package:PiliPlus/utils/extension/context_ext.dart';
@@ -73,6 +75,18 @@ class _AudioPageState extends State<AudioPage> {
     AudioController(),
     tag: Utils.generateRandomString(8),
   );
+
+  @override
+  void initState() {
+    super.initState();
+    // 进入听视频界面时，确保关闭所有应用内小窗
+    if (PipOverlayService.isInPipMode) {
+      PipOverlayService.stopPip(callOnClose: false, immediate: true);
+    }
+    if (LivePipOverlayService.isInPipMode) {
+      LivePipOverlayService.stopLivePip(callOnClose: false);
+    }
+  }
 
   @override
   void didChangeDependencies() {
