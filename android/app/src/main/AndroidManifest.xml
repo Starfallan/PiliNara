@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.piliplus">
+    package="com.example.pilinara">
     <queries>
         <intent>
             <action android:name="android.intent.action.VIEW" />

@@ -5,14 +5,11 @@
 
 
 <div align="center">
-    <h1>PiliPlus</h1>
+    <h1>PiliNara</h1>
 <div align="center">
     
-![GitHub repo size](https://img.shields.io/github/repo-size/bggRGjQaUbCoE/PiliPlus) 
-![GitHub Repo stars](https://img.shields.io/github/stars/bggRGjQaUbCoE/PiliPlus) 
-![GitHub all releases](https://img.shields.io/github/downloads/bggRGjQaUbCoE/PiliPlus/total) 
 </div>
-    <p>使用Flutter开发的BiliBili第三方客户端</p>
+    <p>基于PiliPlus做了一些自用修改</p>
     
 <img src="assets/screenshots/510shots_so.png" width="32%" alt="home" />
 <img src="assets/screenshots/174shots_so.png" width="32%" alt="home" />
@@ -24,6 +21,34 @@
 
 
 <br/>
+
+## 项目说明
+- 本项目PiliNara是基于[PiliPlus](https://github.com/bggRGjQaUbCoE/PiliPlus)进行修改的,做了一些自用的改动.
+- 本仓库保留了PiliPlus的所有功能,并在此基础上进行了部分自用的优化和调整.支持导入PiliPlus的设置和数据.
+- 本项目会定期同步PiliPlus的更新,并在此基础上进行修改和优化.
+- 本项目仅供个人学习和测试使用，目前只打包了安卓版本,如有需要请自行Fork后编译.
+- 本人开发水平有限，可能存在一些bug和不完善的地方，欢迎提交issue和PR.
+
+在此致敬原作者和上游作者的无私奉献。如有侵权请联系删除。
+
+## 改动说明(未来计划？)
+- 应用名称由PiliPlus更改为PiliNara，做了各平台相应替换以实现共存
+ork特性：
+- [x] 修复Flutter在澎湃小窗下无法正常显示的问题，参考Flutter官方issue [#161086](https://github.com/flutter/flutter/issues/161086)，该问题似乎在HyperOS3上被修复。
+   修复方案参考了[venera/pull/467](https://github.com/venera-app/venera/pull/467)
+- [x] 增强合并弹幕功能，添加类[Pakku.js](https://github.com/xmcp/pakku.js)实现，重复弹幕字体随数量而增大,可设置放大阈值和放大速度
+- [x] 独立出动态屏蔽设置
+- [x] 增强原有的屏蔽功能，使用列表式可视化菜单替换了原有的|分割正则，尝试支持了更复杂的正则
+- [x] 支持屏蔽根据用户Uid屏蔽推荐视频和动态，支持在首页和动态长按实现快捷本地屏蔽，不占用原有黑名单
+- [x] 实现了类似于[Pilipro](https://github.com/naaammme/pilipro)的应用内小窗功能，感谢原作者naaammme的无私奉献,在实现时参考了其逻辑。
+  - [x] 应用内小窗支持拖动和双击调整大小
+  - [x] 应用内小窗支持检测横竖屏视频并自动调整比例
+  - [x] 应用内小窗支持仿官方客户端的控制栏操作，包括关闭、返回、前进/后退、播放/暂停等功能
+  - [x] 应用内小窗支持SponsorBlock跳过片段功能
+- [x] 在听视频界面添加了定时关闭按钮
+- [x] 在保存字幕的功能中添加了选择保存为原始WEBVTT格式和SRT格式的选项,转换逻辑参考了BiliRoamingx项目中的实现
+- [ ] 优化弹幕合并的体验，做到类似Pakku.js的效果，可以合并相似弹幕
+
 
 ## 适配平台
 
@@ -37,28 +62,10 @@
 
 ## refactor
 
-**在这里感谢原作者和上游作者的无私奉献。**
+- [ ] gRPC [wip]
+- [x] 用户界面
+- [x] 其他
 
-本人自用，在上游的基础上进行修改，会定期同步上游更改，随便写写，勿喷。
-
-由于我只在安卓上使用，有需要的可以自行进行编译使用。
-
-欢迎各位有兴趣也可以试试，有问题可以写Issue。欢迎Star
-
-Fork特性：
-
-- [x] 修复Flutter在澎湃小窗下无法正常显示的问题，参考Flutter官方issue [#161086](https://github.com/flutter/flutter/issues/161086)，该问题似乎在HyperOS3上被修复。
-
-   修复方案参考了[venera/pull/467](https://github.com/venera-app/venera/pull/467)
-
-- [x] 增强合并弹幕功能，添加类Pakku重复弹幕字体随数量而增大,可设置放大阈值和放大速度
-- [x] 独立出动态屏蔽设置
-- [x] 增强原有的屏蔽功能，使用列表式可视化菜单替换了原有的|分割正则，尝试支持了更复杂的正则
-- [x] 支持屏蔽根据用户Uid屏蔽推荐视频和动态，支持在首页和动态长按实现快捷本地屏蔽，不占用原有黑名单
-- [x] 实现了类似于[Pilipro](https://github.com/naaammme/pilipro)的应用内小窗功能，感谢原作者naaammme的无私奉献,在实现时参考了其逻辑。
-- [x] 在听视频界面添加了定时关闭按钮
-- [x] 在保存字幕的功能中添加了选择保存为原始WEBVTT格式和SRT格式的选项,转换逻辑参考了BiliRoamingx项目中的实现
-- [x] 其他细节优化????
 
 ## feat
 - [x] 编辑动态
@@ -236,11 +243,12 @@ Fork特性：
 
 ## 声明
 
-此项目（PiliPlus）是个人为了兴趣而开发，仅用于学习和测试，请于下载后24小时内删除。
+此项目（PiliNara）是个人为了兴趣而开发，仅用于学习和测试，请于下载后24小时内删除。
 所用API皆从官方网站收集，不提供任何破解内容。
 在此致敬原作者：[guozhigq/pilipala](https://github.com/guozhigq/pilipala)
 在此致敬上游作者：[orz12/PiliPalaX](https://github.com/orz12/PiliPalaX)
-本仓库做了更激进的修改，感谢原作者的开源精神。
+在此致敬上游作者：[bggRGjQaUbCoE/PiliPlus](https://github.com/bggRGjQaUbCoE/PiliPlus)
+本仓库做了一些自用修改，感谢原作者的开源精神。
 
 感谢使用
 
@@ -258,13 +266,3 @@ Fork特性：
 <br/>
 <br/>
 <br/>
-
-## Star History
-
-<a href="https://www.star-history.com/#bggRGjQaUbCoE/PiliPlus&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=bggRGjQaUbCoE/PiliPlus&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=bggRGjQaUbCoE/PiliPlus&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=bggRGjQaUbCoE/PiliPlus&type=Date" />
- </picture>
-</a>
