@@ -222,6 +222,7 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
   Timer? _hideTimer;
 
   bool _isClosing = false;
+  final GlobalKey _videoKey = GlobalKey();
 
   @override
   void initState() {
@@ -312,7 +313,18 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
 
     // 更新当前位置信息给 Service，以便原生端同步 sourceRectHint
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      PipOverlayService.updateBounds(Rect.fromLTWH(_left!, _top!, _width, _height));
+      if (!mounted) return;
+      final RenderBox? renderBox =
+          _videoKey.currentContext?.findRenderObject() as RenderBox?;
+      if (renderBox != null) {
+        final offset = renderBox.localToGlobal(Offset.zero);
+        final size = renderBox.size;
+        PipOverlayService.updateBounds(
+            Rect.fromLTWH(offset.dx, offset.dy, size.width, size.height));
+      } else {
+        PipOverlayService.updateBounds(
+            Rect.fromLTWH(_left!, _top!, _width, _height));
+      }
     });
 
     return Obx(() {
@@ -353,6 +365,7 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
             }
           },
           child: AnimatedContainer(
+            key: _videoKey,
             duration: const Duration(milliseconds: 150),
             curve: Curves.easeOutCubic,
             width: currentWidth,

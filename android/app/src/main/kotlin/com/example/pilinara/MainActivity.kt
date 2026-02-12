@@ -128,12 +128,20 @@ class MainActivity : AudioServiceActivity() {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         val autoEnable = call.argument<Boolean>("autoEnable") ?: false
                         val rect = call.argument<List<Int>>("sourceRectHint")
+                        val aspectRatio = call.argument<Double>("aspectRatio")
                         
                         val builder = PictureInPictureParams.Builder()
                             .setAutoEnterEnabled(autoEnable)
                         
                         if (rect != null && rect.size == 4) {
                             builder.setSourceRectHint(android.graphics.Rect(rect[0], rect[1], rect[2], rect[3]))
+                        }
+
+                        if (aspectRatio != null && aspectRatio > 0) {
+                            // 限制比例在系统允许范围内 (0.41 ~ 2.39)
+                            val validRatio = aspectRatio.coerceIn(0.418, 2.39)
+                            val numerator = (validRatio * 10000).toInt()
+                            builder.setAspectRatio(android.util.Rational(numerator, 10000))
                         }
                         
                         setPictureInPictureParams(builder.build())

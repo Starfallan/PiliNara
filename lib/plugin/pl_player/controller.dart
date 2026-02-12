@@ -346,24 +346,39 @@ class PlPlayerController with BlockConfigMixin {
     }
 
     List<int>? sourceRectHint;
+    double? aspectRatio;
 
     if (autoEnable && isInInAppPip) {
       final bounds = PipOverlayService.currentBounds ??
           LivePipOverlayService.currentBounds;
       if (bounds != null) {
-        final dpr = MediaQuery.maybeDevicePixelRatioOf(Get.context!) ?? 1.0;
-        sourceRectHint = [
-          (bounds.left * dpr).round(),
-          (bounds.top * dpr).round(),
-          (bounds.right * dpr).round(),
-          (bounds.bottom * dpr).round(),
-        ];
+        final context = Get.overlayContext ?? Get.context;
+        if (context != null) {
+          final view = View.of(context);
+          final dpr = view.devicePixelRatio;
+          
+          // SourceRectHint 在安卓原生中需要物理像素 (Physical Pixels)
+          // 且坐标系是相对于整个 Window 的。
+          // 在使用了 ScaledWidgetsFlutterBinding 的情况下，
+          // view.devicePixelRatio 就是缩放后的 DPR，直接乘上逻辑坐标即得物理坐标。
+          sourceRectHint = [
+            (bounds.left * dpr).round(),
+            (bounds.top * dpr).round(),
+            (bounds.right * dpr).round(),
+            (bounds.bottom * dpr).round(),
+          ];
+          
+          if (bounds.height > 0) {
+            aspectRatio = bounds.width / bounds.height;
+          }
+        }
       }
     }
 
     Utils.channel.invokeMethod('setPipAutoEnterEnabled', {
       'autoEnable': autoEnable,
       if (sourceRectHint != null) 'sourceRectHint': sourceRectHint,
+      if (aspectRatio != null) 'aspectRatio': aspectRatio,
     });
   }
 
@@ -578,6 +593,11 @@ class PlPlayerController with BlockConfigMixin {
           if (call.method == 'onUserLeaveHint') {
             final bool isInInAppPip = _isInInAppPip;
             
+            if (isInInAppPip && Pref.enableInAppToNativePip) {
+              // 在离开应用前最后同步一次精确坐标
+              syncPipParams(autoEnable: true);
+            }
+
             // 对于 SDK < 31，手动触发 PiP
             if (sdkInt < 31) {
               if (playerStatus.isPlaying && (_isCurrVideoPage || isInInAppPip)) {

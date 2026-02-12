@@ -214,6 +214,7 @@ class _LivePipWidgetState extends State<LivePipWidget> with WidgetsBindingObserv
 
   bool _showControls = true;
   Timer? _hideTimer;
+  final GlobalKey _videoKey = GlobalKey();
 
   @override
   void initState() {
@@ -294,7 +295,18 @@ class _LivePipWidgetState extends State<LivePipWidget> with WidgetsBindingObserv
 
     // 更新当前位置信息给 Service
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      LivePipOverlayService.updateBounds(Rect.fromLTWH(_left!, _top!, _width, _height));
+      if (!mounted) return;
+      final RenderBox? renderBox =
+          _videoKey.currentContext?.findRenderObject() as RenderBox?;
+      if (renderBox != null) {
+        final offset = renderBox.localToGlobal(Offset.zero);
+        final size = renderBox.size;
+        LivePipOverlayService.updateBounds(
+            Rect.fromLTWH(offset.dx, offset.dy, size.width, size.height));
+      } else {
+        LivePipOverlayService.updateBounds(
+            Rect.fromLTWH(_left!, _top!, _width, _height));
+      }
     });
 
     return Obx(() {
@@ -331,6 +343,7 @@ class _LivePipWidgetState extends State<LivePipWidget> with WidgetsBindingObserv
             }
           },
           child: Container(
+            key: _videoKey,
             width: currentWidth,
             height: currentHeight,
             decoration: BoxDecoration(
