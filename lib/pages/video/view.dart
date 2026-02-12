@@ -355,20 +355,6 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     autoScreen();
 
     WidgetsBinding.instance.addObserver(this);
-
-    // 监听系统画中画状态变化
-    plPlayerController?.isNativePip.listen((isInNativePip) {
-      if (!mounted) return;
-      if (!isInNativePip && isShowing == false) {
-        // 如果系统画中画结束，且本页面当前处于隐藏状态（即正在显示小窗）
-        // 只有当没有小窗存活时，说明已经过渡回页面，此时才恢复 isShowing
-        if (!PipOverlayService.isInPipMode && !LivePipOverlayService.isInPipMode) {
-          setState(() {
-            isShowing = true;
-          });
-        }
-      }
-    });
   }
 
   // 获取视频资源，初始化播放器

@@ -357,16 +357,15 @@ class PlPlayerController with BlockConfigMixin {
           final view = View.of(context);
           final dpr = view.devicePixelRatio;
           
-          // SourceRectHint 在安卓原生中需要相对于 DecorView 的物理像素坐标 (Physical Pixels)
-          // 如果 Flutter 并没有延伸到状态栏下方（非沉浸式），localToGlobal(0,0) 会在状态栏下方
-          // 通过 MediaQuery.viewPaddingOf(context).top 补偿这一差异
-          final double topOffset = MediaQuery.viewPaddingOf(context).top;
-          
+          // SourceRectHint 在安卓原生中需要物理像素 (Physical Pixels)
+          // 且坐标系是相对于整个 Window 的。
+          // 在使用了 ScaledWidgetsFlutterBinding 的情况下，
+          // view.devicePixelRatio 就是缩放后的 DPR，直接乘上逻辑坐标即得物理坐标。
           sourceRectHint = [
             (bounds.left * dpr).round(),
-            ((bounds.top + topOffset) * dpr).round(),
+            (bounds.top * dpr).round(),
             (bounds.right * dpr).round(),
-            ((bounds.bottom + topOffset) * dpr).round(),
+            (bounds.bottom * dpr).round(),
           ];
           
           if (bounds.height > 0) {
@@ -595,8 +594,7 @@ class PlPlayerController with BlockConfigMixin {
             final bool isInInAppPip = _isInInAppPip;
             
             if (isInInAppPip && Pref.enableInAppToNativePip) {
-              // 在离开应用前最后同步一次精确坐标和开启状态
-              // 注意：此时不在这里设置 isNativePip = true，由系统回调驱动，避免视觉闪烁
+              // 在离开应用前最后同步一次精确坐标
               syncPipParams(autoEnable: true);
             }
 
@@ -608,31 +606,19 @@ class PlPlayerController with BlockConfigMixin {
             }
           } else if (call.method == 'onPipChanged') {
             final bool isInPip = call.arguments as bool;
-            
-            // 如果是从系统画中画返回 (isInPip 为 false，且之前是 true)
-            if (!isInPip && isNativePip.value) {
-              final bool isInInAppPip = PipOverlayService.isInPipMode || LivePipOverlayService.isInPipMode;
-              if (isInInAppPip) {
-                // 如果当前已经在播放页面，只需移除小窗占位，系统会自动过渡回页面内的播放器
-                final currentRoute = Get.currentRoute;
-                if (currentRoute.startsWith('/video') || currentRoute.startsWith('/liveRoom')) {
-                  if (PipOverlayService.isInPipMode) {
-                    PipOverlayService.stopPip(callOnClose: false, immediate: true);
-                  } else {
-                    LivePipOverlayService.stopLivePip(callOnClose: false);
-                  }
-                } else {
-                  // 如果在其他页面（如首页），调用还原逻辑回到播放页
-                  if (PipOverlayService.isInPipMode) {
-                    PipOverlayService.onTapToReturn();
-                  } else {
-                    LivePipOverlayService.onReturn();
-                  }
-                }
+            if (!isInPip &&
+                isNativePip.value &&
+                (PipOverlayService.isInPipMode ||
+                    LivePipOverlayService.isInPipMode)) {
+              if (PipOverlayService.isInPipMode) {
+                PipOverlayService.onTapToReturn();
+              } else if (LivePipOverlayService.isInPipMode) {
+                LivePipOverlayService.onReturn();
               }
             }
-            
             isNativePip.value = isInPip;
+            PipOverlayService.isNativePip = isInPip;
+            LivePipOverlayService.isNativePip = isInPip;
           }
         });
 

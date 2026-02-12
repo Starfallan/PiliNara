@@ -186,6 +186,9 @@ class MainActivity : AudioServiceActivity() {
         newConfig: Configuration?
     ) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
-        methodChannel.invokeMethod("onPipChanged", isInPictureInPictureMode)
+        MethodChannel(
+            flutterEngine!!.dartExecutor.binaryMessenger,
+            "floating"
+        ).invokeMethod("onPipChanged", isInPictureInPictureMode)
     }
 }
