@@ -355,12 +355,12 @@ class PlPlayerController with BlockConfigMixin {
         final context = Get.overlayContext ?? Get.context;
         if (context != null) {
           final view = View.of(context);
-          final dpr = view.devicePixelRatio;
+          // 使用修正后的 DPR：由于使用了 ScaledWidgetsFlutterBinding，
+          // 逻辑坐标转物理坐标需要乘以 (原始DPR * uiScale)
+          final dpr = view.devicePixelRatio * Pref.uiScale;
           
           // SourceRectHint 在安卓原生中需要物理像素 (Physical Pixels)
           // 且坐标系是相对于整个 Window 的。
-          // 在使用了 ScaledWidgetsFlutterBinding 的情况下，
-          // view.devicePixelRatio 就是缩放后的 DPR，直接乘上逻辑坐标即得物理坐标。
           sourceRectHint = [
             (bounds.left * dpr).round(),
             (bounds.top * dpr).round(),
@@ -594,7 +594,9 @@ class PlPlayerController with BlockConfigMixin {
             final bool isInInAppPip = _isInInAppPip;
             
             if (isInInAppPip && Pref.enableInAppToNativePip) {
-              // 在离开应用前最后同步一次精确坐标
+              // 在离开应用前最后同步一次精确坐标。
+              // 注意：不要在这里设置 isNativePip = true，因为系统需要捕获当前“小窗”状态的截图
+              // 以实现基于 sourceRectHint 的平滑放大（镜像）效果。
               syncPipParams(autoEnable: true);
             }
 

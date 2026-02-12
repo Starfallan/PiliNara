@@ -364,10 +364,8 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
               _startHideTimer();
             }
           },
-          child: AnimatedContainer(
+          child: Container(
             key: _videoKey,
-            duration: const Duration(milliseconds: 150),
-            curve: Curves.easeOutCubic,
             width: currentWidth,
             height: currentHeight,
             decoration: BoxDecoration(
