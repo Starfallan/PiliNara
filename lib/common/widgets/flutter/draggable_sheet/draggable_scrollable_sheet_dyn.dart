@@ -20,7 +20,7 @@ import 'dart:math' as math;
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide DraggableScrollableSheet;
 
 /// Controls a [DraggableScrollableSheet].
 ///
@@ -112,11 +112,10 @@ class DraggableScrollableController extends ChangeNotifier {
     _assertAttached();
     assert(size >= 0 && size <= 1);
     assert(duration != Duration.zero);
-    final AnimationController animationController =
-        AnimationController.unbounded(
-          vsync: _attachedController!.position.context.vsync,
-          value: _attachedController!.extent.currentSize,
-        );
+    final animationController = AnimationController.unbounded(
+      vsync: _attachedController!.position.context.vsync,
+      value: _attachedController!.extent.currentSize,
+    );
     _animationControllers.add(animationController);
     _attachedController!.position.goIdle();
     // This disables any snapping until the next user interaction with the sheet.
@@ -583,7 +582,7 @@ class _DraggableScrollableSheetState extends State<DraggableScrollableSheet> {
   }
 
   List<double> _impliedSnapSizes() {
-    for (int index = 0; index < (widget.snapSizes?.length ?? 0); index += 1) {
+    for (var index = 0; index < (widget.snapSizes?.length ?? 0); index += 1) {
       final double snapSize = widget.snapSizes![index];
       assert(
         snapSize >= widget.minChildSize && snapSize <= widget.maxChildSize,
@@ -684,11 +683,11 @@ class _DraggableScrollableSheetState extends State<DraggableScrollableSheet> {
       // have changed when the widget was updated.
       WidgetsBinding.instance.addPostFrameCallback((Duration timeStamp) {
         for (
-          int index = 0;
+          var index = 0;
           index < _scrollController.positions.length;
           index++
         ) {
-          final _DraggableScrollableSheetScrollPosition position =
+          final position =
               _scrollController.positions.elementAt(index)
                   as _DraggableScrollableSheetScrollPosition;
           position.goBallistic(0);
@@ -702,7 +701,7 @@ class _DraggableScrollableSheetState extends State<DraggableScrollableSheet> {
         .asMap()
         .keys
         .map((int index) {
-          final String snapSizeString = widget.snapSizes![index].toString();
+          final snapSizeString = widget.snapSizes![index].toString();
           if (index == invalidIndex) {
             return '>>> $snapSizeString <<<';
           }
@@ -917,14 +916,10 @@ class _DraggableScrollableSheetScrollPosition
       );
     }
 
-    final AnimationController ballisticController =
-        AnimationController.unbounded(
-          debugLabel: objectRuntimeType(
-            this,
-            '_DraggableScrollableSheetPosition',
-          ),
-          vsync: context.vsync,
-        );
+    final ballisticController = AnimationController.unbounded(
+      debugLabel: objectRuntimeType(this, '_DraggableScrollableSheetPosition'),
+      vsync: context.vsync,
+    );
     _ballisticControllers.add(ballisticController);
 
     double lastPosition = extent.currentPixels;
@@ -1080,8 +1075,7 @@ class _InheritedResetNotifier extends InheritedNotifier<_ResetNotifier> {
       return false;
     }
     assert(widget is _InheritedResetNotifier);
-    final _InheritedResetNotifier inheritedNotifier =
-        widget as _InheritedResetNotifier;
+    final inheritedNotifier = widget as _InheritedResetNotifier;
     final bool wasCalled = inheritedNotifier.notifier!._wasCalled;
     inheritedNotifier.notifier!._wasCalled = false;
     return wasCalled;
@@ -1158,6 +1152,10 @@ class _SnappingSimulation extends Simulation {
       return pixelSnapSizes.first;
     }
     final double nextSize = pixelSnapSizes[indexOfNextSize];
+    // If already snapped - keep this as target size
+    if (nextSize == position) {
+      return nextSize;
+    }
     final double previousSize = pixelSnapSizes[indexOfNextSize - 1];
     if (initialVelocity.abs() <= tolerance.velocity) {
       // If velocity is zero, snap to the nearest snap size with the minimum velocity.

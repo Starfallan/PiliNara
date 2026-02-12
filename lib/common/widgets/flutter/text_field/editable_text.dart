@@ -146,7 +146,7 @@ class _DiscreteKeyFrameSimulation extends Simulation {
     : assert(_keyFrames.isNotEmpty),
       assert(_keyFrames.last.time <= maxDuration),
       assert(() {
-        for (int i = 0; i < _keyFrames.length - 1; i += 1) {
+        for (var i = 0; i < _keyFrames.length - 1; i += 1) {
           if (_keyFrames[i].time > _keyFrames[i + 1].time) {
             return false;
           }
@@ -407,7 +407,11 @@ class _DiscreteKeyFrameSimulation extends Simulation {
 /// ```dart
 /// onChanged: (String newText) {
 ///   if (newText.isNotEmpty) {
-///     SemanticsService.announce('\$$newText', Directionality.of(context));
+///     SemanticsService.sendAnnouncement(
+///       View.of(context),
+///       '\$$newText',
+///        Directionality.of(context),
+///     );
 ///   }
 /// }
 /// ```
@@ -692,6 +696,13 @@ class EditableText extends StatefulWidget {
   final bool enableSuggestions;
 
   /// The text style to use for the editable text.
+  ///
+  /// The user or platform may override this [style]'s [TextStyle.fontWeight],
+  /// [TextStyle.height], [TextStyle.letterSpacing], and [TextStyle.wordSpacing]
+  /// via a [MediaQuery] ancestor's [MediaQueryData.boldText],
+  /// [MediaQueryData.lineHeightScaleFactorOverride],
+  /// [MediaQueryData.letterSpacingOverride], and [MediaQueryData.wordSpacingOverride]
+  /// regardless of its [TextStyle.inherit] value.
   final TextStyle style;
 
   /// {@template flutter.widgets.editableText.strutStyle}
@@ -718,6 +729,9 @@ class EditableText extends StatefulWidget {
   /// Within editable text and text fields, [StrutStyle] will not use its standalone
   /// default values, and will instead inherit omitted/null properties from the
   /// [TextStyle] instead. See [StrutStyle.inheritFromTextStyle].
+  ///
+  /// The user or platform may override this [strutStyle]'s [StrutStyle.height]
+  /// via a [MediaQuery] ancestor's [MediaQueryData.lineHeightScaleFactorOverride].
   StrutStyle get strutStyle {
     if (_strutStyle == null) {
       return StrutStyle.fromTextStyle(style, forceStrutHeight: true);
@@ -1750,8 +1764,7 @@ class EditableText extends StatefulWidget {
     required final VoidCallback? onShare,
     required final VoidCallback? onLiveTextInput,
   }) {
-    final List<ContextMenuButtonItem> resultButtonItem =
-        <ContextMenuButtonItem>[];
+    final resultButtonItem = <ContextMenuButtonItem>[];
 
     // Configure button items with clipboard.
     if (onPaste == null || clipboardStatus != ClipboardStatus.unknown) {
@@ -1760,7 +1773,7 @@ class EditableText extends StatefulWidget {
       // shown.
 
       // On Android, the share button is before the select all button.
-      final bool showShareBeforeSelectAll =
+      final showShareBeforeSelectAll =
           defaultTargetPlatform == TargetPlatform.android;
 
       resultButtonItem.addAll(<ContextMenuButtonItem>[
@@ -1875,8 +1888,7 @@ class EditableText extends StatefulWidget {
       switch (defaultTargetPlatform) {
         case TargetPlatform.iOS:
         case TargetPlatform.macOS:
-          const Map<String, TextInputType>
-          iOSKeyboardType = <String, TextInputType>{
+          const iOSKeyboardType = <String, TextInputType>{
             AutofillHints.addressCity: TextInputType.name,
             AutofillHints.addressCityAndState:
                 TextInputType.name, // Autofill not working.
@@ -1931,77 +1943,76 @@ class EditableText extends StatefulWidget {
       return TextInputType.multiline;
     }
 
-    const Map<String, TextInputType> inferKeyboardType =
-        <String, TextInputType>{
-          AutofillHints.addressCity: TextInputType.streetAddress,
-          AutofillHints.addressCityAndState: TextInputType.streetAddress,
-          AutofillHints.addressState: TextInputType.streetAddress,
-          AutofillHints.birthday: TextInputType.datetime,
-          AutofillHints.birthdayDay: TextInputType.datetime,
-          AutofillHints.birthdayMonth: TextInputType.datetime,
-          AutofillHints.birthdayYear: TextInputType.datetime,
-          AutofillHints.countryCode: TextInputType.number,
-          AutofillHints.countryName: TextInputType.text,
-          AutofillHints.creditCardExpirationDate: TextInputType.datetime,
-          AutofillHints.creditCardExpirationDay: TextInputType.datetime,
-          AutofillHints.creditCardExpirationMonth: TextInputType.datetime,
-          AutofillHints.creditCardExpirationYear: TextInputType.datetime,
-          AutofillHints.creditCardFamilyName: TextInputType.name,
-          AutofillHints.creditCardGivenName: TextInputType.name,
-          AutofillHints.creditCardMiddleName: TextInputType.name,
-          AutofillHints.creditCardName: TextInputType.name,
-          AutofillHints.creditCardNumber: TextInputType.number,
-          AutofillHints.creditCardSecurityCode: TextInputType.number,
-          AutofillHints.creditCardType: TextInputType.text,
-          AutofillHints.email: TextInputType.emailAddress,
-          AutofillHints.familyName: TextInputType.name,
-          AutofillHints.fullStreetAddress: TextInputType.streetAddress,
-          AutofillHints.gender: TextInputType.text,
-          AutofillHints.givenName: TextInputType.name,
-          AutofillHints.impp: TextInputType.url,
-          AutofillHints.jobTitle: TextInputType.text,
-          AutofillHints.language: TextInputType.text,
-          AutofillHints.location: TextInputType.streetAddress,
-          AutofillHints.middleInitial: TextInputType.name,
-          AutofillHints.middleName: TextInputType.name,
-          AutofillHints.name: TextInputType.name,
-          AutofillHints.namePrefix: TextInputType.name,
-          AutofillHints.nameSuffix: TextInputType.name,
-          AutofillHints.newPassword: TextInputType.text,
-          AutofillHints.newUsername: TextInputType.text,
-          AutofillHints.nickname: TextInputType.text,
-          AutofillHints.oneTimeCode: TextInputType.text,
-          AutofillHints.organizationName: TextInputType.text,
-          AutofillHints.password: TextInputType.text,
-          AutofillHints.photo: TextInputType.text,
-          AutofillHints.postalAddress: TextInputType.streetAddress,
-          AutofillHints.postalAddressExtended: TextInputType.streetAddress,
-          AutofillHints.postalAddressExtendedPostalCode: TextInputType.number,
-          AutofillHints.postalCode: TextInputType.number,
-          AutofillHints.streetAddressLevel1: TextInputType.streetAddress,
-          AutofillHints.streetAddressLevel2: TextInputType.streetAddress,
-          AutofillHints.streetAddressLevel3: TextInputType.streetAddress,
-          AutofillHints.streetAddressLevel4: TextInputType.streetAddress,
-          AutofillHints.streetAddressLine1: TextInputType.streetAddress,
-          AutofillHints.streetAddressLine2: TextInputType.streetAddress,
-          AutofillHints.streetAddressLine3: TextInputType.streetAddress,
-          AutofillHints.sublocality: TextInputType.streetAddress,
-          AutofillHints.telephoneNumber: TextInputType.phone,
-          AutofillHints.telephoneNumberAreaCode: TextInputType.phone,
-          AutofillHints.telephoneNumberCountryCode: TextInputType.phone,
-          AutofillHints.telephoneNumberDevice: TextInputType.phone,
-          AutofillHints.telephoneNumberExtension: TextInputType.phone,
-          AutofillHints.telephoneNumberLocal: TextInputType.phone,
-          AutofillHints.telephoneNumberLocalPrefix: TextInputType.phone,
-          AutofillHints.telephoneNumberLocalSuffix: TextInputType.phone,
-          AutofillHints.telephoneNumberNational: TextInputType.phone,
-          AutofillHints.transactionAmount: TextInputType.numberWithOptions(
-            decimal: true,
-          ),
-          AutofillHints.transactionCurrency: TextInputType.text,
-          AutofillHints.url: TextInputType.url,
-          AutofillHints.username: TextInputType.text,
-        };
+    const inferKeyboardType = <String, TextInputType>{
+      AutofillHints.addressCity: TextInputType.streetAddress,
+      AutofillHints.addressCityAndState: TextInputType.streetAddress,
+      AutofillHints.addressState: TextInputType.streetAddress,
+      AutofillHints.birthday: TextInputType.datetime,
+      AutofillHints.birthdayDay: TextInputType.datetime,
+      AutofillHints.birthdayMonth: TextInputType.datetime,
+      AutofillHints.birthdayYear: TextInputType.datetime,
+      AutofillHints.countryCode: TextInputType.number,
+      AutofillHints.countryName: TextInputType.text,
+      AutofillHints.creditCardExpirationDate: TextInputType.datetime,
+      AutofillHints.creditCardExpirationDay: TextInputType.datetime,
+      AutofillHints.creditCardExpirationMonth: TextInputType.datetime,
+      AutofillHints.creditCardExpirationYear: TextInputType.datetime,
+      AutofillHints.creditCardFamilyName: TextInputType.name,
+      AutofillHints.creditCardGivenName: TextInputType.name,
+      AutofillHints.creditCardMiddleName: TextInputType.name,
+      AutofillHints.creditCardName: TextInputType.name,
+      AutofillHints.creditCardNumber: TextInputType.number,
+      AutofillHints.creditCardSecurityCode: TextInputType.number,
+      AutofillHints.creditCardType: TextInputType.text,
+      AutofillHints.email: TextInputType.emailAddress,
+      AutofillHints.familyName: TextInputType.name,
+      AutofillHints.fullStreetAddress: TextInputType.streetAddress,
+      AutofillHints.gender: TextInputType.text,
+      AutofillHints.givenName: TextInputType.name,
+      AutofillHints.impp: TextInputType.url,
+      AutofillHints.jobTitle: TextInputType.text,
+      AutofillHints.language: TextInputType.text,
+      AutofillHints.location: TextInputType.streetAddress,
+      AutofillHints.middleInitial: TextInputType.name,
+      AutofillHints.middleName: TextInputType.name,
+      AutofillHints.name: TextInputType.name,
+      AutofillHints.namePrefix: TextInputType.name,
+      AutofillHints.nameSuffix: TextInputType.name,
+      AutofillHints.newPassword: TextInputType.text,
+      AutofillHints.newUsername: TextInputType.text,
+      AutofillHints.nickname: TextInputType.text,
+      AutofillHints.oneTimeCode: TextInputType.text,
+      AutofillHints.organizationName: TextInputType.text,
+      AutofillHints.password: TextInputType.text,
+      AutofillHints.photo: TextInputType.text,
+      AutofillHints.postalAddress: TextInputType.streetAddress,
+      AutofillHints.postalAddressExtended: TextInputType.streetAddress,
+      AutofillHints.postalAddressExtendedPostalCode: TextInputType.number,
+      AutofillHints.postalCode: TextInputType.number,
+      AutofillHints.streetAddressLevel1: TextInputType.streetAddress,
+      AutofillHints.streetAddressLevel2: TextInputType.streetAddress,
+      AutofillHints.streetAddressLevel3: TextInputType.streetAddress,
+      AutofillHints.streetAddressLevel4: TextInputType.streetAddress,
+      AutofillHints.streetAddressLine1: TextInputType.streetAddress,
+      AutofillHints.streetAddressLine2: TextInputType.streetAddress,
+      AutofillHints.streetAddressLine3: TextInputType.streetAddress,
+      AutofillHints.sublocality: TextInputType.streetAddress,
+      AutofillHints.telephoneNumber: TextInputType.phone,
+      AutofillHints.telephoneNumberAreaCode: TextInputType.phone,
+      AutofillHints.telephoneNumberCountryCode: TextInputType.phone,
+      AutofillHints.telephoneNumberDevice: TextInputType.phone,
+      AutofillHints.telephoneNumberExtension: TextInputType.phone,
+      AutofillHints.telephoneNumberLocal: TextInputType.phone,
+      AutofillHints.telephoneNumberLocalPrefix: TextInputType.phone,
+      AutofillHints.telephoneNumberLocalSuffix: TextInputType.phone,
+      AutofillHints.telephoneNumberNational: TextInputType.phone,
+      AutofillHints.transactionAmount: TextInputType.numberWithOptions(
+        decimal: true,
+      ),
+      AutofillHints.transactionCurrency: TextInputType.text,
+      AutofillHints.url: TextInputType.url,
+      AutofillHints.username: TextInputType.text,
+    };
 
     return inferKeyboardType[effectiveHint] ?? TextInputType.text;
   }
@@ -2341,7 +2352,7 @@ class EditableTextState extends State<EditableText>
       widget.cursorColor.alpha / 255.0,
       _cursorBlinkOpacityController.value,
     );
-    return widget.cursorColor.withOpacity(effectiveOpacity);
+    return widget.cursorColor.withValues(alpha: effectiveOpacity);
   }
 
   @override
@@ -2737,9 +2748,9 @@ class EditableTextState extends State<EditableText>
 
     final List<SuggestionSpan> suggestionSpans =
         spellCheckResults!.suggestionSpans;
-    int leftIndex = 0;
+    var leftIndex = 0;
     int rightIndex = suggestionSpans.length - 1;
-    int midIndex = 0;
+    var midIndex = 0;
 
     while (leftIndex <= rightIndex) {
       midIndex = ((leftIndex + rightIndex) / 2).floor();
@@ -2983,7 +2994,7 @@ class EditableTextState extends State<EditableText>
   }
 
   List<ContextMenuButtonItem> get _textProcessingActionButtonItems {
-    final List<ContextMenuButtonItem> buttonItems = <ContextMenuButtonItem>[];
+    final buttonItems = <ContextMenuButtonItem>[];
     final TextSelection selection = textEditingValue.selection;
     if (widget.obscureText || !selection.isValid || selection.isCollapsed) {
       return buttonItems;
@@ -3033,17 +3044,29 @@ class EditableTextState extends State<EditableText>
     _spellCheckConfiguration = _inferSpellCheckConfiguration(
       widget.spellCheckConfiguration,
     );
-    _appLifecycleListener = AppLifecycleListener(
-      onResume: () => _justResumed = true,
-    );
+    _appLifecycleListener = AppLifecycleListener(onResume: _onResume);
     _initProcessTextActions();
+  }
+
+  void _onResume() {
+    _justResumed = true;
+    // To prevent adding multiple listeners, remove any existing one first.
+    FocusManager.instance.removeListener(_resetJustResumed);
+    // Reset _justResumed as soon as there is a focus change.
+    FocusManager.instance.addListener(_resetJustResumed);
+  }
+
+  void _resetJustResumed() {
+    _justResumed = false;
+    FocusManager.instance.removeListener(_resetJustResumed);
   }
 
   /// Query the engine to initialize the list of text processing actions to show
   /// in the text selection toolbar.
   Future<void> _initProcessTextActions() async {
-    _processTextActions.clear();
-    _processTextActions.addAll(await _processTextService.queryTextActions());
+    _processTextActions
+      ..clear()
+      ..addAll(await _processTextService.queryTextActions());
   }
 
   // Whether `TickerMode.of(context)` is true and animations (like blinking the
@@ -3269,11 +3292,13 @@ class EditableTextState extends State<EditableText>
     WidgetsBinding.instance.removeObserver(this);
     _liveTextInputStatus?.removeListener(_onChangedLiveTextInputStatus);
     _liveTextInputStatus?.dispose();
-    clipboardStatus.removeListener(_onChangedClipboardStatus);
-    clipboardStatus.dispose();
+    clipboardStatus
+      ..removeListener(_onChangedClipboardStatus)
+      ..dispose();
     _cursorVisibilityNotifier.dispose();
     _appLifecycleListener.dispose();
     FocusManager.instance.removeListener(_unflagInternalFocus);
+    FocusManager.instance.removeListener(_resetJustResumed);
     _disposeScrollNotificationObserver();
     super.dispose();
     assert(_batchEditDepth <= 0, 'unfinished batch edits: $_batchEditDepth');
@@ -3803,7 +3828,7 @@ class EditableTextState extends State<EditableText>
       // The caret is vertically centered within the line. Expand the caret's
       // height so that it spans the line because we're going to ensure that the
       // entire expanded caret is scrolled into view.
-      final Rect expandedRect = Rect.fromCenter(
+      final expandedRect = Rect.fromCenter(
         center: rect.center,
         width: rect.width,
         height: math.max(rect.height, renderEditable.preferredLineHeight),
@@ -4088,7 +4113,7 @@ class EditableTextState extends State<EditableText>
         view.devicePixelRatio;
     final double obscuredHorizontal =
         (view.padding.left + view.padding.right) / view.devicePixelRatio;
-    final Size visibleScreenSize = Size(
+    final visibleScreenSize = Size(
       screenSize.width - obscuredHorizontal,
       screenSize.height - obscuredVertical,
     );
@@ -4160,7 +4185,13 @@ class EditableTextState extends State<EditableText>
       _showToolbarOnScreenScheduled = true;
       SchedulerBinding.instance.addPostFrameCallback((Duration _) {
         _showToolbarOnScreenScheduled = false;
-        if (!mounted) {
+        if (!mounted || _dataWhenToolbarShowScheduled == null) {
+          return;
+        }
+        if (_dataWhenToolbarShowScheduled!.value != _value) {
+          // Value has changed so we should invalidate any toolbar scheduling.
+          _dataWhenToolbarShowScheduled = null;
+          _disposeScrollNotificationObserver();
           return;
         }
         final Rect deviceRect = _calculateDeviceRect();
@@ -4210,7 +4241,7 @@ class EditableTextState extends State<EditableText>
   TextSelectionOverlay _createSelectionOverlay() {
     final EditableTextContextMenuBuilder? contextMenuBuilder =
         widget.contextMenuBuilder;
-    final TextSelectionOverlay selectionOverlay = TextSelectionOverlay(
+    final selectionOverlay = TextSelectionOverlay(
       controller: widget.controller,
       clipboardStatus: clipboardStatus,
       context: context,
@@ -4319,7 +4350,7 @@ class EditableTextState extends State<EditableText>
       _showCaretOnScreenScheduled = false;
       // Since we are in a post frame callback, check currentContext in case
       // RenderEditable has been disposed (in which case it will be null).
-      final RenderEditable? renderEditable =
+      final renderEditable =
           _editableKey.currentContext?.findRenderObject() as RenderEditable?;
       if (renderEditable == null ||
           !(renderEditable.selection?.isValid ?? false) ||
@@ -4435,13 +4466,30 @@ class EditableTextState extends State<EditableText>
           .spellCheckService!
           .fetchSpellCheckSuggestions(localeForSpellChecking!, text);
 
-      if (suggestions == null) {
-        // The request to fetch spell check suggestions was canceled due to ongoing request.
+      if (suggestions == null || !mounted) {
+        // The request to fetch spell check suggestions was canceled due to ongoing request,
+        // or the widget was unmounted.
         return;
       }
 
       spellCheckResults = SpellCheckResults(text, suggestions);
-      renderEditable.text = buildTextSpan();
+      final double? lineHeightScaleFactor =
+          MediaQuery.maybeLineHeightScaleFactorOverrideOf(
+            context,
+          );
+      final double? letterSpacing = MediaQuery.maybeLetterSpacingOverrideOf(
+        context,
+      );
+      final double? wordSpacing = MediaQuery.maybeWordSpacingOverrideOf(
+        context,
+      );
+      renderEditable.text =
+          _OverridingTextStyleTextSpanUtils.applyTextSpacingOverrides(
+            lineHeightScaleFactor: lineHeightScaleFactor,
+            letterSpacing: letterSpacing,
+            wordSpacing: wordSpacing,
+            textSpan: buildTextSpan(),
+          );
     } catch (exception, stack) {
       FlutterError.reportError(
         FlutterErrorDetails(
@@ -4461,10 +4509,10 @@ class EditableTextState extends State<EditableText>
     bool userInteraction = false,
   }) {
     final TextEditingValue oldValue = _value;
-    final bool textChanged = oldValue.text != value.text;
+    final textChanged = oldValue.text != value.text;
     final bool textCommitted =
         !oldValue.composing.isCollapsed && value.composing.isCollapsed;
-    final bool selectionChanged = oldValue.selection != value.selection;
+    final selectionChanged = oldValue.selection != value.selection;
 
     if (textChanged || textCommitted) {
       // Only apply input formatters if the text has changed (including uncommitted
@@ -4567,8 +4615,8 @@ class EditableTextState extends State<EditableText>
       widget.cursorColor.alpha / 255.0,
       _cursorBlinkOpacityController.value,
     );
-    renderEditable.cursorColor = widget.cursorColor.withOpacity(
-      effectiveOpacity,
+    renderEditable.cursorColor = widget.cursorColor.withValues(
+      alpha: effectiveOpacity,
     );
     _cursorVisibilityNotifier.value =
         widget.showCursor &&
@@ -4797,6 +4845,8 @@ class EditableTextState extends State<EditableText>
     }
 
     final InlineSpan inlineSpan = renderEditable.text!;
+    final double? lineHeightScaleFactor =
+        MediaQuery.maybeLineHeightScaleFactorOverrideOf(context);
     final TextScaler effectiveTextScaler = switch ((
       widget.textScaler,
       widget.textScaleFactor,
@@ -4808,7 +4858,7 @@ class EditableTextState extends State<EditableText>
       (null, null) => MediaQuery.textScalerOf(context),
     };
 
-    final _ScribbleCacheKey newCacheKey = _ScribbleCacheKey(
+    final newCacheKey = _ScribbleCacheKey(
       inlineSpan: inlineSpan,
       textAlign: widget.textAlign,
       textDirection: _textDirection,
@@ -4817,7 +4867,9 @@ class EditableTextState extends State<EditableText>
           widget.textHeightBehavior ??
           DefaultTextHeightBehavior.maybeOf(context),
       locale: widget.locale,
-      structStyle: widget.strutStyle,
+      structStyle: widget.strutStyle.merge(
+        StrutStyle(height: lineHeightScaleFactor),
+      ),
       placeholder: _placeholderLocation,
       size: renderEditable.size,
     );
@@ -4830,14 +4882,14 @@ class EditableTextState extends State<EditableText>
     }
     _scribbleCacheKey = newCacheKey;
 
-    final List<SelectionRect> rects = <SelectionRect>[];
-    int graphemeStart = 0;
+    final rects = <SelectionRect>[];
+    var graphemeStart = 0;
     // Can't use _value.text here: the controller value could change between
     // frames.
     final String plainText = inlineSpan.toPlainText(
       includeSemanticsLabels: false,
     );
-    final CharacterRange characterRange = CharacterRange(plainText);
+    final characterRange = CharacterRange(plainText);
     while (characterRange.moveNext()) {
       final int graphemeEnd = graphemeStart + characterRange.current.length;
       final List<TextBox> boxes = renderEditable.getBoxesForSelection(
@@ -4911,9 +4963,7 @@ class EditableTextState extends State<EditableText>
     if (selection == null || !selection.isValid) {
       return;
     }
-    final TextPosition currentTextPosition = TextPosition(
-      offset: selection.start,
-    );
+    final currentTextPosition = TextPosition(offset: selection.start);
     final Rect caretRect = renderEditable.getLocalRectForCaret(
       currentTextPosition,
     );
@@ -4942,7 +4992,7 @@ class EditableTextState extends State<EditableText>
   ) {
     // Compare the current TextEditingValue with the pre-format new
     // TextEditingValue value, in case the formatter would reject the change.
-    final bool shouldShowCaret = widget.readOnly
+    final shouldShowCaret = widget.readOnly
         ? _value.selection != value.selection
         : _value != value;
     if (shouldShowCaret) {
@@ -5353,11 +5403,8 @@ class EditableTextState extends State<EditableText>
 
     final String text = _value.text;
     final TextSelection selection = _value.selection;
-    final bool atEnd = selection.baseOffset == text.length;
-    final CharacterRange transposing = CharacterRange.at(
-      text,
-      selection.baseOffset,
-    );
+    final atEnd = selection.baseOffset == text.length;
+    final transposing = CharacterRange.at(text, selection.baseOffset);
     if (atEnd) {
       transposing.moveBack(2);
     } else {
@@ -5459,8 +5506,7 @@ class EditableTextState extends State<EditableText>
       return;
     }
 
-    final ScrollableState? state =
-        _scrollableKey.currentState as ScrollableState?;
+    final state = _scrollableKey.currentState as ScrollableState?;
     final double increment = ScrollAction.getDirectionalIncrement(
       state!,
       intent,
@@ -5487,8 +5533,7 @@ class EditableTextState extends State<EditableText>
     final Rect extentRect = renderEditable.getLocalRectForCaret(
       _value.selection.extent,
     );
-    final ScrollableState? state =
-        _scrollableKey.currentState as ScrollableState?;
+    final state = _scrollableKey.currentState as ScrollableState?;
     final double increment = ScrollAction.getDirectionalIncrement(
       state!,
       ScrollIntent(
@@ -5501,7 +5546,7 @@ class EditableTextState extends State<EditableText>
       if (_value.selection.extentOffset >= _value.text.length) {
         return;
       }
-      final Offset nextExtentOffset = Offset(
+      final nextExtentOffset = Offset(
         extentRect.left,
         extentRect.top + increment,
       );
@@ -5520,7 +5565,7 @@ class EditableTextState extends State<EditableText>
       if (_value.selection.extentOffset <= 0) {
         return;
       }
-      final Offset nextExtentOffset = Offset(
+      final nextExtentOffset = Offset(
         extentRect.left,
         extentRect.top + increment,
       );
@@ -5802,6 +5847,12 @@ class EditableTextState extends State<EditableText>
       ),
       (null, null) => MediaQuery.textScalerOf(context),
     };
+    final double? lineHeightScaleFactor =
+        MediaQuery.maybeLineHeightScaleFactorOverrideOf(context);
+    final double? letterSpacing = MediaQuery.maybeLetterSpacingOverrideOf(
+      context,
+    );
+    final double? wordSpacing = MediaQuery.maybeWordSpacingOverrideOf(context);
     final ui.SemanticsInputType inputType;
     switch (widget.keyboardType) {
       case TextInputType.phone:
@@ -5892,7 +5943,14 @@ class EditableTextState extends State<EditableText>
                                       startHandleLayerLink:
                                           _startHandleLayerLink,
                                       endHandleLayerLink: _endHandleLayerLink,
-                                      inlineSpan: buildTextSpan(),
+                                      inlineSpan:
+                                          _OverridingTextStyleTextSpanUtils.applyTextSpacingOverrides(
+                                            lineHeightScaleFactor:
+                                                lineHeightScaleFactor,
+                                            letterSpacing: letterSpacing,
+                                            wordSpacing: wordSpacing,
+                                            textSpan: buildTextSpan(),
+                                          ),
                                       value: _value,
                                       cursorColor: _cursorColor,
                                       backgroundCursorColor:
@@ -5904,7 +5962,11 @@ class EditableTextState extends State<EditableText>
                                       maxLines: widget.maxLines,
                                       minLines: widget.minLines,
                                       expands: widget.expands,
-                                      strutStyle: widget.strutStyle,
+                                      strutStyle: widget.strutStyle.merge(
+                                        StrutStyle(
+                                          height: lineHeightScaleFactor,
+                                        ),
+                                      ),
                                       selectionColor:
                                           _selectionOverlay
                                                   ?.spellCheckToolbarIsVisible ??
@@ -5974,7 +6036,7 @@ class EditableTextState extends State<EditableText>
       String text = _value.text;
       text = widget.obscuringCharacter * text.length;
       // Reveal the latest character in an obscured field only on mobile.
-      const Set<TargetPlatform> mobilePlatforms = <TargetPlatform>{
+      const mobilePlatforms = <TargetPlatform>{
         TargetPlatform.android,
         TargetPlatform.fuchsia,
         TargetPlatform.iOS,
@@ -5994,7 +6056,7 @@ class EditableTextState extends State<EditableText>
     }
     if (_placeholderLocation >= 0 &&
         _placeholderLocation <= _value.text.length) {
-      final List<_ScribblePlaceholder> placeholders = <_ScribblePlaceholder>[];
+      final placeholders = <_ScribblePlaceholder>[];
       final int placeholderLocation = _value.text.length - _placeholderLocation;
       if (_isMultiline) {
         // The zero size placeholder here allows the line to break and keep the caret on the first line.
@@ -6379,7 +6441,7 @@ class _ScribbleFocusableState extends State<_ScribbleFocusable>
       return false;
     }
     final Rect intersection = calculatedBounds.intersect(rect);
-    final HitTestResult result = HitTestResult();
+    final result = HitTestResult();
     WidgetsBinding.instance.hitTestInView(
       result,
       intersection.center,
@@ -6392,7 +6454,7 @@ class _ScribbleFocusableState extends State<_ScribbleFocusable>
 
   @override
   Rect get bounds {
-    final RenderBox? box = context.findRenderObject() as RenderBox?;
+    final box = context.findRenderObject() as RenderBox?;
     if (box == null || !mounted || !box.attached) {
       return Rect.zero;
     }
@@ -6422,7 +6484,7 @@ class _ScribblePlaceholder extends WidgetSpan {
     List<PlaceholderDimensions>? dimensions,
   }) {
     assert(debugAssertIsValid());
-    final bool hasStyle = style != null;
+    final hasStyle = style != null;
     if (hasStyle) {
       builder.pushStyle(style!.getTextStyle(textScaler: textScaler));
     }
@@ -6539,13 +6601,13 @@ class _DeleteTextAction<T extends DirectionalTextEditingIntent>
     final TextBoundary atomicBoundary = state._characterBoundary();
     if (!selection.isCollapsed) {
       // Expands the selection to ensure the range covers full graphemes.
-      final TextRange range = TextRange(
+      final range = TextRange(
         start:
             atomicBoundary.getLeadingTextBoundaryAt(selection.start) ??
             state._value.text.length,
         end: atomicBoundary.getTrailingTextBoundaryAt(selection.end - 1) ?? 0,
       );
-      final ReplaceTextIntent replaceTextIntent = ReplaceTextIntent(
+      final replaceTextIntent = ReplaceTextIntent(
         state._value,
         '',
         range,
@@ -6571,7 +6633,7 @@ class _DeleteTextAction<T extends DirectionalTextEditingIntent>
                 0,
       extentOffset: target,
     );
-    final ReplaceTextIntent replaceTextIntent = ReplaceTextIntent(
+    final replaceTextIntent = ReplaceTextIntent(
       state._value,
       '',
       rangeToDelete,
@@ -6609,7 +6671,7 @@ class _UpdateTextSelectionAction<T extends DirectionalCaretMovementIntent>
   // Returns true iff the given position is at a wordwrap boundary in the
   // upstream position.
   bool _isAtWordwrapUpstream(TextPosition position) {
-    final TextPosition end = TextPosition(
+    final end = TextPosition(
       offset: state.renderEditable.getLineAtOffset(position).end,
       affinity: TextAffinity.upstream,
     );
@@ -6622,7 +6684,7 @@ class _UpdateTextSelectionAction<T extends DirectionalCaretMovementIntent>
   // Returns true if the given position at a wordwrap boundary in the
   // downstream position.
   bool _isAtWordwrapDownstream(TextPosition position) {
-    final TextPosition start = TextPosition(
+    final start = TextPosition(
       offset: state.renderEditable.getLineAtOffset(position).start,
     );
     return start == position &&
@@ -6690,7 +6752,7 @@ class _UpdateTextSelectionAction<T extends DirectionalCaretMovementIntent>
         (selection.baseOffset - selection.extentOffset) *
                 (selection.baseOffset - newSelection.extentOffset) <
             0;
-    final TextSelection newRange = shouldCollapseToBase
+    final newRange = shouldCollapseToBase
         ? TextSelection.fromPosition(selection.base)
         : newSelection;
     return Actions.invoke(
@@ -6946,5 +7008,57 @@ class _EditableTextTapUpOutsideAction
   @override
   void invoke(EditableTextTapUpOutsideIntent intent, [BuildContext? context]) {
     // The default action is a no-op.
+  }
+}
+
+/// A utility class for overriding the text styles of a [TextSpan] tree.
+// When changes are made to this class, the equivalent API in text.dart
+// must also be updated.
+// TODO(Renzo-Olivares): Remove after investigating a solution for overriding all
+// styles for children in an [InlineSpan] tree, see: https://github.com/flutter/flutter/issues/177952.
+class _OverridingTextStyleTextSpanUtils {
+  static TextSpan applyTextSpacingOverrides({
+    double? lineHeightScaleFactor,
+    double? letterSpacing,
+    double? wordSpacing,
+    required TextSpan textSpan,
+  }) {
+    if (lineHeightScaleFactor == null &&
+        letterSpacing == null &&
+        wordSpacing == null) {
+      return textSpan;
+    }
+    return _applyTextStyleOverrides(
+      TextStyle(
+        height: lineHeightScaleFactor,
+        letterSpacing: letterSpacing,
+        wordSpacing: wordSpacing,
+      ),
+      textSpan,
+    );
+  }
+
+  static TextSpan _applyTextStyleOverrides(
+    TextStyle overrideTextStyle,
+    TextSpan textSpan,
+  ) {
+    return TextSpan(
+      text: textSpan.text,
+      children: textSpan.children?.map((InlineSpan child) {
+        if (child is TextSpan && child.runtimeType == TextSpan) {
+          return _applyTextStyleOverrides(overrideTextStyle, child);
+        }
+        return child;
+      }).toList(),
+      style: textSpan.style?.merge(overrideTextStyle) ?? overrideTextStyle,
+      recognizer: textSpan.recognizer,
+      mouseCursor: textSpan.mouseCursor,
+      onEnter: textSpan.onEnter,
+      onExit: textSpan.onExit,
+      semanticsLabel: textSpan.semanticsLabel,
+      semanticsIdentifier: textSpan.semanticsIdentifier,
+      locale: textSpan.locale,
+      spellOut: textSpan.spellOut,
+    );
   }
 }

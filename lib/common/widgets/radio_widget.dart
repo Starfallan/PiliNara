@@ -36,6 +36,9 @@ class RadioWidgetState<T> extends State<RadioWidget<T>> with RadioClient<T> {
   bool get tristate => widget.tristate;
 
   @override
+  bool get enabled => registry != null;
+
+  @override
   void dispose() {
     registry = null;
     focusNode.dispose();

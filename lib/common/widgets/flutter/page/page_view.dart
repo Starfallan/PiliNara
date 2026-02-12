@@ -2,18 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// ignore_for_file: uri_does_not_exist_in_doc_import
-
-/// @docImport 'package:flutter/material.dart';
-///
-/// @docImport 'single_child_scroll_view.dart';
-/// @docImport 'text.dart';
-library;
-
 import 'package:PiliPlus/common/widgets/flutter/page/scrollable.dart';
 import 'package:flutter/gestures.dart'
     show DragStartBehavior, HorizontalDragGestureRecognizer;
-import 'package:flutter/material.dart' hide Scrollable, ScrollableState;
+import 'package:flutter/material.dart'
+    hide PageView, Scrollable, ScrollableState;
 import 'package:flutter/rendering.dart';
 
 class _ForceImplicitScrollPhysics extends ScrollPhysics {
@@ -378,7 +371,7 @@ class _PageViewState<T extends HorizontalDragGestureRecognizer>
         if (notification.depth == 0 &&
             widget.onPageChanged != null &&
             notification is ScrollUpdateNotification) {
-          final PageMetrics metrics = notification.metrics as PageMetrics;
+          final metrics = notification.metrics as PageMetrics;
           final int currentPage = metrics.page!.round();
           if (currentPage != _lastReportedPage) {
             _lastReportedPage = currentPage;

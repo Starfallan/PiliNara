@@ -1302,14 +1302,17 @@ class RichTextFieldState extends State<RichTextField>
       context,
     );
     final ThemeData themeData = Theme.of(context);
+    final InputDecorationThemeData decorationTheme = InputDecorationTheme.of(
+      context,
+    );
     final InputDecoration effectiveDecoration =
         (widget.decoration ?? const InputDecoration())
-            .applyDefaults(themeData.inputDecorationTheme)
+            .applyDefaults(decorationTheme)
             .copyWith(
               enabled: _isEnabled,
               hintMaxLines:
                   widget.decoration?.hintMaxLines ??
-                  themeData.inputDecorationTheme.hintMaxLines ??
+                  decorationTheme.hintMaxLines ??
                   widget.maxLines,
             );
 
@@ -1347,8 +1350,8 @@ class RichTextFieldState extends State<RichTextField>
       return effectiveDecoration;
     } // No counter widget
 
-    String counterText = '$currentLength';
-    String semanticCounterText = '';
+    var counterText = '$currentLength';
+    var semanticCounterText = '';
 
     // Handle a real maxLength (positive number)
     if (widget.maxLength! > 0) {
@@ -1655,7 +1658,7 @@ class RichTextFieldState extends State<RichTextField>
         widget.keyboardAppearance ?? theme.brightness;
     final RichTextEditingController controller = _effectiveController;
     final FocusNode focusNode = _effectiveFocusNode;
-    final List<TextInputFormatter> formatters = <TextInputFormatter>[
+    final formatters = <TextInputFormatter>[
       ...?widget.inputFormatters,
       if (widget.maxLength != null)
         LengthLimitingTextInputFormatter(

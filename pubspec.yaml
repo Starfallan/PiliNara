@@ -21,7 +21,7 @@ version: 1.1.6+1
 
 environment:
   sdk: ">=3.10.0"
-  flutter: 3.38.6 # update `.fvmrc` config
+  flutter: 3.41.0 # update `.fvmrc` config
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -332,13 +332,17 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-    - assets/images/
-    - assets/images/lv/
-    - assets/images/logo/
-    - assets/images/live/
-    - assets/images/video/
-    - assets/images/paycoins/
-    - assets/shaders/
+    - path: assets/images/
+    - path: assets/images/lv/
+    - path: assets/images/logo/
+    - path: assets/images/logo/ico/
+      platforms: [windows]
+    - path: assets/images/logo/desktop/
+      platforms: [linux, macos]
+    - path: assets/images/live/
+    - path: assets/images/video/
+    - path: assets/images/paycoins/
+    - path: assets/shaders/
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
 

@@ -5,7 +5,8 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
+import 'package:flutter/gestures.dart'
+    hide TapAndHorizontalDragGestureRecognizer;
 
 // Examples can assume:
 // void setState(VoidCallback fn) { }
@@ -823,7 +824,7 @@ sealed class BaseTapAndDragGestureRecognizer
         untransformedDelta: localDelta,
         untransformedEndPosition: correctedLocalPosition,
       );
-      final OffsetPair updateDelta = OffsetPair(
+      final updateDelta = OffsetPair(
         local: localDelta,
         global: globalUpdateDelta,
       );
@@ -870,7 +871,7 @@ sealed class BaseTapAndDragGestureRecognizer
       return;
     }
 
-    final TapDragDownDetails details = TapDragDownDetails(
+    final details = TapDragDownDetails(
       globalPosition: event.position,
       localPosition: event.localPosition,
       kind: getKindForPointer(event.pointer),
@@ -889,7 +890,7 @@ sealed class BaseTapAndDragGestureRecognizer
       return;
     }
 
-    final TapDragUpDetails upDetails = TapDragUpDetails(
+    final upDetails = TapDragUpDetails(
       kind: event.kind,
       globalPosition: event.position,
       localPosition: event.localPosition,
@@ -908,7 +909,7 @@ sealed class BaseTapAndDragGestureRecognizer
 
   void _checkDragStart(PointerEvent event) {
     if (onDragStart != null) {
-      final TapDragStartDetails details = TapDragStartDetails(
+      final details = TapDragStartDetails(
         sourceTimeStamp: event.timeStamp,
         globalPosition: _initialPosition.global,
         localPosition: _initialPosition.local,
@@ -926,7 +927,7 @@ sealed class BaseTapAndDragGestureRecognizer
     final Offset globalPosition = corrected?.global ?? event.position;
     final Offset localPosition = corrected?.local ?? event.localPosition;
 
-    final TapDragUpdateDetails details = TapDragUpdateDetails(
+    final details = TapDragUpdateDetails(
       sourceTimeStamp: event.timeStamp,
       delta: event.localDelta,
       globalPosition: globalPosition,
@@ -962,7 +963,7 @@ sealed class BaseTapAndDragGestureRecognizer
       _handleDragUpdateThrottled();
     }
 
-    final TapDragEndDetails endDetails = TapDragEndDetails(
+    final endDetails = TapDragEndDetails(
       globalPosition: globalPosition,
       localPosition: localPosition,
       primaryVelocity: 0.0,

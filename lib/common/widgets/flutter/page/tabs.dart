@@ -6,7 +6,7 @@ import 'package:PiliPlus/common/widgets/flutter/page/page_view.dart';
 import 'package:flutter/foundation.dart' show clampDouble;
 import 'package:flutter/gestures.dart'
     show DragStartBehavior, HorizontalDragGestureRecognizer;
-import 'package:flutter/material.dart' hide PageView;
+import 'package:flutter/material.dart' hide TabBarView, PageView;
 
 /// A page view that displays the widget which corresponds to the currently
 /// selected tab.
@@ -220,7 +220,7 @@ class _TabBarViewState<T extends HorizontalDragGestureRecognizer>
       return;
     }
 
-    final bool adjacentDestination =
+    final adjacentDestination =
         (_currentIndex! - _controller!.previousIndex).abs() == 1;
     if (adjacentDestination) {
       _warpToAdjacentTab(_controller!.animationDuration);

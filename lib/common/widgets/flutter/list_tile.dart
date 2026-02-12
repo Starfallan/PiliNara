@@ -20,7 +20,7 @@ library;
 
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide ListTile;
 import 'package:flutter/rendering.dart';
 
 // Examples can assume:
@@ -1506,11 +1506,16 @@ class _RenderListTile extends RenderBox
 
   @override
   double computeMinIntrinsicHeight(double width) {
-    return math.max(
-      _targetTileHeight,
-      title.getMinIntrinsicHeight(width) +
-          (subtitle?.getMinIntrinsicHeight(width) ?? 0.0),
-    );
+    final double titleMinHeight = title.getMinIntrinsicHeight(width);
+    final double? subtitleMinHeight = subtitle?.getMinIntrinsicHeight(width);
+
+    const topAndBottomPaddingMultiplier = 2;
+    final double contentHeight =
+        titleMinHeight +
+        (subtitleMinHeight ?? 0.0) +
+        topAndBottomPaddingMultiplier * _minVerticalPadding;
+
+    return math.max(_targetTileHeight, contentHeight);
   }
 
   @override

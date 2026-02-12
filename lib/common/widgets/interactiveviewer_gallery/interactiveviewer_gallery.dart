@@ -87,7 +87,8 @@ class _InteractiveviewerGalleryState extends State<InteractiveviewerGallery>
   late final _tween = Matrix4Tween();
   late final _animatable = _tween.chain(CurveTween(curve: Curves.easeOut));
 
-  late final _horizontalDragGestureRecognizer;
+  late final ImageHorizontalDragGestureRecognizer
+  _horizontalDragGestureRecognizer;
 
   late Offset _doubleTapLocalPosition;
 

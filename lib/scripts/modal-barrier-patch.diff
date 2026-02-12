@@ -152,7 +152,7 @@ index 7b83d9c42cb..3946aa4950a 100644
  
    @override
    Widget build(BuildContext context) {
-     final Map<Type, GestureRecognizerFactory> gestures = <Type, GestureRecognizerFactory>{
+     final gestures = <Type, GestureRecognizerFactory>{
 -      _AnyTapGestureRecognizer: _AnyTapGestureRecognizerFactory(onAnyTapUp: onDismiss),
 +      _AnyTapGestureRecognizer: _AnyTapGestureRecognizerFactory(
 +        onAnyTapUp: onAnyTapUp,

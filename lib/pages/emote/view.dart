@@ -189,28 +189,25 @@ class _EmotePanelState extends State<EmotePanel>
                         ),
                       ),
                       Expanded(
-                        child: Material(
-                          type: MaterialType.transparency,
-                          child: TabBar(
-                            controller: _emotePanelController.tabController,
-                            padding: const EdgeInsets.only(right: 60),
-                            dividerColor: Colors.transparent,
-                            dividerHeight: 0,
-                            isScrollable: true,
-                            tabs: response
-                                .map(
-                                  (e) => Padding(
-                                    padding: const EdgeInsets.all(8),
-                                    child: NetworkImgLayer(
-                                      width: 24,
-                                      height: 24,
-                                      type: ImageType.emote,
-                                      src: e.url,
-                                    ),
+                        child: TabBar(
+                          controller: _emotePanelController.tabController,
+                          padding: const EdgeInsets.only(right: 60),
+                          dividerColor: Colors.transparent,
+                          dividerHeight: 0,
+                          isScrollable: true,
+                          tabs: response
+                              .map(
+                                (e) => Padding(
+                                  padding: const EdgeInsets.all(8),
+                                  child: NetworkImgLayer(
+                                    width: 24,
+                                    height: 24,
+                                    type: ImageType.emote,
+                                    src: e.url,
                                   ),
-                                )
-                                .toList(),
-                          ),
+                                ),
+                              )
+                              .toList(),
                         ),
                       ),
                     ],

@@ -5,7 +5,7 @@
 import 'dart:ui' as ui show TextHeightBehavior;
 
 import 'package:PiliPlus/common/widgets/flutter/text/paragraph.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide RichText;
 import 'package:flutter/rendering.dart' hide RenderParagraph;
 
 /// A paragraph of rich text.
@@ -118,8 +118,8 @@ class RichText extends MultiChildRenderObjectWidget {
     this.textHeightBehavior,
     this.selectionRegistrar,
     this.selectionColor,
-    this.onShowMore,
     required this.primary,
+    this.onShowMore,
   }) : assert(maxLines == null || maxLines > 0),
        assert(selectionRegistrar == null || selectionColor != null),
        assert(

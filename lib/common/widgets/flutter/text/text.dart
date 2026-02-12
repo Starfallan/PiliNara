@@ -20,7 +20,7 @@ import 'dart:ui' as ui show TextHeightBehavior;
 import 'package:PiliPlus/common/widgets/flutter/text/paragraph.dart';
 import 'package:PiliPlus/common/widgets/flutter/text/rich_text.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart' hide RichText;
+import 'package:flutter/material.dart' hide Text, RichText;
 import 'package:flutter/rendering.dart' hide RenderParagraph;
 
 /// A run of text with a single style.
@@ -180,8 +180,8 @@ class Text extends StatelessWidget {
     this.textWidthBasis,
     this.textHeightBehavior,
     this.selectionColor,
-    this.onShowMore,
     required this.primary,
+    this.onShowMore,
   }) : textSpan = null,
        assert(
          textScaler == null || textScaleFactor == null,
@@ -219,8 +219,8 @@ class Text extends StatelessWidget {
     this.textWidthBasis,
     this.textHeightBehavior,
     this.selectionColor,
-    this.onShowMore,
     required this.primary,
+    this.onShowMore,
   }) : data = null,
        assert(
          textScaler == null || textScaleFactor == null,
@@ -242,9 +242,19 @@ class Text extends StatelessWidget {
   /// If the style's "inherit" property is true, the style will be merged with
   /// the closest enclosing [DefaultTextStyle]. Otherwise, the style will
   /// replace the closest enclosing [DefaultTextStyle].
+  ///
+  /// The user or platform may override this [style]'s [TextStyle.fontWeight],
+  /// [TextStyle.height], [TextStyle.letterSpacing], and [TextStyle.wordSpacing]
+  /// via a [MediaQuery] ancestor's [MediaQueryData.boldText],
+  /// [MediaQueryData.lineHeightScaleFactorOverride],
+  /// [MediaQueryData.letterSpacingOverride], and [MediaQueryData.wordSpacingOverride]
+  /// regardless of its [TextStyle.inherit] value.
   final TextStyle? style;
 
   /// {@macro flutter.painting.textPainter.strutStyle}
+  ///
+  /// The user or platform may override this [strutStyle]'s [StrutStyle.height]
+  /// via a [MediaQuery] ancestor's [MediaQueryData.lineHeightScaleFactorOverride].
   final StrutStyle? strutStyle;
 
   /// How the text should be aligned horizontally.
@@ -375,6 +385,30 @@ class Text extends StatelessWidget {
         const TextStyle(fontWeight: FontWeight.bold),
       );
     }
+    // TODO(Renzo-Olivares): Investigate ways the framework can automatically
+    // apply MediaQueryData.paragraphSpacingOverride to its own text components.
+    // See: https://github.com/flutter/flutter/issues/177953 and https://github.com/flutter/flutter/issues/177408.
+    final double? lineHeightScaleFactor =
+        MediaQuery.maybeLineHeightScaleFactorOverrideOf(context);
+    final double? letterSpacing = MediaQuery.maybeLetterSpacingOverrideOf(
+      context,
+    );
+    final double? wordSpacing = MediaQuery.maybeWordSpacingOverrideOf(context);
+    final TextSpan effectiveTextSpan =
+        _OverridingTextStyleTextSpanUtils.applyTextSpacingOverrides(
+          lineHeightScaleFactor: lineHeightScaleFactor,
+          letterSpacing: letterSpacing,
+          wordSpacing: wordSpacing,
+          textSpan: TextSpan(
+            style: effectiveTextStyle,
+            text: data,
+            locale: locale,
+            children: textSpan != null ? <InlineSpan>[textSpan!] : null,
+          ),
+        );
+    final StrutStyle? effectiveStrutStyle = strutStyle?.merge(
+      StrutStyle(height: lineHeightScaleFactor),
+    );
     final SelectionRegistrar? registrar = SelectionContainer.maybeOf(context);
     final TextScaler textScaler = switch ((this.textScaler, textScaleFactor)) {
       (final TextScaler textScaler, _) => textScaler,
@@ -403,7 +437,7 @@ class Text extends StatelessWidget {
               defaultTextStyle.overflow,
           textScaler: textScaler,
           maxLines: maxLines ?? defaultTextStyle.maxLines,
-          strutStyle: strutStyle,
+          strutStyle: effectiveStrutStyle,
           textWidthBasis: textWidthBasis ?? defaultTextStyle.textWidthBasis,
           textHeightBehavior:
               textHeightBehavior ??
@@ -413,12 +447,7 @@ class Text extends StatelessWidget {
               selectionColor ??
               DefaultSelectionStyle.of(context).selectionColor ??
               DefaultSelectionStyle.defaultColor,
-          text: TextSpan(
-            style: effectiveTextStyle,
-            text: data,
-            locale: locale,
-            children: textSpan != null ? <InlineSpan>[textSpan!] : null,
-          ),
+          text: effectiveTextSpan,
           primary: primary,
         ),
       );
@@ -436,7 +465,7 @@ class Text extends StatelessWidget {
             defaultTextStyle.overflow,
         textScaler: textScaler,
         maxLines: maxLines ?? defaultTextStyle.maxLines,
-        strutStyle: strutStyle,
+        strutStyle: effectiveStrutStyle,
         textWidthBasis: textWidthBasis ?? defaultTextStyle.textWidthBasis,
         textHeightBehavior:
             textHeightBehavior ??
@@ -446,14 +475,9 @@ class Text extends StatelessWidget {
             selectionColor ??
             DefaultSelectionStyle.of(context).selectionColor ??
             DefaultSelectionStyle.defaultColor,
-        text: TextSpan(
-          style: effectiveTextStyle,
-          text: data,
-          locale: locale,
-          children: textSpan != null ? <InlineSpan>[textSpan!] : null,
-        ),
-        onShowMore: onShowMore,
+        text: effectiveTextSpan,
         primary: primary,
+        onShowMore: onShowMore,
       );
     }
     if (semanticsLabel != null || semanticsIdentifier != null) {
@@ -483,49 +507,50 @@ class Text extends StatelessWidget {
       );
     }
     style?.debugFillProperties(properties);
-    properties.add(
-      EnumProperty<TextAlign>('textAlign', textAlign, defaultValue: null),
-    );
-    properties.add(
-      EnumProperty<TextDirection>(
-        'textDirection',
-        textDirection,
-        defaultValue: null,
-      ),
-    );
-    properties.add(
-      DiagnosticsProperty<Locale>('locale', locale, defaultValue: null),
-    );
-    properties.add(
-      FlagProperty(
-        'softWrap',
-        value: softWrap,
-        ifTrue: 'wrapping at box width',
-        ifFalse: 'no wrapping except at line break characters',
-        showName: true,
-      ),
-    );
-    properties.add(
-      EnumProperty<TextOverflow>('overflow', overflow, defaultValue: null),
-    );
-    properties.add(
-      DoubleProperty('textScaleFactor', textScaleFactor, defaultValue: null),
-    );
-    properties.add(IntProperty('maxLines', maxLines, defaultValue: null));
-    properties.add(
-      EnumProperty<TextWidthBasis>(
-        'textWidthBasis',
-        textWidthBasis,
-        defaultValue: null,
-      ),
-    );
-    properties.add(
-      DiagnosticsProperty<ui.TextHeightBehavior>(
-        'textHeightBehavior',
-        textHeightBehavior,
-        defaultValue: null,
-      ),
-    );
+    properties
+      ..add(
+        EnumProperty<TextAlign>('textAlign', textAlign, defaultValue: null),
+      )
+      ..add(
+        EnumProperty<TextDirection>(
+          'textDirection',
+          textDirection,
+          defaultValue: null,
+        ),
+      )
+      ..add(
+        DiagnosticsProperty<Locale>('locale', locale, defaultValue: null),
+      )
+      ..add(
+        FlagProperty(
+          'softWrap',
+          value: softWrap,
+          ifTrue: 'wrapping at box width',
+          ifFalse: 'no wrapping except at line break characters',
+          showName: true,
+        ),
+      )
+      ..add(
+        EnumProperty<TextOverflow>('overflow', overflow, defaultValue: null),
+      )
+      ..add(
+        DoubleProperty('textScaleFactor', textScaleFactor, defaultValue: null),
+      )
+      ..add(IntProperty('maxLines', maxLines, defaultValue: null))
+      ..add(
+        EnumProperty<TextWidthBasis>(
+          'textWidthBasis',
+          textWidthBasis,
+          defaultValue: null,
+        ),
+      )
+      ..add(
+        DiagnosticsProperty<ui.TextHeightBehavior>(
+          'textHeightBehavior',
+          textHeightBehavior,
+          defaultValue: null,
+        ),
+      );
     if (semanticsLabel != null) {
       properties.add(StringProperty('semanticsLabel', semanticsLabel));
     }
@@ -693,7 +718,7 @@ class _SelectableTextContainerDelegate
 
   SelectionResult _handleSelectParagraph(SelectParagraphSelectionEvent event) {
     if (event.absorb) {
-      for (int index = 0; index < selectables.length; index += 1) {
+      for (var index = 0; index < selectables.length; index += 1) {
         dispatchSelectionEventToChild(selectables[index], event);
       }
       currentSelectionStartIndex = 0;
@@ -703,7 +728,7 @@ class _SelectableTextContainerDelegate
 
     // First pass, if the position is on a placeholder then dispatch the selection
     // event to the [Selectable] at the location and terminate.
-    for (int index = 0; index < selectables.length; index += 1) {
+    for (var index = 0; index < selectables.length; index += 1) {
       final bool selectableIsPlaceholder = !paragraph
           .selectableBelongsToParagraph(selectables[index]);
       if (selectableIsPlaceholder &&
@@ -722,9 +747,9 @@ class _SelectableTextContainerDelegate
     }
 
     SelectionResult? lastSelectionResult;
-    bool foundStart = false;
+    var foundStart = false;
     int? lastNextIndex;
-    for (int index = 0; index < selectables.length; index += 1) {
+    for (var index = 0; index < selectables.length; index += 1) {
       if (!paragraph.selectableBelongsToParagraph(selectables[index])) {
         if (foundStart) {
           final SelectionEvent synthesizedEvent = SelectParagraphSelectionEvent(
@@ -769,7 +794,7 @@ class _SelectableTextContainerDelegate
               .overlaps(
                 selectables[index].value.selectionRects[0],
               );
-          int startIndex = 0;
+          var startIndex = 0;
           if (lastNextIndex != null && selectionAtStartOfSelectable) {
             startIndex = lastNextIndex + 1;
           } else {
@@ -777,7 +802,7 @@ class _SelectableTextContainerDelegate
                 ? 0
                 : index;
           }
-          for (int i = startIndex; i < index; i += 1) {
+          for (var i = startIndex; i < index; i += 1) {
             final SelectionEvent synthesizedEvent =
                 SelectParagraphSelectionEvent(
                   globalPosition: event.globalPosition,
@@ -796,7 +821,7 @@ class _SelectableTextContainerDelegate
       if (selectables[index].value != existingGeometry) {
         if (!foundStart && lastNextIndex == null) {
           currentSelectionStartIndex = 0;
-          for (int i = 0; i < index; i += 1) {
+          for (var i = 0; i < index; i += 1) {
             final SelectionEvent synthesizedEvent =
                 SelectParagraphSelectionEvent(
                   globalPosition: event.globalPosition,
@@ -837,7 +862,7 @@ class _SelectableTextContainerDelegate
     );
     SelectionResult? finalResult;
     // Begin the search for the selection edge at the opposite edge if it exists.
-    final bool hasOppositeEdge = isEnd
+    final hasOppositeEdge = isEnd
         ? currentSelectionStartIndex != -1
         : currentSelectionEndIndex != -1;
     int newIndex = switch ((isEnd, hasOppositeEdge)) {
@@ -932,10 +957,10 @@ class _SelectableTextContainerDelegate
     //
     // This can happen when there is a scrollable child and the edge being adjusted
     // has been scrolled out of view.
-    final bool isCurrentEdgeWithinViewport = isEnd
+    final isCurrentEdgeWithinViewport = isEnd
         ? value.endSelectionPoint != null
         : value.startSelectionPoint != null;
-    final bool isOppositeEdgeWithinViewport = isEnd
+    final isOppositeEdgeWithinViewport = isEnd
         ? value.startSelectionPoint != null
         : value.endSelectionPoint != null;
     int newIndex = switch ((
@@ -1107,9 +1132,9 @@ class _SelectableTextContainerDelegate
     if (currentSelectionStartIndex == -1 || currentSelectionEndIndex == -1) {
       return null;
     }
-    int startOffset = 0;
-    int endOffset = 0;
-    bool foundStart = false;
+    var startOffset = 0;
+    var endOffset = 0;
+    var foundStart = false;
     bool forwardSelection =
         currentSelectionEndIndex >= currentSelectionStartIndex;
     if (currentSelectionEndIndex == currentSelectionStartIndex) {
@@ -1121,7 +1146,7 @@ class _SelectableTextContainerDelegate
           rangeAtSelectableInSelection.endOffset >=
           rangeAtSelectableInSelection.startOffset;
     }
-    for (int index = 0; index < selections.length; index++) {
+    for (var index = 0; index < selections.length; index++) {
       final _SelectionInfo selection = selections[index];
       if (selection.range == null) {
         if (foundStart) {
@@ -1187,7 +1212,7 @@ class _SelectableTextContainerDelegate
   /// this method will return `null`.
   @override
   SelectedContentRange? getSelection() {
-    final List<_SelectionInfo> selections = <_SelectionInfo>[
+    final selections = <_SelectionInfo>[
       for (final Selectable selectable in selectables)
         (
           contentLength: selectable.contentLength,
@@ -1232,7 +1257,7 @@ class _SelectableTextContainerDelegate
       currentSelectionStartIndex,
       currentSelectionEndIndex,
     );
-    for (int index = 0; index < selectables.length; index += 1) {
+    for (var index = 0; index < selectables.length; index += 1) {
       if (index >= skipStart && index <= skipEnd) {
         continue;
       }
@@ -1266,3 +1291,55 @@ class _SelectableTextContainerDelegate
 /// The length of the content that can be selected, and the range that is
 /// selected.
 typedef _SelectionInfo = ({int contentLength, SelectedContentRange? range});
+
+/// A utility class for overriding the text styles of a [TextSpan] tree.
+// When changes are made to this class, the equivalent API in editable_text.dart
+// must also be updated.
+// TODO(Renzo-Olivares): Remove after investigating a solution for overriding all
+// styles for children in an [InlineSpan] tree, see: https://github.com/flutter/flutter/issues/177952.
+class _OverridingTextStyleTextSpanUtils {
+  static TextSpan applyTextSpacingOverrides({
+    double? lineHeightScaleFactor,
+    double? letterSpacing,
+    double? wordSpacing,
+    required TextSpan textSpan,
+  }) {
+    if (lineHeightScaleFactor == null &&
+        letterSpacing == null &&
+        wordSpacing == null) {
+      return textSpan;
+    }
+    return _applyTextStyleOverrides(
+      TextStyle(
+        height: lineHeightScaleFactor,
+        letterSpacing: letterSpacing,
+        wordSpacing: wordSpacing,
+      ),
+      textSpan,
+    );
+  }
+
+  static TextSpan _applyTextStyleOverrides(
+    TextStyle overrideTextStyle,
+    TextSpan textSpan,
+  ) {
+    return TextSpan(
+      text: textSpan.text,
+      children: textSpan.children?.map((InlineSpan child) {
+        if (child is TextSpan && child.runtimeType == TextSpan) {
+          return _applyTextStyleOverrides(overrideTextStyle, child);
+        }
+        return child;
+      }).toList(),
+      style: textSpan.style?.merge(overrideTextStyle) ?? overrideTextStyle,
+      recognizer: textSpan.recognizer,
+      mouseCursor: textSpan.mouseCursor,
+      onEnter: textSpan.onEnter,
+      onExit: textSpan.onExit,
+      semanticsLabel: textSpan.semanticsLabel,
+      semanticsIdentifier: textSpan.semanticsIdentifier,
+      locale: textSpan.locale,
+      spellOut: textSpan.spellOut,
+    );
+  }
+}

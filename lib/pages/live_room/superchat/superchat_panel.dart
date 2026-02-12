@@ -34,12 +34,12 @@ class _SuperChatPanelState extends DebounceStreamState<SuperChatPanel, bool>
         padding: const EdgeInsets.symmetric(horizontal: 12),
         physics: const ClampingScrollPhysics(),
         itemCount: widget.controller.superChatMsg.length,
-        findChildIndexCallback: (key) {
+        findItemIndexCallback: (key) {
           final index = widget.controller.superChatMsg.indexWhere(
             (i) => i.id == (key as ValueKey<int>).value,
           );
-          // Multiply by 2 to account for separators
-          return index == -1 ? null : index * 2;
+          // Return item index directly - no need to multiply by 2.
+          return index == -1 ? null : index;
         },
         itemBuilder: (context, index) {
           final item = widget.controller.superChatMsg[index];

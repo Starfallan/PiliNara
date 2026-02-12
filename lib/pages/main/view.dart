@@ -217,9 +217,9 @@ class _MainAppState extends PopScopeState<MainApp>
 
   Future<void> _handleTray() async {
     if (Platform.isWindows) {
-      await trayManager.setIcon('assets/images/logo/app_icon.ico');
+      await trayManager.setIcon('assets/images/logo/ico/app_icon.ico');
     } else {
-      await trayManager.setIcon('assets/images/logo/logo_large.png');
+      await trayManager.setIcon('assets/images/logo/desktop/logo_large.png');
     }
     if (!Platform.isLinux) {
       await trayManager.setToolTip(Constants.appName);

@@ -56,9 +56,7 @@ class _MemberContributeState extends State<MemberContribute>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TabBar(
-                overlayColor: const WidgetStatePropertyAll(
-                  Colors.transparent,
-                ),
+                overlayColor: const WidgetStatePropertyAll(Colors.transparent),
                 splashFactory: NoSplash.splashFactory,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 isScrollable: true,

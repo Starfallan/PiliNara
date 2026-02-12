@@ -11,7 +11,7 @@ import 'package:flutter/gestures.dart'
         BaseTapAndDragGestureRecognizer,
         TapAndHorizontalDragGestureRecognizer,
         TapAndPanGestureRecognizer;
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide TextSelectionGestureDetector;
 
 class CustomTextSelectionGestureDetectorBuilder
     extends TextSelectionGestureDetectorBuilder {
@@ -310,8 +310,7 @@ class _TextSelectionGestureDetectorState
 
   @override
   Widget build(BuildContext context) {
-    final Map<Type, GestureRecognizerFactory> gestures =
-        <Type, GestureRecognizerFactory>{};
+    final gestures = <Type, GestureRecognizerFactory>{};
 
     gestures[TapGestureRecognizer] =
         GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(

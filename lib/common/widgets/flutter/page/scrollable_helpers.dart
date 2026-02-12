@@ -13,7 +13,8 @@ import 'dart:math' as math;
 
 import 'package:PiliPlus/common/widgets/flutter/page/scrollable.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart' hide ScrollableState;
+import 'package:flutter/material.dart'
+    hide EdgeDraggingAutoScroller, Scrollable, ScrollableState;
 
 /// An auto scroller that scrolls the [scrollable] if a drag gesture drags close
 /// to its edge.
@@ -29,7 +30,7 @@ class EdgeDraggingAutoScroller {
     required this.velocityScalar,
   });
 
-  /// The [CustomScrollable] this auto scroller is scrolling.
+  /// The [Scrollable] this auto scroller is scrolling.
   final ScrollableState scrollable;
 
   /// Called when a scroll view is scrolled.
@@ -97,8 +98,7 @@ class EdgeDraggingAutoScroller {
   }
 
   Future<void> _scroll() async {
-    final RenderBox scrollRenderBox =
-        scrollable.context.findRenderObject()! as RenderBox;
+    final scrollRenderBox = scrollable.context.findRenderObject()! as RenderBox;
     final Matrix4 transform = scrollRenderBox.getTransformTo(null);
     final Rect globalRect = MatrixUtils.transformRect(
       transform,
@@ -123,7 +123,7 @@ class EdgeDraggingAutoScroller {
     );
     _scrolling = true;
     double? newOffset;
-    const double overDragMax = 20.0;
+    const overDragMax = 20.0;
 
     final Offset deltaToOrigin = scrollable.deltaToScrollOrigin;
     final Offset viewportOrigin = globalRect.topLeft.translate(
@@ -194,9 +194,7 @@ class EdgeDraggingAutoScroller {
       _scrolling = false;
       return;
     }
-    final Duration duration = Duration(
-      milliseconds: (1000 / velocityScalar).round(),
-    );
+    final duration = Duration(milliseconds: (1000 / velocityScalar).round());
     await scrollable.position.animateTo(
       newOffset,
       duration: duration,

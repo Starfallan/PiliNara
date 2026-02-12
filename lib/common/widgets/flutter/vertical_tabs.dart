@@ -1571,7 +1571,6 @@ class _VerticalTabBarState extends State<VerticalTabBar> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    assert(debugCheckHasMaterial(context));
     _updateTabController();
     _initIndicatorPainter();
   }

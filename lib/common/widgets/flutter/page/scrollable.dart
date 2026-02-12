@@ -2,20 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// ignore_for_file: uri_does_not_exist_in_doc_import
-
-/// @docImport 'package:flutter/material.dart';
-///
-/// @docImport 'page_storage.dart';
-/// @docImport 'page_view.dart';
-/// @docImport 'scroll_metrics.dart';
-/// @docImport 'scroll_notification.dart';
-/// @docImport 'scroll_view.dart';
-/// @docImport 'single_child_scroll_view.dart';
-/// @docImport 'two_dimensional_scroll_view.dart';
-/// @docImport 'two_dimensional_viewport.dart';
-library;
-
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -350,7 +336,7 @@ class Scrollable<T extends HorizontalDragGestureRecognizer>
   ///   if no [Scrollable] ancestor is found.
   static ScrollableState? maybeOf(BuildContext context, {Axis? axis}) {
     // This is the context that will need to establish the dependency.
-    final BuildContext originalContext = context;
+    final originalContext = context;
     InheritedElement? element = context
         .getElementForInheritedWidgetOfExactType<_ScrollableScope>();
     while (element != null) {
@@ -477,7 +463,7 @@ class Scrollable<T extends HorizontalDragGestureRecognizer>
     ScrollPositionAlignmentPolicy alignmentPolicy =
         ScrollPositionAlignmentPolicy.explicit,
   }) {
-    final List<Future<void>> futures = <Future<void>>[];
+    final futures = <Future<void>>[];
 
     // The targetRenderObject is used to record the first target renderObject.
     // If there are multiple scrollable widgets nested, the targetRenderObject
@@ -855,7 +841,7 @@ class ScrollableState<T extends HorizontalDragGestureRecognizer>
     }
     _shouldIgnorePointer = value;
     if (_ignorePointerKey.currentContext != null) {
-      final RenderIgnorePointer renderBox =
+      final renderBox =
           _ignorePointerKey.currentContext!.findRenderObject()!
               as RenderIgnorePointer;
       renderBox.ignoring = _shouldIgnorePointer;
@@ -1014,7 +1000,7 @@ class ScrollableState<T extends HorizontalDragGestureRecognizer>
   }
 
   Widget _buildChrome(BuildContext context, Widget child) {
-    final ScrollableDetails details = ScrollableDetails(
+    final details = ScrollableDetails(
       direction: widget.axisDirection,
       controller: _effectiveScrollController,
       decorationClipBehavior: widget.clipBehavior,
@@ -1344,7 +1330,7 @@ class _ScrollableSelectionContainerDelegate
   }
 
   Offset _inferPositionRelatedToOrigin(Offset globalPosition) {
-    final RenderBox box = state.context.findRenderObject()! as RenderBox;
+    final box = state.context.findRenderObject()! as RenderBox;
     final Offset localPosition = box.globalToLocal(globalPosition);
     if (!_selectionStartsInScrollable) {
       // If the selection starts outside of the scrollable, selecting across the
@@ -1377,7 +1363,7 @@ class _ScrollableSelectionContainerDelegate
     bool forceUpdateEnd = true,
   }) {
     final Offset deltaToOrigin = _getDeltaToScrollOrigin(state);
-    final RenderBox box = state.context.findRenderObject()! as RenderBox;
+    final box = state.context.findRenderObject()! as RenderBox;
     final Matrix4 transform = box.getTransformTo(null);
     if (currentSelectionStartIndex != -1 &&
         (_currentDragStartRelatedToOrigin == null || forceUpdateStart)) {
@@ -1492,14 +1478,13 @@ class _ScrollableSelectionContainerDelegate
     if (lineHeight == null || edge == null) {
       return;
     }
-    final RenderBox scrollableBox =
-        state.context.findRenderObject()! as RenderBox;
+    final scrollableBox = state.context.findRenderObject()! as RenderBox;
     final Matrix4 transform = selectable.getTransformTo(scrollableBox);
     final Offset edgeOffsetInScrollableCoordinates = MatrixUtils.transformPoint(
       transform,
       edge.localPosition,
     );
-    final Rect scrollableRect = Rect.fromLTRB(
+    final scrollableRect = Rect.fromLTRB(
       0,
       0,
       scrollableBox.size.width,
@@ -1568,9 +1553,9 @@ class _ScrollableSelectionContainerDelegate
   }
 
   bool _globalPositionInScrollable(Offset globalPosition) {
-    final RenderBox box = state.context.findRenderObject()! as RenderBox;
+    final box = state.context.findRenderObject()! as RenderBox;
     final Offset localPosition = box.globalToLocal(globalPosition);
-    final Rect rect = Rect.fromLTRB(0, 0, box.size.width, box.size.height);
+    final rect = Rect.fromLTRB(0, 0, box.size.width, box.size.height);
     return rect.contains(localPosition);
   }
 
@@ -1818,9 +1803,9 @@ class _RenderScrollSemantics extends RenderProxyBox {
     (_innerNode ??= SemanticsNode(showOnScreen: showOnScreen)).rect = node.rect;
 
     int? firstVisibleIndex;
-    final List<SemanticsNode> excluded = <SemanticsNode>[_innerNode!];
-    final List<SemanticsNode> included = <SemanticsNode>[];
-    for (final SemanticsNode child in children) {
+    final excluded = <SemanticsNode>[_innerNode!];
+    final included = <SemanticsNode>[];
+    for (final child in children) {
       assert(child.isTagged(RenderViewport.useTwoPaneSemantics));
       if (child.isTagged(RenderViewport.excludeFromScrolling)) {
         excluded.add(child);

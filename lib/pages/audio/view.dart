@@ -107,6 +107,7 @@ class _AudioPageState extends State<AudioPage> {
             Obx(() {
               if (_controller.segmentProgressList.isNotEmpty) {
                 return IconButton(
+                  tooltip: '片段信息',
                   onPressed: _controller.showSBDetail,
                   icon: const Icon(MdiIcons.advertisements, size: 22),
                 );

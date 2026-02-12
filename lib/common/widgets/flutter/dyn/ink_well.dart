@@ -18,7 +18,7 @@ import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide InkWell;
 import 'package:flutter/rendering.dart';
 
 abstract class _ParentInkResponseState {
@@ -265,14 +265,16 @@ class InkResponse extends StatelessWidget {
   /// The cursor for a mouse pointer when it enters or is hovering over the
   /// widget.
   ///
+  /// {@template flutter.material.InkWell.mouseCursor}
   /// If [mouseCursor] is a [WidgetStateMouseCursor],
   /// [WidgetStateProperty.resolve] is used for the following [WidgetState]s:
   ///
   ///  * [WidgetState.hovered].
   ///  * [WidgetState.focused].
   ///  * [WidgetState.disabled].
+  /// {@endtemplate}
   ///
-  /// If this property is null, [WidgetStateMouseCursor.clickable] will be used.
+  /// If this property is null, [WidgetStateMouseCursor.adaptiveClickable] will be used.
   final MouseCursor? mouseCursor;
 
   /// Whether this ink response should be clipped its bounds.
@@ -638,7 +640,7 @@ class _InkResponseStateWidget extends StatefulWidget {
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
-    final List<String> gestures = <String>[
+    final gestures = <String>[
       if (onTap != null) 'tap',
       if (onDoubleTap != null) 'double tap',
       if (onLongPress != null) 'long press',
@@ -900,7 +902,7 @@ class _InkResponseState extends State<_InkResponseStateWidget>
               _HighlightType.hover =>
                 widget.hoverColor ?? Theme.of(context).hoverColor,
             };
-        final RenderBox referenceBox = context.findRenderObject()! as RenderBox;
+        final referenceBox = context.findRenderObject()! as RenderBox;
         _highlights[type] = InkHighlight(
           controller: Material.of(context),
           referenceBox: referenceBox,
@@ -951,7 +953,7 @@ class _InkResponseState extends State<_InkResponseStateWidget>
 
   InteractiveInkFeature _createSplash(Offset globalPosition) {
     final MaterialInkController inkController = Material.of(context);
-    final RenderBox referenceBox = context.findRenderObject()! as RenderBox;
+    final referenceBox = context.findRenderObject()! as RenderBox;
     final Offset position = referenceBox.globalToLocal(globalPosition);
     final Color color =
         widget.overlayColor?.resolve(statesController.value) ??
@@ -1054,7 +1056,7 @@ class _InkResponseState extends State<_InkResponseStateWidget>
 
     final Offset globalPosition;
     if (context != null) {
-      final RenderBox referenceBox = context.findRenderObject()! as RenderBox;
+      final referenceBox = context.findRenderObject()! as RenderBox;
       assert(
         referenceBox.hasSize,
         'InkResponse must be done with layout before starting a splash.',
@@ -1139,7 +1141,7 @@ class _InkResponseState extends State<_InkResponseStateWidget>
     if (_splashes != null) {
       final Set<InteractiveInkFeature> splashes = _splashes!;
       _splashes = null;
-      for (final InteractiveInkFeature splash in splashes) {
+      for (final splash in splashes) {
         splash.dispose();
       }
       _currentSplash = null;
@@ -1205,7 +1207,7 @@ class _InkResponseState extends State<_InkResponseStateWidget>
     assert(widget.debugCheckContext(context));
 
     final ThemeData theme = Theme.of(context);
-    const Set<WidgetState> highlightableStates = <WidgetState>{
+    const highlightableStates = <WidgetState>{
       WidgetState.focused,
       WidgetState.hovered,
       WidgetState.pressed,
@@ -1216,15 +1218,15 @@ class _InkResponseState extends State<_InkResponseStateWidget>
         );
     // Each highlightable state will be resolved separately to get the corresponding color.
     // For this resolution to be correct, the non-highlightable states should be preserved.
-    final Set<WidgetState> pressed = <WidgetState>{
+    final pressed = <WidgetState>{
       ...nonHighlightableStates,
       WidgetState.pressed,
     };
-    final Set<WidgetState> focused = <WidgetState>{
+    final focused = <WidgetState>{
       ...nonHighlightableStates,
       WidgetState.focused,
     };
-    final Set<WidgetState> hovered = <WidgetState>{
+    final hovered = <WidgetState>{
       ...nonHighlightableStates,
       WidgetState.hovered,
     };
@@ -1260,7 +1262,7 @@ class _InkResponseState extends State<_InkResponseStateWidget>
 
     final MouseCursor effectiveMouseCursor =
         WidgetStateProperty.resolveAs<MouseCursor>(
-          widget.mouseCursor ?? WidgetStateMouseCursor.clickable,
+          widget.mouseCursor ?? WidgetStateMouseCursor.adaptiveClickable,
           statesController.value,
         );
 

@@ -10,6 +10,7 @@ import 'package:flutter/cupertino.dart'
         SelectableRegionContextMenuBuilder;
 import 'package:flutter/material.dart'
     hide
+        SelectionArea,
         SelectableRegion,
         SelectableRegionState,
         SelectableRegionContextMenuBuilder;

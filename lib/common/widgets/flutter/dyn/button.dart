@@ -15,7 +15,7 @@ import 'dart:math' as math;
 
 import 'package:PiliPlus/common/widgets/flutter/dyn/ink_well.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart' hide InkWell;
+import 'package:flutter/material.dart' hide ButtonStyleButton, InkWell;
 import 'package:flutter/rendering.dart';
 
 /// The base [StatefulWidget] class for buttons whose style is defined by a [ButtonStyle] object.
@@ -121,7 +121,7 @@ abstract class ButtonStyleButton extends StatefulWidget {
   /// Defaults to true.
   final bool? isSemanticButton;
 
-  /// {@macro flutter.material.ButtonStyleButton.iconAlignment}
+  /// {@macro flutter.material.ButtonStyle.iconAlignment}
   @Deprecated(
     'Remove this parameter as it is now ignored. '
     'Use ButtonStyle.iconAlignment instead. '
@@ -722,9 +722,9 @@ class _RenderInputPadding extends RenderShiftedBox {
   }) {
     if (child != null) {
       final Size childSize = layoutChild(child!, constraints);
-      final double height = math.max(childSize.width, minSize.width);
-      final double width = math.max(childSize.height, minSize.height);
-      return constraints.constrain(Size(height, width));
+      final double width = math.max(childSize.width, minSize.width);
+      final double height = math.max(childSize.height, minSize.height);
+      return constraints.constrain(Size(width, height));
     }
     return Size.zero;
   }
@@ -764,7 +764,7 @@ class _RenderInputPadding extends RenderShiftedBox {
       layoutChild: ChildLayoutHelper.layoutChild,
     );
     if (child != null) {
-      final BoxParentData childParentData = child!.parentData! as BoxParentData;
+      final childParentData = child!.parentData! as BoxParentData;
       childParentData.offset = Alignment.center.alongOffset(
         size - child!.size as Offset,
       );

@@ -14,7 +14,8 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:PiliPlus/common/widgets/flutter/dyn/button.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart' hide InkWell, ButtonStyleButton;
+import 'package:flutter/material.dart'
+    hide ButtonStyleButton, TextButton, InkWell;
 
 /// A Material Design "Text Button".
 ///
@@ -84,7 +85,7 @@ class TextButton extends ButtonStyleButton {
     super.statesController,
     super.isSemanticButton,
     required Widget super.child,
-  });
+  }) : _addPadding = false;
 
   /// Create a text button from a pair of widgets that serve as the button's
   /// [icon] and [label].
@@ -92,56 +93,38 @@ class TextButton extends ButtonStyleButton {
   /// The icon and label are arranged in a row and padded by 8 logical pixels
   /// at the ends, with an 8 pixel gap in between.
   ///
-  /// If [icon] is null, will create a [TextButton] instead.
+  /// If [icon] is null, this constructor will create a [TextButton]
+  /// that doesn't display an icon.
   ///
-  /// {@macro flutter.material.ButtonStyleButton.iconAlignment}
+  /// {@macro flutter.material.ButtonStyle.iconAlignment}
   ///
-  factory TextButton.icon({
-    Key? key,
-    required VoidCallback? onPressed,
-    VoidCallback? onLongPress,
-    ValueChanged<bool>? onHover,
-    ValueChanged<bool>? onFocusChange,
-    ButtonStyle? style,
-    FocusNode? focusNode,
-    bool? autofocus,
-    Clip? clipBehavior,
-    WidgetStatesController? statesController,
+  TextButton.icon({
+    super.key,
+    required super.onPressed,
+    super.onLongPress,
+    super.onHover,
+    super.onFocusChange,
+    super.style,
+    super.focusNode,
+    super.autofocus = false,
+    super.clipBehavior = Clip.none,
+    super.statesController,
     Widget? icon,
     required Widget label,
     IconAlignment? iconAlignment,
-  }) {
-    if (icon == null) {
-      return TextButton(
-        key: key,
-        onPressed: onPressed,
-        onLongPress: onLongPress,
-        onHover: onHover,
-        onFocusChange: onFocusChange,
-        style: style,
-        focusNode: focusNode,
-        autofocus: autofocus ?? false,
-        clipBehavior: clipBehavior ?? Clip.none,
-        statesController: statesController,
-        child: label,
-      );
-    }
-    return _TextButtonWithIcon(
-      key: key,
-      onPressed: onPressed,
-      onLongPress: onLongPress,
-      onHover: onHover,
-      onFocusChange: onFocusChange,
-      style: style,
-      focusNode: focusNode,
-      autofocus: autofocus ?? false,
-      clipBehavior: clipBehavior ?? Clip.none,
-      statesController: statesController,
-      icon: icon,
-      label: label,
-      iconAlignment: iconAlignment,
-    );
-  }
+  }) : _addPadding = icon != null,
+       super(
+         child: icon != null
+             ? _TextButtonWithIconChild(
+                 label: label,
+                 icon: icon,
+                 buttonStyle: style,
+                 iconAlignment: iconAlignment,
+               )
+             : label,
+       );
+
+  final bool _addPadding;
 
   /// A static convenience method that constructs a text button
   /// [ButtonStyle] given simple values.
@@ -339,9 +322,7 @@ class TextButton extends ButtonStyleButton {
   /// * `maximumSize` - Size.infinite
   /// * `side` - null
   /// * `shape` - RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))
-  /// * `mouseCursor`
-  ///   * disabled - SystemMouseCursors.basic
-  ///   * others - SystemMouseCursors.click
+  /// * `mouseCursor` - WidgetStateMouseCursor.adaptiveClickable
   /// * `visualDensity` - theme.visualDensity
   /// * `tapTargetSize` - theme.materialTapTargetSize
   /// * `animationDuration` - kThemeChangeDuration
@@ -389,9 +370,7 @@ class TextButton extends ButtonStyleButton {
   /// * `maximumSize` - Size.infinite
   /// * `side` - null
   /// * `shape` - StadiumBorder()
-  /// * `mouseCursor`
-  ///   * disabled - SystemMouseCursors.basic
-  ///   * others - SystemMouseCursors.click
+  /// * `mouseCursor` - WidgetStateMouseCursor.adaptiveClickable
   /// * `visualDensity` - theme.visualDensity
   /// * `tapTargetSize` - theme.materialTapTargetSize
   /// * `animationDuration` - kThemeChangeDuration
@@ -406,8 +385,7 @@ class TextButton extends ButtonStyleButton {
   ButtonStyle defaultStyleOf(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final ColorScheme colorScheme = theme.colorScheme;
-
-    return Theme.of(context).useMaterial3
+    final ButtonStyle buttonStyle = theme.useMaterial3
         ? _TextButtonDefaultsM3(context)
         : styleFrom(
             foregroundColor: colorScheme.primary,
@@ -425,7 +403,9 @@ class TextButton extends ButtonStyleButton {
             shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.all(Radius.circular(4)),
             ),
-            enabledMouseCursor: SystemMouseCursors.click,
+            enabledMouseCursor: kIsWeb
+                ? SystemMouseCursors.click
+                : SystemMouseCursors.basic,
             disabledMouseCursor: SystemMouseCursors.basic,
             visualDensity: theme.visualDensity,
             tapTargetSize: theme.materialTapTargetSize,
@@ -434,6 +414,28 @@ class TextButton extends ButtonStyleButton {
             alignment: Alignment.center,
             splashFactory: InkRipple.splashFactory,
           );
+
+    // Only apply padding when TextButton has an Icon.
+    if (_addPadding) {
+      final double defaultFontSize =
+          buttonStyle.textStyle?.resolve(const <WidgetState>{})?.fontSize ??
+          14.0;
+      final double effectiveTextScale =
+          MediaQuery.textScalerOf(context).scale(defaultFontSize) / 14.0;
+      final EdgeInsetsGeometry scaledPadding = ButtonStyleButton.scaledPadding(
+        theme.useMaterial3
+            ? const EdgeInsetsDirectional.fromSTEB(12, 8, 16, 8)
+            : const EdgeInsets.all(8),
+        const EdgeInsets.symmetric(horizontal: 4),
+        const EdgeInsets.symmetric(horizontal: 4),
+        effectiveTextScale,
+      );
+      return buttonStyle.copyWith(
+        padding: WidgetStatePropertyAll<EdgeInsetsGeometry>(scaledPadding),
+      );
+    }
+
+    return buttonStyle;
   }
 
   /// Returns the [TextButtonThemeData.style] of the closest
@@ -457,53 +459,6 @@ EdgeInsetsGeometry _scaledPadding(BuildContext context) {
     const EdgeInsets.symmetric(horizontal: 4),
     effectiveTextScale,
   );
-}
-
-class _TextButtonWithIcon extends TextButton {
-  _TextButtonWithIcon({
-    super.key,
-    required super.onPressed,
-    super.onLongPress,
-    super.onHover,
-    super.onFocusChange,
-    super.style,
-    super.focusNode,
-    bool? autofocus,
-    super.clipBehavior,
-    super.statesController,
-    required Widget icon,
-    required Widget label,
-    IconAlignment? iconAlignment,
-  }) : super(
-         autofocus: autofocus ?? false,
-         child: _TextButtonWithIconChild(
-           icon: icon,
-           label: label,
-           buttonStyle: style,
-           iconAlignment: iconAlignment,
-         ),
-       );
-
-  @override
-  ButtonStyle defaultStyleOf(BuildContext context) {
-    final bool useMaterial3 = Theme.of(context).useMaterial3;
-    final ButtonStyle buttonStyle = super.defaultStyleOf(context);
-    final double defaultFontSize =
-        buttonStyle.textStyle?.resolve(const <WidgetState>{})?.fontSize ?? 14.0;
-    final double effectiveTextScale =
-        MediaQuery.textScalerOf(context).scale(defaultFontSize) / 14.0;
-    final EdgeInsetsGeometry scaledPadding = ButtonStyleButton.scaledPadding(
-      useMaterial3
-          ? const EdgeInsetsDirectional.fromSTEB(12, 8, 16, 8)
-          : const EdgeInsets.all(8),
-      const EdgeInsets.symmetric(horizontal: 4),
-      const EdgeInsets.symmetric(horizontal: 4),
-      effectiveTextScale,
-    );
-    return buttonStyle.copyWith(
-      padding: WidgetStatePropertyAll<EdgeInsetsGeometry>(scaledPadding),
-    );
-  }
 }
 
 class _TextButtonWithIconChild extends StatelessWidget {
@@ -557,72 +512,72 @@ class _TextButtonWithIconChild extends StatelessWidget {
 // dart format off
 class _TextButtonDefaultsM3 extends ButtonStyle {
   _TextButtonDefaultsM3(this.context)
-   : super(
-       animationDuration: kThemeChangeDuration,
-       enableFeedback: true,
-       alignment: Alignment.center,
-     );
+      : super(
+    animationDuration: kThemeChangeDuration,
+    enableFeedback: true,
+    alignment: Alignment.center,
+  );
 
   final BuildContext context;
   late final ColorScheme _colors = Theme.of(context).colorScheme;
 
   @override
   WidgetStateProperty<TextStyle?> get textStyle =>
-    WidgetStatePropertyAll<TextStyle?>(Theme.of(context).textTheme.labelLarge);
+      WidgetStatePropertyAll<TextStyle?>(Theme.of(context).textTheme.labelLarge);
 
   @override
   WidgetStateProperty<Color?>? get backgroundColor =>
-    const WidgetStatePropertyAll<Color>(Colors.transparent);
+      const WidgetStatePropertyAll<Color>(Colors.transparent);
 
   @override
   WidgetStateProperty<Color?>? get foregroundColor =>
-    WidgetStateProperty.resolveWith((Set<WidgetState> states) {
-      if (states.contains(WidgetState.disabled)) {
-        return _colors.onSurface.withValues(alpha: 0.38);
-      }
-      return _colors.primary;
-    });
+      WidgetStateProperty.resolveWith((Set<WidgetState> states) {
+        if (states.contains(WidgetState.disabled)) {
+          return _colors.onSurface.withValues(alpha: 0.38);
+        }
+        return _colors.primary;
+      });
 
   @override
   WidgetStateProperty<Color?>? get overlayColor =>
-    WidgetStateProperty.resolveWith((Set<WidgetState> states) {
-      if (states.contains(WidgetState.pressed)) {
-        return _colors.primary.withValues(alpha: 0.1);
-      }
-      if (states.contains(WidgetState.hovered)) {
-        return _colors.primary.withValues(alpha: 0.08);
-      }
-      if (states.contains(WidgetState.focused)) {
-        return _colors.primary.withValues(alpha: 0.1);
-      }
-      return null;
-    });
+      WidgetStateProperty.resolveWith((Set<WidgetState> states) {
+        if (states.contains(WidgetState.pressed)) {
+          return _colors.primary.withValues(alpha: 0.1);
+        }
+        if (states.contains(WidgetState.hovered)) {
+          return _colors.primary.withValues(alpha: 0.08);
+        }
+        if (states.contains(WidgetState.focused)) {
+          return _colors.primary.withValues(alpha: 0.1);
+        }
+        return null;
+      });
 
   @override
   WidgetStateProperty<Color>? get shadowColor =>
-    const WidgetStatePropertyAll<Color>(Colors.transparent);
+      const WidgetStatePropertyAll<Color>(Colors.transparent);
 
   @override
   WidgetStateProperty<Color>? get surfaceTintColor =>
-    const WidgetStatePropertyAll<Color>(Colors.transparent);
+      const WidgetStatePropertyAll<Color>(Colors.transparent);
 
   @override
   WidgetStateProperty<double>? get elevation =>
-    const WidgetStatePropertyAll<double>(0.0);
+      const WidgetStatePropertyAll<double>(0.0);
 
   @override
   WidgetStateProperty<EdgeInsetsGeometry>? get padding =>
-    WidgetStatePropertyAll<EdgeInsetsGeometry>(_scaledPadding(context));
+      WidgetStatePropertyAll<EdgeInsetsGeometry>(_scaledPadding(context));
 
   @override
   WidgetStateProperty<Size>? get minimumSize =>
-    const WidgetStatePropertyAll<Size>(Size(64.0, 40.0));
+      const WidgetStatePropertyAll<Size>(Size(64.0, 40.0));
 
   // No default fixedSize
 
   @override
   WidgetStateProperty<double>? get iconSize =>
-    const WidgetStatePropertyAll<double>(18.0);
+      const WidgetStatePropertyAll<double>(18.0);
 
   @override
   WidgetStateProperty<Color>? get iconColor {
@@ -645,22 +600,16 @@ class _TextButtonDefaultsM3 extends ButtonStyle {
 
   @override
   WidgetStateProperty<Size>? get maximumSize =>
-    const WidgetStatePropertyAll<Size>(Size.infinite);
+      const WidgetStatePropertyAll<Size>(Size.infinite);
 
   // No default side
 
   @override
   WidgetStateProperty<OutlinedBorder>? get shape =>
-    const WidgetStatePropertyAll<OutlinedBorder>(StadiumBorder());
+      const WidgetStatePropertyAll<OutlinedBorder>(StadiumBorder());
 
   @override
-  WidgetStateProperty<MouseCursor?>? get mouseCursor =>
-    WidgetStateProperty.resolveWith((Set<WidgetState> states) {
-      if (states.contains(WidgetState.disabled)) {
-        return SystemMouseCursors.basic;
-      }
-      return SystemMouseCursors.click;
-    });
+  WidgetStateProperty<MouseCursor?>? get mouseCursor => WidgetStateMouseCursor.adaptiveClickable;
 
   @override
   VisualDensity? get visualDensity => Theme.of(context).visualDensity;
