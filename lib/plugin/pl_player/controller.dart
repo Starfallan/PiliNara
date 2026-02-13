@@ -368,9 +368,19 @@ class PlPlayerController with BlockConfigMixin {
             (bounds.bottom * dpr).round(),
           ];
           
-          if (bounds.height > 0) {
+          if (bounds.height > 0 && bounds.width > 0) {
             aspectRatio = bounds.width / bounds.height;
           }
+        }
+      }
+      
+      // Fallback: 如果无法从 bounds 获取 aspectRatio，使用视频实际尺寸
+      if (aspectRatio == null && videoController != null) {
+        final state = videoController!.player.state;
+        final videoWidth = state.width ?? width ?? 16;
+        final videoHeight = state.height ?? height ?? 9;
+        if (videoHeight > 0) {
+          aspectRatio = videoWidth / videoHeight;
         }
       }
     }
@@ -608,16 +618,9 @@ class PlPlayerController with BlockConfigMixin {
             }
           } else if (call.method == 'onPipChanged') {
             final bool isInPip = call.arguments as bool;
-            if (!isInPip &&
-                isNativePip.value &&
-                (PipOverlayService.isInPipMode ||
-                    LivePipOverlayService.isInPipMode)) {
-              if (PipOverlayService.isInPipMode) {
-                PipOverlayService.onTapToReturn();
-              } else if (LivePipOverlayService.isInPipMode) {
-                LivePipOverlayService.onReturn();
-              }
-            }
+            // 从系统 PiP 退出时，只需恢复应用内小窗的显示状态
+            // 不应该导航到新页面（onTapToReturn 会创建新的播放页）
+            // 用户如果想回到全屏播放，应该点击应用内小窗的恢复按钮
             isNativePip.value = isInPip;
             PipOverlayService.isNativePip = isInPip;
             LivePipOverlayService.isNativePip = isInPip;

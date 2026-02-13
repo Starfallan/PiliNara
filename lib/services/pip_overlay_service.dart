@@ -207,16 +207,53 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
   double? _top;
   double _scale = 1.0;
 
-  double get _width =>
-      (PipOverlayService.isVertical
-          ? PipOverlayService.pipHeight
-          : PipOverlayService.pipWidth) *
-      _scale;
-  double get _height =>
-      (PipOverlayService.isVertical
-          ? PipOverlayService.pipWidth
-          : PipOverlayService.pipHeight) *
-      _scale;
+  // 动态获取小窗尺寸：优先从视频播放器获取实际宽高，fallback 到 isVertical 标志
+  double get _width {
+    final controller = PipOverlayService.getSavedController<VideoDetailController>();
+    final plController = controller?.plPlayerController;
+    if (plController?.videoController != null) {
+      final state = plController!.videoController!.player.state;
+      if (state.width != null && state.height != null && state.height! > 0) {
+        // 根据视频实际宽高比计算小窗尺寸
+        final aspectRatio = state.width! / state.height!;
+        if (aspectRatio > 1) {
+          // 横屏视频
+          return PipOverlayService.pipWidth * _scale;
+        } else {
+          // 竖屏视频
+          return PipOverlayService.pipHeight * _scale;
+        }
+      }
+    }
+    // Fallback: 使用 isVertical 标志
+    return (PipOverlayService.isVertical
+            ? PipOverlayService.pipHeight
+            : PipOverlayService.pipWidth) *
+        _scale;
+  }
+
+  double get _height {
+    final controller = PipOverlayService.getSavedController<VideoDetailController>();
+    final plController = controller?.plPlayerController;
+    if (plController?.videoController != null) {
+      final state = plController!.videoController!.player.state;
+      if (state.width != null && state.height != null && state.height! > 0) {
+        final aspectRatio = state.width! / state.height!;
+        if (aspectRatio > 1) {
+          // 横屏视频
+          return PipOverlayService.pipHeight * _scale;
+        } else {
+          // 竖屏视频
+          return PipOverlayService.pipWidth * _scale;
+        }
+      }
+    }
+    // Fallback
+    return (PipOverlayService.isVertical
+            ? PipOverlayService.pipWidth
+            : PipOverlayService.pipHeight) *
+        _scale;
+  }
 
   bool _showControls = true;
   Timer? _hideTimer;
@@ -298,6 +335,19 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
           .toDouble();
     });
     _startHideTimer();
+    
+    // 缩放后立即同步新的位置和尺寸
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final RenderBox? renderBox =
+          _videoKey.currentContext?.findRenderObject() as RenderBox?;
+      if (renderBox != null) {
+        final offset = renderBox.localToGlobal(Offset.zero);
+        final size = renderBox.size;
+        PipOverlayService.updateBounds(
+            Rect.fromLTWH(offset.dx, offset.dy, size.width, size.height));
+      }
+    });
   }
 
   @override
@@ -363,6 +413,18 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
             if (_showControls) {
               _startHideTimer();
             }
+            // 拖动结束后立即同步最终位置给原生端
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              final RenderBox? renderBox =
+                  _videoKey.currentContext?.findRenderObject() as RenderBox?;
+              if (renderBox != null) {
+                final offset = renderBox.localToGlobal(Offset.zero);
+                final size = renderBox.size;
+                PipOverlayService.updateBounds(
+                    Rect.fromLTWH(offset.dx, offset.dy, size.width, size.height));
+              }
+            });
           },
           child: Container(
             key: _videoKey,

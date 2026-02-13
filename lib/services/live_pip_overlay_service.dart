@@ -284,6 +284,19 @@ class _LivePipWidgetState extends State<LivePipWidget> with WidgetsBindingObserv
           .toDouble();
     });
     _startHideTimer();
+    
+    // 缩放后立即同步新的位置和尺寸
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final RenderBox? renderBox =
+          _videoKey.currentContext?.findRenderObject() as RenderBox?;
+      if (renderBox != null) {
+        final offset = renderBox.localToGlobal(Offset.zero);
+        final size = renderBox.size;
+        LivePipOverlayService.updateBounds(
+            Rect.fromLTWH(offset.dx, offset.dy, size.width, size.height));
+      }
+    });
   }
 
   @override
@@ -341,6 +354,18 @@ class _LivePipWidgetState extends State<LivePipWidget> with WidgetsBindingObserv
             if (_showControls) {
               _startHideTimer();
             }
+            // 拖动结束后立即同步最终位置给原生端
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              final RenderBox? renderBox =
+                  _videoKey.currentContext?.findRenderObject() as RenderBox?;
+              if (renderBox != null) {
+                final offset = renderBox.localToGlobal(Offset.zero);
+                final size = renderBox.size;
+                LivePipOverlayService.updateBounds(
+                    Rect.fromLTWH(offset.dx, offset.dy, size.width, size.height));
+              }
+            });
           },
           child: Container(
             key: _videoKey,
