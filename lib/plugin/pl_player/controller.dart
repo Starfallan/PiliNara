@@ -327,11 +327,11 @@ class PlPlayerController with BlockConfigMixin {
 
   void _disableAutoEnterPip() {
     if (_shouldSetPip) {
-      syncPipParams(autoEnable: false);
+      syncPipParams(autoEnable: false, clearSourceRectHint: true);
     }
   }
 
-  void syncPipParams({bool autoEnable = true}) {
+  void syncPipParams({bool autoEnable = true, bool clearSourceRectHint = false}) {
     if (!_shouldSetPip) return;
     
     // 如果没有开启“自动转换”且当前在应用内小窗，则不设置 autoEnterEnabled
@@ -383,6 +383,9 @@ class PlPlayerController with BlockConfigMixin {
           aspectRatio = videoWidth / videoHeight;
         }
       }
+    } else if (clearSourceRectHint) {
+      // 传递空数组作为清除标记
+      sourceRectHint = [];
     }
 
     Utils.channel.invokeMethod('setPipAutoEnterEnabled', {

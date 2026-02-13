@@ -22,7 +22,10 @@ class LivePipOverlayService {
   static VoidCallback? _onCloseCallback;
   static VoidCallback? _onReturnCallback;
 
-  static Rect? get currentBounds => _lastBounds;
+  static Rect? get currentBounds {
+    if (_overlayEntry == null || !_isInPipMode) return null;
+    return _lastBounds;
+  }
   static Rect? _lastBounds;
   static void updateBounds(Rect bounds) {
     if (!Pref.enableInAppToNativePip) return;
@@ -136,6 +139,15 @@ class LivePipOverlayService {
     isNativePip = false;
     _currentLiveHeroTag = null;
     _currentRoomId = null;
+    
+    // 清理坐标缓存，防止影响后续的非小窗模式 PiP
+    _lastBounds = null;
+    
+    // 通知原生端清除 sourceRectHint，恢复全屏 PiP 模式
+    final controller = PlPlayerController.instance;
+    if (controller != null) {
+      controller.syncPipParams(autoEnable: false, clearSourceRectHint: true);
+    }
 
     final closeCallback = callOnClose ? _onCloseCallback : null;
     final playerController = _savedPlayerController;

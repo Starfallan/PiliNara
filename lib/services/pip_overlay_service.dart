@@ -156,6 +156,15 @@ class PipOverlayService {
 
     isInPipMode = false;
     isNativePip = false;
+    
+    // 清理坐标缓存，防止影响后续的非小窗模式 PiP
+    _lastBounds = null;
+    
+    // 通知原生端清除 sourceRectHint，恢复全屏 PiP 模式
+    final controller = PlPlayerController.instance;
+    if (controller != null) {
+      controller.syncPipParams(autoEnable: false, clearSourceRectHint: true);
+    }
 
     final closeCallback = callOnClose ? _onCloseCallback : null;
     _onCloseCallback = null;

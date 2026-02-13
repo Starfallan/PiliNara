@@ -133,10 +133,19 @@ class MainActivity : AudioServiceActivity() {
                         val builder = PictureInPictureParams.Builder()
                             .setAutoEnterEnabled(autoEnable)
                         
-                        if (rect != null && rect.size == 4) {
-                            builder.setSourceRectHint(android.graphics.Rect(rect[0], rect[1], rect[2], rect[3]))
+                        // rect 为空数组时，显式清除 sourceRectHint
+                        // rect 为 null 时，不设置（保持系统默认）
+                        // rect 有 4 个元素时，设置具体坐标
+                        if (rect != null) {
+                            if (rect.isEmpty()) {
+                                // 空数组表示需要清除
+                                builder.setSourceRectHint(null)
+                            } else if (rect.size == 4) {
+                                builder.setSourceRectHint(android.graphics.Rect(rect[0], rect[1], rect[2], rect[3]))
+                            }
                         }
 
+                        // 只有明确传递了 aspectRatio 时才设置
                         if (aspectRatio != null && aspectRatio > 0) {
                             // 限制比例在系统允许范围内 (0.41 ~ 2.39)
                             val validRatio = aspectRatio.coerceIn(0.418, 2.39)
