@@ -334,6 +334,10 @@ class PlPlayerController with BlockConfigMixin {
   void syncPipParams({bool autoEnable = true, bool clearSourceRectHint = false}) {
     if (!_shouldSetPip) return;
     
+    // 在全屏模式下不设置 PiP 参数，避免干扰屏幕方向切换
+    // 频繁调用 setPictureInPictureParams 会影响 Activity 的配置变更处理
+    if (isFullScreen.value) return;
+    
     // 如果没有开启“自动转换”且当前在应用内小窗，则不设置 autoEnterEnabled
     final bool isInInAppPip = _isInInAppPip;
     if (isInInAppPip && !Pref.enableInAppToNativePip) {
