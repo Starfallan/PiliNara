@@ -243,6 +243,7 @@ class LiveRoomController extends GetxController {
           isVertical: isPortrait.value,
           autoFullScreenFlag: autoFullScreenFlag,
           roomId: roomId,
+          canHDR: false,
         )
         .then((_) async {
           if (!autoplay) {

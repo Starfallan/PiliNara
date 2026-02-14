@@ -134,6 +134,7 @@ class VideoDetailController extends GetxController
 
   /// 播放器配置 画质 音质 解码格式
   final Rxn<VideoQuality> currentVideoQa = Rxn<VideoQuality>();
+  VideoQuality? curHighestVideoQa;
   AudioQuality? currentAudioQa;
   late VideoDecodeFormatType currentDecodeFormats;
 
@@ -965,6 +966,7 @@ class VideoDetailController extends GetxController
       height: firstVideo.height,
       volume: volume,
       autoFullScreenFlag: autoFullScreenFlag,
+      canHDR: currentVideoQa.value?.isHDR,
     );
 
     // 检查 controller 是否已关闭，如果已关闭则跳过后续的资源加载操作
@@ -1164,11 +1166,11 @@ class VideoDetailController extends GetxController
       final List<VideoItem> videoList = data.dash!.video!;
       // if (kDebugMode) debugPrint("allVideosList:${allVideosList}");
       // 当前可播放的最高质量视频
-      final curHighestVideoQa = videoList.first.quality.code;
+      curHighestVideoQa = videoList.first.quality;
       // 预设的画质为null，则当前可用的最高质量
-      int targetVideoQa = curHighestVideoQa;
+      int targetVideoQa = curHighestVideoQa!.code;
       if (data.acceptQuality?.isNotEmpty == true &&
-          plPlayerController.cacheVideoQa! <= curHighestVideoQa) {
+          plPlayerController.cacheVideoQa! <= curHighestVideoQa!.code) {
         // 如果预设的画质低于当前最高
         targetVideoQa = data.acceptQuality!.findClosestTarget(
           (e) => e <= plPlayerController.cacheVideoQa!,

@@ -23,4 +23,6 @@ enum VideoQuality {
   static final _codeMap = {for (final i in values) i.code: i};
 
   static VideoQuality fromCode(int code) => _codeMap[code]!;
+
+  bool get isHDR => [hdr, hdrVivid, dolbyVision].contains(this);
 }

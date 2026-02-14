@@ -11,6 +11,7 @@ import 'package:PiliPlus/pages/setting/widgets/ordered_multi_select_dialog.dart'
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
 import 'package:PiliPlus/plugin/pl_player/models/audio_output_type.dart';
 import 'package:PiliPlus/plugin/pl_player/models/hwdec_type.dart';
+import 'package:PiliPlus/plugin/pl_player/models/video_output.dart';
 import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/utils/filtering_text.dart';
 import 'package:PiliPlus/utils/storage.dart';
@@ -208,6 +209,12 @@ List<SettingsModel> get videoSettings => [
     leading: const Icon(Icons.memory_outlined),
     getSubtitle: () => '当前：${Pref.hardwareDecoding}（此项即mpv的--hwdec）',
     onTap: _showHwDecDialog,
+  ),
+  NormalModel(
+    title: '视频输出',
+    leading: const Icon(Icons.video_settings_outlined),
+    getSubtitle: () => '当前：${Pref.videoOutput}（此项即mpv的--vo）',
+    onTap: _showVideoOutputDialog,
   ),
 ];
 
@@ -512,6 +519,31 @@ Future<void> _showHwDecDialog(
     await GStorage.setting.put(
       SettingBoxKey.hardwareDecoding,
       res.join(','),
+    );
+    setState();
+  }
+}
+
+Future<void> _showVideoOutputDialog(
+    BuildContext context,
+    VoidCallback setState,
+    ) async {
+  final result = await showDialog<List<String>>(
+    context: context,
+    builder: (context) {
+      return OrderedMultiSelectDialog<String>(
+        title: '视频输出',
+        initValues: Pref.videoOutput.split(','),
+        values: {
+          for (var e in VoType.values) e.vo: '${e.vo}\n${e.desc}',
+        },
+      );
+    },
+  );
+  if (result != null && result.isNotEmpty) {
+    await GStorage.setting.put(
+      SettingBoxKey.videoOutput,
+      result.join(','),
     );
     setState();
   }

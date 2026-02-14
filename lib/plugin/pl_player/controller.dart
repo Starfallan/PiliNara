@@ -418,7 +418,16 @@ class PlPlayerController with BlockConfigMixin {
   late int? cacheVideoQa = PlatformUtils.isMobile ? null : Pref.defaultVideoQa;
   late int cacheAudioQa = Pref.defaultAudioQa;
   bool enableHeart = true;
-  late final String? hwdec = Pref.enableHA ? Pref.hardwareDecoding : null;
+  late final bool enableHA = Pref.enableHA;
+  late final bool enableHDR = Platform.isAndroid && Pref.enableHDR;
+
+  bool? _canHDR;
+  String get hwdec =>
+      enableHDR && _canHDR == true ? 'mediacodec,auto' : Pref.hardwareDecoding;
+  String? get vo =>
+      enableHDR && _canHDR == true ? 'mediacodec_embed,gpu' : Pref.videoOutput;
+  bool get platformView => Pref.platformView || (enableHDR && _canHDR == true);
+  late final bool platformViewHCPP = Pref.platformViewHCPP;
 
   late final progressType = Pref.btmProgressBehavior;
   late final enableQuickDouble = Pref.enableQuickDouble;
@@ -758,6 +767,10 @@ class PlPlayerController with BlockConfigMixin {
     VoidCallback? onInit,
     Volume? volume,
     bool autoFullScreenFlag = false,
+    String? dirPath,
+    String? typeTag,
+    int? mediaType,
+    bool? canHDR,
   }) async {
     try {
       _processing = true;
@@ -799,6 +812,7 @@ class PlPlayerController with BlockConfigMixin {
       _epid = epid;
       _seasonId = seasonId;
       _pgcType = pgcType;
+      _canHDR = canHDR;
 
       if (showSeekPreview) {
         _clearPreview();
@@ -949,7 +963,10 @@ class PlPlayerController with BlockConfigMixin {
       configuration: VideoControllerConfiguration(
         enableHardwareAcceleration: hwdec != null,
         androidAttachSurfaceAfterVideoParameters: false,
-        hwdec: hwdec,
+        vo: vo,
+        hwdec: enableHA ? hwdec : null,
+        usePlatformView: platformView,
+        useHCPP: platformViewHCPP,
       ),
     );
 
