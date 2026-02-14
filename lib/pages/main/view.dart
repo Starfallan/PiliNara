@@ -23,8 +23,9 @@ import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
+import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show SystemUiOverlayStyle;
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:win32/win32.dart' as kernel32;
@@ -69,6 +70,10 @@ class _MainAppState extends PopScopeState<MainApp>
       // FlutterSmartDialog throws
       PiliScheme.init();
     }
+    canPopNotifier.value = _canPop();
+    ever(_mainController.selectedIndex, (int index) {
+      canPopNotifier.value = _canPop();
+    });
   }
 
   @override
@@ -264,17 +269,19 @@ class _MainAppState extends PopScopeState<MainApp>
     await trayManager.setContextMenu(trayMenu);
   }
 
-  @pragma('vm:prefer-inline')
-  static void _onBack() {
-    if (Platform.isAndroid) {
-      PiliAndroidHelper.back();
-    }
+  bool _canPop() {
+    return _mainController.directExitOnBack ||
+        _mainController.selectedIndex.value == 0;
   }
 
   @override
   void onPopInvokedWithResult(bool didPop, Object? result) {
-    if (_mainController.directExitOnBack) {
-      _onBack();
+    if (didPop) {
+      if (Platform.isAndroid) {
+        Utils.channel.invokeMethod('back');
+      } else {
+        SystemNavigator.pop();
+      }
     } else {
       if (_mainController.selectedIndex.value != 0) {
         _mainController
@@ -282,8 +289,6 @@ class _MainAppState extends PopScopeState<MainApp>
           ..barOffset?.value = 0.0
           ..showBottomBar?.value = true
           ..setSearchBar();
-      } else {
-        _onBack();
       }
     }
   }
