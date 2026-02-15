@@ -356,7 +356,7 @@ class _LivePipWidgetState extends State<LivePipWidget> with WidgetsBindingObserv
             Rect.fromLTWH(offset.dx, offset.dy, size.width, size.height));
       } else {
         LivePipOverlayService.updateBounds(
-            Rect.fromLTWH(_left!, _top!, currentWidth, currentHeight));
+            Rect.fromLTWH(_left!, _top!, _width, _height));
       }
     });
 

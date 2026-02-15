@@ -402,7 +402,7 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
             Rect.fromLTWH(offset.dx, offset.dy, size.width, size.height));
       } else {
         PipOverlayService.updateBounds(
-            Rect.fromLTWH(_left!, _top!, currentWidth, currentHeight));
+            Rect.fromLTWH(_left!, _top!, _width, _height));
       }
     });
 
