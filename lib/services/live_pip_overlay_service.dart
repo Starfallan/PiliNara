@@ -37,7 +37,15 @@ class LivePipOverlayService {
   static Rect? _lastBounds;
   static void updateBounds(Rect bounds) {
     if (!Pref.enableInAppToNativePip) return;
-    if (_lastBounds == bounds) return;
+    if (lastLeft == bounds.left &&
+        lastTop == bounds.top &&
+        lastWidth == bounds.width &&
+        lastHeight == bounds.height) return;
+
+    lastLeft = bounds.left;
+    lastTop = bounds.top;
+    lastWidth = bounds.width;
+    lastHeight = bounds.height;
     _lastBounds = bounds;
 
     // 同步给播放器控制器，以便更新原生 PIP 的 sourceRectHint

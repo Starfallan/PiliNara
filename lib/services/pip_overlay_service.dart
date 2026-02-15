@@ -79,6 +79,12 @@ class PipOverlayService {
     if (_lastBounds == bounds) return;
     _lastBounds = bounds;
     
+    // 更新坐标，以便通过 MethodChannel 同步
+    lastLeft = bounds.left;
+    lastTop = bounds.top;
+    lastWidth = bounds.width;
+    lastHeight = bounds.height;
+    
     // 同步给播放器控制器，以便更新原生 PIP 的 sourceRectHint
     final controller = PlPlayerController.instance;
     if (controller != null && isInPipMode) {

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 
 import 'package:PiliPlus/common/widgets/image_viewer/gallery_viewer.dart';
@@ -215,9 +216,15 @@ abstract final class PageUtils {
       });
     }
 
-    Floating().enable(
-      isAuto ? AutoEnable(aspectRatio: aspectRatio) : EnableManual(aspectRatio: aspectRatio),
-    );
+    if (aspectRatio != null) {
+      Floating().enable(
+        isAuto
+            ? AutoEnable(aspectRatio: aspectRatio)
+            : EnableManual(aspectRatio: aspectRatio),
+      );
+    } else {
+      Floating().enable(isAuto ? const AutoEnable() : const EnableManual());
+    }
   }
 
   static Future<void> pushDynDetail(
