@@ -659,8 +659,6 @@ class PlPlayerController with BlockConfigMixin {
             // 不应该导航到新页面（onTapToReturn 会创建新的播放页）
             // 用户如果想回到全屏播放，应该点击应用内小窗的恢复按钮
             isNativePip.value = isInPip;
-            PipOverlayService.isNativePip = isInPip;
-            LivePipOverlayService.isNativePip = isInPip;
           }
         });
 
