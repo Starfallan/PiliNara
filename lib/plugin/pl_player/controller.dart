@@ -1625,7 +1625,6 @@ class PlPlayerController with BlockConfigMixin {
             return;
           }
           if (mode == FullScreenMode.gravity) {
-            toggleFullScreen(true);
             await fullAutoModeForceSensor();
             return;
           }
@@ -1634,20 +1633,16 @@ class PlPlayerController with BlockConfigMixin {
               (mode == FullScreenMode.auto && isVertical) ||
               (mode == FullScreenMode.ratio &&
                   (isVertical || size.height / size.width < kScreenRatio)))) {
-            toggleFullScreen(true);
             await verticalScreenForTwoSeconds();
           } else {
-            toggleFullScreen(true);
             await landscape();
           }
         } else {
           await enterDesktopFullscreen(inAppFullScreen: inAppFullScreen);
-          toggleFullScreen(true);
         }
       } else {
         if (PlatformUtils.isMobile) {
           showStatusBar();
-          toggleFullScreen(false);
           if (mode == FullScreenMode.none) {
             return;
           }
@@ -1658,10 +1653,10 @@ class PlPlayerController with BlockConfigMixin {
           }
         } else {
           await exitDesktopFullscreen();
-          toggleFullScreen(false);
         }
       }
     } finally {
+      toggleFullScreen(status);
       fsProcessing = false;
     }
   }

@@ -133,24 +133,16 @@ class MainActivity : AudioServiceActivity() {
                         val builder = PictureInPictureParams.Builder()
                             .setAutoEnterEnabled(autoEnable)
                         
-                        // rect 为空数组时，显式清除 sourceRectHint
-                        // rect 为 null 时，不设置（保持系统默认）
-                        // rect 有 4 个元素时，设置具体坐标
-                        if (rect != null) {
-                            if (rect.isEmpty()) {
-                                // 空数组表示需要清除
-                                builder.setSourceRectHint(null)
-                            } else if (rect.size == 4) {
-                                builder.setSourceRectHint(android.graphics.Rect(rect[0], rect[1], rect[2], rect[3]))
-                            }
+                        // 设置 sourceRectHint 以支持平滑缩放动画
+                        if (rect != null && rect.size == 4) {
+                            builder.setSourceRectHint(android.graphics.Rect(rect[0], rect[1], rect[2], rect[3]))
                         }
 
-                        // 只有明确传递了 aspectRatio 时才设置
+                        // 设置正确的纵横比，避免画面拉伸
                         if (aspectRatio != null && aspectRatio > 0) {
-                            // 限制比例在系统允许范围内 (0.41 ~ 2.39)
                             val validRatio = aspectRatio.coerceIn(0.418, 2.39)
-                            val numerator = (validRatio * 10000).toInt()
-                            builder.setAspectRatio(android.util.Rational(numerator, 10000))
+                            val numerator = (validRatio * 1000).toInt()
+                            builder.setAspectRatio(android.util.Rational(numerator, 1000))
                         }
                         
                         setPictureInPictureParams(builder.build())
@@ -195,6 +187,9 @@ class MainActivity : AudioServiceActivity() {
         newConfig: Configuration?
     ) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
-        methodChannel.invokeMethod("onPipChanged", isInPictureInPictureMode)
+        MethodChannel(
+            flutterEngine!!.dartExecutor.binaryMessenger,
+            "floating"
+        ).invokeMethod("onPipChanged", isInPictureInPictureMode)
     }
 }

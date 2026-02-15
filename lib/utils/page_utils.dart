@@ -201,13 +201,14 @@ abstract final class PageUtils {
               : const Rational.landscape();
     }
 
+    // 为 Android 平台准备平滑过渡参数
     if (Platform.isAndroid && sourceRect != null) {
       final dpr = Get.pixelRatio;
       final physicalRect = [
-        (sourceRect.left * dpr).toInt(),
-        (sourceRect.top * dpr).toInt(),
-        (sourceRect.right * dpr).toInt(),
-        (sourceRect.bottom * dpr).toInt(),
+        (sourceRect.left * dpr).round(),
+        (sourceRect.top * dpr).round(),
+        (sourceRect.right * dpr).round(),
+        (sourceRect.bottom * dpr).round(),
       ];
       Utils.channel.invokeMethod('setPipAutoEnterEnabled', {
         'autoEnable': isAuto,
