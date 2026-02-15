@@ -1618,6 +1618,8 @@ class PlPlayerController with BlockConfigMixin {
       mode ??= this.mode;
       this.isManualFS = isManualFS;
 
+      toggleFullScreen(status);
+
       if (status) {
         if (PlatformUtils.isMobile) {
           hideStatusBar();
@@ -1656,7 +1658,6 @@ class PlPlayerController with BlockConfigMixin {
         }
       }
     } finally {
-      toggleFullScreen(status);
       fsProcessing = false;
     }
   }
