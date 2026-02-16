@@ -611,14 +611,17 @@ class PlPlayerController with BlockConfigMixin {
               _logPipDebug('onUserLeaveHint: entering fake fullscreen mode');
               PipOverlayService.isNativePip = true;
               LivePipOverlayService.isNativePip = true;
+              
+              // 【关键修复】延迟触发 PiP，确保伪全屏先生效
+              // autoEnterEnabled 可能会在 onUserLeaveHint 返回前立即触发，导致捕获小窗而不是全屏
+              // 所以对于所有 SDK 版本都手动延迟触发，确保 Obx 有时间更新 UI
+              await Future.delayed(const Duration(milliseconds: 50));
             }
             
-            // SDK < 36：手动触发 PiP
-            // SDK >= 36：autoEnterEnabled 会自动触发，无需手动调用
-            if (sdkInt < 36) {
-              if (playerStatus.isPlaying && (_isCurrVideoPage || isInInAppPip)) {
-                enterPip();
-              }
+            // 对于所有 SDK 版本都手动触发 PiP（在伪全屏生效后）
+            // 不依赖 autoEnterEnabled，因为它的触发时机无法保证在伪全屏之后
+            if (playerStatus.isPlaying && (_isCurrVideoPage || isInInAppPip)) {
+              enterPip();
             }
           } else if (call.method == 'onPipChanged') {
             final bool isInPip = call.arguments as bool;
@@ -630,10 +633,10 @@ class PlPlayerController with BlockConfigMixin {
           }
         });
         
-        // SDK >= 36：启用 autoEnterEnabled API
-        if (sdkInt >= 36) {
-          _shouldSetPip = true;
-        }
+        // 注意：不再使用 autoEnterEnabled，改为手动触发以确保时机正确
+        // if (sdkInt >= 36) {
+        //   _shouldSetPip = true;
+        // }
       });
     }
   }

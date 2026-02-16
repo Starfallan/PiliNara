@@ -249,6 +249,23 @@ class _LivePipWidgetState extends State<LivePipWidget> with WidgetsBindingObserv
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!LivePipOverlayService.isInPipMode) return;
+    
+    // 【Fallback 恢复机制】当用户回到应用时，恢复小窗状态
+    // 这是为了防止伪全屏触发后，系统 PiP 启动失败导致无法恢复的情况
+    // onPipChanged 只在真正进入/退出系统 PiP 时触发，如果 PiP 启动失败则不会触发
+    if (state == AppLifecycleState.resumed) {
+      // 延迟一小段时间，确保 onPipChanged 有机会先执行
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted && LivePipOverlayService.isInPipMode) {
+          LivePipOverlayService.isNativePip = false;
+        }
+      });
+    }
+  }
+
   void _startHideTimer() {
     _hideTimer?.cancel();
     _hideTimer = Timer(const Duration(seconds: 2), () {
