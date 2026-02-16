@@ -1378,6 +1378,10 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      // 【关键修复】只有不在应用内小窗模式时才更新 _videoViewRect
+      // 避免 Overlay 中的坐标污染页面的 videoViewRect
+      if (plPlayerController.isInInAppPip) return;
+      
       final RenderBox? renderBox =
           _videoKey.currentContext?.findRenderObject() as RenderBox?;
       if (renderBox != null) {

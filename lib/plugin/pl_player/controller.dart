@@ -289,6 +289,9 @@ class PlPlayerController with BlockConfigMixin {
 
   bool get _isInInAppPip =>
       PipOverlayService.isInPipMode || LivePipOverlayService.isInPipMode;
+  
+  // 公开的getter，供 view.dart 等外部使用
+  bool get isInInAppPip => _isInInAppPip;
 
   bool get _isCurrVideoPage {
     if (Pref.enableInAppToNativePip && _isInInAppPip) return true;
