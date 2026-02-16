@@ -52,6 +52,10 @@ class PipOverlayService {
 
   static OverlayEntry? _overlayEntry;
   static bool isInPipMode = false;
+  // 移除伪全屏机制：Flutter Overlay在同一Surface上，SourceRectHint可以直接裁剪
+  // static final RxBool _isNativePip = false.obs;
+  // static bool get isNativePip => _isNativePip.value;
+  // static set isNativePip(bool value) => _isNativePip.value = value;
 
   static double lastLeft = 0;
   static double lastTop = 0;
@@ -178,6 +182,7 @@ class PipOverlayService {
     }
 
     isInPipMode = false;
+    // isNativePip = false;  // 已移除伪全屏机制
     
     // 清理坐标缓存，防止影响后续的非小窗模式 PiP
     _lastBounds = null;
@@ -398,58 +403,55 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
       }
     });
 
-    final double currentWidth = _width;
-    final double currentHeight = _height;
-    final double currentLeft = _left!;
-    final double currentTop = _top!;
-
+    // 【新方案】移除伪全屏机制，直接使用SourceRectHint裁剪Overlay小窗区域
+    // Flutter Overlay在同一个Surface上，SourceRectHint可以正确工作
     return Positioned(
-        left: currentLeft,
-        top: currentTop,
-        child: GestureDetector(
-          onTap: _onTap,
-          onDoubleTap: _onDoubleTap,
-          onPanStart: (_) {
-            _hideTimer?.cancel();
-          },
-          onPanUpdate: (details) {
-            setState(() {
-              _left = (_left! + details.delta.dx)
-                  .clamp(
-                    0.0,
-                    max(0.0, screenSize.width - _width),
-                  )
-                  .toDouble();
-              _top = (_top! + details.delta.dy)
-                  .clamp(
-                    0.0,
-                    max(0.0, screenSize.height - _height),
-                  )
-                  .toDouble();
-            });
-          },
-          onPanEnd: (_) {
-            if (_showControls) {
-              _startHideTimer();
+      left: _left!,
+      top: _top!,
+      child: GestureDetector(
+        onTap: _onTap,
+        onDoubleTap: _onDoubleTap,
+        onPanStart: (_) {
+          _hideTimer?.cancel();
+        },
+        onPanUpdate: (details) {
+          setState(() {
+            _left = (_left! + details.delta.dx)
+                .clamp(
+                  0.0,
+                  max(0.0, screenSize.width - _width),
+                )
+                .toDouble();
+            _top = (_top! + details.delta.dy)
+                .clamp(
+                  0.0,
+                  max(0.0, screenSize.height - _height),
+                )
+                .toDouble();
+          });
+        },
+        onPanEnd: (_) {
+          if (_showControls) {
+            _startHideTimer();
+          }
+          // 拖动结束后立即同步最终位置给原生端
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            final RenderBox? renderBox =
+                _videoKey.currentContext?.findRenderObject() as RenderBox?;
+            if (renderBox != null) {
+              final offset = renderBox.localToGlobal(Offset.zero);
+              final size = renderBox.size;
+              PipOverlayService.updateBounds(
+                  Rect.fromLTWH(offset.dx, offset.dy, size.width, size.height));
             }
-            // 拖动结束后立即同步最终位置给原生端
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              final RenderBox? renderBox =
-                  _videoKey.currentContext?.findRenderObject() as RenderBox?;
-              if (renderBox != null) {
-                final offset = renderBox.localToGlobal(Offset.zero);
-                final size = renderBox.size;
-                PipOverlayService.updateBounds(
-                    Rect.fromLTWH(offset.dx, offset.dy, size.width, size.height));
-              }
-            });
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            curve: Curves.easeOutCubic,
-            width: currentWidth,
-            height: currentHeight,
+          });
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOutCubic,
+          width: _width,
+          height: _height,
             decoration: BoxDecoration(
               color: Colors.black,
               borderRadius: BorderRadius.circular(8),
@@ -609,6 +611,5 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
             ),
           ),
         ),
-      );
-  }
+      );    });  }
 }

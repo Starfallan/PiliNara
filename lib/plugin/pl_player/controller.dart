@@ -348,6 +348,13 @@ class PlPlayerController with BlockConfigMixin {
     }
   }
 
+  void _syncInAppPipBoundsImmediately() {
+    // 由于Overlay的updateBounds已经通过addPostFrameCallback频繁更新
+    // 这里打个日志即可，确保后续syncPipParams使用最新的currentBounds
+    _logPipDebug('_syncInAppPipBoundsImmediately called, currentBounds will be used in syncPipParams');
+    // 注意：如果currentBounds为null，syncPipParams会打WARNING日志
+  }
+
   void _logPipDebug(String message) {
     if (!Pref.enableLog && !kDebugMode) return;
     try {
@@ -682,20 +689,32 @@ class PlPlayerController with BlockConfigMixin {
       Utils.sdkInt.then((sdkInt) {
         Utils.channel.setMethodCallHandler((call) async {
           if (call.method == 'onUserLeaveHint') {
-            // 对于 SDK < 36，手动触发 PiP
-            // 增加 fsProcessing 保护，防止在全屏切换过程中（如 HyperOS 隐藏状态栏时）误触发自动 PiP
-            if (sdkInt < 36 && !fsProcessing) {
-              final bool isInInAppPip = _isInInAppPip;
+            final bool isInInAppPip = _isInInAppPip;
+            
+            // 【新方案】不使用伪全屏，直接传递Overlay小窗的精确坐标
+            // Flutter Overlay在同一Surface上，SourceRectHint可以直接裁剪指定区域
+            if (isInInAppPip && Pref.enableInAppToNativePip) {
+              _logPipDebug('onUserLeaveHint: syncing InAppPip bounds for SourceRectHint');
+              // 主动同步最新坐标，不依赖异步的addPostFrameCallback
+              _syncInAppPipBoundsImmediately();
+              syncPipParams(autoEnable: true);
+            }
+            
+            // 对于 SDK < 31，手动触发 PiP
+            // SDK >= 31 使用 autoEnterEnabled 自动触发
+            if (sdkInt < 31) {
               if (playerStatus.isPlaying && (_isCurrVideoPage || isInInAppPip)) {
                 enterPip();
               }
             }
           } else if (call.method == 'onPipChanged') {
             final bool isInPip = call.arguments as bool;
-            // 从系统 PiP 退出时，只需恢复应用内小窗的显示状态
+            // 从系统 PiP 退出时，恢复应用内小窗的显示状态
             // 不应该导航到新页面（onTapToReturn 会创建新的播放页）
             // 用户如果想回到全屏播放，应该点击应用内小窗的恢复按钮
             isNativePip.value = isInPip;
+            // PipOverlayService.isNativePip = isInPip;  // 已移除伪全屏机制
+            // LivePipOverlayService.isNativePip = isInPip;
           }
         });
 

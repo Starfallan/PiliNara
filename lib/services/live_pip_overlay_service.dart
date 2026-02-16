@@ -13,6 +13,10 @@ import 'package:get/get.dart';
 class LivePipOverlayService {
   static OverlayEntry? _overlayEntry;
   static bool _isInPipMode = false;
+  // 移除伪全屏机制：Flutter Overlay在同一Surface上，SourceRectHint可以直接裁剪
+  // static final RxBool _isNativePip = false.obs;
+  // static bool get isNativePip => _isNativePip.value;
+  // static set isNativePip(bool value) => _isNativePip.value = value;
   static bool isVertical = false;
 
   static double lastLeft = 0;
@@ -145,6 +149,7 @@ class LivePipOverlayService {
         
         // 完整清理所有状态
         _isInPipMode = false;
+        isNativePip = false;
         _currentLiveHeroTag = null;
         _currentRoomId = null;
         _overlayEntry = null;
@@ -163,6 +168,7 @@ class LivePipOverlayService {
     }
 
     _isInPipMode = false;
+    // isNativePip = false;  // 已移除伪全屏机制
     _currentLiveHeroTag = null;
     _currentRoomId = null;
     
@@ -350,34 +356,31 @@ class _LivePipWidgetState extends State<LivePipWidget> with WidgetsBindingObserv
       }
     });
 
-    final double currentWidth = _width;
-    final double currentHeight = _height;
-    final double currentLeft = _left!;
-    final double currentTop = _top!;
-
+    // 【新方案】移除伪全屏机制，直接使用SourceRectHint裁剪Overlay小窗区域
+    // Flutter Overlay在同一个Surface上，SourceRectHint可以正确工作
     return Positioned(
-        left: currentLeft,
-        top: currentTop,
-        child: GestureDetector(
-          onTap: _onTap,
-          onDoubleTap: _onDoubleTap,
-          onPanStart: (_) {
-            _hideTimer?.cancel();
-          },
-          onPanUpdate: (details) {
-            setState(() {
-              _left = (_left! + details.delta.dx).clamp(
-                0.0,
-                max(0.0, screenSize.width - currentWidth),
-              ).toDouble();
-              _top = (_top! + details.delta.dy).clamp(
-                0.0,
-                max(0.0, screenSize.height - currentHeight),
-              ).toDouble();
-            });
-          },
-          onPanEnd: (_) {
-            if (_showControls) {
+      left: _left!,
+      top: _top!,
+      child: GestureDetector(
+        onTap: _onTap,
+        onDoubleTap: _onDoubleTap,
+        onPanStart: (_) {
+          _hideTimer?.cancel();
+        },
+        onPanUpdate: (details) {
+          setState(() {
+            _left = (_left! + details.delta.dx).clamp(
+              0.0,
+              max(0.0, screenSize.width - _width),
+            ).toDouble();
+            _top = (_top! + details.delta.dy).clamp(
+              0.0,
+              max(0.0, screenSize.height - _height),
+            ).toDouble();
+          });
+        },
+        onPanEnd: (_) {
+          if (_showControls) {
               _startHideTimer();
             }
             // 拖动结束后立即同步最终位置给原生端
@@ -395,8 +398,8 @@ class _LivePipWidgetState extends State<LivePipWidget> with WidgetsBindingObserv
           },
           child: Container(
             key: _videoKey,
-            width: currentWidth,
-            height: currentHeight,
+            width: _width,
+            height: _height,
             decoration: BoxDecoration(
               color: Colors.black,
               borderRadius: BorderRadius.circular(8),
@@ -476,5 +479,6 @@ class _LivePipWidgetState extends State<LivePipWidget> with WidgetsBindingObserv
           ),
         ),
       );
+    });
   }
 }
