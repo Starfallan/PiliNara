@@ -157,7 +157,7 @@ class LivePipOverlayService {
     });
   }
 
-  static void stopLivePip({bool callOnClose = true, bool immediate = false}) {
+  static void stopLivePip({bool callOnClose = true, bool immediate = false, bool skipSyncParams = false}) {
     if (!_isInPipMode && _overlayEntry == null) {
       return;
     }
@@ -171,7 +171,7 @@ class LivePipOverlayService {
     
     // 通知原生端清除 sourceRectHint，恢复全屏 PiP 模式
     final controller = PlPlayerController.instance;
-    if (controller != null) {
+    if (controller != null && !skipSyncParams) {
       if (!isInPipMode) {
         // 如果不是应用内小窗，则重置为普通模式
         controller.syncPipParams(autoEnable: false, clearSourceRectHint: true);

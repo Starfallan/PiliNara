@@ -172,7 +172,7 @@ class PipOverlayService {
   
   static T? getAdditionalController<T>(String key) => _savedControllers[key] as T?;
 
-  static void stopPip({bool callOnClose = true, bool immediate = false}) {
+  static void stopPip({bool callOnClose = true, bool immediate = false, bool skipSyncParams = false}) {
     if (!isInPipMode && _overlayEntry == null) {
       return;
     }
@@ -184,7 +184,7 @@ class PipOverlayService {
     
     // 通知原生端清除 sourceRectHint，恢复全屏 PiP 模式
     final controller = PlPlayerController.instance;
-    if (controller != null) {
+    if (controller != null && !skipSyncParams) {
       // 这里的 autoEnable 应根据当前页面状态决定，如果是视频详情页则应为 true
       // 但为了保险起见先设为 false，依靠页面恢复后的逻辑（如 setVideoViewRect）来重新启用
       // 或者我们可以显式调用一次 syncPipParams(autoEnable: true) 如果我们确信回到了视频页

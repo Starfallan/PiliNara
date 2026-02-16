@@ -661,11 +661,24 @@ class PlPlayerController with BlockConfigMixin {
             final bool isInInAppPip = _isInInAppPip;
             
             if (isInInAppPip) {
-              // 如果已经在应用内小窗，则利用目前的窗口位置作为过渡起点，并立即开启系统 PiP
+              // 从应用内小窗切换到系统 PiP：
+              // 1. 先关闭 Overlay（跳过 syncPipParams 以避免干扰）
+              // 2. 等待一帧让视图重建
+              // 3. 进入系统 PiP，让 Android 系统自动找到视频 Surface
               if (PipOverlayService.isInPipMode) {
-                enterPip(sourceRect: PipOverlayService.pipRect);
+                _logPipDebug('Closing InAppPip Overlay before entering native PiP');
+                PipOverlayService.stopPip(callOnClose: false, immediate: true, skipSyncParams: true);
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _logPipDebug('Entering native PiP after Overlay closed');
+                  enterPip();
+                });
               } else if (LivePipOverlayService.isInPipMode) {
-                enterPip(sourceRect: LivePipOverlayService.pipRect);
+                _logPipDebug('Closing LivePip Overlay before entering native PiP');
+                LivePipOverlayService.stopLivePip(callOnClose: false, immediate: true, skipSyncParams: true);
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _logPipDebug('Entering native PiP after Overlay closed');
+                  enterPip();
+                });
               }
               return;
             }
