@@ -580,21 +580,20 @@ class PlPlayerController with BlockConfigMixin {
             final bool isInInAppPip = _isInInAppPip;
             
             if (isInInAppPip && Pref.enableInAppToNativePip) {
-              // 应用内小窗场景：立即设置伪全屏并触发 PiP
-              // 关键：必须在 Activity 还是 resumed 状态时调用 enterPip
-              // 不能使用 await，否则 Activity 会转入 paused 状态
+              // 应用内小窗 → 系统 PiP 转换
+              // 关键：必须在 onUserLeaveHint 的同步执行流程中调用 enterPip()
+              // Activity 从 resumed → paused 的转换非常快，连一帧（~16ms）都等不了
               
-              // 第一步：立即设置 isNativePip = true，触发 Obx 让 Overlay 撑满全屏
+              // 设置伪全屏状态（触发 Obx 让 Overlay 撑满全屏）
               PipOverlayService.isNativePip = true;
               LivePipOverlayService.isNativePip = true;
               
-              // 第二步：使用 addPostFrameCallback 但不 await
-              // 在下一帧立即执行，此时 Activity 仍是 resumed 状态
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (playerStatus.isPlaying) {
-                  _enterPipWithFullScreenHint();
-                }
-              });
+              // 立即调用 enterPip 并设置全屏 sourceRectHint
+              // _enterPipWithFullScreenHint 内部没有 await，仍然是同步执行
+              // sourceRectHint 会优化系统的 PiP 转场动画
+              if (playerStatus.isPlaying) {
+                _enterPipWithFullScreenHint();
+              }
             } else if (!isInInAppPip) {
               // 普通播放场景：直接调用原版逻辑
               if (sdkInt < 31 && playerStatus.isPlaying && _isCurrVideoPage) {
