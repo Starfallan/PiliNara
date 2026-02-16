@@ -344,15 +344,8 @@ class PlPlayerController with BlockConfigMixin {
 
   void _disableAutoEnterPip() {
     if (_shouldSetPip) {
-      syncPipParams(autoEnable: false, clearSourceRectHint: true);
+      syncPipParams(autoEnable: false);
     }
-  }
-
-  void _syncInAppPipBoundsImmediately() {
-    // 由于Overlay的updateBounds已经通过addPostFrameCallback频繁更新
-    // 这里打个日志即可，确保后续syncPipParams使用最新的currentBounds
-    _logPipDebug('_syncInAppPipBoundsImmediately called, currentBounds will be used in syncPipParams');
-    // 注意：如果currentBounds为null，syncPipParams会打WARNING日志
   }
 
   void _logPipDebug(String message) {
@@ -365,119 +358,38 @@ class PlPlayerController with BlockConfigMixin {
     }
   }
 
-  void syncPipParams({bool autoEnable = true, bool clearSourceRectHint = false}) {
+  void syncPipParams({bool autoEnable = true}) {
     if (!_shouldSetPip) return;
     
-    // 在全屏模式下不设置 PiP 参数，避免干扰屏幕方向切换
-    // 频繁调用 setPictureInPictureParams 会影响 Activity 的配置变更处理
-    // 但是，如果在应用内小窗模式下（_isInInAppPip），我们仍需更新 params（特别是 sourceRectHint）
-    if (isFullScreen.value && !_isInInAppPip) return;
-    
-    // 【关键检查】如果没有开启"自动转换"且当前在应用内小窗，则不设置 autoEnterEnabled
-    // 并且提前返回，不设置 sourceRectHint
+    // 【伪全屏方案】简化 PiP 参数设置
+    // 不需要传递 SourceRectHint，伪全屏会自动捕获正确内容
     final bool isInInAppPip = _isInInAppPip;
+    
+    // 如果在应用内小窗但未开启转换，禁用 autoEnter
     if (isInInAppPip && !Pref.enableInAppToNativePip) {
       if (autoEnable) {
-        _logPipDebug('InAppPip mode but enableInAppToNativePip=false, disabling autoEnterEnabled');
         Utils.channel.invokeMethod('setPipAutoEnterEnabled', {
           'autoEnable': false,
         });
       }
-      return;  // 提前返回，不设置 sourceRectHint
+      return;
     }
 
-    List<int>? sourceRectHint;
+    // 获取宽高比
     double? aspectRatio;
-
-    // 只有在开启了自动转换开关的情况下才设置 sourceRectHint
-    if (autoEnable && isInInAppPip) {
-      final bounds = PipOverlayService.currentBounds ??
-          LivePipOverlayService.currentBounds;
-      if (bounds != null) {
-        final context = Get.overlayContext ?? Get.context;
-        if (context != null) {
-          final view = View.of(context);
-          // 使用修正后的 DPR：由于使用了 ScaledWidgetsFlutterBinding，
-          // 逻辑坐标转物理坐标需要乘以 (原始DPR * uiScale)
-          final dpr = view.devicePixelRatio * Pref.uiScale;
-          
-          _logPipDebug('isInInAppPip: true, DPR: $dpr');
-          _logPipDebug('  InApp bounds: L=${bounds.left.toStringAsFixed(1)}, T=${bounds.top.toStringAsFixed(1)}, R=${bounds.right.toStringAsFixed(1)}, B=${bounds.bottom.toStringAsFixed(1)}');
-          
-          // SourceRectHint 在安卓原生中需要物理像素 (Physical Pixels)
-          // 且坐标系是相对于整个 Window 的。
-          sourceRectHint = [
-            (bounds.left * dpr).round(),
-            (bounds.top * dpr).round(),
-            (bounds.right * dpr).round(),
-            (bounds.bottom * dpr).round(),
-          ];
-          
-          _logPipDebug('  Physical: L=${sourceRectHint![0]}, T=${sourceRectHint[1]}, R=${sourceRectHint[2]}, B=${sourceRectHint[3]}');
-          
-          if (bounds.height > 0 && bounds.width > 0) {
-            aspectRatio = bounds.width / bounds.height;
-          }
-        }
-      } else {
-        _logPipDebug('WARNING: InAppPip mode but currentBounds is null!');
+    if (videoController != null) {
+      final state = videoController!.player.state;
+      final videoWidth = state.width ?? width ?? 16;
+      final videoHeight = state.height ?? height ?? 9;
+      if (videoHeight > 0) {
+        aspectRatio = videoWidth / videoHeight;
       }
-      
-      // Fallback: 如果无法从 bounds 获取 aspectRatio，使用视频实际尺寸
-      if (aspectRatio == null && videoController != null) {
-        final state = videoController!.player.state;
-        final videoWidth = state.width ?? width ?? 16;
-        final videoHeight = state.height ?? height ?? 9;
-        if (videoHeight > 0) {
-          aspectRatio = videoWidth / videoHeight;
-        }
-      }
-    } else if (!isInInAppPip && _isCurrVideoPage && autoEnable) {
-      // 普通全屏页面，使用 _videoViewRect
-      if (_videoViewRect != null) {
-        final context = Get.overlayContext ?? Get.context;
-        if (context != null) {
-          final view = View.of(context);
-          final dpr = view.devicePixelRatio * Pref.uiScale;
-          
-          _logPipDebug('Normal video page, DPR: $dpr');
-          _logPipDebug('  Page bounds: L=${_videoViewRect!.left.toStringAsFixed(1)}, T=${_videoViewRect!.top.toStringAsFixed(1)}, R=${_videoViewRect!.right.toStringAsFixed(1)}, B=${_videoViewRect!.bottom.toStringAsFixed(1)}');
-          
-          sourceRectHint = [
-            (_videoViewRect!.left * dpr).round(),
-            (_videoViewRect!.top * dpr).round(),
-            (_videoViewRect!.right * dpr).round(),
-            (_videoViewRect!.bottom * dpr).round(),
-          ];
-          
-          _logPipDebug('  Physical: L=${sourceRectHint![0]}, T=${sourceRectHint[1]}, R=${sourceRectHint[2]}, B=${sourceRectHint[3]}');
-        }
-      } else {
-        _logPipDebug('WARNING: videoViewRect is null!');
-      }
-      
-      // Fallback aspectRatio
-      if (aspectRatio == null && videoController != null) {
-        final state = videoController!.player.state;
-        final videoWidth = state.width ?? width ?? 16;
-        final videoHeight = state.height ?? height ?? 9;
-        if (videoHeight > 0) {
-          aspectRatio = videoWidth / videoHeight;
-        }
-      }
-    } else if (clearSourceRectHint) {
-      // 传递空数组作为清除标记
-      sourceRectHint = [];
-      _logPipDebug('Clearing sourceRectHint');
     }
 
     Utils.channel.invokeMethod('setPipAutoEnterEnabled', {
       'autoEnable': autoEnable,
-      if (sourceRectHint != null) 'sourceRectHint': sourceRectHint,
       if (aspectRatio != null) 'aspectRatio': aspectRatio,
     });
-    
-    _logPipDebug('Sent to native: autoEnable=$autoEnable, hasSourceRectHint=${sourceRectHint != null}, aspectRatio=$aspectRatio');
   }
 
   // 弹幕相关配置
@@ -687,38 +599,39 @@ class PlPlayerController with BlockConfigMixin {
 
     if (Platform.isAndroid && autoPiP) {
       Utils.sdkInt.then((sdkInt) {
+        // 【伪全屏方案】所有 SDK 版本都需要监听回调
+        // 因为 InAppPip 转系统 PiP 需要在所有版本上触发伪全屏逻辑
         Utils.channel.setMethodCallHandler((call) async {
           if (call.method == 'onUserLeaveHint') {
             final bool isInInAppPip = _isInInAppPip;
             
-            // 【新方案】不使用伪全屏，直接传递Overlay小窗的精确坐标
-            // Flutter Overlay在同一Surface上，SourceRectHint可以直接裁剪指定区域
+            // 【伪全屏方案】触发 Overlay 全屏扩展
+            // Platform View 导致 SourceRectHint 无效，使用伪全屏确保捕获正确内容
             if (isInInAppPip && Pref.enableInAppToNativePip) {
-              _logPipDebug('onUserLeaveHint: syncing InAppPip bounds for SourceRectHint');
-              // 主动同步最新坐标，不依赖异步的addPostFrameCallback
-              _syncInAppPipBoundsImmediately();
-              syncPipParams(autoEnable: true);
+              _logPipDebug('onUserLeaveHint: entering fake fullscreen mode');
+              PipOverlayService.isNativePip = true;
+              LivePipOverlayService.isNativePip = true;
             }
             
-            // 对于 SDK < 31，手动触发 PiP
-            // SDK >= 31 使用 autoEnterEnabled 自动触发
-            if (sdkInt < 31) {
+            // SDK < 36：手动触发 PiP
+            // SDK >= 36：autoEnterEnabled 会自动触发，无需手动调用
+            if (sdkInt < 36) {
               if (playerStatus.isPlaying && (_isCurrVideoPage || isInInAppPip)) {
                 enterPip();
               }
             }
           } else if (call.method == 'onPipChanged') {
             final bool isInPip = call.arguments as bool;
-            // 从系统 PiP 退出时，恢复应用内小窗的显示状态
-            // 不应该导航到新页面（onTapToReturn 会创建新的播放页）
-            // 用户如果想回到全屏播放，应该点击应用内小窗的恢复按钮
+            // 更新本地 PiP 状态
             isNativePip.value = isInPip;
-            // PipOverlayService.isNativePip = isInPip;  // 已移除伪全屏机制
-            // LivePipOverlayService.isNativePip = isInPip;
+            // 【伪全屏方案】退出系统 PiP 时，恢复小窗状态
+            PipOverlayService.isNativePip = isInPip;
+            LivePipOverlayService.isNativePip = isInPip;
           }
         });
-
-        if (sdkInt >= 31) {
+        
+        // SDK >= 36：启用 autoEnterEnabled API
+        if (sdkInt >= 36) {
           _shouldSetPip = true;
         }
       });

@@ -127,20 +127,14 @@ class MainActivity : AudioServiceActivity() {
                 "setPipAutoEnterEnabled" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         val autoEnable = call.argument<Boolean>("autoEnable") ?: false
-                        val rect = call.argument<List<Int>>("sourceRectHint")
                         val aspectRatio = call.argument<Double>("aspectRatio")
                         
                         val builder = PictureInPictureParams.Builder()
                             .setAutoEnterEnabled(autoEnable)
                         
-                        // 设置 sourceRectHint 以支持平滑缩放动画
-                        // 如果 rect 为 null，则不设置（让 Android 自动检测视频 Surface）
-                        // 如果 rect 为空数组，则显式清除（通过不设置来清除）
-                        if (rect != null && rect.size == 4) {
-                            builder.setSourceRectHint(android.graphics.Rect(rect[0], rect[1], rect[2], rect[3]))
-                        }
-                        // 注意：不设置 sourceRectHint 时，Android 会自动在 Activity 中查找 SurfaceView/TextureView
-
+                        // 【伪全屏方案】不使用 SourceRectHint，依赖伪全屏扩展
+                        // Android 会自动在 Activity 中查找并捕获 SurfaceView/TextureView
+                        
                         // 设置正确的纵横比，避免画面拉伸
                         if (aspectRatio != null && aspectRatio > 0) {
                             val validRatio = aspectRatio.coerceIn(0.418, 2.39)

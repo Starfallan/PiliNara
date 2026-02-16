@@ -52,10 +52,9 @@ class PipOverlayService {
 
   static OverlayEntry? _overlayEntry;
   static bool isInPipMode = false;
-  // 移除伪全屏机制：Flutter Overlay在同一Surface上，SourceRectHint可以直接裁剪
-  // static final RxBool _isNativePip = false.obs;
-  // static bool get isNativePip => _isNativePip.value;
-  // static set isNativePip(bool value) => _isNativePip.value = value;
+  static final RxBool _isNativePip = false.obs;
+  static bool get isNativePip => _isNativePip.value;
+  static set isNativePip(bool value) => _isNativePip.value = value;
 
   static double lastLeft = 0;
   static double lastTop = 0;
@@ -77,34 +76,7 @@ class PipOverlayService {
     }
   }
 
-  static Rect? get currentBounds {
-    if (_overlayEntry == null || !isInPipMode) return null;
-    // 这里需要获取实际的布局位置，但由于 _left/_top 是由 PipWidget 维护的私有变量，
-    // 我们需要通过一种方式暴露它，或者在 PipWidget 中动态上报
-    return _lastBounds;
-  }
-
-  static Rect? _lastBounds;
-  static void updateBounds(Rect bounds) {
-    if (!Pref.enableInAppToNativePip) return;
-    
-    if (_lastBounds == bounds) return;
-    _lastBounds = bounds;
-    
-    // 更新坐标，以便通过 MethodChannel 同步
-    lastLeft = bounds.left;
-    lastTop = bounds.top;
-    lastWidth = bounds.width;
-    lastHeight = bounds.height;
-    
-    _logPipDebug('updateBounds called: left=${bounds.left}, top=${bounds.top}, width=${bounds.width}, height=${bounds.height}');
-    
-    // 同步给播放器控制器，以便更新原生 PIP 的 sourceRectHint
-    final controller = PlPlayerController.instance;
-    if (controller != null && isInPipMode) {
-      controller.syncPipParams();
-    }
-  }
+  // 【伪全屏方案】不需要精确坐标追踪，移除 currentBounds 和 updateBounds
 
   static void onTapToReturn() {
     final callback = _onTapToReturnCallback;
@@ -182,15 +154,12 @@ class PipOverlayService {
     }
 
     isInPipMode = false;
-    // isNativePip = false;  // 已移除伪全屏机制
+    isNativePip = false;
     
-    // 清理坐标缓存，防止影响后续的非小窗模式 PiP
-    _lastBounds = null;
-    
-    // 通知原生端清除 sourceRectHint，恢复全屏 PiP 模式
+    // 通知原生端禁用 PiP
     final controller = PlPlayerController.instance;
     if (controller != null && !skipSyncParams) {
-      controller.syncPipParams(autoEnable: false, clearSourceRectHint: true);
+      controller.syncPipParams(autoEnable: false);
     }
 
     final closeCallback = callOnClose ? _onCloseCallback : null;
@@ -362,18 +331,7 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
     });
     _startHideTimer();
     
-    // 缩放后立即同步新的位置和尺寸
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final RenderBox? renderBox =
-          _videoKey.currentContext?.findRenderObject() as RenderBox?;
-      if (renderBox != null) {
-        final offset = renderBox.localToGlobal(Offset.zero);
-        final size = renderBox.size;
-        PipOverlayService.updateBounds(
-            Rect.fromLTWH(offset.dx, offset.dy, size.width, size.height));
-      }
-    });
+    // 【伪全屏方案】无需同步坐标，移除 updateBounds 调用
   }
 
   @override
@@ -387,71 +345,50 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
     _left ??= screenSize.width - _width - 16;
     _top ??= screenSize.height - _height - 100;
 
-    // 更新当前位置信息给 Service，以便原生端同步 sourceRectHint
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final RenderBox? renderBox =
-          _videoKey.currentContext?.findRenderObject() as RenderBox?;
-      if (renderBox != null) {
-        final offset = renderBox.localToGlobal(Offset.zero);
-        final size = renderBox.size;
-        PipOverlayService.updateBounds(
-            Rect.fromLTWH(offset.dx, offset.dy, size.width, size.height));
-      } else {
-        PipOverlayService.updateBounds(
-            Rect.fromLTWH(_left!, _top!, _width, _height));
-      }
-    });
+    // 【伪全屏方案】使用 Obx 响应 isNativePip 状态
+    // 当进入系统 PiP 前，Overlay 自动扩展为全屏，确保捕获正确内容
+    return Obx(() {
+      final bool isNative = PipOverlayService.isNativePip;
+      final double currentWidth = isNative ? screenSize.width : _width;
+      final double currentHeight = isNative ? screenSize.height : _height;
+      final double currentLeft = isNative ? 0 : _left!;
+      final double currentTop = isNative ? 0 : _top!;
 
-    // 【新方案】移除伪全屏机制，直接使用SourceRectHint裁剪Overlay小窗区域
-    // Flutter Overlay在同一个Surface上，SourceRectHint可以正确工作
-    return Positioned(
-      left: _left!,
-      top: _top!,
-      child: GestureDetector(
-        onTap: _onTap,
-        onDoubleTap: _onDoubleTap,
-        onPanStart: (_) {
-          _hideTimer?.cancel();
-        },
-        onPanUpdate: (details) {
-          setState(() {
-            _left = (_left! + details.delta.dx)
-                .clamp(
-                  0.0,
-                  max(0.0, screenSize.width - _width),
-                )
-                .toDouble();
-            _top = (_top! + details.delta.dy)
-                .clamp(
-                  0.0,
-                  max(0.0, screenSize.height - _height),
-                )
-                .toDouble();
-          });
-        },
-        onPanEnd: (_) {
-          if (_showControls) {
-            _startHideTimer();
-          }
-          // 拖动结束后立即同步最终位置给原生端
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            final RenderBox? renderBox =
-                _videoKey.currentContext?.findRenderObject() as RenderBox?;
-            if (renderBox != null) {
-              final offset = renderBox.localToGlobal(Offset.zero);
-              final size = renderBox.size;
-              PipOverlayService.updateBounds(
-                  Rect.fromLTWH(offset.dx, offset.dy, size.width, size.height));
+      return Positioned(
+        left: currentLeft,
+        top: currentTop,
+        child: GestureDetector(
+          onTap: isNative ? null : _onTap,
+          onDoubleTap: isNative ? null : _onDoubleTap,
+          onPanStart: isNative ? null : (_) {
+            _hideTimer?.cancel();
+          },
+          onPanUpdate: isNative ? null : (details) {
+            setState(() {
+              _left = (_left! + details.delta.dx)
+                  .clamp(
+                    0.0,
+                    max(0.0, screenSize.width - currentWidth),
+                  )
+                  .toDouble();
+              _top = (_top! + details.delta.dy)
+                  .clamp(
+                    0.0,
+                    max(0.0, screenSize.height - currentHeight),
+                  )
+                  .toDouble();
+            });
+          },
+          onPanEnd: isNative ? null : (_) {
+            if (_showControls) {
+              _startHideTimer();
             }
-          });
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOutCubic,
-          width: _width,
-          height: _height,
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOutCubic,
+            width: currentWidth,
+            height: currentHeight,
             decoration: BoxDecoration(
               color: Colors.black,
               borderRadius: BorderRadius.circular(8),
@@ -470,9 +407,9 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
                   Positioned.fill(
                     child: AbsorbPointer(
                       child: widget.videoPlayerBuilder(
-                        false, // isNative flag removed
-                        _width,
-                        _height,
+                        isNative, // 传入伪全屏状态
+                        currentWidth,
+                        currentHeight,
                       ),
                     ),
                   ),
@@ -612,5 +549,6 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
           ),
         ),
       );
+    });
   }
 }
