@@ -597,12 +597,9 @@ class PlPlayerController with BlockConfigMixin {
               
               // 第四步：调用 enterPip，并传递全屏 SourceRectHint
               // 即使 Platform View 无法裁剪，但传递此参数会触发系统的优化转场流程
-              if (sdkInt < 31 && playerStatus.isPlaying) {
+              // 注意：无论 SDK 版本，都主动调用 enterPip，不能完全依赖 autoEnter
+              if (playerStatus.isPlaying) {
                 _enterPipWithFullScreenHint();
-              }
-              // SDK >= 31 依赖 autoEnterEnabled，但仍需设置 hint 优化动画
-              if (sdkInt >= 31) {
-                _setFullScreenSourceRectHint();
               }
             } else if (!isInInAppPip) {
               // 普通播放场景：直接调用原版逻辑
