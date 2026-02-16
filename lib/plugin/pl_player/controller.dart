@@ -662,21 +662,39 @@ class PlPlayerController with BlockConfigMixin {
             
             if (isInInAppPip) {
               // 从应用内小窗切换到系统 PiP：
-              // 1. 先关闭 Overlay（跳过 syncPipParams 以避免干扰）
-              // 2. 等待一帧让视图重建
-              // 3. 进入系统 PiP，让 Android 系统自动找到视频 Surface
+              // 1. 清除原生端的 sourceRectHint（移除 Overlay 位置信息）
+              // 2. 关闭 Overlay
+              // 3. 等待视图重建后进入系统 PiP，让 Android 自动找到 Surface
               if (PipOverlayService.isInPipMode) {
-                _logPipDebug('Closing InAppPip Overlay before entering native PiP');
+                _logPipDebug('Clearing sourceRectHint and closing Overlay');
+                // 清除 sourceRectHint，但保留宽高比信息
+                final state = videoController?.player.state;
+                final w = state?.width ?? width;
+                final h = state?.height ?? height;
+                Utils.channel.invokeMethod('setPipAutoEnterEnabled', {
+                  'autoEnable': true,
+                  'sourceRectHint': null,  // 传递 null 让原生端清除
+                  if (w != null && h != null) 'aspectRatio': w / h,
+                });
                 PipOverlayService.stopPip(callOnClose: false, immediate: true, skipSyncParams: true);
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _logPipDebug('Entering native PiP after Overlay closed');
+                // 等待视图重建
+                Future.delayed(const Duration(milliseconds: 50), () {
+                  _logPipDebug('Entering native PiP without sourceRect');
                   enterPip();
                 });
               } else if (LivePipOverlayService.isInPipMode) {
-                _logPipDebug('Closing LivePip Overlay before entering native PiP');
+                _logPipDebug('Clearing sourceRectHint and closing Overlay');
+                final state = videoController?.player.state;
+                final w = state?.width ?? width;
+                final h = state?.height ?? height;
+                Utils.channel.invokeMethod('setPipAutoEnterEnabled', {
+                  'autoEnable': true,
+                  'sourceRectHint': null,
+                  if (w != null && h != null) 'aspectRatio': w / h,
+                });
                 LivePipOverlayService.stopLivePip(callOnClose: false, immediate: true, skipSyncParams: true);
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _logPipDebug('Entering native PiP after Overlay closed');
+                Future.delayed(const Duration(milliseconds: 50), () {
+                  _logPipDebug('Entering native PiP without sourceRect');
                   enterPip();
                 });
               }
