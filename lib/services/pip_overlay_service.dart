@@ -349,7 +349,7 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
             }
           },
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
+            duration: isNative ? Duration.zero : const Duration(milliseconds: 150),
             curve: Curves.easeOutCubic,
             width: currentWidth,
             height: currentHeight,

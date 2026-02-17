@@ -327,7 +327,9 @@ class _LivePipWidgetState extends State<LivePipWidget> with WidgetsBindingObserv
               _startHideTimer();
             }
           },
-          child: Container(
+          child: AnimatedContainer(
+            duration: isNative ? Duration.zero : const Duration(milliseconds: 150),
+            curve: Curves.easeOutCubic,
             width: currentWidth,
             height: currentHeight,
             decoration: BoxDecoration(

@@ -345,7 +345,7 @@ class PlPlayerController with BlockConfigMixin {
 
   /// 调用 enterPip 并同时设置全屏 SourceRectHint
   void _enterPipWithFullScreenHint() {
-    _setFullScreenSourceRectHint();
+    setFullScreenSourceRectHint();
     enterPip(isAuto: true);
   }
 
