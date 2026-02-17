@@ -211,6 +211,12 @@ List<SettingsModel> get playSettings => [
       },
     ),
     const SwitchModel(
+      title: '自动转换为系统画中画',
+      subtitle: '开启应用内小窗后，返回桌面或多任务视图时自动无缝地切换到系统原生 PiP继续播放',
+      setKey: SettingBoxKey.enableInAppToNativePip,
+      defaultVal: false,
+    ),
+    const SwitchModel(
       title: '画中画不加载弹幕',
       subtitle: '当弹幕开关开启时，小窗屏蔽弹幕以获得较好的体验',
       leading: Icon(CustomIcons.dm_off),

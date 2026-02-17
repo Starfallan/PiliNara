@@ -115,6 +115,7 @@ abstract final class SettingBoxKey {
       expandDynLivePanel = 'expandDynLivePanel',
       springDescription = 'springDescription',
       enableHttp2 = 'enableHttp2',
+      enableInAppToNativePip = 'enableInAppToNativePip',
       slideDismissReplyPage = 'slideDismissReplyPage',
       showFSActionItem = 'showFSActionItem',
       enableShrinkVideoSize = 'enableShrinkVideoSize',

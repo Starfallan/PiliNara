@@ -64,7 +64,7 @@ import 'package:path/path.dart' as path;
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:window_manager/window_manager.dart';
 
-class PlPlayerController with BlockConfigMixin {
+class PlPlayerController with BlockConfigMixin, WidgetsBindingObserver {
   Player? _videoPlayerController;
   VideoController? _videoController;
 
@@ -136,6 +136,8 @@ class PlPlayerController with BlockConfigMixin {
   bool isLive = false;
 
   bool _isVertical = false;
+  // 记录安卓端的窗口焦点
+  bool _hasFocus = true;
 
   /// 视频比例
   final Rx<VideoFitType> videoFit = Rx(VideoFitType.contain);
@@ -286,7 +288,11 @@ class PlPlayerController with BlockConfigMixin {
 
   late bool _shouldSetPip = false;
 
+  bool get _isInInAppPip =>
+      PipOverlayService.isInPipMode || LivePipOverlayService.isInPipMode;
+
   bool get _isCurrVideoPage {
+    if (Pref.enableInAppToNativePip && _isInInAppPip) return true;
     final routing = Get.routing;
     if (routing.route is! GetPageRoute) {
       return false;
@@ -297,6 +303,7 @@ class PlPlayerController with BlockConfigMixin {
   }
 
   bool get _isPreviousVideoPage {
+    if (Pref.enableInAppToNativePip && _isInInAppPip) return true;
     final previousRoute = Get.previousRoute;
     return previousRoute.startsWith('/video') ||
         previousRoute.startsWith('/liveRoom');
@@ -314,6 +321,32 @@ class PlPlayerController with BlockConfigMixin {
     }
   }
 
+  /// 为应用内小窗转 PiP 设置全屏 SourceRectHint
+  /// 虽然 Platform View 无法被裁剪，但此参数会触发系统的优化转场流程
+  void _setFullScreenSourceRectHint() {
+    final context = Get.overlayContext ?? Get.context;
+    if (context == null) return;
+
+    try {
+      final view = ui.PlatformDispatcher.instance.implicitView;
+      if (view == null) return;
+      final size = view.physicalSize;
+
+      // 传递整个屏幕的物理像素坐标
+      Utils.channel.invokeMethod('setFullScreenSourceRectHint', {
+        'sourceRectHint': [0, 0, size.width.round(), size.height.round()],
+      });
+    } catch (e) {
+      // 忽略错误，不影响 PiP 功能
+    }
+  }
+
+  /// 调用 enterPip 并同时设置全屏 SourceRectHint
+  void _enterPipWithFullScreenHint() {
+    _setFullScreenSourceRectHint();
+    enterPip(isAuto: true);
+  }
+
   void _disableAutoEnterPipIfNeeded() {
     if (!_isPreviousVideoPage) {
       _disableAutoEnterPip();
@@ -326,6 +359,16 @@ class PlPlayerController with BlockConfigMixin {
         'autoEnable': false,
       });
     }
+  }
+
+  // 保留此方法以兼容现有调用，但简化为最小实现
+  void syncPipParams({bool autoEnable = true}) {
+    if (!_shouldSetPip) return;
+    if (isFullScreen.value) return;
+
+    Utils.channel.invokeMethod('setPipAutoEnterEnabled', {
+      'autoEnable': autoEnable,
+    });
   }
 
   // 弹幕相关配置
@@ -529,6 +572,7 @@ class PlPlayerController with BlockConfigMixin {
 
   // 添加一个私有构造函数
   PlPlayerController._() {
+    WidgetsBinding.instance.addObserver(this);
     if (!Accounts.heartbeat.isLogin || Pref.historyPause) {
       enableHeart = false;
     }
@@ -542,7 +586,9 @@ class PlPlayerController with BlockConfigMixin {
               final bool isInInAppPip = PipOverlayService.isInPipMode ||
                   LivePipOverlayService.isInPipMode;
               if (playerStatus.isPlaying && (_isCurrVideoPage || isInInAppPip)) {
-                enterPip();
+                // 关键：利用原本由 inactive 预渲染的 pseudo-fullscreen 状态
+                // 同步调用 enterPip 触发转换
+                enterPip(isAuto: true);
               }
             }
           } else if (call.method == 'onPipChanged') {
@@ -560,6 +606,8 @@ class PlPlayerController with BlockConfigMixin {
             isNativePip.value = isInPip;
             PipOverlayService.isNativePip = isInPip;
             LivePipOverlayService.isNativePip = isInPip;
+          } else if (call.method == 'onWindowFocusChanged') {
+            _hasFocus = call.arguments as bool;
           }
         });
 
@@ -567,6 +615,26 @@ class PlPlayerController with BlockConfigMixin {
           _shouldSetPip = true;
         }
       });
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (Platform.isAndroid && Pref.enableInAppToNativePip && _isInInAppPip) {
+      if (state == AppLifecycleState.inactive && _hasFocus) {
+        // 只有在保持焦点的情况下变为 inactive，才认为是要进入后台（滑动手势开始）
+        // 此时提前进入全屏状态进行预渲染，确保系统截取的快照是全屏的
+        isNativePip.value = true;
+        PipOverlayService.isNativePip = true;
+        LivePipOverlayService.isNativePip = true;
+      } else if (state == AppLifecycleState.resumed) {
+        // 如果手势取消用户返回应用，恢复应用内小窗显示（如果没成功进 PiP）
+        if (!isPipMode) {
+          isNativePip.value = false;
+          PipOverlayService.isNativePip = false;
+          LivePipOverlayService.isNativePip = false;
+        }
+      }
     }
   }
 

@@ -133,9 +133,27 @@ class MainActivity : AudioServiceActivity() {
                     }
                 }
 
+                "setFullScreenSourceRectHint" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        val rect = call.argument<List<Int>>("sourceRectHint")
+                        if (rect != null && rect.size == 4) {
+                            val params = PictureInPictureParams.Builder()
+                                .setSourceRectHint(android.graphics.Rect(rect[0], rect[1], rect[2], rect[3]))
+                                .build()
+                            setPictureInPictureParams(params)
+                        }
+                    }
+                }
+
                 else -> result.notImplemented()
             }
         }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        // 向 Flutter 报告窗口焦点变化，用于过滤非切出场景的 inactive 状态
+        methodChannel.invokeMethod("onWindowFocusChanged", hasFocus)
     }
 
     private fun back() {
@@ -171,6 +189,7 @@ class MainActivity : AudioServiceActivity() {
         newConfig: Configuration?
     ) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        methodChannel.invokeMethod("onPipChanged", isInPictureInPictureMode)
         MethodChannel(
             flutterEngine!!.dartExecutor.binaryMessenger,
             "floating"
