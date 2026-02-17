@@ -3,6 +3,7 @@ import 'dart:math' show max;
 
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/view.dart';
+import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
@@ -38,6 +39,8 @@ class LivePipOverlayService {
   static bool get isInPipMode => _isInPipMode;
 
   static T? getSavedController<T>() => _savedController as T?;
+
+  static PlPlayerController? getSavedPlayerController() => _savedPlayerController;
 
   static void startLivePip({
     required BuildContext context,
@@ -223,12 +226,22 @@ class _LivePipWidgetState extends State<LivePipWidget> with WidgetsBindingObserv
     if (!LivePipOverlayService.isInPipMode) return;
 
     if (state == AppLifecycleState.inactive) {
-      // 进入系统画中画
-      LivePipOverlayService.isNativePip = true;
-      widget.plPlayerController.enterPip();
+      if (Utils.appHasFocus) {
+        // 进入系统画中画
+        // 只有在保持焦点的情况下变为 inactive，才认为是要进入后台（滑动手势开始）
+        // 此时提前进入全屏状态进行预渲染，确保系统截取的快照是全屏的
+        LivePipOverlayService.isNativePip = true;
+        // 设置全屏 SourceRectHint，优化转场动画
+        widget.plPlayerController.setFullScreenSourceRectHint();
+        widget.plPlayerController.enterPip();
+      }
     } else if (state == AppLifecycleState.resumed) {
-      // 从系统画中画返回应用，恢复应用内小窗
-      LivePipOverlayService.isNativePip = false;
+      // 从系统画中画返回应用或手势取消，恢复应用内小窗
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (LivePipOverlayService.isInPipMode && LivePipOverlayService.isNativePip) {
+          LivePipOverlayService.isNativePip = false;
+        }
+      });
     }
   }
 

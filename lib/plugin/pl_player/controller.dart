@@ -64,7 +64,7 @@ import 'package:path/path.dart' as path;
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:window_manager/window_manager.dart';
 
-class PlPlayerController with BlockConfigMixin, WidgetsBindingObserver {
+class PlPlayerController with BlockConfigMixin {
   Player? _videoPlayerController;
   VideoController? _videoController;
 
@@ -136,8 +136,6 @@ class PlPlayerController with BlockConfigMixin, WidgetsBindingObserver {
   bool isLive = false;
 
   bool _isVertical = false;
-  // 记录安卓端的窗口焦点
-  bool _hasFocus = true;
 
   /// 视频比例
   final Rx<VideoFitType> videoFit = Rx(VideoFitType.contain);
@@ -291,6 +289,8 @@ class PlPlayerController with BlockConfigMixin, WidgetsBindingObserver {
   bool get _isInInAppPip =>
       PipOverlayService.isInPipMode || LivePipOverlayService.isInPipMode;
 
+  bool get isCurrVideoPage => _isCurrVideoPage;
+
   bool get _isCurrVideoPage {
     if (Pref.enableInAppToNativePip && _isInInAppPip) return true;
     final routing = Get.routing;
@@ -301,6 +301,8 @@ class PlPlayerController with BlockConfigMixin, WidgetsBindingObserver {
     return currentRoute.startsWith('/video') ||
         currentRoute.startsWith('/liveRoom');
   }
+
+  bool get isPreviousVideoPage => _isPreviousVideoPage;
 
   bool get _isPreviousVideoPage {
     if (Pref.enableInAppToNativePip && _isInInAppPip) return true;
@@ -323,7 +325,7 @@ class PlPlayerController with BlockConfigMixin, WidgetsBindingObserver {
 
   /// 为应用内小窗转 PiP 设置全屏 SourceRectHint
   /// 虽然 Platform View 无法被裁剪，但此参数会触发系统的优化转场流程
-  void _setFullScreenSourceRectHint() {
+  void setFullScreenSourceRectHint() {
     final context = Get.overlayContext ?? Get.context;
     if (context == null) return;
 
@@ -572,69 +574,17 @@ class PlPlayerController with BlockConfigMixin, WidgetsBindingObserver {
 
   // 添加一个私有构造函数
   PlPlayerController._() {
-    WidgetsBinding.instance.addObserver(this);
     if (!Accounts.heartbeat.isLogin || Pref.historyPause) {
       enableHeart = false;
     }
 
     if (Platform.isAndroid && autoPiP) {
       Utils.sdkInt.then((sdkInt) {
-        Utils.channel.setMethodCallHandler((call) async {
-          if (call.method == 'onUserLeaveHint') {
-            // 对于 SDK < 36，手动触发 PiP
-            if (sdkInt < 36) {
-              final bool isInInAppPip = PipOverlayService.isInPipMode ||
-                  LivePipOverlayService.isInPipMode;
-              if (playerStatus.isPlaying && (_isCurrVideoPage || isInInAppPip)) {
-                // 关键：利用原本由 inactive 预渲染的 pseudo-fullscreen 状态
-                // 同步调用 enterPip 触发转换
-                enterPip(isAuto: true);
-              }
-            }
-          } else if (call.method == 'onPipChanged') {
-            final bool isInPip = call.arguments as bool;
-            if (!isInPip &&
-                isNativePip.value &&
-                (PipOverlayService.isInPipMode ||
-                    LivePipOverlayService.isInPipMode)) {
-              if (PipOverlayService.isInPipMode) {
-                PipOverlayService.onTapToReturn();
-              } else if (LivePipOverlayService.isInPipMode) {
-                LivePipOverlayService.onReturn();
-              }
-            }
-            isNativePip.value = isInPip;
-            PipOverlayService.isNativePip = isInPip;
-            LivePipOverlayService.isNativePip = isInPip;
-          } else if (call.method == 'onWindowFocusChanged') {
-            _hasFocus = call.arguments as bool;
-          }
-        });
-
+        // 原版 Handler 已移至 lib/main.dart 统一处理，以支持全局焦点同步
         if (sdkInt >= 36) {
           _shouldSetPip = true;
         }
       });
-    }
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (Platform.isAndroid && Pref.enableInAppToNativePip && _isInInAppPip) {
-      if (state == AppLifecycleState.inactive && _hasFocus) {
-        // 只有在保持焦点的情况下变为 inactive，才认为是要进入后台（滑动手势开始）
-        // 此时提前进入全屏状态进行预渲染，确保系统截取的快照是全屏的
-        isNativePip.value = true;
-        PipOverlayService.isNativePip = true;
-        LivePipOverlayService.isNativePip = true;
-      } else if (state == AppLifecycleState.resumed) {
-        // 如果手势取消用户返回应用，恢复应用内小窗显示（如果没成功进 PiP）
-        if (!isPipMode) {
-          isNativePip.value = false;
-          PipOverlayService.isNativePip = false;
-          LivePipOverlayService.isNativePip = false;
-        }
-      }
     }
   }
 
@@ -1772,7 +1722,8 @@ class PlPlayerController with BlockConfigMixin, WidgetsBindingObserver {
     if (showSeekPreview) {
       _clearPreview();
     }
-    Utils.channel.setMethodCallHandler(null);
+    // 原版此处有 setMethodCallHandler(null)，
+    // 但因信号监听已移至 main.dart 全局管理，此处不再重置，以免影响主进程监听。
     _timer?.cancel();
     _timerForSeek?.cancel();
     // _position.close();

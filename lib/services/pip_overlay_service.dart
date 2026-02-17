@@ -6,6 +6,7 @@ import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
+import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -226,17 +227,28 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
     if (!PipOverlayService.isInPipMode) return;
 
     if (state == AppLifecycleState.inactive) {
-      // 进入系统画中画
-      final plController = PipOverlayService
-          .getSavedController<VideoDetailController>()
-          ?.plPlayerController;
-      if (plController != null) {
-        PipOverlayService.isNativePip = true;
-        plController.enterPip();
+      if (Utils.appHasFocus) {
+        // 进入系统画中画
+        final plController = PipOverlayService
+            .getSavedController<VideoDetailController>()
+            ?.plPlayerController;
+        if (plController != null) {
+          // 只有在保持焦点的情况下变为 inactive，才认为是要进入后台（滑动手势开始）
+          // 此时提前进入全屏状态进行预渲染，确保系统截取的快照是全屏的
+          PipOverlayService.isNativePip = true;
+          // 设置全屏 SourceRectHint，优化转场动画
+          plController.setFullScreenSourceRectHint();
+          plController.enterPip();
+        }
       }
     } else if (state == AppLifecycleState.resumed) {
-      // 从系统画中画返回应用，恢复应用内小窗
-      PipOverlayService.isNativePip = false;
+      // 从系统画中画返回应用或手势取消，恢复应用内小窗
+      // 延迟检查，避免在从原生 PiP 返回时误操作
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (PipOverlayService.isInPipMode && PipOverlayService.isNativePip) {
+          PipOverlayService.isNativePip = false;
+        }
+      });
     }
   }
 

@@ -20,6 +20,8 @@ abstract final class Utils {
 
   static const channel = MethodChannel(Constants.appName);
 
+  static bool appHasFocus = true;
+
   static const jsonEncoder = JsonEncoder.withIndent('    ');
 
   static String levelName(

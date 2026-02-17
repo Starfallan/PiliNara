@@ -12,6 +12,10 @@ import 'package:PiliPlus/router/app_pages.dart';
 import 'package:PiliPlus/services/account_service.dart';
 import 'package:PiliPlus/services/download/download_service.dart';
 import 'package:PiliPlus/services/service_locator.dart';
+import 'package:PiliPlus/services/pip_overlay_service.dart';
+import 'package:PiliPlus/services/live_pip_overlay_service.dart';
+import 'package:PiliPlus/plugin/pl_player/controller.dart';
+import 'package:PiliPlus/pages/video/controller.dart';
 import 'package:PiliPlus/utils/app_scheme.dart';
 import 'package:PiliPlus/utils/cache_manager.dart';
 import 'package:PiliPlus/utils/calc_window_position.dart';
@@ -86,6 +90,56 @@ Future<void> _initAppPath() async {
 void main() async {
   ScaledWidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
+
+  // 注册全局信号监听 (Service 作为大脑，main 作为路由)
+  // 此处统一处理原生发送的信号，避免 PlPlayerController 覆盖监听导致全局焦点失效
+  Utils.channel.setMethodCallHandler((call) async {
+    switch (call.method) {
+      case 'onWindowFocusChanged':
+        // A. 建立全局焦点状态
+        Utils.appHasFocus = call.arguments as bool;
+        break;
+
+      case 'onPipChanged':
+        // D. 恢复导航修复与状态同步
+        final bool isInPip = call.arguments as bool;
+        PipOverlayService.isNativePip = isInPip;
+        LivePipOverlayService.isNativePip = isInPip;
+        // 同步给单例播放器（如果有）
+        if (PlPlayerController.instanceExists()) {
+          PlPlayerController.getInstance().isNativePip.value = isInPip;
+        }
+        // 如果是从原生 PiP 返回应用，且当前处于应用内小窗模式，执行还原逻辑
+        if (!isInPip &&
+            (PipOverlayService.isInPipMode ||
+                LivePipOverlayService.isInPipMode)) {
+          if (PipOverlayService.isInPipMode) {
+            PipOverlayService.onTapToReturn();
+          } else if (LivePipOverlayService.isInPipMode) {
+            LivePipOverlayService.onReturn();
+          }
+        }
+        break;
+
+      case 'onUserLeaveHint':
+        // 【恢复原版逻辑】对于 SDK < 36，手动触发 PiP
+        final sdkInt = await Utils.sdkInt;
+        if (sdkInt < 36) {
+          final controller = PlPlayerController.instanceExists()
+              ? PlPlayerController.getInstance()
+              : null;
+          // 只有在播放中且处于视频相关页面时触发
+          // 注意：此处 controller.isCurrVideoPage 会兼容判断应用内小窗状态
+          if (controller != null &&
+              controller.playerStatus.isPlaying &&
+              controller.isCurrVideoPage) {
+            controller.enterPip(isAuto: true);
+          }
+        }
+        break;
+    }
+  });
+
   await _initAppPath();
   try {
     await GStorage.init();
