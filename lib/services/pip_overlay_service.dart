@@ -116,8 +116,8 @@ class PipOverlayService {
       try {
         final overlayContext = Get.overlayContext ?? context;
         Overlay.of(overlayContext).insert(_overlayEntry!);
-        // 同步系统画中画状态，前置配置宽高比和自动进入权限
-        plPlayerController.enterPip(isAuto: true);
+        // 开启应用内小窗后立即禁用 Auto-PiP 权限，回收触发权
+        plPlayerController.disableAutoEnterPip();
       } catch (e) {
         if (kDebugMode) {
           debugPrint('Error inserting pip overlay: $e');

@@ -317,10 +317,12 @@ class PlPlayerController with BlockConfigMixin {
   void _disableAutoEnterPipIfNeeded() {
     final bool isInInAppPip =
         PipOverlayService.isInPipMode || LivePipOverlayService.isInPipMode;
-    if (!_isPreviousVideoPage && !isInInAppPip) {
+    if (!_isPreviousVideoPage || isInInAppPip) {
       _disableAutoEnterPip();
     }
   }
+
+  void disableAutoEnterPip() => _disableAutoEnterPip();
 
   void _disableAutoEnterPip() {
     if (_shouldSetPip) {
@@ -543,15 +545,21 @@ class PlPlayerController with BlockConfigMixin {
                 LivePipOverlayService.isInPipMode;
             
             if (isInInAppPip) {
-              // 模拟全屏以获得正确的 PiP 切换动画
+              // 模拟全屏以获得正确的 PiP 切换动画 (取消动画过程)
               isNativePip.value = true;
               PipOverlayService.isNativePip = true;
               LivePipOverlayService.isNativePip = true;
+
+              // 异步推一把，确保系统截取画面时 UI 已经全屏刷新完成
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                enterPip();
+              });
+              return;
             }
 
-            // 对于 SDK < 36，手动触发 PiP
+            // 在 SDK < 36 的普通详情页，手动触发 PiP
             if (sdkInt < 36) {
-              if (playerStatus.isPlaying && (_isCurrVideoPage || isInInAppPip)) {
+              if (playerStatus.isPlaying && _isCurrVideoPage) {
                 enterPip();
               }
             }
@@ -1023,7 +1031,9 @@ class PlPlayerController with BlockConfigMixin {
             final bool isInInAppPip =
                 PipOverlayService.isInPipMode ||
                 LivePipOverlayService.isInPipMode;
-            if (_isCurrVideoPage || isInInAppPip) {
+            // 只有在正常的视频详情页且没有开启应用内小窗时，才允许系统的 Auto-PiP 触发。
+            // 开启小窗后，我们将回收触发权，通过 onUserLeaveHint 配合帧渲染手动推入。
+            if (_isCurrVideoPage && !isInInAppPip) {
               enterPip(isAuto: true);
             } else {
               _disableAutoEnterPip();
