@@ -72,6 +72,7 @@ class PipOverlayService {
 
   static void startPip({
     required BuildContext context,
+    required PlPlayerController plPlayerController,
     required Widget Function(bool isNative, double width, double height)
     videoPlayerBuilder,
     VoidCallback? onClose,
@@ -115,6 +116,8 @@ class PipOverlayService {
       try {
         final overlayContext = Get.overlayContext ?? context;
         Overlay.of(overlayContext).insert(_overlayEntry!);
+        // 同步系统画中画状态，前置配置宽高比和自动进入权限
+        plPlayerController.enterPip(isAuto: true);
       } catch (e) {
         if (kDebugMode) {
           debugPrint('Error inserting pip overlay: $e');
@@ -328,7 +331,7 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
             }
           },
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
+            duration: isNative ? Duration.zero : const Duration(milliseconds: 150),
             curve: Curves.easeOutCubic,
             width: currentWidth,
             height: currentHeight,

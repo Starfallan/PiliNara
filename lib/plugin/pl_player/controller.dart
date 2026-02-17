@@ -315,7 +315,9 @@ class PlPlayerController with BlockConfigMixin {
   }
 
   void _disableAutoEnterPipIfNeeded() {
-    if (!_isPreviousVideoPage) {
+    final bool isInInAppPip =
+        PipOverlayService.isInPipMode || LivePipOverlayService.isInPipMode;
+    if (!_isPreviousVideoPage && !isInInAppPip) {
       _disableAutoEnterPip();
     }
   }
@@ -542,6 +544,7 @@ class PlPlayerController with BlockConfigMixin {
             
             if (isInInAppPip) {
               // 模拟全屏以获得正确的 PiP 切换动画
+              isNativePip.value = true;
               PipOverlayService.isNativePip = true;
               LivePipOverlayService.isNativePip = true;
             }

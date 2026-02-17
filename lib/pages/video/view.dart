@@ -2554,6 +2554,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     _logSponsorBlock('Saved ${additionalControllers.length} additional controllers');
 
     PipOverlayService.startPip(
+      plPlayerController: plPlayerController!,
       controller: videoDetailController,
       additionalControllers: additionalControllers,
       context: context,

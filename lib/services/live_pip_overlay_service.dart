@@ -92,6 +92,8 @@ class LivePipOverlayService {
       try {
         final overlayContext = Get.overlayContext ?? context;
         Overlay.of(overlayContext).insert(_overlayEntry!);
+        // 同步系统画中画状态，前置配置宽高比和自动进入权限
+        plPlayerController.enterPip(isAuto: true);
       } catch (e) {
         if (kDebugMode) {
           debugPrint('Error inserting live pip overlay: $e');
