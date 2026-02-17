@@ -617,15 +617,18 @@ class PlPlayerController with BlockConfigMixin, WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 自动切换为系统画中画仅在 Android 平台生效
     if (Platform.isAndroid && Pref.enableInAppToNativePip && _isInInAppPip) {
       if (state == AppLifecycleState.inactive && _hasFocus) {
-        // 只有在保持焦点的情况下变为 inactive，才认为是要进入后台（滑动手势开始）
-        // 此时提前进入全屏状态进行预渲染，确保系统截取的快照是全屏的
+        // 当用户开始切回桌面（滑动手势开始）时，App 会进入 inactive 状态且仍保持焦点。
+        // 此时立即进入“伪全屏”状态，并向系统提示 SourceRectHint 为全屏，
+        // 从而确保系统截取的转场快照是完整视频流，实现无缝切换。
         isNativePip.value = true;
         PipOverlayService.isNativePip = true;
         LivePipOverlayService.isNativePip = true;
+        _setFullScreenSourceRectHint();
       } else if (state == AppLifecycleState.resumed) {
-        // 如果切回来且没成功进 PiP，则关闭伪全屏
+        // 如果手势取消用户返回应用，或者从 PiP 返回应用，则恢复应用内小窗显示
         if (!isPipMode) {
           isNativePip.value = false;
           PipOverlayService.isNativePip = false;

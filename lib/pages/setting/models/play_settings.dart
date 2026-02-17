@@ -212,7 +212,7 @@ List<SettingsModel> get playSettings => [
     ),
     const SwitchModel(
       title: '自动转换为系统画中画',
-      subtitle: '开启应用内小窗后，返回桌面可以自动切换为系统 PiP。涉及实时坐标计算，开启会有一定的性能开销',
+      subtitle: '开启应用内小窗后，返回桌面或多任务视图时自动无缝地切换到系统原生 PiP继续播放',
       leading: Icon(Icons.transform_outlined),
       setKey: SettingBoxKey.enableInAppToNativePip,
       defaultVal: false,
