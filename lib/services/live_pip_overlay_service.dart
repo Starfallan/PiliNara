@@ -190,7 +190,7 @@ class LivePipWidget extends StatefulWidget {
   State<LivePipWidget> createState() => _LivePipWidgetState();
 }
 
-class _LivePipWidgetState extends State<LivePipWidget> with WidgetsBindingObserver {
+PlPlayerControllerclass _LivePipWidgetState extends State<LivePipWidget> {
   double? _left;
   double? _top;
   double _scale = 1.0;
@@ -203,33 +203,17 @@ class _LivePipWidgetState extends State<LivePipWidget> with WidgetsBindingObserv
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _startHideTimer();
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _hideTimer?.cancel();
     if (LivePipOverlayService._overlayEntry != null) {
       LivePipOverlayService._onCloseCallback = null;
       LivePipOverlayService._onReturnCallback = null;
     }
     super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (!LivePipOverlayService.isInPipMode) return;
-
-    if (state == AppLifecycleState.inactive) {
-      // 进入系统画中画
-      LivePipOverlayService.isNativePip = true;
-      widget.plPlayerController.enterPip();
-    } else if (state == AppLifecycleState.resumed) {
-      // 从系统画中画返回应用，恢复应用内小窗
-      LivePipOverlayService.isNativePip = false;
-    }
   }
 
   void _startHideTimer() {

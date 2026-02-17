@@ -627,6 +627,8 @@ class PlPlayerController with BlockConfigMixin, WidgetsBindingObserver {
         isNativePip.value = true;
         PipOverlayService.isNativePip = true;
         LivePipOverlayService.isNativePip = true;
+        // 关键：立即更新 SourceRectHint 为全屏，告知系统转场区域变化
+        _setFullScreenSourceRectHint();
       } else if (state == AppLifecycleState.resumed) {
         // 如果手势取消用户返回应用，恢复应用内小窗显示（如果没成功进 PiP）
         if (!isPipMode) {
