@@ -309,21 +309,38 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
 
     return Obx(() {
       final bool isNative = PipOverlayService.isNativePip;
-      final double currentWidth = isNative ? screenSize.width : _width;
-      final double currentHeight = isNative ? screenSize.height : _height;
-      final double currentLeft = isNative ? 0 : _left!;
-      final double currentTop = isNative ? 0 : _top!;
+      
+      // 系统 PiP 模式下，直接铺满窗口，不执行任何自定义尺寸或位置计算
+      if (isNative) {
+        return Positioned.fill(
+          child: Container(
+            color: Colors.black,
+            child: AbsorbPointer(
+              child: widget.videoPlayerBuilder(
+                true,
+                screenSize.width,
+                screenSize.height,
+              ),
+            ),
+          ),
+        );
+      }
+
+      final double currentWidth = _width;
+      final double currentHeight = _height;
+      final double currentLeft = _left!;
+      final double currentTop = _top!;
 
       return Positioned(
         left: currentLeft,
         top: currentTop,
         child: GestureDetector(
-          onTap: isNative ? null : _onTap,
-          onDoubleTap: isNative ? null : _onDoubleTap,
-          onPanStart: isNative ? null : (_) {
+          onTap: _onTap,
+          onDoubleTap: _onDoubleTap,
+          onPanStart: (_) {
             _hideTimer?.cancel();
           },
-          onPanUpdate: isNative ? null : (details) {
+          onPanUpdate: (details) {
             setState(() {
               _left = (_left! + details.delta.dx)
                   .clamp(
@@ -339,7 +356,7 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
                   .toDouble();
             });
           },
-          onPanEnd: isNative ? null : (_) {
+          onPanEnd: (_) {
             if (_showControls) {
               _startHideTimer();
             }
@@ -351,8 +368,8 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
             height: currentHeight,
             decoration: BoxDecoration(
               color: Colors.black,
-              borderRadius: isNative ? BorderRadius.zero : BorderRadius.circular(8),
-              boxShadow: isNative ? [] : [
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.5),
                   blurRadius: 10,
@@ -361,19 +378,19 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
               ],
             ),
             child: ClipRRect(
-              borderRadius: isNative ? BorderRadius.zero : BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(8),
               child: Stack(
                 children: [
                   Positioned.fill(
                     child: AbsorbPointer(
                       child: widget.videoPlayerBuilder(
-                        isNative,
+                        false,
                         currentWidth,
                         currentHeight,
                       ),
                     ),
                   ),
-                  if (!isNative && _showControls) ...[
+                  if (_showControls) ...[
                     Positioned.fill(
                       child: Container(
                         color: Colors.black.withValues(alpha: 0.4),

@@ -295,21 +295,41 @@ class _LivePipWidgetState extends State<LivePipWidget> with WidgetsBindingObserv
 
     return Obx(() {
       final bool isNative = LivePipOverlayService.isNativePip;
-      final double currentWidth = isNative ? screenSize.width : _width;
-      final double currentHeight = isNative ? screenSize.height : _height;
-      final double currentLeft = isNative ? 0 : _left!;
-      final double currentTop = isNative ? 0 : _top!;
+
+      if (isNative) {
+        return Positioned.fill(
+          child: Container(
+            color: Colors.black,
+            child: AbsorbPointer(
+              child: PLVideoPlayer(
+                maxWidth: screenSize.width,
+                maxHeight: screenSize.height,
+                isPipMode: true,
+                plPlayerController: widget.plPlayerController,
+                headerControl: const SizedBox.shrink(),
+                bottomControl: const SizedBox.shrink(),
+                danmuWidget: const SizedBox.shrink(),
+              ),
+            ),
+          ),
+        );
+      }
+
+      final double currentWidth = _width;
+      final double currentHeight = _height;
+      final double currentLeft = _left!;
+      final double currentTop = _top!;
 
       return Positioned(
         left: currentLeft,
         top: currentTop,
         child: GestureDetector(
-          onTap: isNative ? null : _onTap,
-          onDoubleTap: isNative ? null : _onDoubleTap,
-          onPanStart: isNative ? null : (_) {
+          onTap: _onTap,
+          onDoubleTap: _onDoubleTap,
+          onPanStart: (_) {
             _hideTimer?.cancel();
           },
-          onPanUpdate: isNative ? null : (details) {
+          onPanUpdate: (details) {
             setState(() {
               _left = (_left! + details.delta.dx).clamp(
                 0.0,
@@ -321,7 +341,7 @@ class _LivePipWidgetState extends State<LivePipWidget> with WidgetsBindingObserv
               ).toDouble();
             });
           },
-          onPanEnd: isNative ? null : (_) {
+          onPanEnd: (_) {
             if (_showControls) {
               _startHideTimer();
             }
@@ -333,21 +353,17 @@ class _LivePipWidgetState extends State<LivePipWidget> with WidgetsBindingObserv
             height: currentHeight,
             decoration: BoxDecoration(
               color: Colors.black,
-              borderRadius:
-                  isNative ? BorderRadius.zero : BorderRadius.circular(8),
-              boxShadow: isNative
-                  ? []
-                  : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.6),
-                      blurRadius: 12,
-                      spreadRadius: 2,
-                    ),
-                  ],
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.6),
+                  blurRadius: 12,
+                  spreadRadius: 2,
+                ),
+              ],
             ),
             child: ClipRRect(
-              borderRadius:
-                  isNative ? BorderRadius.zero : BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(8),
               child: Stack(
                 children: [
                   Positioned.fill(
@@ -363,7 +379,7 @@ class _LivePipWidgetState extends State<LivePipWidget> with WidgetsBindingObserv
                       ),
                     ),
                   ),
-                  if (!isNative && _showControls) ...[
+                  if (_showControls) ...[
                     Positioned.fill(
                       child: Container(
                         color: Colors.black.withValues(alpha: 0.4),
