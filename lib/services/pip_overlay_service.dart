@@ -116,8 +116,8 @@ class PipOverlayService {
       try {
         final overlayContext = Get.overlayContext ?? context;
         Overlay.of(overlayContext).insert(_overlayEntry!);
-        // 开启应用内小窗后启用 Auto-PiP，以便在退到后台时平滑转原生 PiP
-        plPlayerController.enterPip(isAuto: true);
+        // 开启应用内小窗后禁用 Auto-PiP，通过 onUserLeaveHint 手动控制
+        plPlayerController.disableAutoEnterPip();
       } catch (e) {
         if (kDebugMode) {
           debugPrint('Error inserting pip overlay: $e');
