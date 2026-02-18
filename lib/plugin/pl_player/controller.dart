@@ -315,9 +315,9 @@ class PlPlayerController with BlockConfigMixin {
   }
 
   void _disableAutoEnterPipIfNeeded() {
-    final bool isInInAppPip =
-        PipOverlayService.isInPipMode || LivePipOverlayService.isInPipMode;
-    if (!_isPreviousVideoPage || isInInAppPip) {
+    // 只在非视频页面时禁用 Auto-PiP
+    // 移除小窗模式检查，允许小窗模式下使用 Auto-PiP
+    if (!_isPreviousVideoPage) {
       _disableAutoEnterPip();
     }
   }
@@ -545,20 +545,30 @@ class PlPlayerController with BlockConfigMixin {
                 LivePipOverlayService.isInPipMode;
             
             if (isInInAppPip) {
-              // 模拟全屏以获得正确的 PiP 切换动画 (取消动画过程)
+              // 同步更新状态，立即触发 UI 全屏扩展
               isNativePip.value = true;
               PipOverlayService.isNativePip = true;
               LivePipOverlayService.isNativePip = true;
 
-              // 异步推一把，确保系统截取画面时 UI 已经全屏刷新完成
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                enterPip();
-              });
+              // 对于 Android 12+ (API 31+)，通过更新 sourceRectHint 让系统 Auto-PiP 正确截取全屏内容
+              if (sdkInt >= 31) {
+                Utils.channel.invokeMethod('updatePipSourceRect', {
+                  'width': state.width ?? width,
+                  'height': state.height ?? height,
+                  'isFullScreen': true,
+                });
+                // 不手动调用 enterPip()，让系统的 Auto-PiP 机制自动触发
+              } else {
+                // 对于 Android 11 及以下，延迟一帧后手动触发 PiP
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  enterPip();
+                });
+              }
               return;
             }
 
-            // 在 SDK < 36 的普通详情页，手动触发 PiP
-            if (sdkInt < 36) {
+            // 在普通详情页（非小窗模式），对于 SDK < 31 的设备手动触发 PiP
+            if (sdkInt < 31) {
               if (playerStatus.isPlaying && _isCurrVideoPage) {
                 enterPip();
               }
@@ -1028,12 +1038,9 @@ class PlPlayerController with BlockConfigMixin {
         WakelockPlus.toggle(enable: event);
         if (event) {
           if (_shouldSetPip) {
-            final bool isInInAppPip =
-                PipOverlayService.isInPipMode ||
-                LivePipOverlayService.isInPipMode;
-            // 只有在正常的视频详情页且没有开启应用内小窗时，才允许系统的 Auto-PiP 触发。
-            // 开启小窗后，我们将回收触发权，通过 onUserLeaveHint 配合帧渲染手动推入。
-            if (_isCurrVideoPage && !isInInAppPip) {
+            // 在视频播放时启用 Auto-PiP（包括小窗模式）
+            // 系统会在用户按下 Home 键时自动触发 PiP
+            if (_isCurrVideoPage) {
               enterPip(isAuto: true);
             } else {
               _disableAutoEnterPip();
