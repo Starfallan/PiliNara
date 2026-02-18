@@ -133,6 +133,38 @@ class MainActivity : AudioServiceActivity() {
                     }
                 }
 
+                "updatePipSourceRect" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        try {
+                            val width = call.argument<Int>("width") ?: 16
+                            val height = call.argument<Int>("height") ?: 9
+                            val isFullScreen = call.argument<Boolean>("isFullScreen") ?: false
+
+                            val builder = PictureInPictureParams.Builder()
+                                .setAspectRatio(Rational(width, height))
+
+                            if (isFullScreen) {
+                                // 使用整个窗口的可见区域作为 sourceRectHint
+                                val visibleRect = Rect()
+                                window.decorView.getGlobalVisibleRect(visibleRect)
+                                builder.setSourceRectHint(visibleRect)
+                            }
+
+                            // 对于 Android 12+ 设备，同时启用 Auto-PiP
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                builder.setAutoEnterEnabled(true)
+                            }
+
+                            setPictureInPictureParams(builder.build())
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.error("ERROR", "Failed to update PiP params: ${e.message}", null)
+                        }
+                    } else {
+                        result.success(false)
+                    }
+                }
+
                 else -> result.notImplemented()
             }
         }
