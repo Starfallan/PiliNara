@@ -209,19 +209,13 @@ class MainActivity : AudioServiceActivity() {
         newConfig: Configuration?
     ) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
-        MethodChannel(
-            flutterEngine!!.dartExecutor.binaryMessenger,
-            "floating"
-        ).invokeMethod("onPipChanged", isInPictureInPictureMode)
+        methodChannel.invokeMethod("onPipChanged", isInPictureInPictureMode)
     }
 
     override fun onPictureInPictureUiStateChanged(pipState: PictureInPictureUiState) {
         if (Build.VERSION.SDK_INT >= 35) {
             if (pipState.isTransitioningToPip()) {
-                MethodChannel(
-                    flutterEngine!!.dartExecutor.binaryMessenger,
-                    "floating"
-                ).invokeMethod("onPipTransitionStarted", true)
+                methodChannel.invokeMethod("onPipTransitionStarted", true)
             }
         }
         super.onPictureInPictureUiStateChanged(pipState)
