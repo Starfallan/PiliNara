@@ -129,36 +129,15 @@ class MainActivity : AudioServiceActivity() {
 
                 "setPipAutoEnterEnabled" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        val params = PictureInPictureParams.Builder()
-                            .setAutoEnterEnabled(call.argument<Boolean>("autoEnable") ?: false)
-                            .build()
-                        setPictureInPictureParams(params)
-                    }
-                }
-
-                "updatePipSourceRect" -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         try {
-                            val width = call.argument<Int>("width") ?: 16
-                            val height = call.argument<Int>("height") ?: 9
-                            val isFullScreen = call.argument<Boolean>("isFullScreen") ?: false
-
-                            val builder = PictureInPictureParams.Builder()
-                                .setAspectRatio(Rational(width, height))
-
-                            if (isFullScreen) {
-                                // 使用整个窗口的可见区域作为 sourceRectHint
-                                val visibleRect = Rect()
-                                window.decorView.getGlobalVisibleRect(visibleRect)
-                                builder.setSourceRectHint(visibleRect)
-                            }
-
-                            val params = builder.build()
+                            val enabled = call.argument<Boolean>("autoEnable") ?: false
+                            val params = PictureInPictureParams.Builder()
+                                .setAutoEnterEnabled(enabled)
+                                .build()
                             setPictureInPictureParams(params)
-                            
                             result.success(true)
                         } catch (e: Exception) {
-                            result.error("ERROR", "Failed to update PiP params: ${e.message}", null)
+                            result.error("ERROR", "Failed to set auto-PiP: ${e.message}", null)
                         }
                     } else {
                         result.success(false)
@@ -203,15 +182,14 @@ class MainActivity : AudioServiceActivity() {
         newConfig: Configuration?
     ) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        
+        // 发送给 floating 插件，确保插件内部状态（isPipMode）同步
+        MethodChannel(
+            flutterEngine!!.dartExecutor.binaryMessenger,
+            "floating"
+        ).invokeMethod("onPipChanged", isInPictureInPictureMode)
+        
+        // 发送给主项目频道，供业务逻辑使用
         methodChannel.invokeMethod("onPipChanged", isInPictureInPictureMode)
-    }
-
-    override fun onPictureInPictureUiStateChanged(pipState: PictureInPictureUiState) {
-        if (Build.VERSION.SDK_INT >= 35) {
-            if (pipState.isTransitioningToPip()) {
-                methodChannel.invokeMethod("onPipTransitionStarted", true)
-            }
-        }
-        super.onPictureInPictureUiStateChanged(pipState)
     }
 }

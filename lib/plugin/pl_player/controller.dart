@@ -224,6 +224,7 @@ class PlPlayerController with BlockConfigMixin {
 
   late final bool autoPiP = Pref.autoPiP;
   bool get isPipMode =>
+      isNativePip.value ||
       (Platform.isAndroid && Floating().isPipMode) ||
       (PlatformUtils.isDesktop && isDesktopPip);
   late bool isDesktopPip = false;
@@ -315,9 +316,10 @@ class PlPlayerController with BlockConfigMixin {
   }
 
   void _disableAutoEnterPipIfNeeded() {
-    // 强制关闭以切断时序，之后根据是否开启应用内小窗由新逻辑重新评估是否开启
-    // 虽然增加了 Channel 调用次数，但能确保在任何返回动作时彻底切断 Auto-Enter PiP
-    _disableAutoEnterPip();
+    // 对齐上游逻辑，如果是从视频页返回到非视频页，则切断 Auto-Enter PiP
+    if (!_isPreviousVideoPage) {
+      _disableAutoEnterPip();
+    }
   }
 
   void disableAutoEnterPip() => _disableAutoEnterPip();
@@ -326,6 +328,14 @@ class PlPlayerController with BlockConfigMixin {
     if (_shouldSetPip) {
       Utils.channel.invokeMethod('setPipAutoEnterEnabled', {
         'autoEnable': false,
+      });
+    }
+  }
+
+  void _enableAutoEnterPip() {
+    if (_shouldSetPip && autoPiP && _isCurrVideoPage) {
+      Utils.channel.invokeMethod('setPipAutoEnterEnabled', {
+        'autoEnable': true,
       });
     }
   }
@@ -543,19 +553,7 @@ class PlPlayerController with BlockConfigMixin {
                 LivePipOverlayService.isInPipMode;
             
             if (isInInAppPip) {
-              if (sdkInt >= 31 && videoController != null) {
-                // 对于 Android 12+ (API 31+)，预设 PiP 参数并让系统决定进入时机
-                // 此时不设 isNativePip，等到收到信号后再扩展，避免干扰系统转场
-                final state = videoController!.player.state;
-                Utils.channel.invokeMethod('updatePipSourceRect', {
-                  'width': state.width ?? width ?? 16,
-                  'height': state.height ?? height ?? 9,
-                  'isFullScreen': true,
-                });
-              } else {
-                // 对于 Android 11 及以下，手动触发 PiP
-                enterPip();
-              }
+              enterPip();
               return;
             }
 
@@ -572,10 +570,6 @@ class PlPlayerController with BlockConfigMixin {
             isNativePip.value = isInPip;
             PipOverlayService.isNativePip = isInPip;
             LivePipOverlayService.isNativePip = isInPip;
-          } else if (call.method == 'onPipTransitionStarted') {
-            isNativePip.value = true;
-            PipOverlayService.isNativePip = true;
-            LivePipOverlayService.isNativePip = true;
           }
         });
 

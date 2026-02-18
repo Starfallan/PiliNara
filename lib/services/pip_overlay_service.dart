@@ -125,12 +125,6 @@ class PipOverlayService {
             if (!isInPipMode) return;
             Utils.sdkInt.then((sdkInt) {
               if (sdkInt >= 31) {
-                final state = plPlayerController.videoController?.player.state;
-                Utils.channel.invokeMethod('updatePipSourceRect', {
-                  'width': state?.width ?? plPlayerController.width ?? 16,
-                  'height': state?.height ?? plPlayerController.height ?? 9,
-                  'isFullScreen': true,
-                });
                 Utils.channel.invokeMethod('setPipAutoEnterEnabled', {
                   'autoEnable': true,
                 });
