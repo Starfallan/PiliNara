@@ -550,21 +550,19 @@ class PlPlayerController with BlockConfigMixin {
               PipOverlayService.isNativePip = true;
               LivePipOverlayService.isNativePip = true;
 
-              // 等待下一帧渲染完成，确保 UI 扩展到全屏后再更新 PiP 参数
+              // 等待下一帧渲染完成，确保 UI 扩展到全屏后再触发 PiP
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (sdkInt >= 31 && videoController != null) {
-                  // 对于 Android 12+ (API 31+)，更新 sourceRectHint 后手动触发 PiP
+                  // 对于 Android 12+ (API 31+)，更新 sourceRectHint
+                  // 原生端会直接触发 PiP，无需再次调用 enterPip()
                   final state = videoController!.player.state;
                   Utils.channel.invokeMethod('updatePipSourceRect', {
                     'width': state.width ?? width ?? 16,
                     'height': state.height ?? height ?? 9,
                     'isFullScreen': true,
-                  }).then((_) {
-                    // 在 sourceRectHint 更新完成后手动触发 PiP
-                    enterPip();
                   });
                 } else {
-                  // 对于 Android 11 及以下，直接手动触发 PiP
+                  // 对于 Android 11 及以下，手动触发 PiP
                   enterPip();
                 }
               });
