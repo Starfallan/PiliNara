@@ -94,20 +94,24 @@ class LivePipOverlayService {
       try {
         final overlayContext = Get.overlayContext ?? context;
         Overlay.of(overlayContext).insert(_overlayEntry!);
+        
         // 允许应用内小窗继续使用 Auto-PiP 手势
         if (Platform.isAndroid && plPlayerController.autoPiP) {
-          Utils.sdkInt.then((sdkInt) {
-            if (sdkInt >= 31) {
-              final state = plPlayerController.videoController?.player.state;
-              Utils.channel.invokeMethod('updatePipSourceRect', {
-                'width': state?.width ?? plPlayerController.width ?? 16,
-                'height': state?.height ?? plPlayerController.height ?? 9,
-                'isFullScreen': true,
-              });
-              Utils.channel.invokeMethod('setPipAutoEnterEnabled', {
-                'autoEnable': true,
-              });
-            }
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!_isInPipMode) return;
+            Utils.sdkInt.then((sdkInt) {
+              if (sdkInt >= 31) {
+                final state = plPlayerController.videoController?.player.state;
+                Utils.channel.invokeMethod('updatePipSourceRect', {
+                  'width': state?.width ?? plPlayerController.width ?? 16,
+                  'height': state?.height ?? plPlayerController.height ?? 9,
+                  'isFullScreen': true,
+                });
+                Utils.channel.invokeMethod('setPipAutoEnterEnabled', {
+                  'autoEnable': true,
+                });
+              }
+            });
           });
         }
       } catch (e) {

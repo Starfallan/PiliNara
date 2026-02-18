@@ -156,12 +156,6 @@ class MainActivity : AudioServiceActivity() {
                             val params = builder.build()
                             setPictureInPictureParams(params)
                             
-                            // 对于 Android 12+ 且全屏模式，直接手动触发 PiP
-                            // 避免 Flutter 端再次调用 enterPip() 覆盖 sourceRectHint
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && isFullScreen) {
-                                enterPictureInPictureMode(params)
-                            }
-                            
                             result.success(true)
                         } catch (e: Exception) {
                             result.error("ERROR", "Failed to update PiP params: ${e.message}", null)

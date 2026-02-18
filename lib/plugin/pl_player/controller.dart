@@ -315,11 +315,9 @@ class PlPlayerController with BlockConfigMixin {
   }
 
   void _disableAutoEnterPipIfNeeded() {
-    // 只在非视频页面时禁用 Auto-PiP
-    // 移除小窗模式检查，允许小窗模式下使用 Auto-PiP
-    if (!_isPreviousVideoPage) {
-      _disableAutoEnterPip();
-    }
+    // 强制关闭以切断时序，之后根据是否开启应用内小窗由新逻辑重新评估是否开启
+    // 虽然增加了 Channel 调用次数，但能确保在任何返回动作时彻底切断 Auto-Enter PiP
+    _disableAutoEnterPip();
   }
 
   void disableAutoEnterPip() => _disableAutoEnterPip();
@@ -569,16 +567,8 @@ class PlPlayerController with BlockConfigMixin {
             }
           } else if (call.method == 'onPipChanged') {
             final bool isInPip = call.arguments as bool;
-            if (!isInPip &&
-                isNativePip.value &&
-                (PipOverlayService.isInPipMode ||
-                    LivePipOverlayService.isInPipMode)) {
-              if (PipOverlayService.isInPipMode) {
-                PipOverlayService.onTapToReturn();
-              } else if (LivePipOverlayService.isInPipMode) {
-                LivePipOverlayService.onReturn();
-              }
-            }
+            // 回到非画中画模式时，只更新状态，不自动执行返回全屏的逻辑
+            // 这样应用能保持在小窗启动时的页面（通常是首页）
             isNativePip.value = isInPip;
             PipOverlayService.isNativePip = isInPip;
             LivePipOverlayService.isNativePip = isInPip;
@@ -1036,9 +1026,9 @@ class PlPlayerController with BlockConfigMixin {
         WakelockPlus.toggle(enable: event);
         if (event) {
           if (_shouldSetPip) {
-            // 在视频播放时启用 Auto-PiP（包括小窗模式）
-            // 系统会在用户按下 Home 键时自动触发 PiP
-            if (_isCurrVideoPage) {
+            // 在播放时，如果是在视频页或者是已经开启了应用内小窗，则设置系统自动 PiP 标志
+            final isInInAppPip = PipOverlayService.isInPipMode || LivePipOverlayService.isInPipMode;
+            if (_isCurrVideoPage || isInInAppPip) {
               enterPip(isAuto: true);
             } else {
               _disableAutoEnterPip();

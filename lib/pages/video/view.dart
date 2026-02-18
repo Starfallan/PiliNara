@@ -2454,6 +2454,10 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   }
 
   void _onPopInvokedWithResult(bool didPop, result) {
+    if (didPop && Platform.isAndroid) {
+      // 参考上游逻辑：返回时立即强制清空 Auto-PiP 状态，切断系统自动进入的时机，防止误触
+      plPlayerController?.disableAutoEnterPip();
+    }
     if (plPlayerController?.onPopInvokedWithResult(didPop, result) ?? false) {
       return;
     }
