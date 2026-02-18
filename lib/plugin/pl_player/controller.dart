@@ -545,27 +545,19 @@ class PlPlayerController with BlockConfigMixin {
                 LivePipOverlayService.isInPipMode;
             
             if (isInInAppPip) {
-              // 同步更新状态，立即触发 UI 全屏扩展
-              isNativePip.value = true;
-              PipOverlayService.isNativePip = true;
-              LivePipOverlayService.isNativePip = true;
-
-              // 等待下一帧渲染完成，确保 UI 扩展到全屏后再触发 PiP
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (sdkInt >= 31 && videoController != null) {
-                  // 对于 Android 12+ (API 31+)，更新 sourceRectHint
-                  // 原生端会直接触发 PiP，无需再次调用 enterPip()
-                  final state = videoController!.player.state;
-                  Utils.channel.invokeMethod('updatePipSourceRect', {
-                    'width': state.width ?? width ?? 16,
-                    'height': state.height ?? height ?? 9,
-                    'isFullScreen': true,
-                  });
-                } else {
-                  // 对于 Android 11 及以下，手动触发 PiP
-                  enterPip();
-                }
-              });
+              if (sdkInt >= 31 && videoController != null) {
+                // 对于 Android 12+ (API 31+)，预设 PiP 参数并让系统决定进入时机
+                // 此时不设 isNativePip，等到收到信号后再扩展，避免干扰系统转场
+                final state = videoController!.player.state;
+                Utils.channel.invokeMethod('updatePipSourceRect', {
+                  'width': state.width ?? width ?? 16,
+                  'height': state.height ?? height ?? 9,
+                  'isFullScreen': true,
+                });
+              } else {
+                // 对于 Android 11 及以下，手动触发 PiP
+                enterPip();
+              }
               return;
             }
 
@@ -590,10 +582,14 @@ class PlPlayerController with BlockConfigMixin {
             isNativePip.value = isInPip;
             PipOverlayService.isNativePip = isInPip;
             LivePipOverlayService.isNativePip = isInPip;
+          } else if (call.method == 'onPipTransitionStarted') {
+            isNativePip.value = true;
+            PipOverlayService.isNativePip = true;
+            LivePipOverlayService.isNativePip = true;
           }
         });
 
-        if (sdkInt >= 36) {
+        if (sdkInt >= 31) {
           _shouldSetPip = true;
         }
       });

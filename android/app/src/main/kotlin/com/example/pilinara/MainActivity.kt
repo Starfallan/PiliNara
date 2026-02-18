@@ -1,6 +1,7 @@
 package com.example.pilinara
 
 import android.app.PictureInPictureParams
+import android.app.PictureInPictureUiState
 import android.app.SearchManager
 import android.content.ComponentName
 import android.content.Intent
@@ -212,5 +213,17 @@ class MainActivity : AudioServiceActivity() {
             flutterEngine!!.dartExecutor.binaryMessenger,
             "floating"
         ).invokeMethod("onPipChanged", isInPictureInPictureMode)
+    }
+
+    override fun onPictureInPictureUiStateChanged(pipState: PictureInPictureUiState) {
+        if (Build.VERSION.SDK_INT >= 35) {
+            if (pipState.isTransitioningToPip()) {
+                MethodChannel(
+                    flutterEngine!!.dartExecutor.binaryMessenger,
+                    "floating"
+                ).invokeMethod("onPipTransitionStarted", true)
+            }
+        }
+        super.onPictureInPictureUiStateChanged(pipState)
     }
 }

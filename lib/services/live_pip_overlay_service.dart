@@ -3,10 +3,12 @@ import 'dart:math' show max;
 
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/view.dart';
+import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
+import 'dart:io' show Platform;
 
 class LivePipOverlayService {
   static OverlayEntry? _overlayEntry;
@@ -92,8 +94,22 @@ class LivePipOverlayService {
       try {
         final overlayContext = Get.overlayContext ?? context;
         Overlay.of(overlayContext).insert(_overlayEntry!);
-        // 开启应用内小窗后禁用 Auto-PiP，通过 onUserLeaveHint 手动控制
-        plPlayerController.disableAutoEnterPip();
+        // 允许应用内小窗继续使用 Auto-PiP 手势
+        if (Platform.isAndroid && plPlayerController.autoPiP) {
+          Utils.sdkInt.then((sdkInt) {
+            if (sdkInt >= 31) {
+              final state = plPlayerController.videoController?.player.state;
+              Utils.channel.invokeMethod('updatePipSourceRect', {
+                'width': state?.width ?? plPlayerController.width ?? 16,
+                'height': state?.height ?? plPlayerController.height ?? 9,
+                'isFullScreen': true,
+              });
+              Utils.channel.invokeMethod('setPipAutoEnterEnabled', {
+                'autoEnable': true,
+              });
+            }
+          });
+        }
       } catch (e) {
         if (kDebugMode) {
           debugPrint('Error inserting live pip overlay: $e');
@@ -312,7 +328,9 @@ class _LivePipWidgetState extends State<LivePipWidget> with WidgetsBindingObserv
               _startHideTimer();
             }
           },
-          child: Container(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
             width: currentWidth,
             height: currentHeight,
             decoration: BoxDecoration(
