@@ -551,10 +551,11 @@ class PlPlayerController with BlockConfigMixin {
               LivePipOverlayService.isNativePip = true;
 
               // 对于 Android 12+ (API 31+)，通过更新 sourceRectHint 让系统 Auto-PiP 正确截取全屏内容
-              if (sdkInt >= 31) {
+              if (sdkInt >= 31 && videoController != null) {
+                final state = videoController!.player.state;
                 Utils.channel.invokeMethod('updatePipSourceRect', {
-                  'width': state.width ?? width,
-                  'height': state.height ?? height,
+                  'width': state.width ?? width ?? 16,
+                  'height': state.height ?? height ?? 9,
                   'isFullScreen': true,
                 });
                 // 不手动调用 enterPip()，让系统的 Auto-PiP 机制自动触发
