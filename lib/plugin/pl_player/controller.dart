@@ -568,22 +568,14 @@ class PlPlayerController with BlockConfigMixin {
           } else if (call.method == 'onPipChanged') {
             final bool isInPip = call.arguments as bool;
             _log('onPipChanged: isInPip=$isInPip, currentNativePip=${isNativePip.value}', 'PiP');
-            // 回到非画中画模式（退出 PiP）时，由于 Android 窗口转场动画和 Flutter 表面（Surface）调整大小存在时间差，
-            // 如果立即切换状态可能导致 UI 在错误渲染尺寸下重构，产生“UI 缩在角落”或“渲染异常”的问题。
-            // 因此在退出时增加一个小延迟，确保系统窗口同步完成。
-            if (!isInPip && isNativePip.value) {
-              _log('Delaying isNativePip=false for transition sync', 'PiP');
-              Future.delayed(const Duration(milliseconds: 300), () {
-                _log('Executing delayed isNativePip=false', 'PiP');
-                isNativePip.value = false;
-                PipOverlayService.isNativePip = false;
-                LivePipOverlayService.isNativePip = false;
-              });
-            } else {
-              _log('Immediate isNativePip=$isInPip update', 'PiP');
-              isNativePip.value = isInPip;
-              PipOverlayService.isNativePip = isInPip;
-              LivePipOverlayService.isNativePip = isInPip;
+            
+            // 立即更新状态，避免由于状态更新滞后同步导致界面在恢复全屏过程中产生的“缩小在角落”或“渲染异常”
+            isNativePip.value = isInPip;
+            PipOverlayService.isNativePip = isInPip;
+            LivePipOverlayService.isNativePip = isInPip;
+
+            if (!isInPip) {
+              _log('Restored from Native PiP', 'PiP');
             }
           }
         });

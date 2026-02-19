@@ -2004,9 +2004,16 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
     // 而 LayoutBuilder 提供的 Constraints 是最准确的。
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double currentWidth = widget.isPipMode ? constraints.maxWidth : maxWidth;
-        final double currentHeight = widget.isPipMode ? constraints.maxHeight : maxHeight;
-        
+        // 如果是在小窗模式下，或者当前容器具有有效的有限约束，则优先使用约束尺寸，
+        // 从而解决从系统 PiP 恢复到应用时渲染容器未及时由于 layout 变化而导致渲染异常的问题。
+        final bool useConstraints = widget.isPipMode ||
+            (constraints.maxWidth > 0 && constraints.maxWidth.isFinite);
+
+        final double currentWidth =
+            useConstraints ? constraints.maxWidth : maxWidth;
+        final double currentHeight =
+            useConstraints ? constraints.maxHeight : maxHeight;
+
         return Container(
           clipBehavior: Clip.none,
           width: currentWidth,
