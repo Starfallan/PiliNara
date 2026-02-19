@@ -242,10 +242,8 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!PipOverlayService.isInPipMode) return;
 
-    if (state == AppLifecycleState.resumed) {
-      // 从系统画中画返回应用，恢复应用内小窗
-      PipOverlayService.isNativePip = false;
-    }
+    // 此处无需重复处理，状态同步由PlPlayerController中的onPipChanged消息统一管理
+    // 而且在Controller中已加入了退出延迟，确保系统转场动画完成后再切换布局。
   }
 
   void _startHideTimer() {

@@ -565,11 +565,20 @@ class PlPlayerController with BlockConfigMixin {
             }
           } else if (call.method == 'onPipChanged') {
             final bool isInPip = call.arguments as bool;
-            // 回到非画中画模式时，只更新状态，不自动执行返回全屏的逻辑
-            // 这样应用能保持在小窗启动时的页面（通常是首页）
-            isNativePip.value = isInPip;
-            PipOverlayService.isNativePip = isInPip;
-            LivePipOverlayService.isNativePip = isInPip;
+            // 回到非画中画模式（退出 PiP）时，由于 Android 窗口转场动画和 Flutter 表面（Surface）调整大小存在时间差，
+            // 如果立即切换状态可能导致 UI 在错误渲染尺寸下重构，产生“UI 缩在角落”或“渲染异常”的问题。
+            // 因此在退出时增加一个小延迟，确保系统窗口同步完成。
+            if (!isInPip && isNativePip.value) {
+              Future.delayed(const Duration(milliseconds: 300), () {
+                isNativePip.value = false;
+                PipOverlayService.isNativePip = false;
+                LivePipOverlayService.isNativePip = false;
+              });
+            } else {
+              isNativePip.value = isInPip;
+              PipOverlayService.isNativePip = isInPip;
+              LivePipOverlayService.isNativePip = isInPip;
+            }
           }
         });
 
