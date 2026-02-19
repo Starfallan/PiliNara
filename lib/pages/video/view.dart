@@ -375,6 +375,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (kDebugMode) {
+      _logSponsorBlock('AppLifecycleState changed: $state, isNativePip: ${PlPlayerController.instance?.isNativePip.value}');
+    }
     late final ctr = videoDetailController.plPlayerController;
     if (state == AppLifecycleState.resumed) {
       if (!ctr.showDanmaku) {

@@ -30,6 +30,7 @@ import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/plugin/pl_player/models/video_fit_type.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
 import 'package:PiliPlus/services/service_locator.dart';
+import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/services/pip_overlay_service.dart';
 import 'package:PiliPlus/services/live_pip_overlay_service.dart';
 import 'package:PiliPlus/utils/accounts.dart';
@@ -549,6 +550,7 @@ class PlPlayerController with BlockConfigMixin {
       Utils.sdkInt.then((sdkInt) {
         Utils.channel.setMethodCallHandler((call) async {
           if (call.method == 'onUserLeaveHint') {
+            _log('onUserLeaveHint: sdkInt=$sdkInt, inAppPip=${PipOverlayService.isInPipMode || LivePipOverlayService.isInPipMode}', 'PiP');
             final bool isInInAppPip = PipOverlayService.isInPipMode ||
                 LivePipOverlayService.isInPipMode;
             
@@ -565,16 +567,20 @@ class PlPlayerController with BlockConfigMixin {
             }
           } else if (call.method == 'onPipChanged') {
             final bool isInPip = call.arguments as bool;
+            _log('onPipChanged: isInPip=$isInPip, currentNativePip=${isNativePip.value}', 'PiP');
             // 回到非画中画模式（退出 PiP）时，由于 Android 窗口转场动画和 Flutter 表面（Surface）调整大小存在时间差，
             // 如果立即切换状态可能导致 UI 在错误渲染尺寸下重构，产生“UI 缩在角落”或“渲染异常”的问题。
             // 因此在退出时增加一个小延迟，确保系统窗口同步完成。
             if (!isInPip && isNativePip.value) {
+              _log('Delaying isNativePip=false for transition sync', 'PiP');
               Future.delayed(const Duration(milliseconds: 300), () {
+                _log('Executing delayed isNativePip=false', 'PiP');
                 isNativePip.value = false;
                 PipOverlayService.isNativePip = false;
                 LivePipOverlayService.isNativePip = false;
               });
             } else {
+              _log('Immediate isNativePip=$isInPip update', 'PiP');
               isNativePip.value = isInPip;
               PipOverlayService.isNativePip = isInPip;
               LivePipOverlayService.isNativePip = isInPip;
@@ -639,6 +645,7 @@ class PlPlayerController with BlockConfigMixin {
     int? mediaType,
   }) async {
     try {
+      _log('setDataSource start: bvid=$bvid, cid=$cid, isLive=$isLive, type=${dataSource.type}', 'DataSource');
       this.dirPath = dirPath;
       this.typeTag = typeTag;
       this.mediaType = mediaType;
@@ -745,6 +752,7 @@ class PlPlayerController with BlockConfigMixin {
   late final Rx<SuperResolutionType> superResolutionType =
       (isAnim ? Pref.superResolutionType : SuperResolutionType.disable).obs;
   Future<void> setShader([SuperResolutionType? type, NativePlayer? pp]) async {
+    _log('setShader() called, type=$type', 'Shader');
     if (type == null) {
       type = superResolutionType.value;
     } else {
@@ -808,7 +816,7 @@ class PlPlayerController with BlockConfigMixin {
             bufferSize: Pref.expandBuffer
                 ? (isLive ? 64 * 1024 * 1024 : 32 * 1024 * 1024)
                 : (isLive ? 16 * 1024 * 1024 : 4 * 1024 * 1024),
-            logLevel: kDebugMode ? MPVLogLevel.warn : MPVLogLevel.error,
+            logLevel: kDebugMode ? MPVLogLevel.info : MPVLogLevel.error,
           ),
         );
     final pp = player.platform!;
@@ -934,6 +942,7 @@ class PlPlayerController with BlockConfigMixin {
   }
 
   Future<bool> refreshPlayer() async {
+    _log('refreshPlayer: bvid=$bvid, cid=$cid', 'Refresh');
     if (isFileSource) {
       return true;
     }
@@ -949,6 +958,7 @@ class PlPlayerController with BlockConfigMixin {
       if (dataSource.audioSource.isNullOrEmpty) {
         SmartDialog.showToast('音频源为空');
       } else {
+        _log('Setting audio-files: ${dataSource.audioSource}', 'MPV');
         await (_videoPlayerController!.platform!).setProperty(
           'audio-files',
           Platform.isWindows
@@ -957,6 +967,7 @@ class PlPlayerController with BlockConfigMixin {
         );
       }
     }
+    _log('Opening Media: ${dataSource.videoSource}', 'MPV');
     await _videoPlayerController!.open(
       Media(
         dataSource.videoSource!,
@@ -971,6 +982,7 @@ class PlPlayerController with BlockConfigMixin {
 
   // 开始播放
   Future<void> _initializePlayer() async {
+    _log('Initializing player, bvid=$bvid, cid=$cid', 'Init');
     if (_instance == null) return;
     // 设置倍速
     if (isLive) {
@@ -1091,6 +1103,9 @@ class PlPlayerController with BlockConfigMixin {
         updateBufferedSecond();
       }),
       controllerStream.buffering.listen((bool event) {
+        if (kDebugMode) {
+          _log('Buffering changed: current=$event, playerStatus=${playerStatus.value}', 'Status');
+        }
         isBuffering.value = event;
         videoPlayerServiceHandler?.onStatusChange(
           playerStatus.value,
@@ -1107,6 +1122,7 @@ class PlPlayerController with BlockConfigMixin {
           }
         })),
       controllerStream.error.listen((String event) {
+        _log('Player stream error: $event', 'Error');
         if (isFileSource && event.startsWith("Failed to open file")) {
           return;
         }
@@ -1274,6 +1290,7 @@ class PlPlayerController with BlockConfigMixin {
 
   /// 播放视频
   Future<void> play({bool repeat = false, bool hideControls = true}) async {
+    _log('play() called, status=${playerStatus.value}', 'Control');
     if (_playerCount == 0) return;
     // 播放时自动隐藏控制条
     controls = !hideControls;
@@ -1293,6 +1310,7 @@ class PlPlayerController with BlockConfigMixin {
 
   /// 暂停播放
   Future<void> pause({bool notify = true, bool isInterrupt = false}) async {
+    _log('pause() called, status=${playerStatus.value}', 'Control');
     await _videoPlayerController?.pause();
     playerStatus.value = PlayerStatus.paused;
 
@@ -1387,6 +1405,7 @@ class PlPlayerController with BlockConfigMixin {
   /// 读取fit
   int fitValue = Pref.cacheVideoFit;
   Future<void> getVideoFit() async {
+    _log('getVideoFit() called, fitValue=$fitValue, bvid=$bvid', 'Layout');
     var attr = VideoFitType.values[fitValue];
     // 由于none与scaleDown涉及视频原始尺寸，需要等待视频加载后再设置，否则尺寸会变为0，出现错误;
     if (attr == VideoFitType.none || attr == VideoFitType.scaleDown) {
@@ -1908,5 +1927,16 @@ class PlPlayerController with BlockConfigMixin {
       return true;
     }
     return false;
+  }
+
+  void _log(String message, [String tag = 'Player']) {
+    if (!Pref.enableLog && !kDebugMode) return;
+    try {
+      final logMsg = '[$hashCode] [$tag] $message';
+      // 使用 logger 输出，配合用户的 Debug 开发模式
+      logger.i(logMsg);
+    } catch (e, s) {
+      debugPrint('[$tag] Log Error: $e\n$s');
+    }
   }
 }

@@ -259,6 +259,9 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     if (!mounted) return;
     
     try {
+      if (kDebugMode) {
+        logger.e('[LiveRoomPage] AppLifecycleState changed: $state, isInPip: ${LivePipOverlayService.isInPipMode}, isNative: ${LivePipOverlayService.isNativePip}');
+      }
       if (state == AppLifecycleState.resumed) {
         if (!plPlayerController.showDanmaku) {
           _liveRoomController.startLiveTimer();
