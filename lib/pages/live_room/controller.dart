@@ -251,7 +251,12 @@ class LiveRoomController extends GetxController {
       isVertical: isPortrait.value,
     )
         .then((_) async {
-      if (autoplay && !plPlayerController.playerStatus.value.isPlaying) {
+      if (!autoplay) {
+        return;
+      }
+      final isActuallyPlaying =
+          plPlayerController.videoPlayerController?.state.playing == true;
+      if (!isActuallyPlaying) {
         await plPlayerController.play();
       }
     });
