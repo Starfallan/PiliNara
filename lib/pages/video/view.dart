@@ -175,7 +175,11 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
            // 这里很难检测 TabController 是否已销毁，但可以通过 length 触发重新创建
         }
         
-        PipOverlayService.stopPip(callOnClose: false, immediate: true);
+        PipOverlayService.stopPip(
+          callOnClose: false,
+          immediate: true,
+          resetState: false,
+        );
         _logSponsorBlock('Restored controller from PiP, hashCode: ${savedController.hashCode}, segmentList.length: ${savedController.segmentList.length}');
         
         // 强制刷新 UI 状态
@@ -196,9 +200,16 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       if (PipOverlayService.isInPipMode) {
         final savedController =
             PipOverlayService.getSavedController<VideoDetailController>();
-        // 如果小窗内的控制器正是我们要打开的这个（aid 匹配），则立即关闭小窗
-        // 这里如果是同一个 aid，Get.put 会自动找回之前的控制器实例，因此我们只需确保 Overlay 关闭
-        PipOverlayService.stopPip(callOnClose: false, immediate: true);
+
+        // 如果小窗内的控制器正是我们要打开的这个 (bvid 匹配)，则立即关闭小窗并保留其状态
+        // 这里如果是同一个视频，Get.put 会自动找回之前的控制器实例，我们只需确保 Overlay 关闭而不清除其 SponsorBlock 等监听
+        final bool isSameVideo = savedController?.bvid == Get.arguments['bvid'];
+
+        PipOverlayService.stopPip(
+          callOnClose: false,
+          immediate: true,
+          resetState: !isSameVideo,
+        );
       }
       videoDetailController = Get.put(VideoDetailController(), tag: heroTag);
     }
@@ -656,7 +667,11 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         _logSponsorBlock(
           'Returning to video page with matching active PiP, closing PiP overlay',
         );
-        PipOverlayService.stopPip(callOnClose: false, immediate: true);
+        PipOverlayService.stopPip(
+          callOnClose: false,
+          immediate: true,
+          resetState: false,
+        );
         videoDetailController.isEnteringPip = false;
         // 小窗模式下控制栏可能被隐藏了，恢复它
         plPlayerController?.controls = true;

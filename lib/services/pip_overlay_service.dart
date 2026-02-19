@@ -146,13 +146,18 @@ class PipOverlayService {
   
   static T? getAdditionalController<T>(String key) => _savedControllers[key] as T?;
 
-  static void stopPip({bool callOnClose = true, bool immediate = false}) {
+  static void stopPip({
+    bool callOnClose = true,
+    bool immediate = false,
+    bool resetState = true,
+  }) {
     if (!isInPipMode && _overlayEntry == null) {
       return;
     }
 
     if (kDebugMode) {
-      debugPrint('[PiP] Stopping PiP mode (immediate: $immediate, callOnClose: $callOnClose)');
+      debugPrint(
+          '[PiP] Stopping PiP mode (immediate: $immediate, callOnClose: $callOnClose, resetState: $resetState)');
     }
 
     isInPipMode = false;
@@ -161,22 +166,25 @@ class PipOverlayService {
     final closeCallback = callOnClose ? _onCloseCallback : null;
     _onCloseCallback = null;
     _onTapToReturnCallback = null;
-    
+
     // 清理控制器缓存，防止内存泄漏和状态污染
-    if (kDebugMode && (_savedController != null || _savedControllers.isNotEmpty)) {
-      debugPrint('[PiP] Clearing cached controllers to prevent state pollution');
+    if (kDebugMode &&
+        (_savedController != null || _savedControllers.isNotEmpty)) {
+      debugPrint('[PiP] Clearing cached controllers, resetState: $resetState');
     }
-    
+
     // 强制调用控制器的清理逻辑，特别是 SponsorBlock 相关的监听器
-    if (_savedController != null && callOnClose) {
+    if (_savedController != null && resetState) {
       try {
         if (_savedController is VideoDetailController) {
           if (kDebugMode) {
-            debugPrint('[PiP] Explicitly resetting SponsorBlock state for cached VideoDetailController');
+            debugPrint(
+                '[PiP] Explicitly resetting SponsorBlock state for cached VideoDetailController');
           }
-           (_savedController as VideoDetailController).resetBlock();
+          (_savedController as VideoDetailController).resetBlock();
         } else if (kDebugMode) {
-          debugPrint('[PiP] Cached controller is not a VideoDetailController, skipping resetBlock');
+          debugPrint(
+              '[PiP] Cached controller is not a VideoDetailController, skipping resetBlock');
         }
       } catch (e) {
         if (kDebugMode) {
