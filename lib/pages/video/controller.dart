@@ -311,6 +311,14 @@ class VideoDetailController extends GetxController
 
   @override
   void onInit() {
+    // 开启新视频时，如果存在前代播放器的应用内小窗，则强制关闭
+    // 解决 `PipOverlayService` 缓存了上一代控制器导致 `SponsorBlock` 等状态污染的问题
+    if (PipOverlayService.isInPipMode) {
+      if (kDebugMode) {
+        debugPrint('[VideoDetailController] Active PiP detected, closing before new video initialization to prevent state pollution');
+      }
+      PipOverlayService.stopPip(immediate: true);
+    }
     super.onInit();
     args = Get.arguments;
     videoType = args['videoType'];
