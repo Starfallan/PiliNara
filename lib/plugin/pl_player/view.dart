@@ -2006,18 +2006,24 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
       builder: (context, constraints) {
         // 如果是在小窗模式下，或者当前容器具有有效的有限约束，则优先使用约束尺寸，
         // 从而解决从系统 PiP 恢复到应用时渲染容器未及时由于 layout 变化而导致渲染异常的问题。
-        final bool useConstraints = widget.isPipMode ||
-            (constraints.maxWidth > 0 && constraints.maxWidth.isFinite);
+        final bool useConstraints = (widget.isPipMode ||
+                (constraints.maxWidth > 0 && constraints.maxWidth.isFinite));
 
-        final double currentWidth =
-            useConstraints ? constraints.maxWidth : maxWidth;
-        final double currentHeight =
-            useConstraints ? constraints.maxHeight : maxHeight;
+        final double currentWidth = useConstraints
+            ? constraints.maxWidth.clamp(0.0, double.infinity)
+            : maxWidth;
+        final double currentHeight = useConstraints
+            ? constraints.maxHeight.clamp(0.0, double.infinity)
+            : maxHeight;
+            
+        // 确保容器至少有一个最小有效的尺寸，避免播放引擎初始化失败
+        final double finalWidth = currentWidth > 0 ? currentWidth : (maxWidth > 0 ? maxWidth : 16.0);
+        final double finalHeight = currentHeight > 0 ? currentHeight : (maxHeight > 0 ? maxHeight : 9.0);
 
         return Container(
           clipBehavior: Clip.none,
-          width: currentWidth,
-          height: currentHeight,
+          width: finalWidth,
+          height: finalHeight,
           color: widget.fill,
           child: Obx(
             () => MouseInteractiveViewer(
