@@ -70,7 +70,28 @@ class PipOverlayService {
   
   // 保存控制器引用，防止被 GC
   static dynamic _savedController;
+  static PlPlayerController? _savedPlayerController;
   static final Map<String, dynamic> _savedControllers = {};
+
+  static bool _isVideoLikeRoute(String route) {
+    return route.startsWith('/video') || route.startsWith('/liveRoom');
+  }
+
+  static void _setSystemAutoPipEnabled(
+    PlPlayerController? plPlayerController,
+    bool enabled,
+  ) {
+    if (!Platform.isAndroid || plPlayerController == null || !plPlayerController.autoPiP) {
+      return;
+    }
+    Utils.sdkInt.then((sdkInt) {
+      if (sdkInt >= 31) {
+        Utils.channel.invokeMethod('setPipAutoEnterEnabled', {
+          'autoEnable': enabled,
+        });
+      }
+    });
+  }
 
   static void startPip({
     required BuildContext context,
@@ -95,6 +116,7 @@ class PipOverlayService {
     _onCloseCallback = onClose;
     _onTapToReturnCallback = onTapToReturn;
     _savedController = controller;
+    _savedPlayerController = plPlayerController;
     if (additionalControllers != null) {
       _savedControllers.addAll(additionalControllers);
     }
@@ -120,24 +142,20 @@ class PipOverlayService {
         Overlay.of(overlayContext).insert(_overlayEntry!);
         
         // 允许应用内小窗继续使用 Auto-PiP 手势
-        if (Platform.isAndroid && plPlayerController.autoPiP) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!isInPipMode) return;
-            Utils.sdkInt.then((sdkInt) {
-              if (sdkInt >= 31) {
-                Utils.channel.invokeMethod('setPipAutoEnterEnabled', {
-                  'autoEnable': true,
-                });
-              }
-            });
-          });
-        }
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!isInPipMode) return;
+          _setSystemAutoPipEnabled(plPlayerController, true);
+        });
       } catch (e) {
         if (kDebugMode) {
           debugPrint('Error inserting pip overlay: $e');
         }
+        _setSystemAutoPipEnabled(plPlayerController, false);
         isInPipMode = false;
         _overlayEntry = null;
+        _savedController = null;
+        _savedPlayerController = null;
+        _savedControllers.clear();
       }
     });
   }
@@ -164,6 +182,7 @@ class PipOverlayService {
     isNativePip = false;
 
     final closeCallback = callOnClose ? _onCloseCallback : null;
+    final playerController = _savedPlayerController;
     _onCloseCallback = null;
     _onTapToReturnCallback = null;
 
@@ -194,10 +213,16 @@ class PipOverlayService {
     }
 
     _savedController = null;
+    _savedPlayerController = null;
     _savedControllers.clear();
 
     final overlayToRemove = _overlayEntry;
     _overlayEntry = null;
+
+    // 小窗结束后，仅在视频/直播详情页中保留系统 Auto-PiP，其余场景立即关闭防止误触发
+    final currentRoute = Get.currentRoute;
+    final keepAutoPip = _isVideoLikeRoute(currentRoute);
+    _setSystemAutoPipEnabled(playerController, keepAutoPip);
 
     void removeAndCallback() {
       try {

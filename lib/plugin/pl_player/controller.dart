@@ -303,6 +303,10 @@ class PlPlayerController with BlockConfigMixin {
         previousRoute.startsWith('/liveRoom');
   }
 
+  bool get _isInInAppPip {
+    return PipOverlayService.isInPipMode || LivePipOverlayService.isInPipMode;
+  }
+
   void enterPip({bool isAuto = false}) {
     if (videoController != null) {
       controls = false;
@@ -549,10 +553,7 @@ class PlPlayerController with BlockConfigMixin {
       Utils.sdkInt.then((sdkInt) {
         Utils.channel.setMethodCallHandler((call) async {
           if (call.method == 'onUserLeaveHint') {
-            final bool isInInAppPip = PipOverlayService.isInPipMode ||
-                LivePipOverlayService.isInPipMode;
-            
-            if (isInInAppPip) {
+            if (_isInInAppPip) {
               enterPip();
               return;
             }
@@ -562,6 +563,9 @@ class PlPlayerController with BlockConfigMixin {
               if (playerStatus.isPlaying && _isCurrVideoPage) {
                 enterPip();
               }
+            } else if (!_isCurrVideoPage) {
+              // Android 12+ 下，离开非视频页时兜底切断 Auto-PiP，防止状态残留误触发
+              _disableAutoEnterPip();
             }
           } else if (call.method == 'onPipChanged') {
             final bool isInPip = call.arguments as bool;
@@ -1021,8 +1025,7 @@ class PlPlayerController with BlockConfigMixin {
         if (event) {
           if (_shouldSetPip) {
             // 在播放时，如果是在视频页或者是已经开启了应用内小窗，则设置系统自动 PiP 标志
-            final isInInAppPip = PipOverlayService.isInPipMode || LivePipOverlayService.isInPipMode;
-            if (_isCurrVideoPage || isInInAppPip) {
+            if (_isCurrVideoPage || _isInInAppPip) {
               enterPip(isAuto: true);
             } else {
               _disableAutoEnterPip();
