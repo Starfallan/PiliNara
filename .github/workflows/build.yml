@@ -78,23 +78,23 @@ jobs:
       - name: revert new overscrollindicator
         working-directory: ${{ env.FLUTTER_ROOT }}
         run: |
-          git config --global user.name "ci"
-          git config --global user.email "example@example.com"
-          git stash || true
-          git revert 362b1de29974ffc1ed6faa826e1df870d7bec75f --no-edit
-          git reset --soft HEAD~1
-          git stash pop || true
+            git config --global user.name "ci"
+            git config --global user.email "example@example.com"
+            git stash || true
+            git revert 362b1de29974ffc1ed6faa826e1df870d7bec75f --no-edit
+            git reset --soft HEAD~1
+            git stash pop || true
         continue-on-error: true
 
       - name: apply bottom sheet patch
         working-directory: ${{ env.FLUTTER_ROOT }}
-        run: git apply $GITHUB_WORKSPACE/lib/scripts/bottom_sheet_patch.diff
+        run: git apply $GITHUB_WORKSPACE/lib/scripts/bottom_sheet_patch.diff || true
         continue-on-error: true
 
       # --- 合并自上游的新补丁 (2): 修复弹窗遮罩问题 ---
       - name: apply modal barrier patch
         working-directory: ${{ env.FLUTTER_ROOT }}
-        run: git apply $GITHUB_WORKSPACE/lib/scripts/modal-barrier-patch.diff
+        run: git apply $GITHUB_WORKSPACE/lib/scripts/modal-barrier-patch.diff || true
         continue-on-error: true
 
       - name: Write key
