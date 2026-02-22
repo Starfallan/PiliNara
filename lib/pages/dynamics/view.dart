@@ -3,10 +3,12 @@ import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/models/common/dynamic/dynamics_type.dart';
 import 'package:PiliPlus/models/common/dynamic/up_panel_position.dart';
 import 'package:PiliPlus/models/dynamics/up.dart';
+import 'package:PiliPlus/pages/common/common_page.dart';
 import 'package:PiliPlus/pages/dynamics/controller.dart';
 import 'package:PiliPlus/pages/dynamics/widgets/up_panel.dart';
 import 'package:PiliPlus/pages/dynamics_create/view.dart';
 import 'package:PiliPlus/pages/dynamics_tab/view.dart';
+import 'package:PiliPlus/pages/main/controller.dart';
 import 'package:PiliPlus/utils/extension/get_ext.dart';
 import 'package:flutter/material.dart' hide DraggableScrollableSheet;
 import 'package:get/get.dart';
@@ -18,15 +20,16 @@ class DynamicsPage extends StatefulWidget {
   State<DynamicsPage> createState() => _DynamicsPageState();
 }
 
-class _DynamicsPageState extends State<DynamicsPage>
+class _DynamicsPageState extends CommonPageState<DynamicsPage>
     with AutomaticKeepAliveClientMixin {
   final _dynamicsController = Get.putOrFind(DynamicsController.new);
   UpPanelPosition get upPanelPosition => _dynamicsController.upPanelPosition;
+  late final MainController _mainController = Get.find<MainController>();
 
   @override
   bool get wantKeepAlive => true;
 
-  Widget _createDynamicBtn(ThemeData theme, [bool isRight = true]) => Center(
+  Widget _createDynamicBtn(ThemeData theme, {bool isRight = true}) => Center(
     child: Container(
       width: 34,
       height: 34,
@@ -54,11 +57,11 @@ class _DynamicsPageState extends State<DynamicsPage>
   );
 
   Widget upPanelPart(ThemeData theme) {
-    bool isTop = upPanelPosition == UpPanelPosition.top;
-    bool needBg = upPanelPosition.index > 1;
+    final isTop = upPanelPosition == .top;
+    final needBg = upPanelPosition.index > 2;
     return Material(
+      type: needBg ? .canvas : .transparency,
       color: needBg ? theme.colorScheme.surface : null,
-      type: needBg ? MaterialType.canvas : MaterialType.transparency,
       child: SizedBox(
         width: isTop ? null : 64,
         height: isTop ? 76 : null,
@@ -85,41 +88,104 @@ class _DynamicsPageState extends State<DynamicsPage>
       Error() => Center(
         child: IconButton(
           icon: const Icon(Icons.refresh),
-          onPressed: () {
-            _dynamicsController
-              ..upState.value = LoadingState<FollowUpModel>.loading()
-              ..queryFollowUp();
-          },
+          onPressed: () => _dynamicsController
+            ..upState.value = LoadingState<FollowUpModel>.loading()
+            ..queryFollowUp(),
         ),
       ),
     };
   }
 
+  bool get checkPage =>
+      _mainController.navigationBars[0] != .dynamics &&
+      _mainController.selectedIndex.value == 0;
+
+  @override
+  bool onNotificationType1(UserScrollNotification notification) {
+    if (checkPage) {
+      return false;
+    }
+    return super.onNotificationType1(notification);
+  }
+
+  @override
+  bool onNotificationType2(ScrollNotification notification) {
+    if (checkPage) {
+      return false;
+    }
+    return super.onNotificationType2(notification);
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    ThemeData theme = Theme.of(context);
+    final theme = Theme.of(context);
+
+    Widget? drawer;
+    Widget? endDrawer;
+
+    Widget? leading;
+    List<Widget>? actions;
+
+    Widget child = videoTabBarView(
+      controller: _dynamicsController.tabController,
+      children: DynamicsTabType.values
+          .map((e) => DynamicsTabPage(dynamicsType: e))
+          .toList(),
+    );
+
+    switch (upPanelPosition) {
+      case UpPanelPosition.top:
+        child = Column(
+          children: [
+            upPanelPart(theme),
+            Expanded(child: child),
+          ],
+        );
+        actions = [_createDynamicBtn(theme)];
+      case UpPanelPosition.leftFixed:
+        child = Row(
+          children: [
+            upPanelPart(theme),
+            Expanded(child: child),
+          ],
+        );
+        actions = [_createDynamicBtn(theme)];
+      case UpPanelPosition.rightFixed:
+        child = Row(
+          children: [
+            Expanded(child: child),
+            upPanelPart(theme),
+          ],
+        );
+        actions = [_createDynamicBtn(theme)];
+      case UpPanelPosition.leftDrawer:
+        drawer = upPanelPart(theme);
+        actions = [_createDynamicBtn(theme)];
+      case UpPanelPosition.rightDrawer:
+        endDrawer = upPanelPart(theme);
+        leading = _createDynamicBtn(theme, isRight: false);
+    }
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         primary: false,
-        leading: upPanelPosition == UpPanelPosition.rightDrawer
-            ? _createDynamicBtn(theme, false)
-            : null,
+        leading: leading,
         leadingWidth: 50,
         toolbarHeight: 50,
         backgroundColor: Colors.transparent,
         title: SizedBox(
           height: 50,
           child: TabBar(
-            controller: _dynamicsController.tabController,
-            isScrollable: true,
-            dividerColor: Colors.transparent,
             dividerHeight: 0,
-            tabAlignment: TabAlignment.center,
-            indicatorColor: theme.colorScheme.primary,
+            isScrollable: true,
+            tabAlignment: .center,
+            dividerColor: Colors.transparent,
             labelColor: theme.colorScheme.primary,
+            indicatorColor: theme.colorScheme.primary,
+            controller: _dynamicsController.tabController,
             unselectedLabelColor: theme.colorScheme.onSurface,
             labelStyle:
                 TabBarTheme.of(context).labelStyle?.copyWith(fontSize: 13) ??
@@ -134,39 +200,11 @@ class _DynamicsPageState extends State<DynamicsPage>
             },
           ),
         ),
-        actions: upPanelPosition == UpPanelPosition.rightDrawer
-            ? null
-            : [_createDynamicBtn(theme)],
+        actions: actions,
       ),
-      drawer: upPanelPosition == UpPanelPosition.leftDrawer
-          ? upPanelPart(theme)
-          : null,
-      drawerEnableOpenDragGesture: true,
-      endDrawer: upPanelPosition == UpPanelPosition.rightDrawer
-          ? upPanelPart(theme)
-          : null,
-      endDrawerEnableOpenDragGesture: true,
-      body: Row(
-        children: [
-          if (upPanelPosition == UpPanelPosition.leftFixed) upPanelPart(theme),
-          Expanded(
-            child: Column(
-              children: [
-                if (upPanelPosition == UpPanelPosition.top) upPanelPart(theme),
-                Expanded(
-                  child: videoTabBarView(
-                    controller: _dynamicsController.tabController,
-                    children: DynamicsTabType.values
-                        .map((e) => DynamicsTabPage(dynamicsType: e))
-                        .toList(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (upPanelPosition == UpPanelPosition.rightFixed) upPanelPart(theme),
-        ],
-      ),
+      drawer: drawer,
+      endDrawer: endDrawer,
+      body: onBuild(child),
     );
   }
 }

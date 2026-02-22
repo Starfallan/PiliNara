@@ -5,6 +5,7 @@ import 'package:PiliPlus/http/api.dart';
 import 'package:PiliPlus/http/init.dart';
 import 'package:PiliPlus/models/common/home_tab_type.dart';
 import 'package:PiliPlus/pages/common/common_controller.dart';
+import 'package:PiliPlus/pages/main/controller.dart';
 import 'package:PiliPlus/services/account_service.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
@@ -19,7 +20,8 @@ class HomeController extends GetxController
   late List<HomeTabType> tabs;
   late TabController tabController;
 
-  RxBool? showSearchBar;
+  RxBool? showTopBar;
+  late final bool hideTopBar;
 
   bool enableSearchWord = Pref.enableSearchWord;
   late final RxString defaultSearch = ''.obs;
@@ -36,8 +38,15 @@ class HomeController extends GetxController
   void onInit() {
     super.onInit();
 
-    if (!Pref.useSideBar && Pref.hideTopBar) {
-      showSearchBar = true.obs;
+    hideTopBar = !Pref.useSideBar && Pref.hideTopBar;
+    if (hideTopBar) {
+      final mainCtr = Get.find<MainController>();
+      switch (mainCtr.barHideType) {
+        case .instant:
+          showTopBar = RxBool(true);
+        case .sync:
+          mainCtr.barOffset ??= RxDouble(0.0);
+      }
     }
 
     if (enableSearchWord) {

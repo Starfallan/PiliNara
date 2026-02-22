@@ -3,6 +3,7 @@ import 'dart:math' show pow, sqrt;
 
 import 'package:PiliPlus/common/widgets/pair.dart';
 import 'package:PiliPlus/http/constants.dart';
+import 'package:PiliPlus/models/common/bar_hide_type.dart';
 import 'package:PiliPlus/models/common/dynamic/dynamic_badge_mode.dart';
 import 'package:PiliPlus/models/common/dynamic/dynamics_type.dart';
 import 'package:PiliPlus/models/common/dynamic/up_panel_position.dart';
@@ -806,11 +807,11 @@ abstract final class Pref {
     defaultValue: PlatformUtils.isMobile,
   );
 
-  static bool get enableScrollThreshold =>
-      _setting.get(SettingBoxKey.enableScrollThreshold, defaultValue: false);
-
-  static double get scrollThreshold =>
-      _setting.get(SettingBoxKey.scrollThreshold, defaultValue: 50.0);
+  static BarHideType get barHideType =>
+      BarHideType.values[_setting.get(
+        SettingBoxKey.barHideType,
+        defaultValue: BarHideType.sync.index,
+      )];
 
   static bool get enableSearchWord =>
       _setting.get(SettingBoxKey.enableSearchWord, defaultValue: false);
@@ -1046,6 +1047,9 @@ abstract final class Pref {
 
   static bool get showWindowTitleBar =>
       _setting.get(SettingBoxKey.showWindowTitleBar, defaultValue: true);
+
+  static bool get useSSD =>
+      _setting.get(SettingBoxKey.useSSD, defaultValue: false);
 
   static double get desktopVolume =>
       _setting.get(SettingBoxKey.desktopVolume, defaultValue: 1.0);

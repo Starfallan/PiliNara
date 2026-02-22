@@ -8,6 +8,7 @@ import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/scale_app.dart';
 import 'package:PiliPlus/common/widgets/stateful_builder.dart';
 import 'package:PiliPlus/main.dart';
+import 'package:PiliPlus/models/common/bar_hide_type.dart';
 import 'package:PiliPlus/models/common/dynamic/dynamic_badge_mode.dart';
 import 'package:PiliPlus/models/common/dynamic/up_panel_position.dart';
 import 'package:PiliPlus/models/common/home_tab_type.dart';
@@ -19,10 +20,10 @@ import 'package:PiliPlus/pages/main/controller.dart';
 import 'package:PiliPlus/pages/mine/controller.dart';
 import 'package:PiliPlus/pages/setting/models/model.dart';
 import 'package:PiliPlus/pages/setting/slide_color_picker.dart';
-import 'package:PiliPlus/pages/setting/widgets/dual_slide_dialog.dart';
+import 'package:PiliPlus/pages/setting/widgets/dual_slider_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/multi_select_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
-import 'package:PiliPlus/pages/setting/widgets/slide_dialog.dart';
+import 'package:PiliPlus/pages/setting/widgets/slider_dialog.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
@@ -55,6 +56,16 @@ List<SettingsModel> get styleSettings => [
       needReboot: true,
     ),
   ],
+  if (Platform.isLinux)
+    const SwitchModel(
+      title: '使用SSD（Server-Side Decoration）',
+      subtitle: '（Linux）强制使用Server-Side Decoration',
+      leading: Icon(Icons.web_asset),
+      setKey: SettingBoxKey.useSSD,
+      defaultVal: false,
+      needReboot: true,
+      onChanged: GStorage.syncToDisk,
+    ),
   SwitchModel(
     title: '横屏适配',
     subtitle: '启用横屏布局与逻辑，平板、折叠屏等可开启；建议全屏方向设为【不改变当前方向】',
@@ -178,6 +189,12 @@ List<SettingsModel> get styleSettings => [
     getSubtitle: () =>
         '当前消息类型：${Pref.msgUnReadTypeV2.map((item) => item.title).join('、')}',
   ),
+  NormalModel(
+    onTap: _showBarHideTypeDialog,
+    title: '顶/底栏收起类型',
+    leading: const Icon(MdiIcons.arrowExpandVertical),
+    getSubtitle: () => '当前：${Pref.barHideType.label}',
+  ),
   SwitchModel(
     title: '首页顶栏收起',
     subtitle: '首页列表滑动时，收起顶栏',
@@ -193,15 +210,6 @@ List<SettingsModel> get styleSettings => [
     setKey: SettingBoxKey.hideBottomBar,
     defaultVal: PlatformUtils.isMobile,
     needReboot: true,
-  ),
-  const SwitchModel(
-    title: '顶/底栏滚动阈值',
-    subtitle: '滚动多少像素后收起/展开顶底栏，默认50像素',
-    leading: Icon(Icons.swipe_vertical),
-    defaultVal: false,
-    setKey: SettingBoxKey.enableScrollThreshold,
-    needReboot: true,
-    onTap: _showScrollDialog,
   ),
   NormalModel(
     onTap: (context, setState) => _showQualityDialog(
@@ -373,7 +381,7 @@ void _showQualityDialog({
 }) {
   showDialog<double>(
     context: context,
-    builder: (context) => SlideDialog(
+    builder: (context) => SliderDialog(
       value: initValue.toDouble(),
       title: title,
       min: 10,
@@ -622,7 +630,7 @@ void _showSpringDialog(BuildContext context, _) {
 Future<void> _showFontWeightDialog(BuildContext context) async {
   final res = await showDialog<double>(
     context: context,
-    builder: (context) => SlideDialog(
+    builder: (context) => SliderDialog(
       title: 'App字体字重',
       value: Pref.appFontWeight.toDouble() + 1,
       min: 1,
@@ -661,7 +669,7 @@ Future<void> _showCardWidthDialog(
 ) async {
   final res = await showDialog<(double, double)>(
     context: context,
-    builder: (context) => DualSlideDialog(
+    builder: (context) => DualSliderDialog(
       title: '列表最大列宽度（默认240dp）',
       value1: Pref.recommendCardWidth,
       value2: Pref.smallCardWidth,
@@ -781,48 +789,6 @@ Future<void> _showMsgUnReadDialog(
   }
 }
 
-void _showScrollDialog(BuildContext context) {
-  String scrollThreshold = Pref.scrollThreshold.toString();
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('滚动阈值'),
-      content: TextFormField(
-        autofocus: true,
-        initialValue: scrollThreshold,
-        keyboardType: const .numberWithOptions(decimal: true),
-        onChanged: (value) => scrollThreshold = value,
-        inputFormatters: [
-          FilteringTextInputFormatter.allow(RegExp(r'[\d\.]+')),
-        ],
-        decoration: const InputDecoration(suffixText: 'px'),
-      ),
-      actions: [
-        TextButton(
-          onPressed: Get.back,
-          child: Text(
-            '取消',
-            style: TextStyle(color: ColorScheme.of(context).outline),
-          ),
-        ),
-        TextButton(
-          onPressed: () {
-            try {
-              final val = double.parse(scrollThreshold);
-              Get.back();
-              GStorage.setting.put(SettingBoxKey.scrollThreshold, val);
-              SmartDialog.showToast('重启生效');
-            } catch (e) {
-              SmartDialog.showToast(e.toString());
-            }
-          },
-          child: const Text('确定'),
-        ),
-      ],
-    ),
-  );
-}
-
 void _showReduceColorDialog(
   BuildContext context,
   VoidCallback setState,
@@ -879,7 +845,7 @@ Future<void> _showToastDialog(
 ) async {
   final res = await showDialog<double>(
     context: context,
-    builder: (context) => SlideDialog(
+    builder: (context) => SliderDialog(
       title: 'Toast不透明度',
       value: CustomToast.toastOpacity,
       min: 0.0,
@@ -932,6 +898,25 @@ Future<void> _showDefHomeDialog(
   if (res != null) {
     await GStorage.setting.put(SettingBoxKey.defaultHomePage, res.index);
     SmartDialog.showToast('设置成功，重启生效');
+    setState();
+  }
+}
+
+Future<void> _showBarHideTypeDialog(
+  BuildContext context,
+  VoidCallback setState,
+) async {
+  final res = await showDialog<BarHideType>(
+    context: context,
+    builder: (context) => SelectDialog<BarHideType>(
+      title: '顶/底栏收起类型',
+      value: Pref.barHideType,
+      values: BarHideType.values.map((e) => (e, e.label)).toList(),
+    ),
+  );
+  if (res != null) {
+    await GStorage.setting.put(SettingBoxKey.barHideType, res.index);
+    SmartDialog.showToast('重启生效');
     setState();
   }
 }

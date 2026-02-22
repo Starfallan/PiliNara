@@ -15,6 +15,7 @@ abstract final class StyleString {
     minWidth: 420,
     maxWidth: 420,
   );
+  static const topBarHeight = 52.0;
 }
 
 abstract final class Constants {

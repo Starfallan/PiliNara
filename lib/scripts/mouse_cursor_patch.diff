@@ -1,0 +1,13 @@
+diff --git a/packages/flutter/lib/src/widgets/widget_state.dart b/packages/flutter/lib/src/widgets/widget_state.dart
+index 1b683c51b66..b7277a49c75 100644
+--- a/packages/flutter/lib/src/widgets/widget_state.dart
++++ b/packages/flutter/lib/src/widgets/widget_state.dart
+@@ -448,7 +448,7 @@ abstract class WidgetStateMouseCursor extends MouseCursor
+     if (states.contains(WidgetState.disabled)) {
+       return SystemMouseCursors.basic;
+     }
+-    return kIsWeb ? SystemMouseCursors.click : SystemMouseCursors.basic;
++    return SystemMouseCursors.click;
+   }
+ 
+   /// A mouse cursor for widgets related to text, which resolves differently

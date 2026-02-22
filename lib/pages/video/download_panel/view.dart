@@ -69,13 +69,15 @@ class _DownloadPanelState extends State<DownloadPanel> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _listController.jumpToItem(
-        index: widget.index,
-        scrollController: widget.scrollController,
-        alignment: 0,
-      );
-    });
+    if (widget.index != -1) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _listController.jumpToItem(
+          index: widget.index,
+          scrollController: widget.scrollController,
+          alignment: 0,
+        );
+      });
+    }
   }
 
   @override

@@ -25,7 +25,7 @@ import 'package:PiliPlus/pages/main/controller.dart';
 import 'package:PiliPlus/pages/setting/models/model.dart';
 import 'package:PiliPlus/pages/setting/widgets/merge_danmaku_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
-import 'package:PiliPlus/pages/setting/widgets/slide_dialog.dart';
+import 'package:PiliPlus/pages/setting/widgets/slider_dialog.dart';
 import 'package:PiliPlus/pages/video/reply/widgets/reply_item_grpc.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/services/download/download_service.dart';
@@ -966,7 +966,7 @@ Future<void> _showRefreshDragDialog(
 ) async {
   final res = await showDialog<double>(
     context: context,
-    builder: (context) => SlideDialog(
+    builder: (context) => SliderDialog(
       title: '刷新滑动距离',
       min: 0.1,
       max: 0.5,
@@ -989,7 +989,7 @@ Future<void> _showRefreshDialog(
 ) async {
   final res = await showDialog<double>(
     context: context,
-    builder: (context) => SlideDialog(
+    builder: (context) => SliderDialog(
       title: '刷新指示器高度',
       min: 10.0,
       max: 100.0,
@@ -1077,7 +1077,7 @@ Future<void> _showReplyCountDialog(
 ) async {
   final res = await showDialog<double>(
     context: context,
-    builder: (context) => SlideDialog(
+    builder: (context) => SliderDialog(
       title: '连接重试次数',
       min: 0,
       max: 8,
@@ -1099,7 +1099,7 @@ Future<void> _showReplyDelayDialog(
 ) async {
   final res = await showDialog<double>(
     context: context,
-    builder: (context) => SlideDialog(
+    builder: (context) => SliderDialog(
       title: '连接重试间隔',
       min: 0,
       max: 1000,

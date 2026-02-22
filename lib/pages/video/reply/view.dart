@@ -73,6 +73,7 @@ class _VideoReplyPanelState extends State<VideoReplyPanel>
       },
       child: refreshIndicator(
         onRefresh: _videoReplyController.onRefresh,
+        isClampingScrollPhysics: widget.isNested,
         child: Stack(
           clipBehavior: Clip.none,
           children: [

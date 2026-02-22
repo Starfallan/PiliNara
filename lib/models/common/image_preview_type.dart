@@ -6,6 +6,7 @@ class SourceModel {
   final String? liveUrl;
   final int? width;
   final int? height;
+  final bool isLongPic;
 
   const SourceModel({
     this.sourceType = SourceType.networkImage,
@@ -13,5 +14,6 @@ class SourceModel {
     this.liveUrl,
     this.width,
     this.height,
+    this.isLongPic = false,
   });
 }

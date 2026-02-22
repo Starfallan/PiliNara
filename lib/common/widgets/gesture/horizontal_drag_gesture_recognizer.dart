@@ -10,6 +10,11 @@ class CustomHorizontalDragGestureRecognizer
   });
 
   Offset? _initialPosition;
+  Offset? get initialPosition => _initialPosition;
+
+  @override
+  DeviceGestureSettings get gestureSettings => _gestureSettings;
+  final _gestureSettings = DeviceGestureSettings(touchSlop: touchSlopH);
 
   @override
   void addAllowedPointer(PointerDownEvent event) {

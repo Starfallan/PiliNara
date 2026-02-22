@@ -250,6 +250,7 @@ class _AudioPageState extends State<AudioPage> {
                       ),
                       child: refreshIndicator(
                         onRefresh: () => _controller.loadPrev(context),
+                        isClampingScrollPhysics: true,
                         child: CustomScrollView(
                           controller: scrollController,
                           physics: _controller.reachStart
@@ -813,7 +814,7 @@ class _AudioPageState extends State<AudioPage> {
                     segments: _controller.segmentProgressList,
                   );
                 }
-                return const SizedBox();
+                return const SizedBox.shrink();
               },
             ),
           ),

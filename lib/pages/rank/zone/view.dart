@@ -3,7 +3,6 @@ import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
 import 'package:PiliPlus/common/widgets/video_card/video_card_h.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/models/model_hot_video_item.dart';
-import 'package:PiliPlus/pages/common/common_page.dart';
 import 'package:PiliPlus/pages/rank/zone/controller.dart';
 import 'package:PiliPlus/pages/rank/zone/widget/pgc_rank_item.dart';
 import 'package:PiliPlus/utils/grid.dart';
@@ -20,9 +19,8 @@ class ZonePage extends StatefulWidget {
   State<ZonePage> createState() => _ZonePageState();
 }
 
-class _ZonePageState extends CommonPageState<ZonePage, ZoneController>
+class _ZonePageState extends State<ZonePage>
     with AutomaticKeepAliveClientMixin, GridMixin {
-  @override
   late final ZoneController controller;
 
   @override
@@ -40,19 +38,17 @@ class _ZonePageState extends CommonPageState<ZonePage, ZoneController>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return onBuild(
-      refreshIndicator(
-        onRefresh: controller.onRefresh,
-        child: CustomScrollView(
-          controller: controller.scrollController,
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.only(top: 7, bottom: 100),
-              sliver: Obx(() => _buildBody(controller.loadingState.value)),
-            ),
-          ],
-        ),
+    return refreshIndicator(
+      onRefresh: controller.onRefresh,
+      child: CustomScrollView(
+        controller: controller.scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.only(top: 7, bottom: 100),
+            sliver: Obx(() => _buildBody(controller.loadingState.value)),
+          ),
+        ],
       ),
     );
   }

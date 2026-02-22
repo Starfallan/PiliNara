@@ -11,6 +11,7 @@ import 'package:PiliPlus/common/widgets/gesture/immediate_tap_gesture_recognizer
 import 'package:PiliPlus/common/widgets/gesture/mouse_interactive_viewer.dart';
 import 'package:PiliPlus/common/widgets/loading_widget.dart';
 import 'package:PiliPlus/common/widgets/pair.dart';
+import 'package:PiliPlus/common/widgets/player_bar.dart';
 import 'package:PiliPlus/common/widgets/progress_bar/audio_video_progress_bar.dart';
 import 'package:PiliPlus/common/widgets/progress_bar/segment_progress_bar.dart';
 import 'package:PiliPlus/common/widgets/view_safe_area.dart';
@@ -66,7 +67,8 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show RenderProxyBox;
+import 'package:flutter/rendering.dart'
+    show RenderProxyBox, SemanticsConfiguration;
 import 'package:flutter/services.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
@@ -381,38 +383,15 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
       ),
 
       /// 时间进度
-      BottomControlType.time => Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          // 播放时间
-          Obx(
-            () => Text(
-              DurationUtils.formatDuration(
-                plPlayerController.positionSeconds.value,
-              ),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                height: 1.4,
-                fontFeatures: [FontFeature.tabularFigures()],
-              ),
-            ),
+      BottomControlType.time => Obx(
+        () => _VideoTime(
+          position: DurationUtils.formatDuration(
+            plPlayerController.positionSeconds.value,
           ),
-          Obx(
-            () => Text(
-              DurationUtils.formatDuration(
-                plPlayerController.duration.value.inSeconds,
-              ),
-              style: const TextStyle(
-                color: Color(0xFFD0D0D0),
-                fontSize: 10,
-                height: 1.4,
-                fontFeatures: [FontFeature.tabularFigures()],
-              ),
-            ),
+          duration: DurationUtils.formatDuration(
+            plPlayerController.duration.value.inSeconds,
           ),
-        ],
+        ),
       ),
 
       /// 高能进度条
@@ -898,22 +877,15 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
       if (isNotFileSource && flag) BottomControlType.qa,
       if (!plPlayerController.isDesktopPip) BottomControlType.fullscreen,
     ];
-
-    return Row(
+    return PlayerBar(
       children: [
-        ...userSpecifyItemLeft.map(progressWidget),
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) => FittedBox(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: userSpecifyItemRight.map(progressWidget).toList(),
-                ),
-              ),
-            ),
-          ),
+        Row(
+          mainAxisSize: .min,
+          children: userSpecifyItemLeft.map(progressWidget).toList(),
+        ),
+        Row(
+          mainAxisSize: .min,
+          children: userSpecifyItemRight.map(progressWidget).toList(),
         ),
       ],
     );
@@ -1619,40 +1591,42 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
           top: -1,
           bottom: -1,
           child: ClipRect(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                AppBarAni(
-                  isTop: true,
-                  controller: animationController,
-                  isFullScreen: isFullScreen,
-                  child: plPlayerController.isDesktopPip
-                      ? GestureDetector(
-                          behavior: HitTestBehavior.translucent,
-                          onPanStart: (_) => windowManager.startDragging(),
-                          child: widget.headerControl,
-                        )
-                      : widget.headerControl,
-                ),
-                AppBarAni(
-                  isTop: false,
-                  controller: animationController,
-                  isFullScreen: isFullScreen,
-                  child:
-                      widget.bottomControl ??
-                      BottomControl(
-                        maxWidth: maxWidth,
-                        isFullScreen: isFullScreen,
-                        isPipMode: widget.isPipMode,
-                        controller: plPlayerController,
-                        videoDetailController: videoDetailController,
-                        buildBottomControl: () => buildBottomControl(
-                          videoDetailController,
-                          maxWidth > maxHeight,
+            child: RepaintBoundary(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  AppBarAni(
+                    isTop: true,
+                    controller: animationController,
+                    isFullScreen: isFullScreen,
+                    child: plPlayerController.isDesktopPip
+                        ? GestureDetector(
+                            behavior: HitTestBehavior.translucent,
+                            onPanStart: (_) => windowManager.startDragging(),
+                            child: widget.headerControl,
+                          )
+                        : widget.headerControl,
+                  ),
+                  AppBarAni(
+                    isTop: false,
+                    controller: animationController,
+                    isFullScreen: isFullScreen,
+                    child:
+                        widget.bottomControl ??
+                        BottomControl(
+                          maxWidth: maxWidth,
+                          isFullScreen: isFullScreen,
+                          isPipMode: widget.isPipMode,
+                          controller: plPlayerController,
+                          videoDetailController: videoDetailController,
+                          buildBottomControl: () => buildBottomControl(
+                            videoDetailController,
+                            maxWidth > maxHeight,
+                          ),
                         ),
-                      ),
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -2772,12 +2746,7 @@ class _RenderDanmakuTip extends RenderProxyBox {
   void paint(PaintingContext context, Offset offset) {
     final paint = Paint()
       ..color = const Color(0xB3000000)
-      ..style = PaintingStyle.fill;
-
-    final strokePaint = Paint()
-      ..color = const Color(0x7EFFFFFF)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.25;
+      ..style = .fill;
 
     final radius = size.height / 2;
     const triangleBase = _triangleHeight * 2 / 3;
@@ -2808,10 +2777,139 @@ class _RenderDanmakuTip extends RenderProxyBox {
       ..close();
 
     context.canvas
+      ..save()
+      ..translate(offset.dx, offset.dy)
       ..drawPath(path, paint)
-      ..drawPath(path, strokePaint);
+      ..drawPath(
+        path,
+        paint
+          ..color = const Color(0x7EFFFFFF)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.25,
+      )
+      ..restore();
 
     super.paint(context, offset);
+  }
+}
+
+class _VideoTime extends LeafRenderObjectWidget {
+  const _VideoTime({
+    required this.position,
+    required this.duration,
+  });
+
+  final String position;
+  final String duration;
+
+  @override
+  _RenderVideoTime createRenderObject(BuildContext context) => _RenderVideoTime(
+    position: position,
+    duration: duration,
+  );
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    covariant _RenderVideoTime renderObject,
+  ) {
+    renderObject
+      ..position = position
+      ..duration = duration;
+  }
+}
+
+class _RenderVideoTime extends RenderBox {
+  _RenderVideoTime({
+    required String position,
+    required String duration,
+  }) : _position = position,
+       _duration = duration;
+
+  String _duration;
+  set duration(String value) {
+    _duration = value;
+    final paragraph = _buildParagraph(const Color(0xFFD0D0D0), _duration);
+    if (paragraph.maxIntrinsicWidth != _cache?.maxIntrinsicWidth) {
+      markNeedsLayout();
+    }
+    _cache?.dispose();
+    _cache = paragraph;
+    markNeedsSemanticsUpdate();
+  }
+
+  String _position;
+  set position(String value) {
+    _position = value;
+    markNeedsPaint();
+    markNeedsSemanticsUpdate();
+  }
+
+  ui.Paragraph? _cache;
+
+  ui.Paragraph _buildParagraph(Color color, String time) {
+    final builder =
+        ui.ParagraphBuilder(
+            ui.ParagraphStyle(
+              fontSize: 10,
+              height: 1.4,
+              fontFamily: 'Monospace',
+            ),
+          )
+          ..pushStyle(
+            ui.TextStyle(
+              color: color,
+              fontSize: 10,
+              height: 1.4,
+              fontFamily: 'Monospace',
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          )
+          ..addText(time);
+    return builder.build()
+      ..layout(const ui.ParagraphConstraints(width: .infinity));
+  }
+
+  @override
+  ui.Size computeDryLayout(covariant BoxConstraints constraints) {
+    final paragraph = _cache ??= _buildParagraph(
+      const Color(0xFFD0D0D0),
+      _duration,
+    );
+    return Size(paragraph.maxIntrinsicWidth, paragraph.height * 2);
+  }
+
+  @override
+  void describeSemanticsConfiguration(SemanticsConfiguration config) {
+    super.describeSemanticsConfiguration(config);
+    config.label = 'position:$_position\nduration:$_duration';
+  }
+
+  @override
+  void performLayout() {
+    size = computeDryLayout(constraints);
+  }
+
+  @override
+  void paint(PaintingContext context, ui.Offset offset) {
+    final para = _buildParagraph(Colors.white, _position);
+    context.canvas
+      ..drawParagraph(
+        para,
+        Offset(
+          offset.dx + _cache!.maxIntrinsicWidth - para.maxIntrinsicWidth,
+          offset.dy,
+        ),
+      )
+      ..drawParagraph(_cache!, Offset(offset.dx, offset.dy + para.height));
+    para.dispose();
+  }
+
+  @override
+  void dispose() {
+    _cache?.dispose();
+    _cache = null;
+    super.dispose();
   }
 
   @override

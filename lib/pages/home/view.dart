@@ -1,6 +1,8 @@
 import 'package:PiliPlus/common/constants.dart';
+import 'package:PiliPlus/common/widgets/custom_height_widget.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/scroll_physics.dart';
+import 'package:PiliPlus/pages/common/common_page.dart';
 import 'package:PiliPlus/pages/home/controller.dart';
 import 'package:PiliPlus/pages/main/controller.dart';
 import 'package:PiliPlus/pages/mine/controller.dart';
@@ -18,7 +20,7 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage>
+class _HomePageState extends CommonPageState<HomePage>
     with AutomaticKeepAliveClientMixin {
   final _homeController = Get.putOrFind(HomeController.new);
   final _mainController = Get.find<MainController>();
@@ -30,45 +32,52 @@ class _HomePageState extends State<HomePage>
   Widget build(BuildContext context) {
     super.build(context);
     final theme = Theme.of(context);
+    Widget tabBar;
+    if (_homeController.tabs.length > 1) {
+      tabBar = Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: SizedBox(
+          height: 42,
+          width: double.infinity,
+          child: TabBar(
+            controller: _homeController.tabController,
+            tabs: _homeController.tabs.map((e) => Tab(text: e.label)).toList(),
+            isScrollable: true,
+            dividerColor: Colors.transparent,
+            dividerHeight: 0,
+            splashBorderRadius: StyleString.mdRadius,
+            tabAlignment: TabAlignment.center,
+            onTap: (_) {
+              feedBack();
+              if (!_homeController.tabController.indexIsChanging) {
+                _homeController.animateToTop();
+              }
+            },
+          ),
+        ),
+      );
+      if (_homeController.hideTopBar &&
+          _mainController.barHideType == .instant) {
+        tabBar = Material(
+          color: theme.colorScheme.surface,
+          child: tabBar,
+        );
+      }
+    } else {
+      tabBar = const SizedBox(height: 6);
+    }
     return Column(
       children: [
         if (!_mainController.useSideBar &&
             MediaQuery.sizeOf(context).isPortrait)
           customAppBar(theme),
-        if (_homeController.tabs.length > 1)
-          Material(
-            color: theme.colorScheme.surface,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: SizedBox(
-                height: 42,
-                width: double.infinity,
-                child: TabBar(
-                  controller: _homeController.tabController,
-                  tabs: _homeController.tabs
-                      .map((e) => Tab(text: e.label))
-                      .toList(),
-                  isScrollable: true,
-                  dividerColor: Colors.transparent,
-                  dividerHeight: 0,
-                  splashBorderRadius: StyleString.mdRadius,
-                  tabAlignment: TabAlignment.center,
-                  onTap: (_) {
-                    feedBack();
-                    if (!_homeController.tabController.indexIsChanging) {
-                      _homeController.animateToTop();
-                    }
-                  },
-                ),
-              ),
-            ),
-          )
-        else
-          const SizedBox(height: 6),
+        tabBar,
         Expanded(
-          child: tabBarView(
-            controller: _homeController.tabController,
-            children: _homeController.tabs.map((e) => e.page).toList(),
+          child: onBuild(
+            tabBarView(
+              controller: _homeController.tabController,
+              children: _homeController.tabs.map((e) => e.page).toList(),
+            ),
           ),
         ),
       ],
@@ -76,7 +85,6 @@ class _HomePageState extends State<HomePage>
   }
 
   Widget customAppBar(ThemeData theme) {
-    const height = 52.0;
     const padding = EdgeInsets.fromLTRB(14, 6, 14, 0);
     final child = Row(
       children: [
@@ -87,28 +95,44 @@ class _HomePageState extends State<HomePage>
         userAvatar(theme: theme, mainController: _mainController),
       ],
     );
-    if (_homeController.showSearchBar case final searchBar?) {
-      return Obx(() {
-        final showSearchBar = searchBar.value;
-        return AnimatedOpacity(
-          opacity: showSearchBar ? 1 : 0,
-          duration: const Duration(milliseconds: 300),
-          child: AnimatedContainer(
-            curve: Curves.easeInOutCubicEmphasized,
-            duration: const Duration(milliseconds: 500),
-            height: showSearchBar ? height : 0,
-            padding: padding,
-            child: child,
-          ),
+    if (_homeController.hideTopBar) {
+      if (_mainController.barOffset case final barOffset?) {
+        return Obx(
+          () {
+            final offset = barOffset.value;
+            return CustomHeightWidget(
+              offset: Offset(0, -offset),
+              height: StyleString.topBarHeight - offset,
+              child: Padding(
+                padding: padding,
+                child: child,
+              ),
+            );
+          },
         );
-      });
-    } else {
-      return Container(
-        height: height,
-        padding: padding,
-        child: child,
-      );
+      }
+      if (_homeController.showTopBar case final showTopBar?) {
+        return Obx(() {
+          final showSearchBar = showTopBar.value;
+          return AnimatedOpacity(
+            opacity: showSearchBar ? 1 : 0,
+            duration: const Duration(milliseconds: 300),
+            child: AnimatedContainer(
+              curve: Curves.easeInOutCubicEmphasized,
+              duration: const Duration(milliseconds: 500),
+              height: showSearchBar ? StyleString.topBarHeight : 0,
+              padding: padding,
+              child: child,
+            ),
+          );
+        });
+      }
     }
+    return Container(
+      height: StyleString.topBarHeight,
+      padding: padding,
+      child: child,
+    );
   }
 
   Widget searchBar(ThemeData theme) {

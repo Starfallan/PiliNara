@@ -17,7 +17,7 @@ class HeroDialogRoute<T> extends PageRoute<T> {
   bool get opaque => false;
 
   @override
-  bool get barrierDismissible => true;
+  bool get barrierDismissible => false;
 
   @override
   String? get barrierLabel => null;

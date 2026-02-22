@@ -1,7 +1,7 @@
 import 'dart:math';
 
-import 'package:PiliPlus/common/widgets/interactiveviewer_gallery/hero_dialog_route.dart';
-import 'package:PiliPlus/common/widgets/interactiveviewer_gallery/interactiveviewer_gallery.dart';
+import 'package:PiliPlus/common/widgets/image_viewer/gallery_viewer.dart';
+import 'package:PiliPlus/common/widgets/image_viewer/hero_dialog_route.dart';
 import 'package:PiliPlus/grpc/im.dart';
 import 'package:PiliPlus/http/dynamics.dart';
 import 'package:PiliPlus/http/loading_state.dart';
@@ -51,12 +51,11 @@ abstract final class PageUtils {
   }) {
     return Get.key.currentState!.push<void>(
       HeroDialogRoute(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            InteractiveviewerGallery(
-              sources: imgList,
-              initIndex: initialPage,
-              quality: quality ?? GlobalData().imgQuality,
-            ),
+        pageBuilder: (context, animation, secondaryAnimation) => GalleryViewer(
+          sources: imgList,
+          initIndex: initialPage,
+          quality: quality ?? GlobalData().imgQuality,
+        ),
       ),
     );
   }
@@ -392,7 +391,7 @@ abstract final class PageUtils {
   ) {
     state.showBottomSheet(
       constraints: const BoxConstraints(),
-      (context) => InteractiveviewerGallery(
+      (context) => GalleryViewer(
         sources: imgList,
         initIndex: index,
         quality: GlobalData().imgQuality,

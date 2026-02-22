@@ -32,7 +32,12 @@ jobs:
 
       - name: apply modal barrier patch
         working-directory: ${{ env.FLUTTER_ROOT }}
-        run: git apply $GITHUB_WORKSPACE/lib/scripts/modal-barrier-patch.diff
+        run: git apply $GITHUB_WORKSPACE/lib/scripts/modal_barrier_patch.diff || true
+        continue-on-error: true
+
+      - name: apply mouse cursor patch
+        working-directory: ${{ env.FLUTTER_ROOT }}
+        run: git apply $GITHUB_WORKSPACE/lib/scripts/mouse_cursor_patch.diff || true
         continue-on-error: true
 
       - name: Build Mac
@@ -41,7 +46,7 @@ jobs:
       - name: Prepare Upload
         run: |
           npm install --global create-dmg
-          create-dmg build/macos/Build/Products/Release/PiliNara.app
+          create-dmg build/macos/Build/Products/Release/PiliNara.app || true
         continue-on-error: true
 
       - name: Rename DMG
@@ -57,7 +62,7 @@ jobs:
             PiliNara_macos_*.dmg
 
       - name: Upload macos release
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: macOS-release
           path: PiliNara_macos_*.dmg

@@ -97,6 +97,7 @@ class CustomGridView extends StatelessWidget {
           liveUrl: isLive ? item.liveUrl : null,
           width: isLive ? item.width.toInt() : null,
           height: isLive ? item.height.toInt() : null,
+          isLongPic: item.isLongPic,
         );
       },
     ).toList();
@@ -256,6 +257,40 @@ class CustomGridView extends StatelessWidget {
           children: List.generate(length, (index) {
             final item = picArr[index];
             final borderRadius = _borderRadius(column, length, index);
+            Widget child = Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                NetworkImgLayer(
+                  src: item.url,
+                  width: imageWidth,
+                  height: imageHeight,
+                  borderRadius: borderRadius,
+                  alignment: item.isLongPic ? .topCenter : .center,
+                  cacheWidth: item.width <= item.height,
+                  getPlaceHolder: () => placeHolder,
+                ),
+                if (item.isLivePhoto)
+                  const PBadge(
+                    text: 'Live',
+                    right: 8,
+                    bottom: 8,
+                    type: PBadgeType.gray,
+                  )
+                else if (item.isLongPic)
+                  const PBadge(
+                    text: '长图',
+                    right: 8,
+                    bottom: 8,
+                  ),
+              ],
+            );
+            if (!item.isLongPic) {
+              child = Hero(
+                tag: item.url,
+                child: child,
+              );
+            }
             return LayoutId(
               id: index,
               child: GestureDetector(
@@ -268,37 +303,7 @@ class CustomGridView extends StatelessWidget {
                     ? (details) =>
                           _showMenu(context, details.globalPosition, item)
                     : null,
-                child: Hero(
-                  tag: item.url,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    alignment: Alignment.center,
-                    children: [
-                      NetworkImgLayer(
-                        src: item.url,
-                        width: imageWidth,
-                        height: imageHeight,
-                        borderRadius: borderRadius,
-                        alignment: item.isLongPic ? .topCenter : .center,
-                        cacheWidth: item.width <= item.height,
-                        getPlaceHolder: () => placeHolder,
-                      ),
-                      if (item.isLivePhoto)
-                        const PBadge(
-                          text: 'Live',
-                          right: 8,
-                          bottom: 8,
-                          type: PBadgeType.gray,
-                        )
-                      else if (item.isLongPic)
-                        const PBadge(
-                          text: '长图',
-                          right: 8,
-                          bottom: 8,
-                        ),
-                    ],
-                  ),
-                ),
+                child: child,
               ),
             );
           }),
@@ -410,7 +415,7 @@ class RenderImageGrid extends RenderBox
     while (child != null) {
       final childParentData = child.parentData as MultiChildLayoutParentData;
       final index = childParentData.id as int;
-      child.layout(itemConstraints, parentUsesSize: true);
+      child.layout(itemConstraints);
       childParentData.offset = Offset(
         (space + width) * (index % column),
         (space + height) * (index ~/ column),
@@ -435,5 +440,5 @@ class RenderImageGrid extends RenderBox
   }
 
   @override
-  bool get isRepaintBoundary => true;
+  bool get isRepaintBoundary => true; // gif repaint
 }

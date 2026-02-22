@@ -121,6 +121,7 @@ class RenderMaskedIcon extends RenderProxyBox {
 
     final canvas = context.canvas;
 
+    var rectOffset = offset;
     Size size = this.size;
     final exceedWidth = size.width > _iconSize;
     final exceedHeight = size.height > _iconSize;
@@ -128,14 +129,14 @@ class RenderMaskedIcon extends RenderProxyBox {
       final dx = exceedWidth ? (size.width - _iconSize) / 2.0 : 0.0;
       final dy = exceedHeight ? (size.height - _iconSize) / 2.0 : 0.0;
       size = Size.square(_iconSize);
-      offset = Offset(dx, dy);
+      rectOffset += Offset(dx, dy);
     } else if (size.width < _iconSize && size.height < _iconSize) {
       size = Size.square(_iconSize);
     }
 
     final strokeWidth = size.width / 12;
 
-    var rect = offset & size;
+    var rect = rectOffset & size;
 
     final sqrt2Width = strokeWidth * sqrt2; // rotate pi / 4
 
@@ -155,7 +156,7 @@ class RenderMaskedIcon extends RenderProxyBox {
     canvas
       ..save()
       ..clipPath(path, doAntiAlias: false);
-    super.paint(context, .zero);
+    super.paint(context, offset);
 
     canvas.restore();
 
@@ -174,7 +175,4 @@ class RenderMaskedIcon extends RenderProxyBox {
       linePaint,
     );
   }
-
-  @override
-  bool get isRepaintBoundary => true;
 }

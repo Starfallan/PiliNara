@@ -1,7 +1,7 @@
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:flutter/material.dart';
 
-class DualSlideDialog extends StatefulWidget {
+class DualSliderDialog extends StatefulWidget {
   final double value1;
   final double value2;
   final String title;
@@ -13,7 +13,7 @@ class DualSlideDialog extends StatefulWidget {
   final String suffix;
   final int precise;
 
-  const DualSlideDialog({
+  const DualSliderDialog({
     super.key,
     required this.value1,
     required this.value2,
@@ -28,10 +28,10 @@ class DualSlideDialog extends StatefulWidget {
   });
 
   @override
-  State<DualSlideDialog> createState() => _DualSlideDialogState();
+  State<DualSliderDialog> createState() => _DualSliderDialogState();
 }
 
-class _DualSlideDialogState extends State<DualSlideDialog> {
+class _DualSliderDialogState extends State<DualSliderDialog> {
   late double _tempValue1;
   late double _tempValue2;
 

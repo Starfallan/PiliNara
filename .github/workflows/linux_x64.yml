@@ -53,7 +53,12 @@ jobs:
 
       - name: apply modal barrier patch
         working-directory: ${{ env.FLUTTER_ROOT }}
-        run: git apply $GITHUB_WORKSPACE/lib/scripts/modal-barrier-patch.diff
+        run: git apply $GITHUB_WORKSPACE/lib/scripts/modal_barrier_patch.diff || true
+        continue-on-error: true
+
+      - name: apply mouse cursor patch
+        working-directory: ${{ env.FLUTTER_ROOT }}
+        run: git apply $GITHUB_WORKSPACE/lib/scripts/mouse_cursor_patch.diff || true
         continue-on-error: true
 
         #TODO: deb and rpm packages need to be build
@@ -75,7 +80,7 @@ jobs:
           printf "复制文件...\n"
           cp -r ../build/linux/x64/release/bundle/* opt/PiliNara
           cp -r ../assets/linux/DEBIAN .
-          cp ../assets/linux/pilinara.desktop usr/share/applications
+          cp ../assets/linux/com.example.pilinara.desktop usr/share/applications
           cp ../assets/images/logo/logo.png usr/share/icons/hicolor/512x512/apps/pilinara.png
 
           printf "修改控制文件...\n"
@@ -117,7 +122,7 @@ jobs:
           SRC_DIR="$PWD/pilinara-${{ env.version }}"
           mkdir -p "$SRC_DIR/bundle" "$SRC_DIR/assets"
           cp -r build/linux/x64/release/bundle/* "$SRC_DIR/bundle/"
-          cp assets/linux/pilinara.desktop "$SRC_DIR/assets/pilinara.desktop"
+          cp assets/linux/com.example.pilinara.desktop "$SRC_DIR/assets/com.example.pilinara.desktop"
           cp assets/images/logo/logo.png "$SRC_DIR/assets/pilinara.png"
           tar -zcvf "$RPM_BUILD_ROOT/SOURCES/pilinara-${{ env.version }}.tar.gz" -C "$PWD" "pilinara-${{ env.version }}"
 
@@ -150,7 +155,7 @@ jobs:
 
           # 桌面集成
           mkdir -p %{buildroot}/usr/share/applications
-          install -m 644 assets/pilinara.desktop %{buildroot}/usr/share/applications/pilinara.desktop
+          install -m 644 assets/com.example.pilinara.desktop %{buildroot}/usr/share/applications/com.example.pilinara.desktop
 
           mkdir -p %{buildroot}/usr/share/icons/hicolor/512x512/apps
           install -m 644 assets/pilinara.png %{buildroot}/usr/share/icons/hicolor/512x512/apps/pilinara.png
@@ -166,7 +171,7 @@ jobs:
           %files
           /opt/PiliNara
           /usr/bin/pilinara
-          /usr/share/applications/pilinara.desktop
+          /usr/share/applications/com.example.pilinara.desktop
           /usr/share/icons/hicolor/512x512/apps/pilinara.png
 
           %changelog
@@ -202,8 +207,8 @@ jobs:
           cp -r build/linux/x64/release/bundle/* "$APPDIR/usr/bin/"
 
           printf "复制桌面文件和图标...\n"
-          cp assets/linux/pilinara.desktop "$APPDIR/pilinara.desktop"
-          cp assets/linux/pilinara.desktop "$APPDIR/usr/share/applications/pilinara.desktop"
+          cp assets/linux/com.example.pilinara.desktop "$APPDIR/com.example.pilinara.desktop"
+          cp assets/linux/com.example.pilinara.desktop "$APPDIR/usr/share/applications/com.example.pilinara.desktop"
           cp assets/images/logo/logo.png "$APPDIR/pilinara.png"
           cp assets/images/logo/logo.png "$APPDIR/usr/share/icons/hicolor/512x512/apps/pilinara.png"
 
@@ -219,8 +224,8 @@ jobs:
           chmod +x "$APPDIR/AppRun"
 
           printf "修改桌面文件中的 Exec 路径...\n"
-          sed -i 's|Exec=pilinara|Exec=pilinara|g' "$APPDIR/pilinara.desktop"
-          sed -i 's|Icon=pilinara|Icon=pilinara|g' "$APPDIR/pilinara.desktop"
+          sed -i 's|Exec=pilinara|Exec=pilinara|g' "$APPDIR/com.example.pilinara.desktop"
+          sed -i 's|Icon=pilinara|Icon=pilinara|g' "$APPDIR/com.example.pilinara.desktop"
 
           printf "打包 AppImage...\n"
           ARCH=x86_64 ./appimagetool-x86_64.AppImage "$APPDIR" "PiliNara_linux_${{ env.version }}_amd64.AppImage"
@@ -241,25 +246,25 @@ jobs:
             PiliNara_linux_*.AppImage
 
       - name: Upload linux targz package
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: Linux_targz_amd64_packege
           path: PiliNara_linux_*.tar.gz
 
       - name: Upload linux deb package
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: Linux_deb_amd64_package
           path: PiliNara_linux_*.deb
 
       - name: Upload linux rpm package
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: Linux_rpm_amd64_package
           path: PiliNara_linux_*.rpm
 
       - name: Upload linux AppImage package
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: Linux_AppImage_amd64_package
           path: PiliNara_linux_*.AppImage
