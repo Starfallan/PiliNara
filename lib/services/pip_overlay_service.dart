@@ -543,9 +543,8 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
                           child: Icon(
                             Icons.close,
                             color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
+                            size: 21,
+                            ),
                       ),
                     ),
                     // 右上角还原
@@ -567,7 +566,7 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
                           child: Icon(
                             Icons.open_in_full,
                             color: Colors.white,
-                            size: 20,
+                            size: 18,
                           ),
                         ),
                       ),
