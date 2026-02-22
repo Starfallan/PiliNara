@@ -2486,7 +2486,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
   bool _shouldStartInAppPip() {
     _logSponsorBlock('Checking PiP: count=${VideoStackManager.getCount()}, previousRoute=${Get.previousRoute}');
-    if (!GStorage.setting.get(SettingBoxKey.enableInAppPip, defaultValue: true)) {
+    if (!Pref.enableInAppPip) {
       _logSponsorBlock('Reject PiP: in-app PiP is disabled in settings');
       return false;
     }

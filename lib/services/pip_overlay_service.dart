@@ -82,7 +82,10 @@ class PipOverlayService {
     PlPlayerController? plPlayerController,
     bool enabled,
   ) {
-    if (!Platform.isAndroid || plPlayerController == null || !plPlayerController.autoPiP) {
+    if (!Platform.isAndroid ||
+        plPlayerController == null ||
+        !plPlayerController.autoPiP ||
+        !Pref.enableInAppPipToSystemPip) {
       return;
     }
     Utils.sdkInt.then((sdkInt) {

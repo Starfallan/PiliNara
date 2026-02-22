@@ -3,6 +3,7 @@ import 'dart:math' show max;
 
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/view.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -45,7 +46,10 @@ class LivePipOverlayService {
     PlPlayerController? plPlayerController,
     bool enabled,
   ) {
-    if (!Platform.isAndroid || plPlayerController == null || !plPlayerController.autoPiP) {
+    if (!Platform.isAndroid ||
+        plPlayerController == null ||
+        !plPlayerController.autoPiP ||
+        !Pref.enableInAppPipToSystemPip) {
       return;
     }
     Utils.sdkInt.then((sdkInt) {

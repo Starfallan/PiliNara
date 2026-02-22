@@ -211,6 +211,13 @@ List<SettingsModel> get playSettings => [
       },
     ),
     const SwitchModel(
+      title: '应用内小窗转后台画中画（实验性）',
+      subtitle: '实验性功能：应用内小窗存在时，退到后台自动切换为系统 PiP；可能因系统差异出现异常',
+      leading: Icon(Icons.science_outlined),
+      setKey: SettingBoxKey.enableInAppPipToSystemPip,
+      defaultVal: true,
+    ),
+    const SwitchModel(
       title: '画中画不加载弹幕',
       subtitle: '当弹幕开关开启时，小窗屏蔽弹幕以获得较好的体验',
       leading: Icon(CustomIcons.dm_off),
