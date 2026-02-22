@@ -311,16 +311,23 @@ class VideoDetailController extends GetxController
 
   @override
   void onInit() {
-    // 开启新视频时，如果存在前代播放器的应用内小窗，则强制关闭
-    // 解决 `PipOverlayService` 缓存了上一代控制器导致 `SponsorBlock` 等状态污染的问题
-    if (PipOverlayService.isInPipMode) {
-      if (kDebugMode) {
-        debugPrint('[VideoDetailController] Active PiP detected, closing before new video initialization to prevent state pollution');
-      }
-      PipOverlayService.stopPip(immediate: true);
-    }
     super.onInit();
     args = Get.arguments;
+
+    // 开启新视频时，如果存在前代播放器的应用内小窗，则按播放上下文决定是否重置旧状态
+    // 避免不同视频/分P之间 SponsorBlock 片段状态污染，同时保留同上下文无缝恢复能力
+    if (PipOverlayService.isInPipMode) {
+      if (kDebugMode) {
+        debugPrint(
+          '[VideoDetailController] Active PiP detected, closing before new video initialization with context-aware reset',
+        );
+      }
+      PipOverlayService.stopPip(
+        immediate: true,
+        targetContextKey: PipOverlayService.contextKeyFromArgs(args),
+      );
+    }
+
     videoType = args['videoType'];
     if (videoType == VideoType.pgc) {
       if (!isLoginVideo) {

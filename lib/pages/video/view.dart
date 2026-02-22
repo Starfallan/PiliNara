@@ -153,6 +153,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     super.initState();
     VideoStackManager.increment(); // 追踪视频页面层级
     final bool fromPip = Get.arguments['fromPip'] ?? false;
+    final String? targetContextKey = PipOverlayService.contextKeyFromArgs(
+      Get.arguments is Map ? Get.arguments as Map : null,
+    );
     
     // 如果有直播间 PiP 在运行，关闭它（采用非销毁式，避免干扰视频播放器单例）
     if (LivePipOverlayService.isInPipMode && !fromPip) {
@@ -178,7 +181,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         PipOverlayService.stopPip(
           callOnClose: false,
           immediate: true,
-          resetState: false,
+          targetContextKey: targetContextKey,
         );
         _logSponsorBlock('Restored controller from PiP, hashCode: ${savedController.hashCode}, segmentList.length: ${savedController.segmentList.length}');
         
@@ -198,17 +201,10 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     } else {
       // 非 PiP 返回，正常流程（包括原页面还留在栈中或由于某些原因被销毁重构）
       if (PipOverlayService.isInPipMode) {
-        final savedController =
-            PipOverlayService.getSavedController<VideoDetailController>();
-
-        // 如果小窗内的控制器正是我们要打开的这个 (bvid 匹配)，则立即关闭小窗并保留其状态
-        // 这里如果是同一个视频，Get.put 会自动找回之前的控制器实例，我们只需确保 Overlay 关闭而不清除其 SponsorBlock 等监听
-        final bool isSameVideo = savedController?.bvid == Get.arguments['bvid'];
-
         PipOverlayService.stopPip(
           callOnClose: false,
           immediate: true,
-          resetState: !isSameVideo,
+          targetContextKey: targetContextKey,
         );
       }
       videoDetailController = Get.put(VideoDetailController(), tag: heroTag);
@@ -670,7 +666,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         PipOverlayService.stopPip(
           callOnClose: false,
           immediate: true,
-          resetState: false,
+          targetContextKey: PipOverlayService.contextKeyFromArgs(
+            videoDetailController.args,
+          ),
         );
         videoDetailController.isEnteringPip = false;
         // 小窗模式下控制栏可能被隐藏了，恢复它

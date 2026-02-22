@@ -71,6 +71,7 @@ class PipOverlayService {
   // 保存控制器引用，防止被 GC
   static dynamic _savedController;
   static PlPlayerController? _savedPlayerController;
+  static String? _savedVideoContextKey;
   static final Map<String, dynamic> _savedControllers = {};
 
   static bool _isVideoLikeRoute(String route) {
@@ -91,6 +92,57 @@ class PipOverlayService {
         });
       }
     });
+  }
+
+  static String _keyPart(Object? value) => value?.toString() ?? '';
+
+  static String? _buildVideoContextKey({
+    Object? videoType,
+    Object? bvid,
+    Object? cid,
+    Object? epId,
+    Object? seasonId,
+  }) {
+    if (bvid == null &&
+        cid == null &&
+        epId == null &&
+        seasonId == null &&
+        videoType == null) {
+      return null;
+    }
+    return [
+      _keyPart(videoType),
+      _keyPart(bvid),
+      _keyPart(cid),
+      _keyPart(epId),
+      _keyPart(seasonId),
+    ].join('|');
+  }
+
+  static String? contextKeyFromArgs(Map? args) {
+    if (args == null) {
+      return null;
+    }
+    return _buildVideoContextKey(
+      videoType: args['videoType'],
+      bvid: args['bvid'],
+      cid: args['cid'],
+      epId: args['epId'],
+      seasonId: args['seasonId'],
+    );
+  }
+
+  static String? _contextKeyFromController(dynamic controller) {
+    if (controller is! VideoDetailController) {
+      return null;
+    }
+    return _buildVideoContextKey(
+      videoType: controller.videoType,
+      bvid: controller.bvid,
+      cid: controller.cid.value,
+      epId: controller.epId,
+      seasonId: controller.seasonId,
+    );
   }
 
   static void startPip({
@@ -117,6 +169,7 @@ class PipOverlayService {
     _onTapToReturnCallback = onTapToReturn;
     _savedController = controller;
     _savedPlayerController = plPlayerController;
+    _savedVideoContextKey = _contextKeyFromController(controller);
     if (additionalControllers != null) {
       _savedControllers.addAll(additionalControllers);
     }
@@ -155,6 +208,7 @@ class PipOverlayService {
         _overlayEntry = null;
         _savedController = null;
         _savedPlayerController = null;
+        _savedVideoContextKey = null;
         _savedControllers.clear();
       }
     });
@@ -168,14 +222,20 @@ class PipOverlayService {
     bool callOnClose = true,
     bool immediate = false,
     bool resetState = true,
+    String? targetContextKey,
   }) {
     if (!isInPipMode && _overlayEntry == null) {
       return;
     }
 
+    final bool shouldResetState = targetContextKey == null
+        ? resetState
+        : targetContextKey != _savedVideoContextKey;
+
     if (kDebugMode) {
       debugPrint(
-          '[PiP] Stopping PiP mode (immediate: $immediate, callOnClose: $callOnClose, resetState: $resetState)');
+        '[PiP] Stopping PiP mode (immediate: $immediate, callOnClose: $callOnClose, shouldResetState: $shouldResetState, targetContextKey: $targetContextKey, savedContextKey: $_savedVideoContextKey)',
+      );
     }
 
     isInPipMode = false;
@@ -189,11 +249,13 @@ class PipOverlayService {
     // 清理控制器缓存，防止内存泄漏和状态污染
     if (kDebugMode &&
         (_savedController != null || _savedControllers.isNotEmpty)) {
-      debugPrint('[PiP] Clearing cached controllers, resetState: $resetState');
+      debugPrint(
+        '[PiP] Clearing cached controllers, resetState: $shouldResetState, targetContextKey: $targetContextKey, savedContextKey: $_savedVideoContextKey',
+      );
     }
 
     // 强制调用控制器的清理逻辑，特别是 SponsorBlock 相关的监听器
-    if (_savedController != null && resetState) {
+    if (_savedController != null && shouldResetState) {
       try {
         if (_savedController is VideoDetailController) {
           if (kDebugMode) {
@@ -214,6 +276,7 @@ class PipOverlayService {
 
     _savedController = null;
     _savedPlayerController = null;
+    _savedVideoContextKey = null;
     _savedControllers.clear();
 
     final overlayToRemove = _overlayEntry;
