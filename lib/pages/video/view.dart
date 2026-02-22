@@ -153,6 +153,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     super.initState();
     VideoStackManager.increment(); // 追踪视频页面层级
     final bool fromPip = Get.arguments['fromPip'] ?? false;
+    final String? targetContextKey = PipOverlayService.contextKeyFromArgs(
+      Get.arguments is Map ? Get.arguments as Map : null,
+    );
     
     // 如果有直播间 PiP 在运行，关闭它（采用非销毁式，避免干扰视频播放器单例）
     if (LivePipOverlayService.isInPipMode && !fromPip) {
@@ -175,7 +178,11 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
            // 这里很难检测 TabController 是否已销毁，但可以通过 length 触发重新创建
         }
         
-        PipOverlayService.stopPip(callOnClose: false, immediate: true);
+        PipOverlayService.stopPip(
+          callOnClose: false,
+          immediate: true,
+          targetContextKey: targetContextKey,
+        );
         _logSponsorBlock('Restored controller from PiP, hashCode: ${savedController.hashCode}, segmentList.length: ${savedController.segmentList.length}');
         
         // 强制刷新 UI 状态
@@ -194,11 +201,11 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     } else {
       // 非 PiP 返回，正常流程（包括原页面还留在栈中或由于某些原因被销毁重构）
       if (PipOverlayService.isInPipMode) {
-        final savedController =
-            PipOverlayService.getSavedController<VideoDetailController>();
-        // 如果小窗内的控制器正是我们要打开的这个（aid 匹配），则立即关闭小窗
-        // 这里如果是同一个 aid，Get.put 会自动找回之前的控制器实例，因此我们只需确保 Overlay 关闭
-        PipOverlayService.stopPip(callOnClose: false, immediate: true);
+        PipOverlayService.stopPip(
+          callOnClose: false,
+          immediate: true,
+          targetContextKey: targetContextKey,
+        );
       }
       videoDetailController = Get.put(VideoDetailController(), tag: heroTag);
     }
@@ -656,7 +663,13 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         _logSponsorBlock(
           'Returning to video page with matching active PiP, closing PiP overlay',
         );
-        PipOverlayService.stopPip(callOnClose: false, immediate: true);
+        PipOverlayService.stopPip(
+          callOnClose: false,
+          immediate: true,
+          targetContextKey: PipOverlayService.contextKeyFromArgs(
+            videoDetailController.args,
+          ),
+        );
         videoDetailController.isEnteringPip = false;
         // 小窗模式下控制栏可能被隐藏了，恢复它
         plPlayerController?.controls = true;
@@ -2454,6 +2467,10 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   }
 
   void _onPopInvokedWithResult(bool didPop, result) {
+    if (didPop && Platform.isAndroid) {
+      // 参考上游逻辑：返回时立即强制清空 Auto-PiP 状态，切断系统自动进入的时机，防止误触
+      plPlayerController?.disableAutoEnterPip();
+    }
     if (plPlayerController?.onPopInvokedWithResult(didPop, result) ?? false) {
       return;
     }
@@ -2469,7 +2486,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
   bool _shouldStartInAppPip() {
     _logSponsorBlock('Checking PiP: count=${VideoStackManager.getCount()}, previousRoute=${Get.previousRoute}');
-    if (!GStorage.setting.get(SettingBoxKey.enableInAppPip, defaultValue: true)) {
+    if (!Pref.enableInAppPip) {
       _logSponsorBlock('Reject PiP: in-app PiP is disabled in settings');
       return false;
     }
@@ -2554,6 +2571,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     _logSponsorBlock('Saved ${additionalControllers.length} additional controllers');
 
     PipOverlayService.startPip(
+      plPlayerController: plPlayerController!,
       controller: videoDetailController,
       additionalControllers: additionalControllers,
       context: context,

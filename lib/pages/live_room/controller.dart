@@ -234,7 +234,8 @@ class LiveRoomController extends GetxController {
     // 确保播放器处于直播模式
     plPlayerController.isLive = true;
     
-    return plPlayerController.setDataSource(
+    return plPlayerController
+        .setDataSource(
       DataSource(
         videoSource: videoUrl,
         audioSource: null,
@@ -248,7 +249,17 @@ class LiveRoomController extends GetxController {
       isLive: true,
       autoplay: autoplay,
       isVertical: isPortrait.value,
-    );
+    )
+        .then((_) async {
+      if (!autoplay) {
+        return;
+      }
+      final isActuallyPlaying =
+          plPlayerController.videoPlayerController?.state.playing == true;
+      if (!isActuallyPlaying) {
+        await plPlayerController.play();
+      }
+    });
   }
 
   Future<void> queryLiveUrl({bool reinitializePlayer = true}) async {

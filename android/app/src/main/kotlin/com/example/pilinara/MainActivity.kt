@@ -1,15 +1,18 @@
 package com.example.pilinara
 
 import android.app.PictureInPictureParams
+import android.app.PictureInPictureUiState
 import android.app.SearchManager
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
 import android.provider.Settings
+import android.util.Rational
 import android.view.WindowManager.LayoutParams
 import androidx.core.net.toUri
 import com.ryanheise.audioservice.AudioServiceActivity
@@ -126,10 +129,18 @@ class MainActivity : AudioServiceActivity() {
 
                 "setPipAutoEnterEnabled" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        val params = PictureInPictureParams.Builder()
-                            .setAutoEnterEnabled(call.argument<Boolean>("autoEnable") ?: false)
-                            .build()
-                        setPictureInPictureParams(params)
+                        try {
+                            val enabled = call.argument<Boolean>("autoEnable") ?: false
+                            val params = PictureInPictureParams.Builder()
+                                .setAutoEnterEnabled(enabled)
+                                .build()
+                            setPictureInPictureParams(params)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.error("ERROR", "Failed to set auto-PiP: ${e.message}", null)
+                        }
+                    } else {
+                        result.success(false)
                     }
                 }
 
@@ -171,9 +182,14 @@ class MainActivity : AudioServiceActivity() {
         newConfig: Configuration?
     ) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        
+        // 发送给 floating 插件，确保插件内部状态（isPipMode）同步
         MethodChannel(
             flutterEngine!!.dartExecutor.binaryMessenger,
             "floating"
         ).invokeMethod("onPipChanged", isInPictureInPictureMode)
+        
+        // 发送给主项目频道，供业务逻辑使用
+        methodChannel.invokeMethod("onPipChanged", isInPictureInPictureMode)
     }
 }

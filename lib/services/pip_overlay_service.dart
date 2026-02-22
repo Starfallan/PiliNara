@@ -6,8 +6,10 @@ import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
+import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'dart:io' show Platform;
 import 'package:get/get.dart';
 
 class VideoStackManager {
@@ -68,10 +70,87 @@ class PipOverlayService {
   
   // 保存控制器引用，防止被 GC
   static dynamic _savedController;
+  static PlPlayerController? _savedPlayerController;
+  static String? _savedVideoContextKey;
   static final Map<String, dynamic> _savedControllers = {};
+
+  static bool _isVideoLikeRoute(String route) {
+    return route.startsWith('/video') || route.startsWith('/liveRoom');
+  }
+
+  static void _setSystemAutoPipEnabled(
+    PlPlayerController? plPlayerController,
+    bool enabled,
+  ) {
+    if (!Platform.isAndroid ||
+        plPlayerController == null ||
+        !plPlayerController.autoPiP ||
+        !Pref.enableInAppPipToSystemPip) {
+      return;
+    }
+    Utils.sdkInt.then((sdkInt) {
+      if (sdkInt >= 31) {
+        Utils.channel.invokeMethod('setPipAutoEnterEnabled', {
+          'autoEnable': enabled,
+        });
+      }
+    });
+  }
+
+  static String _keyPart(Object? value) => value?.toString() ?? '';
+
+  static String? _buildVideoContextKey({
+    Object? videoType,
+    Object? bvid,
+    Object? cid,
+    Object? epId,
+    Object? seasonId,
+  }) {
+    if (bvid == null &&
+        cid == null &&
+        epId == null &&
+        seasonId == null &&
+        videoType == null) {
+      return null;
+    }
+    return [
+      _keyPart(videoType),
+      _keyPart(bvid),
+      _keyPart(cid),
+      _keyPart(epId),
+      _keyPart(seasonId),
+    ].join('|');
+  }
+
+  static String? contextKeyFromArgs(Map? args) {
+    if (args == null) {
+      return null;
+    }
+    return _buildVideoContextKey(
+      videoType: args['videoType'],
+      bvid: args['bvid'],
+      cid: args['cid'],
+      epId: args['epId'],
+      seasonId: args['seasonId'],
+    );
+  }
+
+  static String? _contextKeyFromController(dynamic controller) {
+    if (controller is! VideoDetailController) {
+      return null;
+    }
+    return _buildVideoContextKey(
+      videoType: controller.videoType,
+      bvid: controller.bvid,
+      cid: controller.cid.value,
+      epId: controller.epId,
+      seasonId: controller.seasonId,
+    );
+  }
 
   static void startPip({
     required BuildContext context,
+    required PlPlayerController plPlayerController,
     required Widget Function(bool isNative, double width, double height)
     videoPlayerBuilder,
     VoidCallback? onClose,
@@ -92,6 +171,8 @@ class PipOverlayService {
     _onCloseCallback = onClose;
     _onTapToReturnCallback = onTapToReturn;
     _savedController = controller;
+    _savedPlayerController = plPlayerController;
+    _savedVideoContextKey = _contextKeyFromController(controller);
     if (additionalControllers != null) {
       _savedControllers.addAll(additionalControllers);
     }
@@ -115,12 +196,23 @@ class PipOverlayService {
       try {
         final overlayContext = Get.overlayContext ?? context;
         Overlay.of(overlayContext).insert(_overlayEntry!);
+        
+        // 允许应用内小窗继续使用 Auto-PiP 手势
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!isInPipMode) return;
+          _setSystemAutoPipEnabled(plPlayerController, true);
+        });
       } catch (e) {
         if (kDebugMode) {
           debugPrint('Error inserting pip overlay: $e');
         }
+        _setSystemAutoPipEnabled(plPlayerController, false);
         isInPipMode = false;
         _overlayEntry = null;
+        _savedController = null;
+        _savedPlayerController = null;
+        _savedVideoContextKey = null;
+        _savedControllers.clear();
       }
     });
   }
@@ -129,26 +221,81 @@ class PipOverlayService {
   
   static T? getAdditionalController<T>(String key) => _savedControllers[key] as T?;
 
-  static void stopPip({bool callOnClose = true, bool immediate = false}) {
+  static void stopPip({
+    bool callOnClose = true,
+    bool immediate = false,
+    bool resetState = true,
+    String? targetContextKey,
+  }) {
     if (!isInPipMode && _overlayEntry == null) {
       return;
+    }
+
+    final bool shouldResetState = targetContextKey == null
+        ? resetState
+        : targetContextKey != _savedVideoContextKey;
+
+    if (kDebugMode) {
+      debugPrint(
+        '[PiP] Stopping PiP mode (immediate: $immediate, callOnClose: $callOnClose, shouldResetState: $shouldResetState, targetContextKey: $targetContextKey, savedContextKey: $_savedVideoContextKey)',
+      );
     }
 
     isInPipMode = false;
     isNativePip = false;
 
     final closeCallback = callOnClose ? _onCloseCallback : null;
+    final playerController = _savedPlayerController;
     _onCloseCallback = null;
     _onTapToReturnCallback = null;
+
+    // 清理控制器缓存，防止内存泄漏和状态污染
+    if (kDebugMode &&
+        (_savedController != null || _savedControllers.isNotEmpty)) {
+      debugPrint(
+        '[PiP] Clearing cached controllers, resetState: $shouldResetState, targetContextKey: $targetContextKey, savedContextKey: $_savedVideoContextKey',
+      );
+    }
+
+    // 强制调用控制器的清理逻辑，特别是 SponsorBlock 相关的监听器
+    if (_savedController != null && shouldResetState) {
+      try {
+        if (_savedController is VideoDetailController) {
+          if (kDebugMode) {
+            debugPrint(
+                '[PiP] Explicitly resetting SponsorBlock state for cached VideoDetailController');
+          }
+          (_savedController as VideoDetailController).resetBlock();
+        } else if (kDebugMode) {
+          debugPrint(
+              '[PiP] Cached controller is not a VideoDetailController, skipping resetBlock');
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('[PiP] Error while resetting cached controller: $e');
+        }
+      }
+    }
+
     _savedController = null;
+    _savedPlayerController = null;
+    _savedVideoContextKey = null;
     _savedControllers.clear();
 
     final overlayToRemove = _overlayEntry;
     _overlayEntry = null;
 
+    // 小窗结束后，仅在视频/直播详情页中保留系统 Auto-PiP，其余场景立即关闭防止误触发
+    final currentRoute = Get.currentRoute;
+    final keepAutoPip = _isVideoLikeRoute(currentRoute);
+    _setSystemAutoPipEnabled(playerController, keepAutoPip);
+
     void removeAndCallback() {
       try {
         overlayToRemove?.remove();
+        if (kDebugMode) {
+          debugPrint('[PiP] Overlay entry removed successfully');
+        }
       } catch (e) {
         if (kDebugMode) {
           debugPrint('Error removing pip overlay: $e');
@@ -225,10 +372,8 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!PipOverlayService.isInPipMode) return;
 
-    if (state == AppLifecycleState.resumed) {
-      // 从系统画中画返回应用，恢复应用内小窗
-      PipOverlayService.isNativePip = false;
-    }
+    // 此处无需重复处理，状态同步由PlPlayerController中的onPipChanged消息统一管理
+    // 而且在Controller中已加入了退出延迟，确保系统转场动画完成后再切换布局。
   }
 
   void _startHideTimer() {
@@ -292,21 +437,38 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
 
     return Obx(() {
       final bool isNative = PipOverlayService.isNativePip;
-      final double currentWidth = isNative ? screenSize.width : _width;
-      final double currentHeight = isNative ? screenSize.height : _height;
-      final double currentLeft = isNative ? 0 : _left!;
-      final double currentTop = isNative ? 0 : _top!;
+      
+      // 系统 PiP 模式下，直接铺满窗口，不执行任何自定义尺寸或位置计算
+      if (isNative) {
+        return Positioned.fill(
+          child: Container(
+            color: Colors.black,
+            child: AbsorbPointer(
+              child: widget.videoPlayerBuilder(
+                true,
+                screenSize.width,
+                screenSize.height,
+              ),
+            ),
+          ),
+        );
+      }
+
+      final double currentWidth = _width;
+      final double currentHeight = _height;
+      final double currentLeft = _left!;
+      final double currentTop = _top!;
 
       return Positioned(
         left: currentLeft,
         top: currentTop,
         child: GestureDetector(
-          onTap: isNative ? null : _onTap,
-          onDoubleTap: isNative ? null : _onDoubleTap,
-          onPanStart: isNative ? null : (_) {
+          onTap: _onTap,
+          onDoubleTap: _onDoubleTap,
+          onPanStart: (_) {
             _hideTimer?.cancel();
           },
-          onPanUpdate: isNative ? null : (details) {
+          onPanUpdate: (details) {
             setState(() {
               _left = (_left! + details.delta.dx)
                   .clamp(
@@ -322,20 +484,20 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
                   .toDouble();
             });
           },
-          onPanEnd: isNative ? null : (_) {
+          onPanEnd: (_) {
             if (_showControls) {
               _startHideTimer();
             }
           },
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
+            duration: const Duration(milliseconds: 250),
             curve: Curves.easeOutCubic,
             width: currentWidth,
             height: currentHeight,
             decoration: BoxDecoration(
               color: Colors.black,
-              borderRadius: isNative ? BorderRadius.zero : BorderRadius.circular(8),
-              boxShadow: isNative ? [] : [
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.5),
                   blurRadius: 10,
@@ -344,19 +506,19 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
               ],
             ),
             child: ClipRRect(
-              borderRadius: isNative ? BorderRadius.zero : BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(8),
               child: Stack(
                 children: [
                   Positioned.fill(
                     child: AbsorbPointer(
                       child: widget.videoPlayerBuilder(
-                        isNative,
+                        false,
                         currentWidth,
                         currentHeight,
                       ),
                     ),
                   ),
-                  if (!isNative && _showControls) ...[
+                  if (_showControls) ...[
                     Positioned.fill(
                       child: Container(
                         color: Colors.black.withValues(alpha: 0.4),

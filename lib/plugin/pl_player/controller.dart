@@ -224,6 +224,7 @@ class PlPlayerController with BlockConfigMixin {
 
   late final bool autoPiP = Pref.autoPiP;
   bool get isPipMode =>
+      isNativePip.value ||
       (Platform.isAndroid && Floating().isPipMode) ||
       (PlatformUtils.isDesktop && isDesktopPip);
   late bool isDesktopPip = false;
@@ -302,6 +303,10 @@ class PlPlayerController with BlockConfigMixin {
         previousRoute.startsWith('/liveRoom');
   }
 
+  bool get _isInInAppPip {
+    return PipOverlayService.isInPipMode || LivePipOverlayService.isInPipMode;
+  }
+
   void enterPip({bool isAuto = false}) {
     if (videoController != null) {
       controls = false;
@@ -315,15 +320,26 @@ class PlPlayerController with BlockConfigMixin {
   }
 
   void _disableAutoEnterPipIfNeeded() {
+    // 对齐上游逻辑，如果是从视频页返回到非视频页，则切断 Auto-Enter PiP
     if (!_isPreviousVideoPage) {
       _disableAutoEnterPip();
     }
   }
 
+  void disableAutoEnterPip() => _disableAutoEnterPip();
+
   void _disableAutoEnterPip() {
     if (_shouldSetPip) {
       Utils.channel.invokeMethod('setPipAutoEnterEnabled', {
         'autoEnable': false,
+      });
+    }
+  }
+
+  void _enableAutoEnterPip() {
+    if (_shouldSetPip && autoPiP && _isCurrVideoPage) {
+      Utils.channel.invokeMethod('setPipAutoEnterEnabled', {
+        'autoEnable': true,
       });
     }
   }
@@ -537,40 +553,31 @@ class PlPlayerController with BlockConfigMixin {
       Utils.sdkInt.then((sdkInt) {
         Utils.channel.setMethodCallHandler((call) async {
           if (call.method == 'onUserLeaveHint') {
-            final bool isInInAppPip = PipOverlayService.isInPipMode ||
-                LivePipOverlayService.isInPipMode;
-            
-            if (isInInAppPip) {
-              // 模拟全屏以获得正确的 PiP 切换动画
-              PipOverlayService.isNativePip = true;
-              LivePipOverlayService.isNativePip = true;
+            if (_isInInAppPip) {
+              enterPip();
+              return;
             }
 
-            // 对于 SDK < 36，手动触发 PiP
-            if (sdkInt < 36) {
-              if (playerStatus.isPlaying && (_isCurrVideoPage || isInInAppPip)) {
+            // 在普通详情页（非小窗模式），对于 SDK < 31 的设备手动触发 PiP
+            if (sdkInt < 31) {
+              if (playerStatus.isPlaying && _isCurrVideoPage) {
                 enterPip();
               }
+            } else if (!_isCurrVideoPage) {
+              // Android 12+ 下，离开非视频页时兜底切断 Auto-PiP，防止状态残留误触发
+              _disableAutoEnterPip();
             }
           } else if (call.method == 'onPipChanged') {
             final bool isInPip = call.arguments as bool;
-            if (!isInPip &&
-                isNativePip.value &&
-                (PipOverlayService.isInPipMode ||
-                    LivePipOverlayService.isInPipMode)) {
-              if (PipOverlayService.isInPipMode) {
-                PipOverlayService.onTapToReturn();
-              } else if (LivePipOverlayService.isInPipMode) {
-                LivePipOverlayService.onReturn();
-              }
-            }
+            
+            // 立即更新状态，避免由于状态更新滞后同步导致界面在恢复全屏过程中产生的“缩小在角落”或“渲染异常”
             isNativePip.value = isInPip;
             PipOverlayService.isNativePip = isInPip;
             LivePipOverlayService.isNativePip = isInPip;
           }
         });
 
-        if (sdkInt >= 36) {
+        if (sdkInt >= 31) {
           _shouldSetPip = true;
         }
       });
@@ -1017,10 +1024,8 @@ class PlPlayerController with BlockConfigMixin {
         WakelockPlus.toggle(enable: event);
         if (event) {
           if (_shouldSetPip) {
-            final bool isInInAppPip =
-                PipOverlayService.isInPipMode ||
-                LivePipOverlayService.isInPipMode;
-            if (_isCurrVideoPage || isInInAppPip) {
+            // 在播放时，如果是在视频页或者是已经开启了应用内小窗，则设置系统自动 PiP 标志
+            if (_isCurrVideoPage || _isInInAppPip) {
               enterPip(isAuto: true);
             } else {
               _disableAutoEnterPip();

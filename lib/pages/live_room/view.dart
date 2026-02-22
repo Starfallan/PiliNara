@@ -290,7 +290,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
   @override
   Widget build(BuildContext context) {
     Widget child;
-    if (Platform.isAndroid && Floating().isPipMode) {
+    if (plPlayerController.isPipMode) {
       child = videoPlayerPanel(
         isFullScreen,
         width: maxWidth,
@@ -453,6 +453,10 @@ class _LiveRoomPageState extends State<LiveRoomPage>
   }
 
   void _onPopInvokedWithResult(bool didPop, result) {
+    if (didPop && Platform.isAndroid) {
+      // 只要返回了，先强制切断 Auto-PiP 权限，防止手势误触
+      plPlayerController.disableAutoEnterPip();
+    }
     if (plPlayerController.onPopInvokedWithResult(didPop, result)) {
       return;
     }

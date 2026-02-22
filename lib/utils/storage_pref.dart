@@ -882,6 +882,12 @@ abstract final class Pref {
   static bool get autoPiP =>
       _setting.get(SettingBoxKey.autoPiP, defaultValue: false);
 
+  static bool get enableInAppPip =>
+      _setting.get(SettingBoxKey.enableInAppPip, defaultValue: true);
+
+  static bool get enableInAppPipToSystemPip =>
+      _setting.get(SettingBoxKey.enableInAppPipToSystemPip, defaultValue: true);
+
   static bool get enableSponsorBlock =>
       _setting.get(SettingBoxKey.enableSponsorBlock, defaultValue: false);
 

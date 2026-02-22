@@ -1999,60 +1999,83 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
   }
 
   Widget get _videoWidget {
-    return Container(
-      clipBehavior: Clip.none,
-      width: maxWidth,
-      height: maxHeight,
-      color: widget.fill,
-      child: Obx(
-        () => MouseInteractiveViewer(
-          scaleEnabled: !plPlayerController.controlsLock.value,
-          pointerSignalFallback: _onPointerSignal,
-          onPointerPanZoomUpdate: _onPointerPanZoomUpdate,
-          onPointerPanZoomEnd: _onPointerPanZoomEnd,
-          onPointerDown: _onPointerDown,
-          onInteractionStart: _onInteractionStart,
-          onInteractionUpdate: _onInteractionUpdate,
-          onInteractionEnd: _onInteractionEnd,
-          panEnabled: false,
-          minScale: plPlayerController.enableShrinkVideoSize ? 0.75 : 1,
-          maxScale: 2.0,
-          boundaryMargin: plPlayerController.enableShrinkVideoSize
-              ? const EdgeInsets.all(double.infinity)
-              : EdgeInsets.zero,
-          panAxis: PanAxis.aligned,
-          transformationController: transformationController,
-          onTranslate: () {
-            final storage = transformationController.value.storage;
-            showRestoreScaleBtn.value =
-                storage[12].abs() > 2.0 ||
-                storage[13].abs() > 2.0 ||
-                storage[0] != 1.0;
-          },
-          childKey: _videoKey,
-          child: RepaintBoundary(
-            key: _videoKey,
-            child: Obx(
-              () {
-                final videoFit = plPlayerController.videoFit.value;
-                return Transform.flip(
-                  flipX: plPlayerController.flipX.value,
-                  flipY: plPlayerController.flipY.value,
-                  child: FittedBox(
-                    fit: videoFit.boxFit,
-                    alignment: widget.alignment,
-                    child: SimpleVideo(
-                      controller: plPlayerController.videoController!,
-                      fill: widget.fill,
-                      aspectRatio: videoFit.aspectRatio,
-                    ),
-                  ),
-                );
+    // 使用 LayoutBuilder 动态捕获当前渲染容器的真实约束。
+    // 在系统画中画（PiP）转场或拖动过程中，MediaQuery 更新可能不及时，
+    // 而 LayoutBuilder 提供的 Constraints 是最准确的。
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 如果是在小窗模式下，或者当前容器具有有效的有限约束，则优先使用约束尺寸，
+        // 从而解决从系统 PiP 恢复到应用时渲染容器未及时由于 layout 变化而导致渲染异常的问题。
+        final bool useConstraints = (widget.isPipMode ||
+                (constraints.maxWidth > 0 && constraints.maxWidth.isFinite));
+
+        final double currentWidth = useConstraints
+            ? constraints.maxWidth.clamp(0.0, double.infinity)
+            : maxWidth;
+        final double currentHeight = useConstraints
+            ? constraints.maxHeight.clamp(0.0, double.infinity)
+            : maxHeight;
+            
+        // 确保容器至少有一个最小有效的尺寸，避免播放引擎初始化失败
+        final double finalWidth = currentWidth > 0 ? currentWidth : (maxWidth > 0 ? maxWidth : 16.0);
+        final double finalHeight = currentHeight > 0 ? currentHeight : (maxHeight > 0 ? maxHeight : 9.0);
+
+        return Container(
+          clipBehavior: Clip.none,
+          width: finalWidth,
+          height: finalHeight,
+          color: widget.fill,
+          child: Obx(
+            () => MouseInteractiveViewer(
+              scaleEnabled: !plPlayerController.controlsLock.value,
+              pointerSignalFallback: _onPointerSignal,
+              onPointerPanZoomUpdate: _onPointerPanZoomUpdate,
+              onPointerPanZoomEnd: _onPointerPanZoomEnd,
+              onPointerDown: _onPointerDown,
+              onInteractionStart: _onInteractionStart,
+              onInteractionUpdate: _onInteractionUpdate,
+              onInteractionEnd: _onInteractionEnd,
+              panEnabled: false,
+              minScale: plPlayerController.enableShrinkVideoSize ? 0.75 : 1,
+              maxScale: 2.0,
+              boundaryMargin: plPlayerController.enableShrinkVideoSize
+                  ? const EdgeInsets.all(double.infinity)
+                  : EdgeInsets.zero,
+              panAxis: PanAxis.aligned,
+              transformationController: transformationController,
+              onTranslate: () {
+                final storage = transformationController.value.storage;
+                showRestoreScaleBtn.value =
+                    storage[12].abs() > 2.0 ||
+                    storage[13].abs() > 2.0 ||
+                    storage[0] != 1.0;
               },
+              childKey: _videoKey,
+              child: RepaintBoundary(
+                key: _videoKey,
+                child: Obx(
+                  () {
+                    final videoFit = plPlayerController.videoFit.value;
+                    return Transform.flip(
+                      flipX: plPlayerController.flipX.value,
+                      flipY: plPlayerController.flipY.value,
+                      child: FittedBox(
+                        fit: videoFit.boxFit,
+                        alignment: widget.alignment,
+                        child: SimpleVideo(
+                          controller: plPlayerController.videoController!,
+                          fill: widget.fill,
+                          aspectRatio: videoFit.aspectRatio,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
