@@ -546,6 +546,7 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
                             size: 21,
                             ),
                       ),
+                      ),
                     ),
                     // 右上角还原
                     Positioned(
@@ -566,7 +567,7 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
                           child: Icon(
                             Icons.open_in_full,
                             color: Colors.white,
-                            size: 18,
+                            size: 19,
                           ),
                         ),
                       ),
