@@ -25,6 +25,7 @@ import 'package:PiliPlus/models_new/video/video_detail/video_detail_response.dar
 import 'package:PiliPlus/models_new/video/video_note_list/data.dart';
 import 'package:PiliPlus/models_new/video/video_play_info/data.dart';
 import 'package:PiliPlus/models_new/video/video_relation/data.dart';
+import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/app_sign.dart';
 import 'package:PiliPlus/utils/extension/string_ext.dart';
@@ -130,6 +131,10 @@ abstract final class VideoHttp {
           'bili-http-engine': 'cronet',
         },
       ),
+    );
+    logger.e(
+      '[recommendListApp] /x/v2/feed/index full response: '
+      '${res.data is String ? res.data : jsonEncode(res.data)}',
     );
     if (res.data['code'] == 0) {
       List<RecVideoItemAppModel> list = <RecVideoItemAppModel>[];
