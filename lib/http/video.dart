@@ -132,10 +132,19 @@ abstract final class VideoHttp {
         },
       ),
     );
-    logger.e(
-      '[recommendListApp] /x/v2/feed/index full response: '
-      '${res.data is String ? res.data : jsonEncode(res.data)}',
-    );
+    try {
+      final fullResponse =
+          res.data is String ? res.data : jsonEncode(res.data);
+      throw Exception(
+        '[recommendListApp] /x/v2/feed/index full response: $fullResponse',
+      );
+    } catch (e, s) {
+      logger.e(
+        '[recommendListApp] captured full response',
+        error: e,
+        stackTrace: s,
+      );
+    }
     if (res.data['code'] == 0) {
       List<RecVideoItemAppModel> list = <RecVideoItemAppModel>[];
       for (final i in res.data['data']['items']) {

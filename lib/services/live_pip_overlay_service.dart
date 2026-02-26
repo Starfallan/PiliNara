@@ -404,7 +404,7 @@ class _LivePipWidgetState extends State<LivePipWidget> with WidgetsBindingObserv
                     ),
                     // 左上角关闭
                     Positioned(
-                      top: 4,
+                      top: 3,
                       left: 4,
                       child: GestureDetector(
                         onTap: () {
@@ -423,7 +423,7 @@ class _LivePipWidgetState extends State<LivePipWidget> with WidgetsBindingObserv
                     ),
                     // 右上角放大/还原
                     Positioned(
-                      top: 4,
+                      top: 3,
                       right: 4,
                       child: GestureDetector(
                         onTap: () {
