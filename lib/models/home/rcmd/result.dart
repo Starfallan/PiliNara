@@ -6,6 +6,7 @@ import 'package:PiliPlus/utils/num_utils.dart';
 class RecVideoItemAppModel extends BaseRecVideoItemModel {
   int? get id => aid;
   String? talkBack;
+  String? tname;
 
   String? cardType;
   ThreePoint? threePoint;
@@ -44,6 +45,7 @@ class RecVideoItemAppModel extends BaseRecVideoItemModel {
     }
 
     cardType = json['card_type'];
+    tname = json['args']?['tname'];
     threePoint = json['three_point_v2'] != null
         ? ThreePoint.fromJson(json['three_point_v2'])
         : null;

@@ -5,12 +5,13 @@ import 'package:PiliPlus/models/home/rcmd/result.dart';
 import 'package:PiliPlus/models/model_video.dart';
 import 'package:PiliPlus/models_new/space/space_archive/item.dart';
 import 'package:PiliPlus/pages/mine/controller.dart';
-import 'package:PiliPlus/pages/search/widgets/search_text.dart';
 import 'package:PiliPlus/pages/video/ai_conclusion/view.dart';
 import 'package:PiliPlus/pages/video/introduction/ugc/controller.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/recommend_filter.dart';
+import 'package:PiliPlus/utils/storage.dart';
+import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/material.dart';
@@ -23,6 +24,18 @@ class _VideoCustomAction {
   final Widget icon;
   final VoidCallback onTap;
   const _VideoCustomAction(this.title, this.icon, this.onTap);
+}
+
+class _DialogChipAction {
+  final String label;
+  final VoidCallback onPressed;
+  const _DialogChipAction({required this.label, required this.onPressed});
+}
+
+class _DialogSection {
+  final String? title;
+  final List<_DialogChipAction> actions;
+  const _DialogSection({this.title, required this.actions});
 }
 
 class VideoPopupMenu extends StatelessWidget {
@@ -38,6 +51,182 @@ class VideoPopupMenu extends StatelessWidget {
     this.onRemove,
     this.menuItemHeight = 45,
   });
+
+  void _addBlockedUser() {
+    final mid = videoItem.owner.mid;
+    if (mid == null) {
+      SmartDialog.showToast('无法获取用户ID');
+      return;
+    }
+    final blockedMids = Pref.recommendBlockedMids;
+    final name = videoItem.owner.name ?? 'UID:$mid';
+    blockedMids[mid] = name;
+    Pref.recommendBlockedMids = blockedMids;
+    GlobalData().recommendBlockedMids = blockedMids;
+    RecommendFilter.recommendBlockedMids = blockedMids;
+    SmartDialog.showToast('已屏蔽$name($mid)，可在推荐流设置中管理');
+    onRemove?.call();
+  }
+
+  void _appendKeyword({
+    required String key,
+    required String value,
+    required void Function(RegExp) applyRegex,
+    required String successMsg,
+  }) {
+    final keyword = value.trim();
+    if (keyword.isEmpty) {
+      SmartDialog.showToast('关键词为空');
+      return;
+    }
+    final escapedKeyword = RegExp.escape(keyword);
+    final stored = GStorage.setting.get(key, defaultValue: '') as String;
+    final items = stored
+        .split('\n')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    if (!items.contains(escapedKeyword)) {
+      items.add(escapedKeyword);
+      final joined = items.join('\n');
+      GStorage.setting.put(key, joined);
+      applyRegex(
+        RegExp(Pref.parseBanWordToRegex(joined), caseSensitive: false),
+      );
+      SmartDialog.showToast(successMsg);
+      onRemove?.call();
+      return;
+    }
+    SmartDialog.showToast('已存在该屏蔽关键词');
+    onRemove?.call();
+  }
+
+  String? _getZoneName() {
+    if (videoItem case HotVideoItemModel(:final tname)) {
+      return tname;
+    }
+    if (videoItem case RecVideoItemAppModel(:final tname)) {
+      return tname;
+    }
+    return null;
+  }
+
+  Widget _buildDialogChip(_DialogChipAction action) => ActionChip(
+    label: Text(action.label),
+    visualDensity: VisualDensity.compact,
+    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    onPressed: action.onPressed,
+  );
+
+  void _showReasonDialog({
+    required BuildContext context,
+    required String title,
+    required List<_DialogSection> sections,
+    required List<Widget> actions,
+  }) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final theme = Theme.of(context);
+        return AlertDialog(
+          title: Text(title),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (int i = 0; i < sections.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 12),
+                  if (sections[i].title != null) ...[
+                    Text(
+                      sections[i].title!,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: sections[i].actions
+                        .map(_buildDialogChip)
+                        .toList(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: actions,
+        );
+      },
+    );
+  }
+
+  void _showLocalBlockDialog(BuildContext context) {
+    final ownerName = videoItem.owner.name ?? '未知UP';
+    final title = videoItem.title.trim();
+    final zoneName = _getZoneName()?.trim();
+    _showReasonDialog(
+      context: context,
+      title: '本地屏蔽',
+      sections: [
+        _DialogSection(
+          title: '屏蔽原因',
+          actions: [
+            _DialogChipAction(
+              label: 'UP主:$ownerName',
+              onPressed: () {
+                Get.back();
+                _addBlockedUser();
+              },
+            ),
+            if (title.isNotEmpty)
+              _DialogChipAction(
+                label: '标题:$title',
+                onPressed: () {
+                  Get.back();
+                  _appendKeyword(
+                    key: SettingBoxKey.banWordForRecommend,
+                    value: title,
+                    applyRegex: (value) {
+                      RecommendFilter.rcmdRegExp = value;
+                      RecommendFilter.enableFilter = value.pattern.isNotEmpty;
+                    },
+                    successMsg: '已加入标题关键词屏蔽',
+                  );
+                },
+              ),
+            _DialogChipAction(
+              label: zoneName?.isNotEmpty == true ? '频道:$zoneName' : '频道:无法获取',
+              onPressed: () {
+                if (zoneName?.isNotEmpty != true) {
+                  SmartDialog.showToast('当前视频无法获取频道信息');
+                  return;
+                }
+                Get.back();
+                _appendKeyword(
+                  key: SettingBoxKey.banWordForZone,
+                  value: zoneName!,
+                  applyRegex: (value) {
+                    VideoHttp.zoneRegExp = value;
+                    VideoHttp.enableFilter = value.pattern.isNotEmpty;
+                  },
+                  successMsg: '已加入频道关键词屏蔽',
+                );
+              },
+            ),
+          ],
+        ),
+      ],
+      actions: [
+        TextButton(
+          onPressed: Get.back,
+          child: const Text('取消'),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -133,25 +322,9 @@ class VideoPopupMenu extends StatelessWidget {
 
 
               _VideoCustomAction(
-                '屏蔽：${videoItem.owner.name}',
+                '本地屏蔽',
                 const Icon(MdiIcons.accountOff, size: 16),
-                () {
-                  final mid = videoItem.owner.mid;
-                  if (mid == null) {
-                    SmartDialog.showToast('无法获取用户ID');
-                    return;
-                  }
-                  final blockedMids = Pref.recommendBlockedMids;
-                  final name = videoItem.owner.name ?? 'UID:$mid';
-                  blockedMids[mid] = name; // 存储UID和用户名的映射
-                  Pref.recommendBlockedMids = blockedMids;
-                  GlobalData().recommendBlockedMids = blockedMids;
-                  RecommendFilter.recommendBlockedMids = blockedMids;
-                  SmartDialog.showToast(
-                    '已屏蔽${name}(${mid})，可在推荐流设置中管理',
-                  );
-                  onRemove?.call();
-                },
+                () => _showLocalBlockDialog(context),
               ),
               _VideoCustomAction(
                 '不感兴趣',
@@ -176,95 +349,71 @@ class VideoPopupMenu extends StatelessWidget {
                       );
                       return;
                     }
-                    Widget actionButton(Reason? r, Reason? f) {
-                      return SearchText(
-                        text: r?.name ?? f?.name ?? '未知',
-                        onTap: (_) async {
-                          Get.back();
-                          SmartDialog.showLoading(msg: '正在提交');
-                          final res = await VideoHttp.feedDislike(
-                            reasonId: r?.id,
-                            feedbackId: f?.id,
-                            id: item.param!,
-                            goto: item.goto!,
-                          );
-                          SmartDialog.dismiss();
-                          if (res.isSuccess) {
-                            SmartDialog.showToast(
-                              r?.toast ?? f!.toast!,
-                            );
-                            onRemove?.call();
-                          } else {
-                            res.toast();
-                          }
-                        },
+                    VoidCallback onReasonTap({Reason? r, Reason? f}) => () async {
+                      Get.back();
+                      SmartDialog.showLoading(msg: '正在提交');
+                      final res = await VideoHttp.feedDislike(
+                        reasonId: r?.id,
+                        feedbackId: f?.id,
+                        id: item.param!,
+                        goto: item.goto!,
                       );
-                    }
+                      SmartDialog.dismiss();
+                      if (res.isSuccess) {
+                        SmartDialog.showToast(r?.toast ?? f!.toast!);
+                        onRemove?.call();
+                      } else {
+                        res.toast();
+                      }
+                    };
 
-                    showDialog(
+                    _showReasonDialog(
                       context: context,
-                      builder: (context) {
-                        return AlertDialog(
-                          content: SingleChildScrollView(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (tp.dislikeReasons != null) ...[
-                                  const Text('我不想看'),
-                                  const SizedBox(height: 5),
-                                  Wrap(
-                                    spacing: 8.0,
-                                    runSpacing: 8.0,
-                                    children: tp.dislikeReasons!.map((
-                                      item,
-                                    ) {
-                                      return actionButton(item, null);
-                                    }).toList(),
+                      title: '我不想看',
+                      sections: [
+                        if (tp.dislikeReasons != null)
+                          _DialogSection(
+                            actions: tp.dislikeReasons!
+                                .map(
+                                  (reason) => _DialogChipAction(
+                                    label: reason.name ?? '未知',
+                                    onPressed: onReasonTap(r: reason),
                                   ),
-                                ],
-                                if (tp.feedbacks != null) ...[
-                                  const SizedBox(height: 5),
-                                  const Text('反馈'),
-                                  const SizedBox(height: 5),
-                                  Wrap(
-                                    spacing: 8.0,
-                                    runSpacing: 8.0,
-                                    children: tp.feedbacks!.map((item) {
-                                      return actionButton(null, item);
-                                    }).toList(),
-                                  ),
-                                ],
-                                const Divider(),
-                                Center(
-                                  child: FilledButton.tonal(
-                                    onPressed: () async {
-                                      SmartDialog.showLoading(
-                                        msg: '正在提交',
-                                      );
-                                      final res =
-                                          await VideoHttp.feedDislikeCancel(
-                                            id: item.param!,
-                                            goto: item.goto!,
-                                          );
-                                      SmartDialog.dismiss();
-                                      SmartDialog.showToast(
-                                        res.isSuccess
-                                            ? "成功"
-                                            : res.toString(),
-                                      );
-                                      Get.back();
-                                    },
-                                    style: FilledButton.styleFrom(
-                                      visualDensity: VisualDensity.compact,
-                                    ),
-                                    child: const Text("撤销"),
-                                  ),
-                                ),
-                              ],
-                            ),
+                                )
+                                .toList(),
                           ),
-                        );
-                      },
+                        if (tp.feedbacks != null)
+                          _DialogSection(
+                            title: '反馈',
+                            actions: tp.feedbacks!
+                                .map(
+                                  (feedback) => _DialogChipAction(
+                                    label: feedback.name ?? '未知',
+                                    onPressed: onReasonTap(f: feedback),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                      ],
+                      actions: [
+                        TextButton(
+                          onPressed: () async {
+                            SmartDialog.showLoading(
+                              msg: '正在提交',
+                            );
+                            final res = await VideoHttp.feedDislikeCancel(
+                              id: item.param!,
+                              goto: item.goto!,
+                            );
+                            SmartDialog.dismiss();
+                            SmartDialog.showToast(
+                              res.isSuccess ? "成功" : res.toString(),
+                            );
+                            Get.back();
+                          },
+                          child: const Text("撤销"),
+                        ),
+                      ],
                     );
                   } else {
                     showDialog(
