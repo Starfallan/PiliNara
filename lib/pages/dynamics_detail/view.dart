@@ -368,18 +368,19 @@ class _DynamicDetailPageState extends CommonDynPageState<DynamicDetailPage> {
               required IconData icon,
               required String text,
               required DynamicStat? stat,
-              required VoidCallback onPressed,
+              required ValueChanged<Color> onPressed,
               IconData? activatedIcon,
             }) {
               final status = stat?.status == true;
               final color = status ? primary : outline;
+              final iconWidget = Icon(
+                status ? activatedIcon : icon,
+                size: 16,
+                color: color,
+              );
               return TextButton.icon(
-                onPressed: onPressed,
-                icon: Icon(
-                  status ? activatedIcon : icon,
-                  size: 16,
-                  color: color,
-                ),
+                onPressed: () => onPressed(iconWidget.color!),
+                icon: iconWidget,
                 style: btnStyle,
                 label: Text(
                   stat?.count != null ? NumUtils.numFormat(stat!.count) : text,
@@ -422,7 +423,7 @@ class _DynamicDetailPageState extends CommonDynPageState<DynamicDetailPage> {
                               icon: FontAwesomeIcons.shareFromSquare,
                               text: '转发',
                               stat: forward,
-                              onPressed: () => showModalBottomSheet(
+                              onPressed: (_) => showModalBottomSheet(
                                 context: context,
                                 isScrollControlled: true,
                                 useSafeArea: true,
@@ -449,7 +450,7 @@ class _DynamicDetailPageState extends CommonDynPageState<DynamicDetailPage> {
                           icon: CustomIcons.share_node,
                           text: '分享',
                           stat: null,
-                          onPressed: () => Utils.shareText(
+                          onPressed: (_) => Utils.shareText(
                             '${HttpString.dynamicShareBaseUrl}/${controller.dynItem.idStr}',
                           ),
                         ),
@@ -462,14 +463,16 @@ class _DynamicDetailPageState extends CommonDynPageState<DynamicDetailPage> {
                               activatedIcon: FontAwesomeIcons.solidThumbsUp,
                               text: '点赞',
                               stat: moduleStat?.like,
-                              onPressed: () => RequestUtils.onLikeDynamic(
-                                controller.dynItem,
-                                () {
-                                  if (context.mounted) {
-                                    (context as Element).markNeedsBuild();
-                                  }
-                                },
-                              ),
+                              onPressed: (iconColor) =>
+                                  RequestUtils.onLikeDynamic(
+                                    controller.dynItem,
+                                    iconColor == primary,
+                                    () {
+                                      if (context.mounted) {
+                                        (context as Element).markNeedsBuild();
+                                      }
+                                    },
+                                  ),
                             );
                           },
                         ),

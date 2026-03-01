@@ -136,7 +136,7 @@ class _HistoryPageState extends State<HistoryPage>
                       child: TabBarView<CustomHorizontalDragGestureRecognizer>(
                         physics: enableMultiSelect
                             ? const NeverScrollableScrollPhysics()
-                            : const CustomTabBarViewScrollPhysics(),
+                            : clampingScrollPhysics,
                         controller: _historyController.tabController,
                         horizontalDragGestureRecognizer:
                             CustomHorizontalDragGestureRecognizer.new,

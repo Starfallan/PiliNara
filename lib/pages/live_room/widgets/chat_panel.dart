@@ -8,7 +8,6 @@ import 'package:PiliPlus/models_new/live/live_superchat/item.dart';
 import 'package:PiliPlus/pages/live_room/controller.dart';
 import 'package:PiliPlus/pages/live_room/superchat/superchat_card.dart';
 import 'package:PiliPlus/pages/video/widgets/header_control.dart';
-import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
@@ -82,7 +81,7 @@ class LiveRoomChatPanel extends StatelessWidget {
                                   color: nameColor,
                                   fontSize: 14,
                                 ),
-                                recognizer: item.uid == 0
+                                recognizer: item.extra.mid == 0
                                     ? null
                                     : (NoDeadlineTapGestureRecognizer()
                                         ..onTapUp = (e) => _showMsgMenu(
@@ -292,7 +291,11 @@ class LiveRoomChatPanel extends StatelessWidget {
   ) {
     final dx = details.globalPosition.dx;
     final renderBox = itemContext.findRenderObject() as RenderBox;
-    final dy = renderBox.localToGlobal(renderBox.size.bottomLeft(.zero)).dy;
+    final dy =
+        details.globalPosition.dy -
+        details.localPosition.dy +
+        renderBox.size.height -
+        4; // padding
     final autoScroll =
         liveRoomController.autoScroll &&
         !liveRoomController.disableAutoScroll.value;
@@ -321,7 +324,7 @@ class LiveRoomChatPanel extends StatelessWidget {
         ),
         PopupMenuItem(
           height: 38,
-          onTap: () => Get.toNamed('/member?mid=${item.uid}'),
+          onTap: () => Get.toNamed('/member?mid=${item.extra.mid}'),
           child: const Text(
             '去TA的个人空间',
             style: TextStyle(fontSize: 13),
@@ -338,9 +341,9 @@ class LiveRoomChatPanel extends StatelessWidget {
         PopupMenuItem(
           height: 38,
           onTap: () async {
-            if (!Accounts.main.isLogin) return;
+            if (!liveRoomController.isLogin) return;
             final res = await LiveHttp.liveShieldUser(
-              uid: item.uid,
+              uid: item.extra.mid,
               roomid: roomId,
               type: 1,
             );

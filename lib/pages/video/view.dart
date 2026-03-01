@@ -44,7 +44,7 @@ import 'package:PiliPlus/plugin/pl_player/models/fullscreen_mode.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
-import 'package:PiliPlus/plugin/pl_player/view.dart';
+import 'package:PiliPlus/plugin/pl_player/view/view.dart';
 import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/services/shutdown_timer_service.dart'
     show ShutdownTimerService, shutdownTimerService;
@@ -515,15 +515,15 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     }
     plPlayerController = videoDetailController.plPlayerController;
     videoDetailController.autoPlay = true;
+    plPlayerController!
+      ..addStatusLister(playerListener)
+      ..addPositionListener(positionListener);
     if (videoDetailController.plPlayerController.preInitPlayer) {
       await plPlayerController!.play();
     } else {
       await videoDetailController.playerInit(autoplay: true);
     }
     if (!mounted || !isShowing) return;
-    plPlayerController!
-      ..addStatusLister(playerListener)
-      ..addPositionListener(positionListener);
     await plPlayerController!.autoEnterFullscreen();
   }
 
@@ -1144,7 +1144,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                 children: [
                   buildTabBar(onTap: videoDetailController.animToTop),
                   Expanded(
-                    child: videoTabBarView(
+                    child: tabBarView(
                       controller: videoDetailController.tabCtr,
                       children: [
                         videoIntro(
@@ -1213,7 +1213,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                 children: [
                   buildTabBar(),
                   Expanded(
-                    child: videoTabBarView(
+                    child: tabBarView(
                       controller: videoDetailController.tabCtr,
                       children: [
                         videoIntro(
@@ -1281,7 +1281,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                   children: [
                     buildTabBar(showIntro: false),
                     Expanded(
-                      child: videoTabBarView(
+                      child: tabBarView(
                         controller: videoDetailController.tabCtr,
                         children: [
                           if (videoDetailController.showReply)
@@ -1361,7 +1361,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                         : showIntro,
                   ),
                   Expanded(
-                    child: videoTabBarView(
+                    child: tabBarView(
                       controller: videoDetailController.tabCtr,
                       children: [
                         if (videoDetailController.isFileSource)

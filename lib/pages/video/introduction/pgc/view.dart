@@ -5,6 +5,7 @@ import 'package:PiliPlus/common/widgets/badge.dart';
 import 'package:PiliPlus/common/widgets/button/icon_button.dart';
 import 'package:PiliPlus/common/widgets/dialog/dialog.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
+import 'package:PiliPlus/common/widgets/image_viewer/hero.dart';
 import 'package:PiliPlus/common/widgets/stat/stat.dart';
 import 'package:PiliPlus/models/common/image_preview_type.dart';
 import 'package:PiliPlus/models/common/image_type.dart';
@@ -147,7 +148,7 @@ class _PgcIntroPageState extends State<PgcIntroPage> {
           onTap: () => PageUtils.imageView(
             imgList: [SourceModel(url: item.cover!)],
           ),
-          child: Hero(
+          child: fromHero(
             tag: item.cover!,
             child: NetworkImgLayer(
               width: 115,

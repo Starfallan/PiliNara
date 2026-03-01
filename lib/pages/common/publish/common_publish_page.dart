@@ -138,9 +138,10 @@ abstract class CommonPublishPageState<T extends CommonPublishPage>
     }
   }
 
-  Future<void> hidePanel() async {
+  Future<void> hidePanel([_]) async {
     if (focusNode.hasFocus) {
       await Future.delayed(const Duration(milliseconds: 100));
+      if (!mounted) return;
       focusNode.unfocus();
     }
     updateInputView(isReadOnly: false);

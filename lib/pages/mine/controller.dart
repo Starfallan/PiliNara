@@ -10,6 +10,7 @@ import 'package:PiliPlus/pages/common/common_data_controller.dart';
 import 'package:PiliPlus/services/account_service.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/accounts/account.dart';
+import 'package:PiliPlus/utils/extension/scroll_controller_ext.dart';
 import 'package:PiliPlus/utils/login_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
@@ -135,6 +136,7 @@ class MineController extends CommonDataController<FavFolderData, FavFolderData>
   bool customHandleResponse(bool isRefresh, Success<FavFolderData> response) {
     favFolderCount = response.response.count;
     loadingState.value = response;
+    scrollController.jumpToTop();
     return true;
   }
 

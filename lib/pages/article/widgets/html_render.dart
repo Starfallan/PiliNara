@@ -1,3 +1,4 @@
+import 'package:PiliPlus/common/widgets/image_viewer/hero.dart';
 import 'package:PiliPlus/models/common/image_preview_type.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/image_utils.dart';
@@ -54,7 +55,7 @@ Widget htmlRender({
               imgList: [SourceModel(url: imgUrl)],
               quality: 60,
             ),
-            child: Hero(
+            child: fromHero(
               tag: imgUrl,
               child: CachedNetworkImage(
                 width: width,

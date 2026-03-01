@@ -344,10 +344,10 @@ packages:
     dependency: "direct main"
     description:
       name: cookie_jar
-      sha256: a6ac027d3ed6ed756bfce8f3ff60cb479e266f3b0fdabd6242b804b6765e52de
+      sha256: "963da02c1ef64cb5ac20de948c9e5940aa351f1e34a12b1d327c83d85b7e8fff"
       url: "https://pub.dev"
     source: hosted
-    version: "4.0.8"
+    version: "4.0.9"
   cross_file:
     dependency: transitive
     description:
@@ -384,10 +384,10 @@ packages:
     dependency: transitive
     description:
       name: dart_style
-      sha256: "15a7db352c8fc6a4d2bc475ba901c25b39fe7157541da4c16eacce6f8be83e49"
+      sha256: "6f6b30cba0301e7b38f32bdc9a6bdae6f5921a55f0a1eb9450e1e6515645dbb2"
       url: "https://pub.dev"
     source: hosted
-    version: "3.1.5"
+    version: "3.1.6"
   dbus:
     dependency: transitive
     description:
@@ -497,7 +497,7 @@ packages:
     description:
       path: "."
       ref: mod
-      resolved-ref: "4bb4e827628b3b7ccc88a4b98ef76a036a5a51ac"
+      resolved-ref: e55d90cf2a1666e6ccf63e3f5779c8c4b12c5204
       url: "https://github.com/bggRGjQaUbCoE/extended_nested_scroll_view.git"
     source: git
     version: "6.2.1"
@@ -801,7 +801,7 @@ packages:
     description:
       path: "."
       ref: "version_4.7.2"
-      resolved-ref: "9addd004c11e1c388bff5988ac9564e7ee5ff395"
+      resolved-ref: "4e5dbc40d93c4deca7dfec9457598d9cc68f8f33"
       url: "https://github.com/bggRGjQaUbCoE/getx.git"
     source: git
     version: "4.7.2"
@@ -1131,8 +1131,8 @@ packages:
     description:
       path: media_kit
       ref: "version_1.2.5"
-      resolved-ref: ac35bc96c5560a7c9a55bc421bd4115d1e47bc70
-      url: "https://github.com/bggRGjQaUbCoE/media-kit.git"
+      resolved-ref: "14c3ee41df4f51292b89eaf8f8c97420220fe136"
+      url: "https://github.com/My-Responsitories/media-kit.git"
     source: git
     version: "1.1.11"
   media_kit_libs_android_video:
@@ -1140,8 +1140,8 @@ packages:
     description:
       path: "libs/android/media_kit_libs_android_video"
       ref: "version_1.2.5"
-      resolved-ref: ac35bc96c5560a7c9a55bc421bd4115d1e47bc70
-      url: "https://github.com/bggRGjQaUbCoE/media-kit.git"
+      resolved-ref: "14c3ee41df4f51292b89eaf8f8c97420220fe136"
+      url: "https://github.com/My-Responsitories/media-kit.git"
     source: git
     version: "1.3.7"
   media_kit_libs_ios_video:
@@ -1173,8 +1173,8 @@ packages:
     description:
       path: "libs/universal/media_kit_libs_video"
       ref: "version_1.2.5"
-      resolved-ref: ac35bc96c5560a7c9a55bc421bd4115d1e47bc70
-      url: "https://github.com/bggRGjQaUbCoE/media-kit.git"
+      resolved-ref: "14c3ee41df4f51292b89eaf8f8c97420220fe136"
+      url: "https://github.com/My-Responsitories/media-kit.git"
     source: git
     version: "1.0.5"
   media_kit_libs_windows_video:
@@ -1182,8 +1182,8 @@ packages:
     description:
       path: "libs/windows/media_kit_libs_windows_video"
       ref: "version_1.2.5"
-      resolved-ref: ac35bc96c5560a7c9a55bc421bd4115d1e47bc70
-      url: "https://github.com/bggRGjQaUbCoE/media-kit.git"
+      resolved-ref: "14c3ee41df4f51292b89eaf8f8c97420220fe136"
+      url: "https://github.com/My-Responsitories/media-kit.git"
     source: git
     version: "1.0.10"
   media_kit_native_event_loop:
@@ -1191,8 +1191,8 @@ packages:
     description:
       path: media_kit_native_event_loop
       ref: "version_1.2.5"
-      resolved-ref: ac35bc96c5560a7c9a55bc421bd4115d1e47bc70
-      url: "https://github.com/bggRGjQaUbCoE/media-kit.git"
+      resolved-ref: "14c3ee41df4f51292b89eaf8f8c97420220fe136"
+      url: "https://github.com/My-Responsitories/media-kit.git"
     source: git
     version: "1.0.9"
   media_kit_video:
@@ -1200,8 +1200,8 @@ packages:
     description:
       path: media_kit_video
       ref: "version_1.2.5"
-      resolved-ref: ac35bc96c5560a7c9a55bc421bd4115d1e47bc70
-      url: "https://github.com/bggRGjQaUbCoE/media-kit.git"
+      resolved-ref: "14c3ee41df4f51292b89eaf8f8c97420220fe136"
+      url: "https://github.com/My-Responsitories/media-kit.git"
     source: git
     version: "1.2.5"
   menu_base:
@@ -1416,10 +1416,10 @@ packages:
     dependency: transitive
     description:
       name: posix
-      sha256: "6323a5b0fa688b6a010df4905a56b00181479e6d10534cecfecede2aa55add61"
+      sha256: "185ef7606574f789b40f289c233efa52e96dead518aed988e040a10737febb07"
       url: "https://pub.dev"
     source: hosted
-    version: "6.0.3"
+    version: "6.5.0"
   pretty_qr_code:
     dependency: "direct main"
     description:
@@ -1476,14 +1476,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.28.0"
-  safe_local_storage:
-    dependency: transitive
-    description:
-      name: safe_local_storage
-      sha256: "287ea1f667c0b93cdc127dccc707158e2d81ee59fba0459c31a0c7da4d09c755"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.3"
   saver_gallery:
     dependency: "direct main"
     description:
@@ -1592,10 +1584,10 @@ packages:
     dependency: transitive
     description:
       name: shared_preferences_android
-      sha256: cbc40be9be1c5af4dab4d6e0de4d5d3729e6f3d65b89d21e1815d57705644a6f
+      sha256: "8374d6200ab33ac99031a852eba4c8eb2170c4bf20778b3e2c9eccb45384fb41"
       url: "https://pub.dev"
     source: hosted
-    version: "2.4.20"
+    version: "2.4.21"
   shared_preferences_foundation:
     dependency: transitive
     description:
@@ -1810,14 +1802,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.0"
-  uri_parser:
-    dependency: transitive
-    description:
-      name: uri_parser
-      sha256: "051c62e5f693de98ca9f130ee707f8916e2266945565926be3ff20659f7853ce"
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.0.2"
   url_launcher:
     dependency: "direct main"
     description:

@@ -62,7 +62,8 @@ jobs:
             PiliNara_macos_*.dmg
 
       - name: Upload macos release
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
+          archive: false
           name: macOS-release
           path: PiliNara_macos_*.dmg

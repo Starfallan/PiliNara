@@ -2,6 +2,7 @@
 
 import 'dart:developer';
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
@@ -67,31 +68,6 @@ class CachedNetworkSVGImage extends StatefulWidget {
   @override
   State<CachedNetworkSVGImage> createState() => _CachedNetworkSVGImageState();
 
-  static Future<void> preCache(
-    String imageUrl, {
-    String? cacheKey,
-    BaseCacheManager? cacheManager,
-  }) {
-    final key = cacheKey ?? _generateKeyFromUrl(imageUrl);
-    cacheManager ??= DefaultCacheManager();
-    return cacheManager.downloadFile(key);
-  }
-
-  static Future<void> clearCacheForUrl(
-    String imageUrl, {
-    String? cacheKey,
-    BaseCacheManager? cacheManager,
-  }) {
-    final key = cacheKey ?? _generateKeyFromUrl(imageUrl);
-    cacheManager ??= DefaultCacheManager();
-    return cacheManager.removeFile(key);
-  }
-
-  static Future<void> clearCache({BaseCacheManager? cacheManager}) {
-    cacheManager ??= DefaultCacheManager();
-    return cacheManager.emptyCache();
-  }
-
   static String _generateKeyFromUrl(String url) => url.split('?').first;
 }
 
@@ -156,7 +132,7 @@ class _CachedNetworkSVGImageState extends State<CachedNetworkSVGImage> {
 
       _setState();
     } catch (e) {
-      log('CachedNetworkSVGImage: $e');
+      if (kDebugMode) log('CachedNetworkSVGImage: $e');
 
       _isError = true;
       _isLoading = false;

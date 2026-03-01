@@ -74,16 +74,16 @@ jobs:
           flutter-version-file: pubspec.yaml
           cache: true
 
-      # --- 合并自上游的新补丁 (1): 修复滚动条问题 ---
       - name: revert new overscrollindicator
         working-directory: ${{ env.FLUTTER_ROOT }}
+        # https://github.com/flutter/flutter/issues/182281
         run: |
-            git config --global user.name "ci"
-            git config --global user.email "example@example.com"
-            git stash || true
-            git revert 362b1de29974ffc1ed6faa826e1df870d7bec75f --no-edit
-            git reset --soft HEAD~1
-            git stash pop || true
+          git config --global user.name "ci"
+          git config --global user.email "example@example.com"
+          git stash || true
+          git revert 362b1de29974ffc1ed6faa826e1df870d7bec75f --no-edit
+          git reset --soft HEAD~1
+          git stash pop || true
         continue-on-error: true
 
       - name: apply bottom sheet patch
@@ -91,10 +91,14 @@ jobs:
         run: git apply $GITHUB_WORKSPACE/lib/scripts/bottom_sheet_patch.diff || true
         continue-on-error: true
 
-      # --- 合并自上游的新补丁 (2): 修复弹窗遮罩问题 ---
       - name: apply modal barrier patch
         working-directory: ${{ env.FLUTTER_ROOT }}
-        run: git apply $GITHUB_WORKSPACE/lib/scripts/modal-barrier-patch.diff || true
+        run: git apply $GITHUB_WORKSPACE/lib/scripts/modal_barrier_patch.diff || true
+        continue-on-error: true
+
+      - name: apply mouse cursor patch
+        working-directory: ${{ env.FLUTTER_ROOT }}
+        run: git apply $GITHUB_WORKSPACE/lib/scripts/mouse_cursor_patch.diff || true
         continue-on-error: true
 
       - name: Write key
@@ -129,16 +133,29 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.tag }}
           name: ${{ github.event.inputs.tag }}
-          files: |
-            PiliNara_android_*.apk
+          files: PiliNara_android_*.apk
 
-      - name: 上传 Artifacts
-        uses: actions/upload-artifact@v5
+      - name: 上传
+        uses: actions/upload-artifact@v7
         with:
-          name: Android_APKs
-          path: PiliNara_android_*.apk
+          archive: false
+          name: Android_arm64-v8a
+          path: PiliNara_android_*_arm64-v8a.apk
 
-  # --- 其他平台逻辑修改：只在手动勾选时运行，不再响应 PR ---
+      - name: 上传
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          name: Android_armeabi-v7a
+          path: PiliNara_android_*_armeabi-v7a.apk
+
+      - name: 上传
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          name: Android_x86_64
+          path: PiliNara_android_*_x86_64.apk
+
   ios:
     if: ${{ github.event.inputs.build_ios == 'true' }}
     uses: ./.github/workflows/ios.yml

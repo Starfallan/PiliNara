@@ -7,6 +7,8 @@ import 'dart:io' show Platform;
 
 import 'package:PiliPlus/common/widgets/scroll_behavior.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
+import 'package:extended_nested_scroll_view/extended_nested_scroll_view.dart'
+    show RefreshScrollPhysics;
 import 'package:flutter/foundation.dart' show clampDouble;
 import 'package:flutter/material.dart' hide RefreshIndicator;
 
@@ -299,10 +301,12 @@ class RefreshIndicatorState extends State<RefreshIndicator>
     // If the notification.dragDetails is null, this scroll is not triggered by
     // user dragging. It may be a result of ScrollController.jumpTo or ballistic scroll.
     // In this case, we don't want to trigger the refresh indicator.
-    return (notification is ScrollStartNotification &&
-            notification.dragDetails != null) &&
+    return _status == null &&
+        ((notification is ScrollStartNotification &&
+                notification.dragDetails != null) ||
+            (notification is ScrollUpdateNotification &&
+                notification.dragDetails != null)) &&
         notification.metrics.extentBefore == 0.0 &&
-        _status == null &&
         _start();
   }
 
@@ -320,14 +324,14 @@ class RefreshIndicatorState extends State<RefreshIndicator>
       if (_status == RefreshIndicatorStatus.drag) {
         _dragOffset = _dragOffset! - notification.scrollDelta!;
         _checkDragOffset(notification.metrics.viewportDimension);
-      }
-      if (_status == RefreshIndicatorStatus.drag &&
-          notification.dragDetails == null &&
-          _valueColor.value!.a == _effectiveValueColor.a) {
-        // On iOS start the refresh when the Scrollable bounces back from the
-        // overscroll (ScrollNotification indicating this don't have dragDetails
-        // because the scroll activity is not directly triggered by a drag).
-        _show();
+
+        if (notification.dragDetails == null &&
+            _valueColor.value!.a == _effectiveValueColor.a) {
+          // On iOS start the refresh when the Scrollable bounces back from the
+          // overscroll (ScrollNotification indicating this don't have dragDetails
+          // because the scroll activity is not directly triggered by a drag).
+          _show();
+        }
       }
     } else if (notification is OverscrollNotification) {
       if (_status == RefreshIndicatorStatus.drag) {
@@ -547,7 +551,10 @@ class RefreshIndicatorState extends State<RefreshIndicator>
     return ScrollConfiguration(
       behavior: RefreshScrollBehavior(
         desktopDragDevices,
-        scrollPhysics: RefreshScrollPhysics(onDrag: _onDrag),
+        scrollPhysics: RefreshScrollPhysics(
+          parent: const RangeMaintainingScrollPhysics(),
+          onDrag: _onDrag,
+        ),
       ),
       child: child,
     );
@@ -588,32 +595,5 @@ class RefreshScrollBehavior extends CustomScrollBehavior {
   @override
   ScrollPhysics getScrollPhysics(BuildContext context) {
     return scrollPhysics;
-  }
-}
-
-typedef OnDrag = bool Function(double offset, double viewportDimension);
-
-class RefreshScrollPhysics extends ClampingScrollPhysics {
-  const RefreshScrollPhysics({
-    super.parent,
-    required this.onDrag,
-  });
-
-  final OnDrag onDrag;
-
-  @override
-  RefreshScrollPhysics applyTo(ScrollPhysics? ancestor) {
-    return RefreshScrollPhysics(
-      parent: buildParent(ancestor),
-      onDrag: onDrag,
-    );
-  }
-
-  @override
-  double applyPhysicsToUserOffset(ScrollMetrics position, double offset) {
-    if (offset < 0.0 && onDrag(offset, position.viewportDimension)) {
-      return 0.0;
-    }
-    return parent?.applyPhysicsToUserOffset(position, offset) ?? offset;
   }
 }

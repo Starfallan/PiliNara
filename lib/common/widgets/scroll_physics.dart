@@ -3,22 +3,12 @@ import 'package:PiliPlus/common/widgets/gesture/horizontal_drag_gesture_recogniz
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:flutter/material.dart' hide TabBarView;
 
-Widget videoTabBarView({
-  required List<Widget> children,
-  TabController? controller,
-}) => TabBarView<CustomHorizontalDragGestureRecognizer>(
-  controller: controller,
-  physics: const CustomTabBarViewScrollPhysics(parent: ClampingScrollPhysics()),
-  horizontalDragGestureRecognizer: CustomHorizontalDragGestureRecognizer.new,
-  children: children,
-);
-
 Widget tabBarView({
   required List<Widget> children,
   TabController? controller,
 }) => TabBarView<CustomHorizontalDragGestureRecognizer>(
-  physics: const CustomTabBarViewScrollPhysics(),
   controller: controller,
+  physics: clampingScrollPhysics,
   horizontalDragGestureRecognizer: CustomHorizontalDragGestureRecognizer.new,
   children: children,
 );
@@ -31,6 +21,10 @@ SpringDescription _customSpringDescription() {
     damping: springDescription[2],
   );
 }
+
+const clampingScrollPhysics = CustomTabBarViewScrollPhysics(
+  parent: ClampingScrollPhysics(),
+);
 
 class CustomTabBarViewScrollPhysics extends ScrollPhysics {
   const CustomTabBarViewScrollPhysics({super.parent});

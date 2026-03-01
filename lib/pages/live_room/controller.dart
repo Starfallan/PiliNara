@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import 'package:PiliPlus/common/widgets/dialog/report.dart';
 import 'package:PiliPlus/common/widgets/flutter/text_field/controller.dart';
-import 'package:PiliPlus/http/constants.dart';
 import 'package:PiliPlus/http/live.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/http/video.dart';
@@ -197,7 +196,7 @@ class LiveRoomController extends GetxController {
     }
     
     scrollController = ScrollController()..addListener(listener);
-    final account = Accounts.heartbeat;
+    final account = Accounts.main;
     isLogin = account.isLogin;
     mid = account.mid;
 
@@ -214,7 +213,7 @@ class LiveRoomController extends GetxController {
     }
     
     queryLiveInfoH5();
-    if (isLogin && !Pref.historyPause) {
+    if (Accounts.heartbeat.isLogin && !Pref.historyPause) {
       VideoHttp.roomEntryAction(roomId: roomId);
     }
     if (showSuperChat) {
@@ -234,18 +233,8 @@ class LiveRoomController extends GetxController {
     // 确保播放器处于直播模式
     plPlayerController.isLive = true;
     
-    return plPlayerController
-        .setDataSource(
-      DataSource(
-        videoSource: videoUrl,
-        audioSource: null,
-        type: DataSourceType.network,
-        httpHeaders: {
-          'user-agent':
-              'Mozilla/5.0 (Macintosh; Intel Mac OS X 13_3_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.4 Safari/605.1.15',
-          'referer': HttpString.baseUrl,
-        },
-      ),
+    return plPlayerController.setDataSource(
+      NetworkSource(videoSource: videoUrl!, audioSource: null),
       isLive: true,
       autoplay: autoplay,
       isVertical: isPortrait.value,
@@ -479,7 +468,7 @@ class LiveRoomController extends GetxController {
         LiveMessageStream(
             streamToken: info.token!,
             roomId: roomId,
-            uid: mid,
+            uid: Accounts.heartbeat.mid,
             servers: info.hostList!
                 .map((host) => 'wss://${host.host}:${host.wssPort}/sub')
                 .toList(),
@@ -539,7 +528,6 @@ class LiveRoomController extends GetxController {
           addDm(
             DanmakuMsg(
               name: name,
-              uid: uid,
               text: msg,
               emots: (extra['emots'] as Map<String, dynamic>?)?.map(
                 (k, v) => MapEntry(k, BaseEmote.fromJson(v)),
@@ -625,7 +613,7 @@ class LiveRoomController extends GetxController {
   }
 
   Future<void> onLike() async {
-    if (!Accounts.main.isLogin) {
+    if (!isLogin) {
       likeClickTime.value = 0;
       return;
     }
@@ -644,7 +632,7 @@ class LiveRoomController extends GetxController {
   }
 
   void onSendDanmaku([bool fromEmote = false]) {
-    if (!Accounts.main.isLogin) {
+    if (!isLogin) {
       SmartDialog.showToast('账号未登录');
       return;
     }
@@ -674,7 +662,7 @@ class LiveRoomController extends GetxController {
   }
 
   void reportSC(SuperChatItem item) {
-    if (!Accounts.main.isLogin) {
+    if (!isLogin) {
       SmartDialog.showToast('账号未登录');
       return;
     }

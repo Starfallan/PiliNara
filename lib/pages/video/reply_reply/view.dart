@@ -185,11 +185,7 @@ class _VideoReplyReplyPanelState extends State<VideoReplyReplyPanel>
       child: CustomScrollView(
         key: ValueKey(scrollController.hashCode),
         controller: scrollController,
-        physics: widget.isNested
-            ? const AlwaysScrollableScrollPhysics(
-                parent: ClampingScrollPhysics(),
-              )
-            : const AlwaysScrollableScrollPhysics(),
+        physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           if (!isDialogue) ...[
             if ((widget.firstFloor ?? _controller.firstFloor.value)

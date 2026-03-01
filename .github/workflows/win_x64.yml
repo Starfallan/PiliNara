@@ -66,7 +66,7 @@ jobs:
       - name: Compress
         if: ${{ github.event.inputs.tag != '' }}
         run: |
-          Compress-Archive -Path "Release/PiliNara-Win" -DestinationPath "PiliNara_windows_${{env.version}}_x64.zip"
+          Compress-Archive -Path "Release/PiliNara-Win" -DestinationPath "PiliNara_windows_${{env.version}}_x64_portable.zip"
         shell: pwsh
 
       - name: Release
@@ -80,13 +80,15 @@ jobs:
             PiliNara-Win-Setup/PiliNara_windows_*.exe
 
       - name: Upload windows file release
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
-          name: Windows-file-x64-release
+          archive: true
+          name: PiliPlus_windows_${{env.version}}_x64_portable
           path: Release
 
       - name: Upload windows setup release
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
+          archive: false
           name: Windows-setup-x64-release
-          path: PiliNara-Win-Setup
+          path: PiliNara-Win-Setup/PiliNara_windows_*.exe

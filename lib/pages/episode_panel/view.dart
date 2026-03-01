@@ -7,6 +7,7 @@ import 'package:PiliPlus/common/widgets/flutter/page/tabs.dart';
 import 'package:PiliPlus/common/widgets/image/image_save.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/keep_alive_wrapper.dart';
+import 'package:PiliPlus/common/widgets/scroll_physics.dart';
 import 'package:PiliPlus/common/widgets/stat/stat.dart';
 import 'package:PiliPlus/http/fav.dart';
 import 'package:PiliPlus/http/loading_state.dart';
@@ -235,6 +236,7 @@ class _EpisodePanelState extends State<EpisodePanel>
     if (_isMulti) {
       return TabBarView<TabBarDragGestureRecognizer>(
         controller: _tabController,
+        physics: clampingScrollPhysics,
         horizontalDragGestureRecognizer: () =>
             TabBarDragGestureRecognizer(isDxAllowed: isDxAllowed),
         children: List.generate(

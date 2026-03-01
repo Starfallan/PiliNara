@@ -33,6 +33,7 @@ import 'package:PiliPlus/pages/video/introduction/ugc/widgets/action_item.dart';
 import 'package:PiliPlus/pages/video/introduction/ugc/widgets/menu_row.dart';
 import 'package:PiliPlus/pages/video/widgets/header_mixin.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
+import 'package:PiliPlus/plugin/pl_player/models/data_source.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
 import 'package:PiliPlus/services/service_locator.dart';
@@ -543,7 +544,9 @@ class HeaderControlState extends State<HeaderControl>
                           );
                         },
                       ),
-                      if ((isFileSource && plPlayerController.mediaType != 1) ||
+                      if ((isFileSource &&
+                              !(plPlayerController.dataSource as FileSource)
+                                  .isMp4) ||
                           (!isFileSource &&
                               videoDetailCtr.audioUrl?.isNotEmpty == true))
                         Obx(
@@ -752,19 +755,16 @@ class HeaderControlState extends State<HeaderControl>
     );
   }
 
-  static Future<void> showPlayerInfo(
+  static void showPlayerInfo(
     BuildContext context, {
     required PlPlayerController plPlayerController,
-  }) async {
+  }) {
     final player = plPlayerController.videoPlayerController;
     if (player == null) {
       SmartDialog.showToast('播放器未初始化');
       return;
     }
-    final hwdec = await player.platform!.getProperty(
-      'hwdec-current',
-    );
-    if (!context.mounted) return;
+    final hwdec = player.getProperty('hwdec-current');
     showDialog(
       context: context,
       builder: (context) {
@@ -855,16 +855,6 @@ class HeaderControlState extends State<HeaderControl>
                       title: const Text("rate"),
                       subtitle: Text(state.rate.toString()),
                       onTap: () => Utils.copyText('rate\n${state.rate}'),
-                    ),
-                    ListTile(
-                      dense: true,
-                      title: const Text("AudioBitrate"),
-                      subtitle: Text(
-                        state.audioBitrate.toString(),
-                      ),
-                      onTap: () => Utils.copyText(
-                        'AudioBitrate\n${state.audioBitrate}',
-                      ),
                     ),
                     ListTile(
                       dense: true,

@@ -5,6 +5,7 @@ import 'package:PiliPlus/common/widgets/badge.dart';
 import 'package:PiliPlus/common/widgets/custom_icon.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
+import 'package:PiliPlus/common/widgets/image_viewer/hero.dart';
 import 'package:PiliPlus/common/widgets/marquee.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/http/music.dart';
@@ -439,7 +440,7 @@ class _MusicDetailPageState extends CommonDynPageState<MusicDetailPage> {
                     onTap: () => PageUtils.imageView(
                       imgList: [SourceModel(url: item.mvCover!)],
                     ),
-                    child: Hero(
+                    child: fromHero(
                       tag: item.mvCover!,
                       child: NetworkImgLayer(
                         src: item.mvCover,

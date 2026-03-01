@@ -362,27 +362,29 @@ abstract final class RequestUtils {
   // 动态点赞
   static Future<void> onLikeDynamic(
     DynamicItemModel item,
+    bool uiStatus,
     VoidCallback onSuccess,
   ) async {
     feedBack();
-    String dynamicId = item.idStr!;
-    // 1 已点赞 2 不喜欢 0 未操作
-    DynamicStat? like = item.modules.moduleStat?.like;
-    int count = like?.count ?? 0;
-    bool status = like?.status ?? false;
-    int up = status ? 2 : 1;
-    final res = await DynamicsHttp.thumbDynamic(dynamicId: dynamicId, up: up);
+
+    final like = item.modules.moduleStat?.like;
+    final status = like?.status ?? false;
+
+    if (status ^ uiStatus) {
+      SmartDialog.showToast(status ? '点赞成功' : '取消赞');
+      onSuccess();
+      return;
+    }
+
+    final res = await DynamicsHttp.thumbDynamic(
+      dynamicId: item.idStr!,
+      up: status ? 2 : 1, // 1 已点赞 2 不喜欢 0 未操作
+    );
     if (res.isSuccess) {
-      SmartDialog.showToast(!status ? '点赞成功' : '取消赞');
-      if (up == 1) {
-        like
-          ?..count = count + 1
-          ..status = true;
-      } else {
-        like
-          ?..count = count - 1
-          ..status = false;
-      }
+      SmartDialog.showToast(status ? '取消赞' : '点赞成功');
+      like
+        ?..count = (like.count ?? 0) + (status ? -1 : 1)
+        ..status = !status;
       onSuccess();
     } else {
       res.toast();

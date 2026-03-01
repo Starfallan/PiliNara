@@ -1,5 +1,6 @@
 import 'package:PiliPlus/common/constants.dart';
 import 'package:PiliPlus/common/widgets/avatars.dart';
+import 'package:PiliPlus/common/widgets/image_viewer/hero.dart';
 import 'package:PiliPlus/common/widgets/pendant_avatar.dart';
 import 'package:PiliPlus/common/widgets/view_safe_area.dart';
 import 'package:PiliPlus/models/common/image_preview_type.dart';
@@ -12,6 +13,7 @@ import 'package:PiliPlus/models_new/space/space/pr_info.dart';
 import 'package:PiliPlus/pages/fan/view.dart';
 import 'package:PiliPlus/pages/follow/view.dart';
 import 'package:PiliPlus/pages/follow_type/followed/view.dart';
+import 'package:PiliPlus/pages/member/widget/header_layout_widget.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/app_scheme.dart';
 import 'package:PiliPlus/utils/extension/context_ext.dart';
@@ -124,11 +126,11 @@ class UserInfoCard extends StatelessWidget {
             .http2https;
     return GestureDetector(
       onTap: () => PageUtils.imageView(imgList: [SourceModel(url: imgUrl)]),
-      child: Hero(
+      child: fromHero(
         tag: imgUrl,
         child: CachedNetworkImage(
           fit: .cover,
-          height: 135,
+          height: kHeaderHeight,
           width: width,
           memCacheWidth: width.cacheSize(context),
           imageUrl: ImageUtils.thumbnailUrl(imgUrl),
@@ -453,11 +455,11 @@ class UserInfoCard extends StatelessWidget {
     ],
   );
 
-  Widget get _buildAvatar => Hero(
+  Widget get _buildAvatar => fromHero(
     tag: card.face ?? '',
     child: PendantAvatar(
       avatar: card.face,
-      size: 80,
+      size: kAvatarSize,
       badgeSize: 20,
       officialType: card.officialVerify?.type,
       isVip: (card.vip?.status ?? -1) > 0,
@@ -478,32 +480,10 @@ class UserInfoCard extends StatelessWidget {
     mainAxisSize: MainAxisSize.min,
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Column(
-            crossAxisAlignment: .stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildHeader(context, colorScheme, isLight, width),
-              SizedBox(
-                height: MediaQuery.textScalerOf(context).scale(30) + 60,
-              ),
-            ],
-          ),
-          Positioned(
-            top: 110,
-            left: 20,
-            child: _buildAvatar,
-          ),
-          Positioned(
-            left: 160,
-            top: 140,
-            right: 15,
-            bottom: 0,
-            child: _buildRight(colorScheme),
-          ),
-        ],
+      HeaderLayoutWidget(
+        header: _buildHeader(context, colorScheme, isLight, width),
+        avatar: _buildAvatar,
+        actions: _buildRight(colorScheme),
       ),
       const SizedBox(height: 5),
       ..._buildLeft(context, colorScheme, isLight),

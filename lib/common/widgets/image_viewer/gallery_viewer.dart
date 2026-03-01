@@ -20,7 +20,6 @@ import 'dart:io' show File, Platform;
 import 'package:PiliPlus/common/widgets/colored_box_transition.dart';
 import 'package:PiliPlus/common/widgets/flutter/page/page_view.dart';
 import 'package:PiliPlus/common/widgets/gesture/image_horizontal_drag_gesture_recognizer.dart';
-import 'package:PiliPlus/common/widgets/gesture/image_tap_gesture_recognizer.dart';
 import 'package:PiliPlus/common/widgets/image_viewer/image.dart';
 import 'package:PiliPlus/common/widgets/image_viewer/loading_indicator.dart';
 import 'package:PiliPlus/common/widgets/image_viewer/viewer.dart';
@@ -73,16 +72,14 @@ class _GalleryViewerState extends State<GalleryViewer>
   late final RxInt _currIndex;
   GlobalKey? _key;
 
+  late bool _hasInit = false;
   Player? _player;
-  Player get _effectivePlayer => _player ??= Player();
   VideoController? _videoController;
-  VideoController get _effectiveVideoController =>
-      _videoController ??= VideoController(_effectivePlayer);
 
   late final PageController _pageController;
 
-  late final ImageTapGestureRecognizer _tapGestureRecognizer;
-  late final ImageDoubleTapGestureRecognizer _doubleTapGestureRecognizer;
+  late final TapGestureRecognizer _tapGestureRecognizer;
+  late final DoubleTapGestureRecognizer _doubleTapGestureRecognizer;
   late final ImageHorizontalDragGestureRecognizer
   _horizontalDragGestureRecognizer;
   late final LongPressGestureRecognizer _longPressGestureRecognizer;
@@ -98,6 +95,23 @@ class _GalleryViewerState extends State<GalleryViewer>
     return _quality != 100
         ? ImageUtils.thumbnailUrl(url, _quality)
         : url.http2https;
+  }
+
+  Future<void> _initPlayer() async {
+    assert(_player == null);
+    final player = await Player.create();
+    _videoController = await VideoController.create(player);
+    if (!mounted) {
+      player.dispose();
+      _videoController = null;
+      return;
+    }
+    _player = player;
+    final currItem = widget.sources[_currIndex.value];
+    if (currItem.sourceType == .livePhoto) {
+      player.open(Media(currItem.liveUrl!));
+      _currIndex.refresh();
+    }
   }
 
   @override
@@ -116,13 +130,13 @@ class _GalleryViewerState extends State<GalleryViewer>
     _pageController = PageController(initialPage: widget.initIndex);
 
     final gestureSettings = MediaQuery.maybeGestureSettingsOf(Get.context!);
-    _tapGestureRecognizer = ImageTapGestureRecognizer()
+    _tapGestureRecognizer = TapGestureRecognizer()
       // ..onTap = _onTap
       ..gestureSettings = gestureSettings;
     if (PlatformUtils.isDesktop) {
       _tapGestureRecognizer.onSecondaryTapUp = _showDesktopMenu;
     }
-    _doubleTapGestureRecognizer = ImageDoubleTapGestureRecognizer()
+    _doubleTapGestureRecognizer = DoubleTapGestureRecognizer()
       ..onDoubleTap = () {}
       ..gestureSettings = gestureSettings;
     _horizontalDragGestureRecognizer = ImageHorizontalDragGestureRecognizer();
@@ -231,7 +245,6 @@ class _GalleryViewerState extends State<GalleryViewer>
       ..onDoubleTap = null
       ..dispose();
     _longPressGestureRecognizer.dispose();
-    _currIndex.close();
     if (widget.quality != _quality) {
       for (final item in widget.sources) {
         if (item.sourceType == SourceType.networkImage) {
@@ -239,6 +252,7 @@ class _GalleryViewerState extends State<GalleryViewer>
         }
       }
     }
+    Future.delayed(const Duration(milliseconds: 200), _currIndex.close);
     super.dispose();
   }
 
@@ -318,7 +332,12 @@ class _GalleryViewerState extends State<GalleryViewer>
 
   void _playIfNeeded(SourceModel item) {
     if (item.sourceType == .livePhoto) {
-      _effectivePlayer.open(Media(item.liveUrl!));
+      if (_player != null) {
+        _player!.open(Media(item.liveUrl!));
+      } else if (!_hasInit) {
+        _hasInit = true;
+        _initPlayer();
+      }
     }
   }
 
@@ -360,7 +379,6 @@ class _GalleryViewerState extends State<GalleryViewer>
           onDragStart: _onDragStart,
           onDragUpdate: _onDragUpdate,
           onDragEnd: _onDragEnd,
-          tapGestureRecognizer: _tapGestureRecognizer,
           doubleTapGestureRecognizer: _doubleTapGestureRecognizer,
           horizontalDragGestureRecognizer: _horizontalDragGestureRecognizer,
           onChangePage: _onChangePage,
@@ -373,7 +391,6 @@ class _GalleryViewerState extends State<GalleryViewer>
           minScale: widget.minScale,
           maxScale: widget.maxScale,
           containerSize: _containerSize,
-          tapGestureRecognizer: _tapGestureRecognizer,
           doubleTapGestureRecognizer: _doubleTapGestureRecognizer,
           horizontalDragGestureRecognizer: _horizontalDragGestureRecognizer,
           onChangePage: _onChangePage,
@@ -395,7 +412,6 @@ class _GalleryViewerState extends State<GalleryViewer>
                   onDragStart: null,
                   onDragUpdate: null,
                   onDragEnd: null,
-                  tapGestureRecognizer: _tapGestureRecognizer,
                   doubleTapGestureRecognizer: _doubleTapGestureRecognizer,
                   horizontalDragGestureRecognizer:
                       _horizontalDragGestureRecognizer,
@@ -425,7 +441,7 @@ class _GalleryViewerState extends State<GalleryViewer>
       case SourceType.livePhoto:
         child = Obx(
           key: _key,
-          () => _currIndex.value == index
+          () => _currIndex.value == index && _videoController != null
               ? Viewer(
                   minScale: widget.minScale,
                   maxScale: widget.maxScale,
@@ -434,14 +450,13 @@ class _GalleryViewerState extends State<GalleryViewer>
                   onDragStart: _onDragStart,
                   onDragUpdate: _onDragUpdate,
                   onDragEnd: _onDragEnd,
-                  tapGestureRecognizer: _tapGestureRecognizer,
                   doubleTapGestureRecognizer: _doubleTapGestureRecognizer,
                   horizontalDragGestureRecognizer:
                       _horizontalDragGestureRecognizer,
                   onChangePage: _onChangePage,
-                  child: AbsorbPointer(
-                    child: Video(
-                      controller: _effectiveVideoController,
+                  child: FittedBox(
+                    child: SimpleVideo(
+                      controller: _videoController!,
                       fill: Colors.transparent,
                     ),
                   ),

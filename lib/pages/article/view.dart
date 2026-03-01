@@ -257,9 +257,7 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
                             width: maxWidth,
                             margin: const EdgeInsets.only(bottom: 10),
                             child: PageView.builder(
-                              physics: const CustomTabBarViewScrollPhysics(
-                                parent: ClampingScrollPhysics(),
-                              ),
+                              physics: clampingScrollPhysics,
                               onPageChanged: (value) =>
                                   controller.topIndex.value = value,
                               itemCount: length,

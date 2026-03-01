@@ -4,6 +4,7 @@ import 'package:PiliPlus/common/widgets/gesture/tap_gesture_recognizer.dart';
 import 'package:PiliPlus/common/widgets/image/cached_network_svg_image.dart';
 import 'package:PiliPlus/common/widgets/image/custom_grid_view.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
+import 'package:PiliPlus/common/widgets/image_viewer/hero.dart';
 import 'package:PiliPlus/http/constants.dart';
 import 'package:PiliPlus/models/common/image_preview_type.dart';
 import 'package:PiliPlus/models/common/image_type.dart';
@@ -222,26 +223,28 @@ class OpusContent extends StatelessWidget {
                     ? null
                     : width * pic.height! / pic.width!;
                 width ??= maxWidth;
+                Widget child = CachedNetworkImage(
+                  width: width,
+                  height: height,
+                  memCacheWidth: width.cacheSize(context),
+                  imageUrl: ImageUtils.thumbnailUrl(pic.url!, 60),
+                  fadeInDuration: const Duration(milliseconds: 120),
+                  fadeOutDuration: const Duration(milliseconds: 120),
+                  placeholder: (_, _) =>
+                      Image.asset('assets/images/loading.png'),
+                );
+                if (!(pic.isLongPic ?? false)) {
+                  child = fromHero(
+                    tag: pic.url!,
+                    child: child,
+                  );
+                }
                 return GestureDetector(
                   onTap: () => PageUtils.imageView(
                     imgList: [SourceModel(url: pic.url!)],
                     quality: 60,
                   ),
-                  child: Center(
-                    child: Hero(
-                      tag: pic.url!,
-                      child: CachedNetworkImage(
-                        width: width,
-                        height: height,
-                        memCacheWidth: width.cacheSize(context),
-                        imageUrl: ImageUtils.thumbnailUrl(pic.url!, 60),
-                        fadeInDuration: const Duration(milliseconds: 120),
-                        fadeOutDuration: const Duration(milliseconds: 120),
-                        placeholder: (_, _) =>
-                            Image.asset('assets/images/loading.png'),
-                      ),
-                    ),
-                  ),
+                  child: child,
                 );
               } else {
                 return CustomGridView(
