@@ -567,7 +567,7 @@ class _PipWidgetState extends State<PipWidget> with WidgetsBindingObserver {
                           child: Icon(
                             Icons.open_in_full,
                             color: Colors.white,
-                            size: 19,
+                            size: 18,
                           ),
                         ),
                       ),

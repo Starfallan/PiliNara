@@ -435,7 +435,7 @@ class _LivePipWidgetState extends State<LivePipWidget> with WidgetsBindingObserv
                           child: Icon(
                             Icons.open_in_full,
                             color: Colors.white,
-                            size: 19,
+                            size: 18,
                           ),
                         ),
                       ),

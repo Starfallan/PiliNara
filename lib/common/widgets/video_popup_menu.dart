@@ -112,12 +112,25 @@ class VideoPopupMenu extends StatelessWidget {
     return null;
   }
 
-  Widget _buildDialogChip(_DialogChipAction action) => ActionChip(
-    label: Text(action.label),
-    visualDensity: VisualDensity.compact,
-    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-    onPressed: action.onPressed,
-  );
+  Widget _buildDialogChip(BuildContext context, _DialogChipAction action) {
+    final colorScheme = Theme.of(context).colorScheme;
+    const radius = BorderRadius.all(Radius.circular(6));
+    return Material(
+      color: colorScheme.onInverseSurface,
+      borderRadius: radius,
+      child: InkWell(
+        borderRadius: radius,
+        onTap: action.onPressed,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+          child: Text(
+            action.label,
+            style: TextStyle(color: colorScheme.onSurfaceVariant),
+          ),
+        ),
+      ),
+    );
+  }
 
   void _showReasonDialog({
     required BuildContext context,
@@ -151,7 +164,7 @@ class VideoPopupMenu extends StatelessWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: sections[i].actions
-                        .map(_buildDialogChip)
+                         .map((action) => _buildDialogChip(context, action))
                         .toList(),
                   ),
                 ],
@@ -562,3 +575,4 @@ class VideoPopupMenu extends StatelessWidget {
     );
   }
 }
+
