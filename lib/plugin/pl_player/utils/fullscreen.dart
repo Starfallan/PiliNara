@@ -66,18 +66,20 @@ Future<void> fullAutoModeForceSensor() {
 
 bool _showStatusBar = true;
 Future<void> hideStatusBar() async {
-  if (!_showStatusBar) {
-    return;
-  }
   _showStatusBar = false;
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 }
 
+Future<void> hideStatusBarKeepNav() async {
+  _showStatusBar = false;
+  await SystemChrome.setEnabledSystemUIMode(
+    SystemUiMode.manual,
+    overlays: [SystemUiOverlay.bottom],
+  );
+}
+
 //退出全屏显示
 Future<void> showStatusBar() async {
-  if (_showStatusBar) {
-    return;
-  }
   _showStatusBar = true;
   SystemUiMode mode;
   if (Platform.isAndroid && (await Utils.sdkInt < 29)) {

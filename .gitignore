@@ -152,3 +152,5 @@ pili_release.json
 dist
 
 test*.dart
+
+CLAUDE.md

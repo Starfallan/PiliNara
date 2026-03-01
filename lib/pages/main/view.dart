@@ -249,6 +249,12 @@ class _MainAppState extends PopScopeState<MainApp>
         _mainController.selectedIndex.value == 0;
   }
 
+  static void _onBack() {
+    if (Platform.isAndroid) {
+      Utils.channel.invokeMethod('back');
+    }
+  }
+
   @override
   void onPopInvokedWithResult(bool didPop, Object? result) {
     if (_mainController.directExitOnBack) {
@@ -261,13 +267,8 @@ class _MainAppState extends PopScopeState<MainApp>
           ..showBottomBar?.value = true
           ..setSearchBar();
       } else {
-        SystemNavigator.pop();
+        _onBack();
       }
-    } else {
-      _mainController
-        ..setIndex(0)
-        ..showBottomBar?.value = true
-        ..setSearchBar();
     }
   }
 
