@@ -131,6 +131,7 @@ abstract final class VideoHttp {
         },
       ),
     );
+
     if (res.data['code'] == 0) {
       List<RecVideoItemAppModel> list = <RecVideoItemAppModel>[];
       for (final i in res.data['data']['items']) {
