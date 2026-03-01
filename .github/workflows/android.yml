@@ -67,12 +67,17 @@ jobs:
 
             - name: apply bottom sheet patch
               working-directory: ${{ env.FLUTTER_ROOT }}
-              run: git apply $GITHUB_WORKSPACE/lib/scripts/bottom_sheet_patch.diff
+              run: git apply $GITHUB_WORKSPACE/lib/scripts/bottom_sheet_patch.diff || true
               continue-on-error: true
 
             - name: apply modal barrier patch
               working-directory: ${{ env.FLUTTER_ROOT }}
-              run: git apply $GITHUB_WORKSPACE/lib/scripts/modal-barrier-patch.diff
+              run: git apply $GITHUB_WORKSPACE/lib/scripts/modal_barrier_patch.diff || true
+              continue-on-error: true
+
+            - name: apply mouse cursor patch
+              working-directory: ${{ env.FLUTTER_ROOT }}
+              run: git apply $GITHUB_WORKSPACE/lib/scripts/mouse_cursor_patch.diff || true
               continue-on-error: true
 
             - name: Write key
@@ -111,22 +116,22 @@ jobs:
                       PiliNara_android_*.apk
 
             - name: 上传
-              uses: actions/upload-artifact@v5
+              uses: actions/upload-artifact@v7
               with:
+                  archive: false
                   name: Android_arm64-v8a
-                  path: |
-                      PiliNara_android_*_arm64-v8a.apk
+                  path: PiliNara_android_*_arm64-v8a.apk
 
             - name: 上传
-              uses: actions/upload-artifact@v5
+              uses: actions/upload-artifact@v7
               with:
+                  archive: false
                   name: Android_armeabi-v7a
-                  path: |
-                      PiliNara_android_*_armeabi-v7a.apk
+                  path: PiliNara_android_*_armeabi-v7a.apk
 
             - name: 上传
-              uses: actions/upload-artifact@v5
+              uses: actions/upload-artifact@v7
               with:
+                  archive: false
                   name: Android_x86_64
-                  path: |
-                      PiliNara_android_*_x86_64.apk
+                  path: PiliNara_android_*_x86_64.apk
