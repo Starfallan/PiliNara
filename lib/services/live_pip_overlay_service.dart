@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math' show max;
 
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
-import 'package:PiliPlus/plugin/pl_player/view.dart';
+import 'package:PiliPlus/plugin/pl_player/view/view.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/foundation.dart';
@@ -118,7 +118,7 @@ class LivePipOverlayService {
       try {
         final overlayContext = Get.overlayContext ?? context;
         Overlay.of(overlayContext).insert(_overlayEntry!);
-        
+
         // 允许应用内小窗继续使用 Auto-PiP 手势
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!_isInPipMode) return;
@@ -130,7 +130,7 @@ class LivePipOverlayService {
         }
         SmartDialog.showToast('小窗启动失败: $e');
         _setSystemAutoPipEnabled(plPlayerController, false);
-        
+
         // 完整清理所有状态
         _isInPipMode = false;
         _currentLiveHeroTag = null;
@@ -138,7 +138,7 @@ class LivePipOverlayService {
         _overlayEntry = null;
         _savedController = null;
         _savedPlayerController = null;
-        
+
         // 通知调用者失败
         onClose?.call();
       }
@@ -157,7 +157,7 @@ class LivePipOverlayService {
 
     final closeCallback = callOnClose ? _onCloseCallback : null;
     final playerController = _savedPlayerController;
-    
+
     _onCloseCallback = null;
     _onReturnCallback = null;
     _savedController = null;
@@ -226,7 +226,8 @@ class LivePipWidget extends StatefulWidget {
   State<LivePipWidget> createState() => _LivePipWidgetState();
 }
 
-class _LivePipWidgetState extends State<LivePipWidget> with WidgetsBindingObserver {
+class _LivePipWidgetState extends State<LivePipWidget>
+    with WidgetsBindingObserver {
   double? _left;
   double? _top;
   double _scale = 1.0;
@@ -348,14 +349,18 @@ class _LivePipWidgetState extends State<LivePipWidget> with WidgetsBindingObserv
           },
           onPanUpdate: (details) {
             setState(() {
-              _left = (_left! + details.delta.dx).clamp(
-                0.0,
-                max(0.0, screenSize.width - _width),
-              ).toDouble();
-              _top = (_top! + details.delta.dy).clamp(
-                0.0,
-                max(0.0, screenSize.height - _height),
-              ).toDouble();
+              _left = (_left! + details.delta.dx)
+                  .clamp(
+                    0.0,
+                    max(0.0, screenSize.width - _width),
+                  )
+                  .toDouble();
+              _top = (_top! + details.delta.dy)
+                  .clamp(
+                    0.0,
+                    max(0.0, screenSize.height - _height),
+                  )
+                  .toDouble();
             });
           },
           onPanEnd: (_) {
