@@ -38,9 +38,29 @@ bool FlutterWindow::OnCreate() {
   channel.SetMethodCallHandler(
       [](const flutter::MethodCall<>& call,
          std::unique_ptr<flutter::MethodResult<>> result) {
+          HWND hwnd = ::GetActiveWindow();
           if (call.method_name().compare("closeWindow") == 0) {
             HANDLE hProcess = GetCurrentProcess();
             TerminateProcess(hProcess, 0);
+            result->Success();
+          } else if (call.method_name().compare("restoreWindow") == 0) {
+            if (hwnd != NULL) {
+              // Restore the window if it's minimized
+              if (::IsIconic(hwnd)) {
+                ::ShowWindow(hwnd, SW_RESTORE);
+              } else {
+                ::ShowWindow(hwnd, SW_NORMAL);
+              }
+              ::SetForegroundWindow(hwnd);
+              // Bring window to top and activate it
+              ::SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+              ::SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+            }
+            result->Success();
+          } else if (call.method_name().compare("minimizeWindow") == 0) {
+            if (hwnd != NULL) {
+              ::ShowWindow(hwnd, SW_MINIMIZE);
+            }
             result->Success();
           } else {
             result->NotImplemented();

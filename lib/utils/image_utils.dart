@@ -26,7 +26,25 @@ abstract final class ImageUtils {
   static String get time =>
       DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
   static bool silentDownImg = Pref.silentDownImg;
-  static const _androidRelativePath = 'Pictures/${Constants.appName}';
+  static const _defaultAndroidRelativePath = 'Pictures/${Constants.appName}';
+
+  // 获取图片保存路径
+  static String get _androidRelativePath {
+    final saveImgPath = Pref.saveImgPath;
+    if (saveImgPath != null && saveImgPath.isNotEmpty) {
+      return saveImgPath;
+    }
+    return _defaultAndroidRelativePath;
+  }
+
+  // 获取截图保存路径
+  static String get _androidScreenshotPath {
+    final saveScreenshotPath = Pref.saveScreenshotPath;
+    if (saveScreenshotPath != null && saveScreenshotPath.isNotEmpty) {
+      return saveScreenshotPath;
+    }
+    return _defaultAndroidRelativePath;
+  }
 
   // 图片分享
   static Future<void> onShareImg(String url) async {
@@ -324,6 +342,44 @@ abstract final class ImageUtils {
       res = SaveResult(true, null);
     }
     return res;
+  }
+
+  static Future<SaveResult?> saveScreenShot({
+    required Uint8List bytes,
+    required String fileName,
+    String ext = 'png',
+  }) async {
+    SaveResult? result;
+    fileName += '.$ext';
+    if (PlatformUtils.isMobile) {
+      SmartDialog.showLoading(msg: '正在保存');
+      result = await SaverGallery.saveImage(
+        bytes,
+        fileName: fileName,
+        androidRelativePath: _androidScreenshotPath,
+        skipIfExists: false,
+      );
+      SmartDialog.dismiss();
+      if (result.isSuccess) {
+        SmartDialog.showToast(' 已保存 ');
+      } else {
+        SmartDialog.showToast('保存失败，${result.errorMessage}');
+      }
+    } else {
+      SmartDialog.dismiss();
+      final savePath = await FilePicker.platform.saveFile(
+        type: FileType.image,
+        fileName: fileName,
+      );
+      if (savePath == null) {
+        SmartDialog.showToast("取消保存");
+        return null;
+      }
+      await File(savePath).writeAsBytes(bytes);
+      SmartDialog.showToast(' 已保存 ');
+      result = SaveResult(true, null);
+    }
+    return result;
   }
 
   static Future<void> saveFileImg({

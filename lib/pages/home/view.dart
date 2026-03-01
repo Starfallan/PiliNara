@@ -9,7 +9,12 @@ import 'package:PiliPlus/pages/mine/controller.dart';
 import 'package:PiliPlus/utils/extension/get_ext.dart';
 import 'package:PiliPlus/utils/extension/size_ext.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
+import 'package:PiliPlus/utils/storage.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
@@ -173,7 +178,48 @@ class _HomePageState extends CommonPageState<HomePage>
                     ),
                   ),
                 ),
-                const SizedBox(width: 5),
+                if (Pref.showClipboardSearch) ...[
+                  const SizedBox(width: 6),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: InkWell(
+                      borderRadius: borderRadius,
+                      onTap: () async {
+                        ClipboardData? data = await Clipboard.getData(
+                          Clipboard.kTextPlain,
+                        );
+                        if (data?.text?.isNotEmpty != true) {
+                          SmartDialog.showToast('剪贴板无数据');
+                          return;
+                        }
+                        final text = data!.text!;
+                        if (Pref.recordSearchHistory &&
+                            !Pref.clipboardSearchIncognito) {
+                          final List<String> historyList = List<String>.from(
+                            GStorage.historyWord.get('cacheList') ?? [],
+                          );
+                          historyList
+                            ..remove(text)
+                            ..insert(0, text);
+                          GStorage.historyWord.put('cacheList', historyList);
+                        }
+                        Get.toNamed(
+                          '/searchResult',
+                          parameters: {'keyword': text},
+                        );
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(4.0),
+                        child: Icon(
+                          Icons.paste,
+                          size: 20,
+                          color: theme.colorScheme.onSecondaryContainer,
+                        ),
+                      ),
+                    ),
+                  ),
+                ] else
+                  const SizedBox(width: 5),
               ],
             ),
           ),

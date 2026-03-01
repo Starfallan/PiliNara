@@ -11,6 +11,7 @@ import 'package:PiliPlus/models_new/pgc/pgc_info_model/result.dart';
 import 'package:PiliPlus/models_new/search/search_rcmd/data.dart';
 import 'package:PiliPlus/models_new/search/search_trending/data.dart';
 import 'package:PiliPlus/utils/request_utils.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/wbi_sign.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -57,6 +58,7 @@ abstract final class SearchHttp {
     String? gaiaVtoken,
     required ValueChanged<String> onSuccess,
   }) async {
+    String api = Api.searchByType;
     final params = await WbiSign.makSign({
       'search_type': searchType.name,
       'keyword': keyword,
@@ -74,15 +76,22 @@ abstract final class SearchHttp {
       'web_location': 1430654,
       'gaia_vtoken': ?gaiaVtoken,
     });
+    if (searchType == SearchType.media_hk_bangumi) {
+      if (Pref.apiHKUrl.isEmpty) {
+        return const Error('请在 设置-其他设置-港澳台代理 中设置代理服务器');
+      }
+      params['search_type'] = SearchType.media_bangumi.name;
+      api = Pref.apiHKUrl + Api.searchByType;
+    }
     final res = await Request().get(
-      Api.searchByType,
+      api,
       queryParameters: params,
       options: Options(
         headers: {
           if (gaiaVtoken != null) 'cookie': 'x-bili-gaia-vtoken=$gaiaVtoken',
           'origin': 'https://search.bilibili.com',
           'referer':
-              'https://search.bilibili.com/${searchType.name}?keyword=${Uri.encodeFull(keyword)}',
+              'https://search.bilibili.com/${params['search_type']}?keyword=${Uri.encodeFull(keyword)}',
         },
       ),
     );
@@ -107,7 +116,9 @@ abstract final class SearchHttp {
             case SearchType.bili_user:
               data = SearchUserData.fromJson(dataData);
               break;
-            case SearchType.media_bangumi || SearchType.media_ft:
+            case SearchType.media_bangumi ||
+                SearchType.media_ft ||
+                SearchType.media_hk_bangumi:
               data = SearchPgcData.fromJson(dataData);
               break;
             case SearchType.article:

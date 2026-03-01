@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.piliplus">
+    package="com.gucooing.piliplus">
     <queries>
         <intent>
             <action android:name="android.intent.action.VIEW" />
@@ -40,7 +40,7 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         xmlns:tools="http://schemas.android.com/tools"
-        android:enableOnBackInvokedCallback="false"
+        android:enableOnBackInvokedCallback="true"
         android:allowBackup="false"
         android:fullBackupContent="false"
         tools:replace="android:allowBackup">
@@ -73,7 +73,7 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <intent-filter android:label="PiliPlus">
+            <intent-filter android:label="PiliPlusX">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
@@ -97,7 +97,7 @@
                 <!--<data android:host="bangumi.bilibili.com"/>-->
                 <!--<data android:host="space.bilibili.com"/>-->
             </intent-filter>
-            <intent-filter android:label="PiliPlus">
+            <intent-filter android:label="PiliPlusX">
                 <action android:name="android.intent.action.VIEW" />
                 <action android:name="android.intent.action.SEARCH" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -211,4 +211,5 @@
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.WRITE_SETTINGS"/>
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
 </manifest>

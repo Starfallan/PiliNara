@@ -60,9 +60,10 @@ abstract final class PgcHttp {
   static Future<LoadingState<List<PgcIndexItem>?>> pgcIndex({
     int? page,
     int? indexType,
+    required String apiUrl,
   }) async {
     final res = await Request().get(
-      Api.pgcIndexResult,
+      apiUrl,
       queryParameters: {
         'st': 1,
         'order': 3,
@@ -94,9 +95,10 @@ abstract final class PgcHttp {
     int types = 1, // 1：`番剧`<br />3：`电影`<br />4：`国创` |
     required int before,
     required int after,
+    required String apiUrl,
   }) async {
     final res = await Request().get(
-      Api.pgcTimeline,
+      apiUrl,
       queryParameters: {
         'types': types,
         'before': before,

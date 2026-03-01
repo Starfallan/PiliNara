@@ -385,7 +385,7 @@ class RefreshIndicatorState extends State<RefreshIndicator>
       _status == RefreshIndicatorStatus.drag,
     );
     double newValue =
-        _dragOffset! / (containerExtent * kDragContainerExtentPercentage);
+        _dragOffset! / (containerExtent * (kDragContainerExtentPercentage + 0.01));
     _positionController.value = clampDouble(
       newValue,
       0.0,

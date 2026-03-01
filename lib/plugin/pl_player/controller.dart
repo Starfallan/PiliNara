@@ -368,6 +368,9 @@ class PlPlayerController with BlockConfigMixin {
   late final fastForBackwardDuration = Duration(
     seconds: Pref.fastForBackwardDuration,
   );
+  late final fastForBackwardDuration_ = Duration(
+    seconds: Pref.fastForBackwardDuration_,
+  );
 
   late final horizontalSeasonPanel = Pref.horizontalSeasonPanel;
   late final preInitPlayer = Pref.preInitPlayer;
@@ -1469,9 +1472,10 @@ class PlPlayerController with BlockConfigMixin {
         }
       } else {
         if (PlatformUtils.isMobile) {
-          showStatusBar();
-          if (mode == FullScreenMode.none) {
-            return;
+          if (!Pref.hideStatusBar) {
+            showStatusBar();
+          } else {
+            hideStatusBarKeepNav();
           }
           if (!horizontalScreen) {
             await verticalScreenForTwoSeconds();
@@ -1736,7 +1740,7 @@ class PlPlayerController with BlockConfigMixin {
           builder: (context) => GestureDetector(
             onTap: () {
               Get.back();
-              ImageUtils.saveByteImg(
+              ImageUtils.saveScreenShot(
                 bytes: value,
                 fileName: 'screenshot_${ImageUtils.time}',
               );

@@ -49,7 +49,7 @@ jobs:
 
       - name: Set and Extract version
         shell: pwsh
-        run: lib/scripts/build.ps1
+        run: lib/scripts/build.ps1 linux
 
       - name: apply modal barrier patch
         working-directory: ${{ env.FLUTTER_ROOT }}
@@ -234,11 +234,13 @@ jobs:
         shell: bash
 
       - name: Release
-        if: ${{ github.event.inputs.tag != '' }}
+        if: ${{ inputs.tag != '' && !contains(inputs.tag, 'test') }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.tag }}
-          name: ${{ github.event.inputs.tag }}
+          tag_name: ${{ inputs.tag }}
+          name: ${{ inputs.tag }}
+          draft: true
+          prerelease: true
           files: |
             PiliPlus_linux_*.tar.gz
             PiliPlus_linux_*.deb

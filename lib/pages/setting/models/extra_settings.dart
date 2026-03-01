@@ -347,6 +347,15 @@ List<SettingsModel> get extraSettings => [
     setKey: SettingBoxKey.showSeekPreview,
     defaultVal: true,
   ),
+  if (Platform.isAndroid) ...[
+    getSaveImgPathModel(
+      context: Get.context!,
+      title: '图片&截图 保存路径',
+      key1: SettingBoxKey.saveImgPath,
+      key2: SettingBoxKey.saveScreenshotPath,
+      suffix: 'bili',
+    ),
+  ],
   const SwitchModel(
     title: '显示高能进度条',
     subtitle: '高能进度条反应了在时域上，单位时间内弹幕发送量的变化趋势',
@@ -512,6 +521,99 @@ List<SettingsModel> get extraSettings => [
     },
   ),
   const SwitchModel(
+    title: '显示剪贴板搜索',
+    subtitle: '首页搜索框旁显示剪贴板粘贴按钮',
+    leading: Icon(Icons.paste),
+    setKey: SettingBoxKey.showClipboardSearch,
+    defaultVal: true,
+  ),
+  const SwitchModel(
+    title: '剪贴板无痕搜索',
+    subtitle: '剪贴板搜索时不记录搜索历史',
+    leading: Icon(Icons.visibility_off_outlined),
+    setKey: SettingBoxKey.clipboardSearchIncognito,
+    defaultVal: false,
+  ),
+  const SwitchModel(
+    title: '长按展示视频卡片替换为加入稍后再看',
+    leading: Icon(Icons.watch_later_outlined),
+    setKey: SettingBoxKey.defaultAddWatchLater,
+    defaultVal: false,
+  ),
+  const SwitchModel(
+    title: '在"我的"页点击主菜单"我的"打开稍后再看',
+    subtitle: '关闭选项 默认打开账号选择器',
+    leading: Icon(Icons.watch_later_outlined),
+    setKey: SettingBoxKey.defaultShowWatchLater,
+    defaultVal: false,
+  ),
+  SwitchModel(
+    title: '快速分享给指定用户',
+    subtitle: '长按分享触发，点击指定用户',
+    leading: const Icon(FontAwesomeIcons.shareFromSquare),
+    setKey: SettingBoxKey.enableQuickShare,
+    defaultVal: false,
+    onChanged: (value) async {
+      if (value && Accounts.main.isLogin) {
+        final TextEditingController controller = TextEditingController();
+        final quickShareId = Pref.quickShareId;
+        if (quickShareId != null && quickShareId != 1004428694) {
+          controller.text = quickShareId.toString();
+        }
+        final result = await showDialog<bool>(
+          context: Get.context!,
+          builder: (context) => AlertDialog(
+            title: const Text('默认分享对象的mid'),
+            content: TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                hintText: '空白默认为开发者mid',
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(false);
+                },
+                child: const Text('取消'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(true);
+                },
+                child: const Text('确定'),
+              ),
+            ],
+          ),
+        );
+
+        if (result == true) {
+          final inputText = controller.text.trim();
+          if (inputText.isEmpty) {
+            // 如果为空，使用默认值
+            await GStorage.setting.put(SettingBoxKey.quickShareId, 1004428694);
+            SmartDialog.showToast('设置成功');
+          } else {
+            final mid = int.tryParse(inputText);
+            if (mid != null) {
+              // 如果是有效的整数，保存
+              await GStorage.setting.put(SettingBoxKey.quickShareId, mid);
+              SmartDialog.showToast('设置成功');
+            } else {
+              // 如果不是有效的整数，显示错误并关闭选项
+              SmartDialog.showToast('请输入正确mid');
+              await GStorage.setting.put(SettingBoxKey.enableQuickShare, false);
+            }
+          }
+        } else {
+          // 用户点击取消，关闭选项
+          await GStorage.setting.put(SettingBoxKey.enableQuickShare, false);
+        }
+      }
+    },
+  ),
+  const SwitchModel(
     title: '快速收藏',
     subtitle: '点击设置默认收藏夹\n点按收藏至默认，长按选择文件夹',
     leading: Icon(Icons.bookmark_add_outlined),
@@ -633,6 +735,70 @@ List<SettingsModel> get extraSettings => [
       if (val) {
         Update.checkUpdate(false);
       }
+    },
+  ),
+  NormalModel(
+    title: '设置港澳台代理',
+    leading: const Icon(Icons.sailing_rounded),
+    getSubtitle: () {
+      final url = Pref.apiHKUrl;
+      return '当前港澳台代理配置: 「${url == '' ? '不代理' : Pref.apiHKUrl}」';
+    },
+
+    onTap: (context,setState) {
+      showDialog(
+        context: context,
+        builder: (context) {
+          String valueStr = Pref.apiHKUrl;
+          return AlertDialog(
+            title: const Text('港澳台代理链接'),
+            content: TextField(
+              autofocus: true,
+              onChanged: (value) => valueStr = value,
+              keyboardType: TextInputType.url,
+              decoration: const InputDecoration(
+                hintText: '请输入URL如:https://app.bilibili.com',
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: Get.back,
+                child: Text(
+                  '取消',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () async {
+                  if (!valueStr.isNotEmpty) {
+                    SmartDialog.showToast('代理链接不能为空');
+                    return;
+                  }
+                  if (!valueStr.toLowerCase().startsWith('http')) {
+                    SmartDialog.showToast('代理链接格式错误');
+                    return;
+                  }
+
+                  if (valueStr.toLowerCase().endsWith('/')) {
+                    SmartDialog.showToast('末尾不能有/');
+                    return;
+                  }
+
+                  Get.back();
+                  await GStorage.setting.put(
+                    SettingBoxKey.apiHKUrl,
+                    valueStr,
+                  );
+                  setState();
+                },
+                child: const Text('确定'),
+              ),
+            ],
+          );
+        },
+      );
     },
   ),
 ];
@@ -954,9 +1120,9 @@ Future<void> _showRefreshDragDialog(
     context: context,
     builder: (context) => SliderDialog(
       title: '刷新滑动距离',
-      min: 0.1,
+      min: 0,
       max: 0.5,
-      divisions: 8,
+      divisions: 10,
       precise: 2,
       value: Pref.refreshDragPercentage,
       suffix: 'x',

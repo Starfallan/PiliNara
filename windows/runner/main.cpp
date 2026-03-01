@@ -7,11 +7,19 @@
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
-  HWND hwnd = ::FindWindow(L"FLUTTER_RUNNER_WIN32_WINDOW", L"piliplus");
+  HWND hwnd = ::FindWindow(L"FLUTTER_RUNNER_WIN32_WINDOW", L"PiliPlusX");
   if (hwnd != NULL) {
-    ::ShowWindow(hwnd, SW_NORMAL);
+    // Restore the window if it's minimized
+    if (::IsIconic(hwnd)) {
+      ::ShowWindow(hwnd, SW_RESTORE);
+    } else {
+      ::ShowWindow(hwnd, SW_NORMAL);
+    }
     ::SetForegroundWindow(hwnd);
-    return EXIT_FAILURE;
+    // Bring window to top and activate it
+    ::SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+    ::SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+    return EXIT_SUCCESS;
   }
 
   // Attach to console when present (e.g., 'flutter run') or create a
@@ -34,7 +42,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
-  if (!window.Create(L"piliplus", origin, size)) {
+  if (!window.Create(L"PiliPlusX", origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

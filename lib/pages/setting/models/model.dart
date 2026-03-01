@@ -290,3 +290,49 @@ SettingsModel getVideoFilterSelectModel({
     },
   );
 }
+
+SettingsModel getSaveImgPathModel({
+  required BuildContext context,
+  required String title,
+  required String key1,
+  required String key2,
+  required String suffix, // 路径前缀
+  String defaultValue = 'Pictures/${Constants.appName}',
+}) {
+  String value = GStorage.setting.get(key1, defaultValue: defaultValue);
+  return NormalModel(
+    title: title,
+    leading: const Icon(Icons.folder),
+    getSubtitle: () => value,
+    onTap: (context, setState) async {
+      final result = await showDialog<String>(
+        context: context,
+        builder: (context) {
+          return SelectDialog<String>(
+            title: '选择$title',
+            value: value,
+            values: [
+              ('Pictures/${Constants.appName}', '默认路径'),
+              ('Pictures/$suffix', '官方版本路径'),
+            ],
+          );
+        },
+      );
+      if (result == 'Pictures/$suffix') {
+        value = result!;
+        setState();
+        GStorage.setting.put(key1, result);
+        final screenshotResult = 'Pictures/$suffix/screenshot';
+        GStorage.setting.put(key2, screenshotResult);
+        return;
+      }
+      if (result == 'Pictures/${Constants.appName}') {
+        value = result!;
+        setState();
+        GStorage.setting.put(key1, result);
+        GStorage.setting.put(key2, result);
+        return;
+      }
+    },
+  );
+}

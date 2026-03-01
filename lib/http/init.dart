@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:PiliPlus/http/api.dart';
 import 'package:PiliPlus/http/constants.dart';
+import 'package:PiliPlus/http/hk_api_retry_interceptor.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/http/retry_interceptor.dart';
 import 'package:PiliPlus/http/user.dart';
@@ -168,6 +169,9 @@ class Request {
 
     // 先于其他Interceptor
     dio.interceptors.add(RetryInterceptor(Pref.retryCount, Pref.retryDelay));
+
+    // 港澳台支持
+    dio.interceptors.add(HkApiRetryInterceptor());
 
     // 日志拦截器 输出请求、响应内容
     if (kDebugMode) {

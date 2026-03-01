@@ -1,0 +1,116 @@
+name: Build for Android Pink
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: "tag"
+        required: false
+        default: ""
+        type: string
+  workflow_dispatch:
+
+jobs:
+    android:
+        name: Release Android Pink
+        runs-on: ubuntu-latest
+        steps:
+            - name: 代码迁出
+              uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0
+
+            - name: Rename package
+              run: |
+                export LC_ALL=C
+                sed -i 's/androidInfo\.supportedAbis\.first/"pink"/g' lib/utils/update.dart
+                sed -i 's/com\.gucooing\.piliplus/tv\.danmaku\.bili/g' \
+                  android/app/build.gradle.kts \
+                  android/app/src/profile/AndroidManifest.xml \
+                  android/app/src/main/AndroidManifest.xml \
+                  android/app/src/main/kotlin/com/example/piliplus/MainActivity.kt \
+                  lib/services/audio_handler.dart
+                grep -n '"pink"' lib/utils/update.dart || echo "update.dart 替换失败"
+                grep -n 'tv\.danmaku\.bili' android/app/build.gradle.kts | head -2 || echo "build.gradle.kts 替换失败"
+              shell: bash
+
+            - name: 构建Java环境
+              uses: actions/setup-java@v5
+              with:
+                  distribution: "zulu"
+                  java-version: "17"
+                  cache: "gradle"
+                  cache-dependency-path: |
+                      android/*.gradle*
+                      android/**/gradle-wrapper.properties
+
+            - name: 安装Flutter
+              uses: subosito/flutter-action@v2
+              id: flutter-action
+              with:
+                  channel: stable
+                  flutter-version-file: pubspec.yaml
+                  cache: true
+
+            - name: revert new overscrollindicator
+              working-directory: ${{ env.FLUTTER_ROOT }}
+              # https://github.com/flutter/flutter/issues/182281
+              run: |
+                  git config --global user.name "ci"
+                  git config --global user.email "example@example.com"
+                  git stash || true
+                  git revert 362b1de29974ffc1ed6faa826e1df870d7bec75f --no-edit
+                  git reset --soft HEAD~1
+                  git stash pop || true
+              continue-on-error: true
+
+            - name: apply bottom sheet patch
+              working-directory: ${{ env.FLUTTER_ROOT }}
+              run: git apply $GITHUB_WORKSPACE/lib/scripts/bottom_sheet_patch.diff || true
+              continue-on-error: true
+
+            - name: apply modal barrier patch
+              working-directory: ${{ env.FLUTTER_ROOT }}
+              run: git apply $GITHUB_WORKSPACE/lib/scripts/modal-barrier-patch.diff || true
+              continue-on-error: true
+
+            - name: Write key
+              if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') ) }}
+              run: |
+                  if [ ! -z "${{ secrets.KEYSTORE_FILE }}" ]; then
+                    echo "${{ secrets.KEYSTORE_FILE }}" | base64 --decode > android/app/key.jks
+                    echo storeFile='key.jks' >> android/key.properties
+                    echo storePassword='${{ secrets.KEYSTORE_PASSWORD }}' >> android/key.properties
+                    echo keyAlias='${{ secrets.KEY_ALIAS }}' >> android/key.properties
+                    echo keyPassword='${{ secrets.KEY_PASSWORD }}' >> android/key.properties
+                  fi
+
+            - name: Set and Extract version
+              shell: pwsh
+              run: lib/scripts/build.ps1 android
+
+            - name: flutter build apk
+              run: flutter build apk --release --split-per-abi --target-platform android-arm64 --dart-define-from-file=pili_release.json --pub
+
+            - name: rename
+              run: |
+                  tag_name=${{ github.event_name == 'push' && github.ref_name || github.event.inputs.tag }}
+                  mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "PiliPlusX_android_${tag_name}_pink.apk"
+              shell: bash
+
+            - name: Release
+              if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '' && !contains(github.event.inputs.tag, 'test')) || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, 'test')) }}
+              uses: softprops/action-gh-release@v2
+              with:
+                  tag_name: ${{ github.event_name == 'push' && github.ref_name || github.event.inputs.tag }}
+                  name: ${{ github.event_name == 'push' && github.ref_name || github.event.inputs.tag }}
+                  draft: true
+                  prerelease: true
+                  files: |
+                      PiliPlusX_android_*.apk
+
+            - name: Upload Pink release
+              uses: actions/upload-artifact@v5
+              with:
+                  name: Android_Pink
+                  path: PiliPlusX_android_*_pink.apk

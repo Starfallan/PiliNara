@@ -41,29 +41,32 @@ jobs:
         continue-on-error: true
 
       - name: Build Mac
-        run: flutter build macos --release --dart-define-from-file=pili_release.json
+        run: |
+          flutter build macos --release --dart-define-from-file=pili_release.json
 
       - name: Prepare Upload
         run: |
           npm install --global create-dmg
-          create-dmg build/macos/Build/Products/Release/PiliPlus.app || true
+          create-dmg build/macos/Build/Products/Release/PiliPlusX.app || true
         continue-on-error: true
 
       - name: Rename DMG
-        run: mv PiliPlus*.dmg PiliPlus_macos_${{ env.version }}.dmg
+        run: mv PiliPlusX*.dmg PiliPlusX_macos_${{ inputs.tag }}.dmg
 
       - name: Release
-        if: ${{ github.event.inputs.tag != '' }}
+        if: ${{ inputs.tag != '' && !contains(inputs.tag, 'test') }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.tag }}
-          name: ${{ github.event.inputs.tag }}
+          tag_name: ${{ inputs.tag }}
+          name: ${{ inputs.tag }}
+          draft: true
+          prerelease: true
           files: |
-            PiliPlus_macos_*.dmg
+            PiliPlusX_macos_${{ inputs.tag }}.dmg
 
       - name: Upload macos release
         uses: actions/upload-artifact@v7
         with:
           archive: false
           name: macOS-release
-          path: PiliPlus_macos_*.dmg
+          path: PiliPlusX_macos_*.dmg

@@ -35,6 +35,7 @@ import 'package:PiliPlus/utils/num_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/request_utils.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:expandable/expandable.dart';
 import 'package:flutter/material.dart' hide SelectionArea;
@@ -598,6 +599,32 @@ class _UgcIntroPanelState extends State<UgcIntroPanel> {
           ActionItem(
             icon: const Icon(FontAwesomeIcons.shareFromSquare),
             onTap: () => introController.actionShareVideo(context),
+            onLongPress: () {
+              if (!Pref.enableQuickShare) {
+                SmartDialog.showToast('快速分享功能未开启');
+                return;
+              }
+              try {
+                final videoDetail = introController.videoDetail.value;
+                final content = {
+                  "id": videoDetail.aid!.toString(),
+                  "title": videoDetail.title!,
+                  "headline": videoDetail.title!,
+                  "source": 5,
+                  "thumb": videoDetail.pic!,
+                  "author": videoDetail.owner!.name!,
+                  "author_id": videoDetail.owner!.mid!.toString(),
+                };
+                RequestUtils.pmShare(
+                  receiverId: Pref.quickShareId ?? 1004428694,
+                  content: content,
+                  avoidGetBack: true,
+                );
+                SmartDialog.showToast('快速分享成功');
+              } catch (e) {
+                SmartDialog.showToast('快速分享失败：${e.toString()}');
+              }
+            },
             selectStatus: false,
             semanticsLabel: '分享',
             text: !isLoading

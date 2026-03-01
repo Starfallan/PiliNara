@@ -10,7 +10,10 @@ import 'package:PiliPlus/pages/dynamics_create/view.dart';
 import 'package:PiliPlus/pages/dynamics_tab/view.dart';
 import 'package:PiliPlus/pages/main/controller.dart';
 import 'package:PiliPlus/utils/extension/get_ext.dart';
+import 'package:PiliPlus/utils/feed_back.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:flutter/material.dart' hide DraggableScrollableSheet;
+import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 
 class DynamicsPage extends StatefulWidget {
@@ -170,6 +173,20 @@ class _DynamicsPageState extends CommonPageState<DynamicsPage>
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: Colors.transparent,
+      floatingActionButton: Pref.showDynamicsRefreshFab
+          ? SlideTransition(
+              position: _dynamicsController.fabAnimation,
+              child: FloatingActionButton(
+                heroTag: null,
+                onPressed: () {
+                  feedBack();
+                  _dynamicsController.onRefresh();
+                },
+                tooltip: '刷新',
+                child: const Icon(Icons.refresh),
+              ),
+            )
+          : null,
       appBar: AppBar(
         primary: false,
         leading: leading,

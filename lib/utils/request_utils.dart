@@ -70,6 +70,7 @@ abstract final class RequestUtils {
     required int receiverId,
     required Map content,
     String? message,
+    bool avoidGetBack = false,
   }) async {
     final ownerMid = Accounts.main.mid;
     final contentRes = await ImGrpc.sendMsg(

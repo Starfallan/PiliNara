@@ -43,7 +43,7 @@ dependencies:
   # get: ^4.7.2
   get:
     git:
-      url: https://github.com/bggRGjQaUbCoE/getx.git
+      url: https://github.com/chenx-dust/getx.git
       ref: version_4.7.2
 
   # 网络

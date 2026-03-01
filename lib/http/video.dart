@@ -27,7 +27,10 @@ import 'package:PiliPlus/models_new/video/video_play_info/data.dart';
 import 'package:PiliPlus/models_new/video/video_relation/data.dart';
 import 'package:PiliPlus/models_new/video/video_shot/data.dart';
 import 'package:PiliPlus/utils/accounts.dart';
+import 'package:PiliPlus/utils/app_scheme.dart';
 import 'package:PiliPlus/utils/app_sign.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:PiliPlus/utils/extension/string_ext.dart';
 import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/id_utils.dart';
@@ -256,6 +259,34 @@ abstract final class VideoHttp {
           seasonId: seasonId,
           tryLook: tryLook,
           videoType: VideoType.pgc,
+        );
+      } else if (bvid != null && IdUtils.bvRegexExact.hasMatch(bvid)) {
+        // 若bvid符合有效格式, 弹窗
+        SmartDialog.show(
+          builder: (context) {
+            return AlertDialog(
+              title: const Text('提示'),
+              content: const Text('视频可能换源，是否跳转到新地址？'),
+              actions: [
+                TextButton(
+                  onPressed: () => SmartDialog.dismiss(),
+                  child: Text(
+                    '取消',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    SmartDialog.dismiss();
+                    PiliScheme.videoPush(null, bvid, showDialog: false);
+                  },
+                  child: const Text('确定'),
+                ),
+              ],
+            );
+          },
         );
       }
       return Error(_parseVideoErr(res.data['code'], res.data['message']));

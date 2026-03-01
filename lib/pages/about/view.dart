@@ -43,6 +43,7 @@ class AboutPage extends StatefulWidget {
 class _AboutPageState extends State<AboutPage> {
   final currentVersion =
       '${BuildConfig.versionName}+${BuildConfig.versionCode}';
+  final versionTag = '${BuildConfig.versionTag}+${BuildConfig.versionCode}';
   RxString cacheSize = ''.obs;
 
   late int _pressCount = 0;
@@ -114,7 +115,7 @@ class _AboutPageState extends State<AboutPage> {
               height: 150,
               excludeFromSemantics: true,
               cacheWidth: 150.cacheSize(context),
-              'assets/images/logo/logo.png',
+              'assets/images/logo/logo_X.png',
             ),
           ),
           ListTile(
@@ -141,14 +142,14 @@ class _AboutPageState extends State<AboutPage> {
           ),
           ListTile(
             onTap: () => Update.checkUpdate(false),
-            onLongPress: () => Utils.copyText(currentVersion),
+            onLongPress: () => Utils.copyText(versionTag),
             onSecondaryTap: PlatformUtils.isMobile
                 ? null
-                : () => Utils.copyText(currentVersion),
+                : () => Utils.copyText(versionTag),
             title: const Text('当前版本'),
             leading: const Icon(Icons.commit_outlined),
             trailing: Text(
-              currentVersion,
+              versionTag,
               style: subTitleStyle,
             ),
           ),
@@ -178,6 +179,12 @@ Commit Hash: ${BuildConfig.commitHash}''',
             leading: const Icon(Icons.code),
             title: const Text('Source Code'),
             subtitle: Text(Constants.sourceCodeUrl, style: subTitleStyle),
+          ),
+          ListTile(
+            onTap: () => PageUtils.launchURL(Constants.upstreamCodeUrl),
+            leading: const Icon(Icons.code),
+            title: const Text('Upstream Code'),
+            subtitle: Text(Constants.upstreamCodeUrl, style: subTitleStyle),
           ),
           if (Platform.isAndroid)
             ListTile(
