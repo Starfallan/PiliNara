@@ -65,6 +65,8 @@ import 'package:path/path.dart' as path;
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:window_manager/window_manager.dart';
 
+enum SubtitleEdgeStyle { none, outline, shadow }
+
 class PlPlayerController with BlockConfigMixin {
   Player? _videoPlayerController;
   VideoController? _videoController;
@@ -377,6 +379,15 @@ class PlPlayerController with BlockConfigMixin {
   final bool showVipDanmaku = Pref.showVipDanmaku; // loop unswitching
   late double subtitleStrokeWidth = Pref.subtitleStrokeWidth;
   late int subtitleFontWeight = Pref.subtitleFontWeight;
+  late bool subtitleTranslationOnTop = Pref.subtitleTranslationOnTop;
+  late int subtitlePrimaryFontColor = Pref.subtitlePrimaryFontColor;
+  late int subtitlePrimaryEdgeStyle = Pref.subtitlePrimaryEdgeStyle;
+  late int subtitleSecondaryFontColor = Pref.subtitleSecondaryFontColor;
+  late int subtitleSecondaryEdgeStyle = Pref.subtitleSecondaryEdgeStyle;
+  late double subtitleSecondaryBgOpacity = Pref.subtitleSecondaryBgOpacity;
+  late double subtitleSecondaryFontScale = Pref.subtitleSecondaryFontScale;
+  late double subtitleSecondaryFontScaleFS = Pref.subtitleSecondaryFontScaleFS;
+  late int subtitleSecondaryFontWeight = Pref.subtitleSecondaryFontWeight;
 
   // settings
   late final showFSActionItem = Pref.showFSActionItem;
@@ -429,36 +440,104 @@ class PlPlayerController with BlockConfigMixin {
   // 播放顺序相关
   late PlayRepeat playRepeat = Pref.playRepeat;
 
-  TextStyle get subTitleStyle => TextStyle(
-    height: 1.5,
-    fontSize:
-        16 * (isFullScreen.value ? subtitleFontScaleFS : subtitleFontScale),
-    letterSpacing: 0.1,
-    wordSpacing: 0.1,
-    color: Colors.white,
-    fontWeight: FontWeight.values[subtitleFontWeight],
-    backgroundColor: subtitleBgOpacity == 0
-        ? null
-        : Colors.black.withValues(alpha: subtitleBgOpacity),
-  );
+  FontWeight _safeFontWeight(int index) {
+    final safeIndex = index < 0
+        ? 0
+        : (index >= FontWeight.values.length
+              ? FontWeight.values.length - 1
+              : index);
+    return FontWeight.values[safeIndex];
+  }
+
+  SubtitleEdgeStyle _edgeStyle(int index) =>
+      (index >= 0 && index < SubtitleEdgeStyle.values.length)
+      ? SubtitleEdgeStyle.values[index]
+      : SubtitleEdgeStyle.outline;
+
+  TextStyle get subTitleStyle => getPrimarySubtitleTextStyle();
+
+  TextStyle getPrimarySubtitleTextStyle() {
+    final scale = isFullScreen.value ? subtitleFontScaleFS : subtitleFontScale;
+    return TextStyle(
+      height: 1.5,
+      fontSize: 16 * scale,
+      letterSpacing: 0.1,
+      wordSpacing: 0.1,
+      color: Color(subtitlePrimaryFontColor),
+      fontWeight: _safeFontWeight(subtitleFontWeight),
+      backgroundColor: subtitleBgOpacity == 0
+          ? null
+          : Colors.black.withValues(alpha: subtitleBgOpacity),
+      shadows: _edgeStyle(subtitlePrimaryEdgeStyle) == SubtitleEdgeStyle.shadow
+          ? const [
+              Shadow(color: Colors.black, blurRadius: 3, offset: Offset(1, 1)),
+            ]
+          : null,
+    );
+  }
+
+  TextStyle? getPrimarySubtitleStrokeStyle() {
+    if (_edgeStyle(subtitlePrimaryEdgeStyle) != SubtitleEdgeStyle.outline) {
+      return null;
+    }
+    final textStyle = getPrimarySubtitleTextStyle();
+    return textStyle.copyWith(
+      color: null,
+      background: null,
+      backgroundColor: null,
+      foreground: Paint()
+        ..color = Colors.black
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = subtitleStrokeWidth,
+    );
+  }
+
+  TextStyle getSecondarySubtitleTextStyle() {
+    final scale = isFullScreen.value
+        ? subtitleSecondaryFontScaleFS
+        : subtitleSecondaryFontScale;
+    return TextStyle(
+      height: 1.5,
+      fontSize: 16 * scale,
+      letterSpacing: 0.1,
+      wordSpacing: 0.1,
+      color: Color(subtitleSecondaryFontColor),
+      fontWeight: _safeFontWeight(subtitleSecondaryFontWeight),
+      backgroundColor: subtitleSecondaryBgOpacity == 0
+          ? null
+          : Colors.black.withValues(alpha: subtitleSecondaryBgOpacity),
+      shadows:
+          _edgeStyle(subtitleSecondaryEdgeStyle) == SubtitleEdgeStyle.shadow
+          ? const [
+              Shadow(color: Colors.black, blurRadius: 3, offset: Offset(1, 1)),
+            ]
+          : null,
+    );
+  }
+
+  TextStyle? getSecondarySubtitleStrokeStyle() {
+    if (_edgeStyle(subtitleSecondaryEdgeStyle) != SubtitleEdgeStyle.outline) {
+      return null;
+    }
+    final textStyle = getSecondarySubtitleTextStyle();
+    return textStyle.copyWith(
+      color: null,
+      background: null,
+      backgroundColor: null,
+      foreground: Paint()
+        ..color = Colors.black
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = subtitleStrokeWidth,
+    );
+  }
 
   late final Rx<SubtitleViewConfiguration> subtitleConfig = getSubConfig.obs;
 
   SubtitleViewConfiguration get getSubConfig {
-    final subTitleStyle = this.subTitleStyle;
+    final subTitleStyle = getPrimarySubtitleTextStyle();
     return SubtitleViewConfiguration(
       style: subTitleStyle,
-      strokeStyle: subtitleBgOpacity == 0
-          ? subTitleStyle.copyWith(
-              color: null,
-              background: null,
-              backgroundColor: null,
-              foreground: Paint()
-                ..color = Colors.black
-                ..style = PaintingStyle.stroke
-                ..strokeWidth = subtitleStrokeWidth,
-            )
-          : null,
+      strokeStyle: getPrimarySubtitleStrokeStyle(),
       padding: EdgeInsets.only(
         left: subtitlePaddingH.toDouble(),
         right: subtitlePaddingH.toDouble(),
@@ -470,6 +549,40 @@ class PlPlayerController with BlockConfigMixin {
 
   void updateSubtitleStyle() {
     subtitleConfig.value = getSubConfig;
+  }
+
+  Future<void> setSecondarySubtitleSid(dynamic sid) async {
+    final player = _videoPlayerController;
+    if (player == null || player.disposed) return;
+    if (sid == null || sid.toString().isEmpty || sid == 'no') {
+      player
+        ..setProperty('secondary-sid', 'no')
+        ..setProperty('secondary-sub-visibility', 'no');
+      return;
+    }
+    player
+      ..setProperty('secondary-sid', sid)
+      ..setProperty('secondary-sub-visibility', 'yes');
+  }
+
+  void restoreDefaultSubtitleStyles() {
+    subtitleFontScale = 1.0;
+    subtitleFontScaleFS = 1.5;
+    subtitlePaddingH = 24;
+    subtitlePaddingB = 24;
+    subtitleBgOpacity = 0.67;
+    subtitleStrokeWidth = 2.0;
+    subtitleFontWeight = 5;
+    subtitleTranslationOnTop = false;
+    subtitlePrimaryFontColor = 0xFFFFFFFF;
+    subtitlePrimaryEdgeStyle = SubtitleEdgeStyle.outline.index;
+    subtitleSecondaryFontColor = 0xFFFFFFFF;
+    subtitleSecondaryEdgeStyle = SubtitleEdgeStyle.shadow.index;
+    subtitleSecondaryBgOpacity = 0.5;
+    subtitleSecondaryFontScale = 1.0;
+    subtitleSecondaryFontScaleFS = 1.5;
+    subtitleSecondaryFontWeight = 5;
+    updateSubtitleStyle();
   }
 
   void onUpdatePadding(EdgeInsets padding) {
@@ -572,7 +685,7 @@ class PlPlayerController with BlockConfigMixin {
             }
           } else if (call.method == 'onPipChanged') {
             final bool isInPip = call.arguments as bool;
-            
+
             // 立即更新状态，避免由于状态更新滞后同步导致界面在恢复全屏过程中产生的“缩小在角落”或“渲染异常”
             isNativePip.value = isInPip;
             PipOverlayService.isNativePip = isInPip;
@@ -749,9 +862,7 @@ class PlPlayerController with BlockConfigMixin {
 
   Future<Player> _initPlayer() async {
     assert(_videoPlayerController == null);
-    final opt = {
-      'video-sync': Pref.videoSync,
-    };
+    final opt = {'video-sync': Pref.videoSync};
     if (Platform.isAndroid) {
       opt['volume-max'] = '100';
       opt['ao'] = Pref.audioOutput;
@@ -784,10 +895,7 @@ class PlPlayerController with BlockConfigMixin {
       ),
     );
 
-    player.setMediaHeader(
-      userAgent: BrowserUa.pc,
-      referer: HttpString.baseUrl,
-    );
+    player.setMediaHeader(userAgent: BrowserUa.pc, referer: HttpString.baseUrl);
     // await player.setAudioTrack(.auto());
     return player;
   }
@@ -842,14 +950,10 @@ class PlPlayerController with BlockConfigMixin {
         audioNormalization = audioNormalization.replaceFirstMapped(
           loudnormRegExp,
           (i) =>
-              'loudnorm=${volume.format(
-                Map.fromEntries(
-                  i.group(1)!.split(':').map((item) {
-                    final parts = item.split('=');
-                    return MapEntry(parts[0].toLowerCase(), num.parse(parts[1]));
-                  }),
-                ),
-              )}',
+              'loudnorm=${volume.format(Map.fromEntries(i.group(1)!.split(':').map((item) {
+                final parts = item.split('=');
+                return MapEntry(parts[0].toLowerCase(), num.parse(parts[1]));
+              })))}',
         );
       } else {
         audioNormalization = audioNormalization.replaceFirst(
@@ -863,11 +967,7 @@ class PlPlayerController with BlockConfigMixin {
     }
 
     await player.open(
-      Media(
-        video,
-        start: seekTo,
-        extras: extras.isEmpty ? null : extras,
-      ),
+      Media(video, start: seekTo, extras: extras.isEmpty ? null : extras),
       play: false,
     );
   }
@@ -1618,6 +1718,15 @@ class PlPlayerController with BlockConfigMixin {
       SettingBoxKey.subtitleBgOpacity: subtitleBgOpacity,
       SettingBoxKey.subtitleStrokeWidth: subtitleStrokeWidth,
       SettingBoxKey.subtitleFontWeight: subtitleFontWeight,
+      SettingBoxKey.subtitleTranslationOnTop: subtitleTranslationOnTop,
+      SettingBoxKey.subtitlePrimaryFontColor: subtitlePrimaryFontColor,
+      SettingBoxKey.subtitlePrimaryEdgeStyle: subtitlePrimaryEdgeStyle,
+      SettingBoxKey.subtitleSecondaryFontColor: subtitleSecondaryFontColor,
+      SettingBoxKey.subtitleSecondaryEdgeStyle: subtitleSecondaryEdgeStyle,
+      SettingBoxKey.subtitleSecondaryBgOpacity: subtitleSecondaryBgOpacity,
+      SettingBoxKey.subtitleSecondaryFontScale: subtitleSecondaryFontScale,
+      SettingBoxKey.subtitleSecondaryFontScaleFS: subtitleSecondaryFontScaleFS,
+      SettingBoxKey.subtitleSecondaryFontWeight: subtitleSecondaryFontWeight,
     });
   }
 

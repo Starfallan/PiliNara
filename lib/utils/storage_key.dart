@@ -169,7 +169,16 @@ abstract final class SettingBoxKey {
       subtitleStrokeWidth = 'subtitleStrokeWidth',
       subtitleFontScale = 'subtitleFontScale',
       subtitleFontScaleFS = 'subtitleFontScaleFS',
-      subtitleFontWeight = 'subtitleFontWeight';
+      subtitleFontWeight = 'subtitleFontWeight',
+      subtitleTranslationOnTop = 'subtitleTranslationOnTop',
+      subtitlePrimaryFontColor = 'subtitlePrimaryFontColor',
+      subtitlePrimaryEdgeStyle = 'subtitlePrimaryEdgeStyle',
+      subtitleSecondaryFontColor = 'subtitleSecondaryFontColor',
+      subtitleSecondaryEdgeStyle = 'subtitleSecondaryEdgeStyle',
+      subtitleSecondaryBgOpacity = 'subtitleSecondaryBgOpacity',
+      subtitleSecondaryFontScale = 'subtitleSecondaryFontScale',
+      subtitleSecondaryFontScaleFS = 'subtitleSecondaryFontScaleFS',
+      subtitleSecondaryFontWeight = 'subtitleSecondaryFontWeight';
 
   static const String webdavUri = 'webdavUri',
       webdavUsername = 'webdavUsername',

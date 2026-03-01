@@ -52,7 +52,6 @@ import 'package:PiliPlus/plugin/pl_player/models/data_source.dart';
 import 'package:PiliPlus/plugin/pl_player/models/heart_beat_type.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/services/download/download_service.dart';
-import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/services/pip_overlay_service.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/extension/context_ext.dart';
@@ -478,10 +477,7 @@ class VideoDetailController extends GetxController
         PageUtils.showVideoBottomSheet(
           context,
           child: plPlayerController.darkVideoPage && MyApp.darkThemeData != null
-              ? Theme(
-                  data: MyApp.darkThemeData!,
-                  child: panel(),
-                )
+              ? Theme(data: MyApp.darkThemeData!, child: panel())
               : panel(),
           isFullScreen: () => plPlayerController.isFullScreen.value,
         );
@@ -532,10 +528,7 @@ class VideoDetailController extends GetxController
       alignment: Alignment.centerLeft,
       child: SlideTransition(
         position: animation.drive(
-          Tween<Offset>(
-            begin: const Offset(-1.0, 0.0),
-            end: Offset.zero,
-          ),
+          Tween<Offset>(begin: const Offset(-1.0, 0.0), end: Offset.zero),
         ),
         child: Padding(
           padding: const EdgeInsets.only(top: 5),
@@ -1030,8 +1023,43 @@ class VideoDetailController extends GetxController
   RxList<Subtitle> subtitles = RxList<Subtitle>();
   final Map<int, ({bool isData, String id})> vttSubtitles = {};
   late final RxInt vttSubtitlesIndex = (-1).obs;
+  late final RxInt secondarySubtitlesIndex = 0.obs;
   late final RxBool showVP = true.obs;
   late final RxList<ViewPointSegment> viewPointList = <ViewPointSegment>[].obs;
+
+  Future<void> _applySecondarySid() async {
+    final index = secondarySubtitlesIndex.value;
+    if (index <= 0 || index > subtitles.length) {
+      await plPlayerController.setSecondarySubtitleSid('no');
+      return;
+    }
+    final subtitle = subtitles[index - 1];
+    final dynamic player = plPlayerController.videoPlayerController;
+    if (player == null || player.disposed == true) {
+      return;
+    }
+    final dynamic subtitleTracks = player.state.tracks.subtitle;
+    if (subtitleTracks is! List || subtitleTracks.isEmpty) {
+      await plPlayerController.setSecondarySubtitleSid('no');
+      return;
+    }
+    dynamic matched;
+    for (final dynamic track in subtitleTracks) {
+      final title = (track.title ?? '').toString();
+      final language = (track.language ?? '').toString();
+      if (title == (subtitle.lanDoc ?? '') || language == subtitle.lan) {
+        matched = track;
+        break;
+      }
+    }
+    matched ??= subtitleTracks.first;
+    await plPlayerController.setSecondarySubtitleSid(matched.id);
+  }
+
+  Future<void> setSecondarySubtitle(int index) async {
+    secondarySubtitlesIndex.value = index;
+    await _applySecondarySid();
+  }
 
   // 设定字幕轨道
   Future<void> setSubtitle(int index) async {
@@ -1040,6 +1068,7 @@ class VideoDetailController extends GetxController
         SubtitleTrack.no(),
       );
       vttSubtitlesIndex.value = index;
+      await _applySecondarySid();
       return;
     }
 
@@ -1065,6 +1094,7 @@ class VideoDetailController extends GetxController
         SubtitleTrack(subUri, sub.lanDoc, sub.lan, uri: true),
       );
       vttSubtitlesIndex.value = index;
+      await _applySecondarySid();
     }
 
     ({bool isData, String id})? subtitle = vttSubtitles[index - 1];
@@ -1250,6 +1280,8 @@ class VideoDetailController extends GetxController
     animController?.dispose();
     subtitles.clear();
     vttSubtitles.clear();
+    secondarySubtitlesIndex.value = 0;
+    unawaited(plPlayerController.setSecondarySubtitleSid('no'));
     super.onClose();
   }
 
@@ -1274,6 +1306,8 @@ class VideoDetailController extends GetxController
     subtitles.clear();
     vttSubtitlesIndex.value = -1;
     vttSubtitles.clear();
+    secondarySubtitlesIndex.value = 0;
+    unawaited(plPlayerController.setSecondarySubtitleSid('no'));
 
     if (!isFileSource) {
       // language
@@ -1313,10 +1347,7 @@ class VideoDetailController extends GetxController
     try {
       final res = await Request().get(
         'https://bvc.bilivideo.com/pbp/data',
-        queryParameters: {
-          'bvid': bvid,
-          'cid': cid.value,
-        },
+        queryParameters: {'bvid': bvid, 'cid': cid.value},
       );
       PbpData data = PbpData.fromJson(res.data);
       int stepSec = data.stepSec ?? 0;
@@ -1595,13 +1626,7 @@ class VideoDetailController extends GetxController
       if (kDebugMode) {
         debugPrint(title);
       }
-      Get.toNamed(
-        '/dlna',
-        parameters: {
-          'url': url,
-          'title': ?title,
-        },
-      );
+      Get.toNamed('/dlna', parameters: {'url': url, 'title': ?title});
     } else {
       res.toast();
     }
