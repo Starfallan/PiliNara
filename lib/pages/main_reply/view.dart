@@ -1,7 +1,8 @@
+import 'package:PiliPlus/common/constants.dart';
 import 'package:PiliPlus/common/skeleton/video_reply.dart';
-import 'package:PiliPlus/common/widgets/custom_sliver_persistent_header_delegate.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
+import 'package:PiliPlus/common/widgets/sliver/sliver_floating_header.dart';
 import 'package:PiliPlus/common/widgets/view_safe_area.dart';
 import 'package:PiliPlus/grpc/bilibili/main/community/reply/v1.pb.dart'
     show ReplyInfo;
@@ -15,7 +16,6 @@ import 'package:PiliPlus/utils/num_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:easy_debounce/easy_throttle.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:get/get.dart';
 
 class MainReplyPage extends StatefulWidget {
@@ -61,9 +61,9 @@ class _MainReplyPageState extends State<MainReplyPage> {
       body: NotificationListener<UserScrollNotification>(
         onNotification: (notification) {
           final direction = notification.direction;
-          if (direction == ScrollDirection.forward) {
+          if (direction == .forward) {
             _controller.showFab();
-          } else if (direction == ScrollDirection.reverse) {
+          } else if (direction == .reverse) {
             _controller.hideFab();
           }
           return false;
@@ -172,44 +172,33 @@ class _MainReplyPageState extends State<MainReplyPage> {
 
   Widget buildReplyHeader(ColorScheme colorScheme) {
     final secondary = colorScheme.secondary;
-    return SliverPersistentHeader(
-      floating: true,
-      delegate: CustomSliverPersistentHeaderDelegate(
-        extent: 45,
-        bgColor: colorScheme.surface,
-        child: Container(
-          height: 45,
-          padding: const EdgeInsets.only(left: 12, right: 6),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Obx(
-                () {
-                  final count = _controller.count.value;
-                  return Text(
-                    '${count == -1 ? 0 : NumUtils.numFormat(count)}条回复',
-                  );
-                },
-              ),
-              SizedBox(
-                height: 35,
-                child: TextButton.icon(
-                  onPressed: _controller.queryBySort,
-                  icon: Icon(
-                    Icons.sort,
-                    size: 16,
-                    color: secondary,
-                  ),
-                  label: Obx(
-                    () => Text(
-                      _controller.sortType.value.label,
-                      style: TextStyle(fontSize: 13, color: secondary),
-                    ),
-                  ),
+    return SliverFloatingHeaderWidget(
+      backgroundColor: colorScheme.surface,
+      child: Padding(
+        padding: const .fromLTRB(12, 2.5, 6, 2.5),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Obx(
+              () {
+                final count = _controller.count.value;
+                return Text(
+                  '${count == -1 ? 0 : NumUtils.numFormat(count)}条回复',
+                );
+              },
+            ),
+            TextButton.icon(
+              style: StyleString.buttonStyle,
+              onPressed: _controller.queryBySort,
+              icon: Icon(Icons.sort, size: 16, color: secondary),
+              label: Obx(
+                () => Text(
+                  _controller.sortType.value.label,
+                  style: TextStyle(fontSize: 13, color: secondary),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

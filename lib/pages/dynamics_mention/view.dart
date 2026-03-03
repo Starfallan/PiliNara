@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:PiliPlus/common/widgets/custom_sliver_persistent_header_delegate.dart';
 import 'package:PiliPlus/common/widgets/flutter/draggable_sheet/draggable_scrollable_sheet_topic.dart'
     as topic_sheet;
 import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/loading_widget.dart';
+import 'package:PiliPlus/common/widgets/sliver/sliver_pinned_header.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/models_new/dynamic/dyn_mention/group.dart';
 import 'package:PiliPlus/pages/dynamics_mention/controller.dart';
@@ -247,18 +247,14 @@ class _DynMentionPanelState
                   }
                   return SliverMainAxisGroup(
                     slivers: [
-                      SliverPersistentHeader(
-                        pinned: true,
-                        delegate: CustomSliverPersistentHeaderDelegate(
-                          extent: 40,
-                          needRebuild: true,
-                          bgColor: theme.colorScheme.surface,
-                          child: Container(
-                            height: 40,
-                            alignment: Alignment.centerLeft,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Text(group.groupName!),
+                      SliverPinnedHeader(
+                        backgroundColor: theme.colorScheme.surface,
+                        child: Padding(
+                          padding: const .symmetric(
+                            horizontal: 16,
+                            vertical: 10,
                           ),
+                          child: Text(group.groupName!),
                         ),
                       ),
                       SliverList.builder(

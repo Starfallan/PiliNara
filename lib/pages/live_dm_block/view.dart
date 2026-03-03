@@ -1,8 +1,8 @@
-import 'package:PiliPlus/common/widgets/custom_sliver_persistent_header_delegate.dart';
 import 'package:PiliPlus/common/widgets/dialog/dialog.dart';
 import 'package:PiliPlus/common/widgets/keep_alive_wrapper.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/loading_widget.dart';
 import 'package:PiliPlus/common/widgets/scroll_physics.dart';
+import 'package:PiliPlus/common/widgets/sliver/sliver_pinned_header.dart';
 import 'package:PiliPlus/models/common/live/live_dm_silent_type.dart';
 import 'package:PiliPlus/models_new/live/live_dm_block/shield_user_list.dart';
 import 'package:PiliPlus/pages/live_dm_block/controller.dart';
@@ -102,13 +102,7 @@ class _LiveDmBlockPageState extends State<LiveDmBlockPage> {
                               ExtendedNestedScrollView.sliverOverlapAbsorberHandleFor(
                                 context,
                               ),
-                          sliver: SliverPersistentHeader(
-                            pinned: true,
-                            delegate: CustomSliverPersistentHeaderDelegate(
-                              extent: 48,
-                              child: tabBar,
-                            ),
-                          ),
+                          sliver: SliverPinnedHeader(child: tabBar),
                         ),
                       ];
                     },

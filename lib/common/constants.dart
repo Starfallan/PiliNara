@@ -16,6 +16,13 @@ abstract final class StyleString {
     maxWidth: 420,
   );
   static const topBarHeight = 52.0;
+  static const buttonStyle = ButtonStyle(
+    visualDensity: VisualDensity(
+      horizontal: -2,
+      vertical: -1.25,
+    ),
+    tapTargetSize: .shrinkWrap,
+  );
 }
 
 abstract final class Constants {

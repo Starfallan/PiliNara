@@ -1,9 +1,9 @@
 import 'dart:math';
 
-import 'package:PiliPlus/common/widgets/custom_sliver_persistent_header_delegate.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
 import 'package:PiliPlus/common/widgets/scroll_physics.dart';
+import 'package:PiliPlus/common/widgets/sliver/sliver_floating_header.dart';
 import 'package:PiliPlus/common/widgets/video_card/video_card_h.dart';
 import 'package:PiliPlus/common/widgets/view_sliver_safe_area.dart';
 import 'package:PiliPlus/http/loading_state.dart';
@@ -201,17 +201,11 @@ class _PopularSeriesPageState extends State<PopularSeriesPage> with GridMixin {
         ],
       );
     }
-    final height = MediaQuery.textScalerOf(context).scale(27);
-    return SliverPersistentHeader(
-      floating: true,
-      delegate: CustomSliverPersistentHeaderDelegate(
-        extent: height,
-        child: Container(
-          height: height,
-          padding: const EdgeInsets.only(left: 14, bottom: 7),
-          child: child,
-        ),
-        bgColor: colorScheme.surface,
+    return SliverFloatingHeaderWidget(
+      backgroundColor: colorScheme.surface,
+      child: Padding(
+        padding: const .only(left: 14, bottom: 7),
+        child: child,
       ),
     );
   }

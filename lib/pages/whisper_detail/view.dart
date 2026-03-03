@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:io' show File;
 
-import 'package:PiliPlus/common/widgets/chat_list_view.dart';
 import 'package:PiliPlus/common/widgets/dialog/report.dart';
+import 'package:PiliPlus/common/widgets/flutter/chat_list_view.dart';
 import 'package:PiliPlus/common/widgets/flutter/text_field/text_field.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/loading_widget.dart';

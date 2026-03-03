@@ -1,8 +1,8 @@
 import 'package:PiliPlus/common/constants.dart';
-import 'package:PiliPlus/common/widgets/custom_sliver_persistent_header_delegate.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/loading_widget.dart';
+import 'package:PiliPlus/common/widgets/sliver/sliver_floating_header.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/models_new/space/space_audio/item.dart';
 import 'package:PiliPlus/pages/member_audio/controller.dart';
@@ -80,44 +80,36 @@ class _MemberAudioState extends State<MemberAudio>
         response != null && response.isNotEmpty
             ? SliverMainAxisGroup(
                 slivers: [
-                  SliverPersistentHeader(
-                    floating: true,
-                    delegate: CustomSliverPersistentHeaderDelegate(
-                      extent: 40,
-                      bgColor: colorScheme.surface,
-                      child: SizedBox(
-                        height: 40,
-                        child: Row(
-                          children: [
-                            const SizedBox(width: 8),
-                            Padding(
-                              padding: const EdgeInsets.only(left: 6),
-                              child: Text(
-                                '共${_controller.totalSize ?? 0}首',
-                                style: const TextStyle(fontSize: 13),
+                  SliverFloatingHeaderWidget(
+                    backgroundColor: colorScheme.surface,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 2.5, 8, 2.5),
+                      child: Row(
+                        children: [
+                          Text(
+                            '共${_controller.totalSize ?? 0}首',
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 6),
+                            child: TextButton.icon(
+                              style: StyleString.buttonStyle,
+                              onPressed: _controller.toViewPlayAll,
+                              icon: Icon(
+                                Icons.play_circle_outline_rounded,
+                                size: 16,
+                                color: colorScheme.secondary,
                               ),
-                            ),
-                            Container(
-                              height: 35,
-                              padding: const EdgeInsets.only(left: 6),
-                              child: TextButton.icon(
-                                onPressed: _controller.toViewPlayAll,
-                                icon: Icon(
-                                  Icons.play_circle_outline_rounded,
-                                  size: 16,
+                              label: Text(
+                                '播放全部',
+                                style: TextStyle(
+                                  fontSize: 13,
                                   color: colorScheme.secondary,
                                 ),
-                                label: Text(
-                                  '播放全部',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: colorScheme.secondary,
-                                  ),
-                                ),
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
