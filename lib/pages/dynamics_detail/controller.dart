@@ -9,11 +9,14 @@ import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 
 class DynamicDetailController extends CommonDynController {
+  static const String _kWebLinkPlaceholder = '网页链接';
+
   @override
   late int oid;
   @override
   late int replyType;
   late DynamicItemModel dynItem;
+  final RxInt detailVersion = 0.obs;
 
   late final showDynActionBar = Pref.showDynActionBar;
 
@@ -31,9 +34,11 @@ class DynamicDetailController extends CommonDynController {
         commentIdStr != null &&
         commentIdStr.isNotEmpty) {
       _init(commentIdStr, commentType);
+      _tryFetchFullDynamicDetail();
     } else {
       DynamicsHttp.dynamicDetail(id: dynItem.idStr).then((res) {
         if (res case Success(:final response)) {
+          _replaceDynItem(response);
           _init(response.basic!.commentIdStr!, response.basic!.commentType!);
         } else {
           res.toast();
@@ -48,6 +53,58 @@ class DynamicDetailController extends CommonDynController {
     queryData();
   }
 
+  void _replaceDynItem(DynamicItemModel item) {
+    dynItem = item;
+    detailVersion.value++;
+  }
+
+  bool _shouldFetchFullDetail() {
+    final moduleDynamic = dynItem.modules.moduleDynamic;
+    final nodes =
+        moduleDynamic?.desc?.richTextNodes ??
+        moduleDynamic?.major?.opus?.summary?.richTextNodes;
+    if (nodes == null || nodes.isEmpty) {
+      return false;
+    }
+    for (final node in nodes) {
+      if (node.type == 'RICH_TEXT_NODE_TYPE_WEB' &&
+          (node.jumpUrl == null || node.jumpUrl!.isEmpty)) {
+        return true;
+      }
+      if (node.text == _kWebLinkPlaceholder ||
+          node.origText == _kWebLinkPlaceholder) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void _tryFetchFullDynamicDetail() {
+    if (!_shouldFetchFullDetail()) {
+      return;
+    }
+    DynamicsHttp.dynamicDetail(id: dynItem.idStr).then((res) {
+      if (isClosed) {
+        return;
+      }
+      if (res case Success(:final response)) {
+        _replaceDynItem(response);
+        final nextCommentType = response.basic?.commentType;
+        final nextCommentIdStr = response.basic?.commentIdStr;
+        if (nextCommentType != null &&
+            nextCommentType != 0 &&
+            nextCommentIdStr != null &&
+            nextCommentIdStr.isNotEmpty) {
+          final nextOid = int.tryParse(nextCommentIdStr);
+          if (nextOid != null &&
+              (nextOid != oid || nextCommentType != replyType)) {
+            _init(nextCommentIdStr, nextCommentType);
+          }
+        }
+      }
+    });
+  }
+
   Future<LoadingState> onSetPubSetting(bool isPrivate, Object dynId) async {
     final res = await DynamicsHttp.dynPrivatePubSetting(
       dynId: dynId,
@@ -55,6 +112,7 @@ class DynamicDetailController extends CommonDynController {
     );
     if (res.isSuccess) {
       dynItem.modules.moduleAuthor?.badgeText = isPrivate ? null : '仅自己可见';
+      detailVersion.value++;
       SmartDialog.showToast('设置成功');
     } else {
       res.toast();

@@ -58,18 +58,23 @@ class _DynamicDetailPageState extends CommonDynPageState<DynamicDetailPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: _buildAppBar(),
-      body: Padding(
-        padding: EdgeInsets.only(left: padding.left, right: padding.right),
-        child: isPortrait
-            ? refreshIndicator(
-                onRefresh: controller.onRefresh,
-                child: _buildBody(theme),
-              )
-            : _buildBody(theme),
-      ),
+    return Obx(
+      () {
+        controller.detailVersion.value;
+        return Scaffold(
+          resizeToAvoidBottomInset: false,
+          appBar: _buildAppBar(),
+          body: Padding(
+            padding: EdgeInsets.only(left: padding.left, right: padding.right),
+            child: isPortrait
+                ? refreshIndicator(
+                    onRefresh: controller.onRefresh,
+                    child: _buildBody(theme),
+                  )
+                : _buildBody(theme),
+          ),
+        );
+      },
     );
   }
 
@@ -200,7 +205,7 @@ class _DynamicDetailPageState extends CommonDynPageState<DynamicDetailPage> {
             if (res case Success(:final response)) {
               if (mounted) {
                 controller.dynItem = response;
-                setState(() {});
+                controller.detailVersion.value++;
               }
             }
           },
