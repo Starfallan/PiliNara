@@ -19,6 +19,7 @@ abstract final class AppFont {
     final fontPath = Pref.customFontPath;
     final fontFamily = Pref.customFontFamily;
     if (fontPath == null || fontFamily == null) {
+      await _cleanupFontDir();
       return;
     }
 
@@ -30,6 +31,7 @@ abstract final class AppFont {
 
     try {
       await _loadFont(fontPath: fontPath, fontFamily: fontFamily);
+      await _cleanupFontDir(excludePath: fontPath);
     } catch (_) {
       await clear();
     }
@@ -88,6 +90,7 @@ abstract final class AppFont {
           } catch (_) {}
         }
       }
+      await _cleanupFontDir(excludePath: targetPath);
       return true;
     } catch (_) {
       if (targetFile.existsSync()) {
@@ -112,6 +115,7 @@ abstract final class AppFont {
         await file.delete();
       } catch (_) {}
     }
+    await _cleanupFontDir();
     return true;
   }
 
@@ -123,5 +127,28 @@ abstract final class AppFont {
     final loader = FontLoader(fontFamily);
     loader.addFont(Future.value(ByteData.sublistView(bytes)));
     await loader.load();
+  }
+
+  static Future<void> _cleanupFontDir({String? excludePath}) async {
+    final fontDir = Directory(path.join(appSupportDirPath, _fontDirName));
+    if (!fontDir.existsSync()) {
+      return;
+    }
+
+    await for (final entity in fontDir.list()) {
+      if (entity is! File) {
+        continue;
+      }
+      if (excludePath != null && path.equals(entity.path, excludePath)) {
+        continue;
+      }
+      final extension = path.extension(entity.path).replaceFirst('.', '').toLowerCase();
+      if (!allowedExtensions.contains(extension)) {
+        continue;
+      }
+      try {
+        await entity.delete();
+      } catch (_) {}
+    }
   }
 }
