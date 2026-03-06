@@ -11,6 +11,7 @@ abstract final class ThemeUtils {
     required bool isDynamic,
     bool isDark = false,
   }) {
+    final customFontFamily = Pref.customFontFamily;
     final appFontWeight = Pref.appFontWeight.clamp(
       -1,
       FontWeight.values.length - 1,
@@ -18,11 +19,15 @@ abstract final class ThemeUtils {
     final fontWeight = appFontWeight == -1
         ? null
         : FontWeight.values[appFontWeight];
-    late final textStyle = TextStyle(fontWeight: fontWeight);
+    late final textStyle = TextStyle(
+      fontWeight: fontWeight,
+      fontFamily: customFontFamily,
+    );
     ThemeData themeData = ThemeData(
       colorScheme: colorScheme,
+      fontFamily: customFontFamily,
       useMaterial3: true,
-      textTheme: fontWeight == null
+      textTheme: fontWeight == null && customFontFamily == null
           ? null
           : TextTheme(
               displayLarge: textStyle,
@@ -41,7 +46,7 @@ abstract final class ThemeUtils {
               labelMedium: textStyle,
               labelSmall: textStyle,
             ),
-      tabBarTheme: fontWeight == null
+      tabBarTheme: fontWeight == null && customFontFamily == null
           ? null
           : TabBarThemeData(labelStyle: textStyle),
       appBarTheme: AppBarTheme(
@@ -53,6 +58,7 @@ abstract final class ThemeUtils {
         titleTextStyle: TextStyle(
           fontSize: 16,
           color: colorScheme.onSurface,
+          fontFamily: customFontFamily,
           fontWeight: fontWeight,
         ),
       ),
@@ -88,6 +94,7 @@ abstract final class ThemeUtils {
         titleTextStyle: TextStyle(
           fontSize: 18,
           color: colorScheme.onSurface,
+          fontFamily: customFontFamily,
           fontWeight: fontWeight,
         ),
         backgroundColor: colorScheme.surface,
@@ -130,6 +137,14 @@ abstract final class ThemeUtils {
         },
       ),
     );
+    if (customFontFamily != null) {
+      themeData = themeData.copyWith(
+        textTheme: themeData.textTheme.apply(fontFamily: customFontFamily),
+        primaryTextTheme: themeData.primaryTextTheme.apply(
+          fontFamily: customFontFamily,
+        ),
+      );
+    }
     if (isDark) {
       if (Pref.isPureBlackTheme) {
         themeData = darkenTheme(themeData);

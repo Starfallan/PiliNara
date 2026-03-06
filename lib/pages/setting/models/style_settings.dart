@@ -26,6 +26,7 @@ import 'package:PiliPlus/pages/setting/widgets/multi_select_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/slider_dialog.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
+import 'package:PiliPlus/utils/app_font.dart';
 import 'package:PiliPlus/utils/extension/file_ext.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
@@ -155,6 +156,12 @@ List<SettingsModel> get styleSettings => [
     leading: const Icon(Icons.text_fields),
     onChanged: (value) => Get.forceAppUpdate(),
     onTap: _showFontWeightDialog,
+  ),
+  NormalModel(
+    title: '应用字体',
+    leading: const Icon(Icons.font_download_outlined),
+    getSubtitle: () => AppFont.currentFontName ?? '系统字体',
+    onTap: _showCustomFontDialog,
   ),
   NormalModel(
     title: '界面缩放',
@@ -486,6 +493,59 @@ void _showQualityDialog({
       onChanged(result.toInt());
     }
   });
+}
+
+Future<void> _showCustomFontDialog(
+  BuildContext context,
+  VoidCallback setState,
+) async {
+  await showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('应用字体'),
+      content: Text(
+        AppFont.currentFontName == null
+            ? '当前使用系统字体。'
+            : '当前字体：${AppFont.currentFontName}',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('取消'),
+        ),
+        TextButton(
+          onPressed: () async {
+            Navigator.of(context).pop();
+            final cleared = await AppFont.clear();
+            if (cleared) {
+              setState();
+              Get.forceAppUpdate();
+              SmartDialog.showToast('已恢复为系统字体');
+            } else {
+              SmartDialog.showToast('当前已经是系统字体');
+            }
+          },
+          child: const Text('系统字体'),
+        ),
+        FilledButton(
+          onPressed: () async {
+            Navigator.of(context).pop();
+            try {
+              final changed = await AppFont.pickAndApply();
+              if (changed) {
+                setState();
+                Get.forceAppUpdate();
+                SmartDialog.showToast('自定义字体已应用');
+              }
+            } catch (e) {
+              SmartDialog.showToast('字体加载失败: $e');
+            }
+          },
+          child: const Text('选择字体'),
+        ),
+      ],
+    ),
+  );
 }
 
 void _showUiScaleDialog(

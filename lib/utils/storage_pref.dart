@@ -564,6 +564,19 @@ abstract final class Pref {
   static int get appFontWeight =>
       _setting.get(SettingBoxKey.appFontWeight, defaultValue: -1);
 
+  static String? get customFontPath =>
+      _setting.get(SettingBoxKey.customFontPath);
+
+  static String? get customFontFamily {
+    final value = _setting.get(SettingBoxKey.customFontFamily, defaultValue: '');
+    return value is String && value.isNotEmpty ? value : null;
+  }
+
+  static String? get customFontName {
+    final value = _setting.get(SettingBoxKey.customFontName, defaultValue: '');
+    return value is String && value.isNotEmpty ? value : null;
+  }
+
   static bool get enableDragSubtitle =>
       _setting.get(SettingBoxKey.enableDragSubtitle, defaultValue: false);
 
