@@ -35,26 +35,15 @@ import 'package:PiliPlus/utils/recommend_filter.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/wbi_sign.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart'
-    show compute, debugPrintSynchronously, kDebugMode;
+import 'package:flutter/foundation.dart' show compute;
 
 /// view层根据 status 判断渲染逻辑
 abstract final class VideoHttp {
-  static RegExp zoneRegExp = RegExp(Pref.parseBanWordToRegex(Pref.banWordForZone), caseSensitive: false);
+  static RegExp zoneRegExp = RegExp(
+    Pref.parseBanWordToRegex(Pref.banWordForZone),
+    caseSensitive: false,
+  );
   static bool enableFilter = zoneRegExp.pattern.isNotEmpty;
-
-  static void _debugDump(String label, String content) {
-    if (!kDebugMode) {
-      return;
-    }
-    const chunkSize = 1000;
-    for (int i = 0; i < content.length; i += chunkSize) {
-      final end = i + chunkSize > content.length
-          ? content.length
-          : i + chunkSize;
-      debugPrintSynchronously(content.substring(i, end));
-    }
-  }
 
   // 首页推荐视频
   static Future<LoadingState<List<RecVideoItemModel>>> rcmdVideoList({
@@ -148,57 +137,25 @@ abstract final class VideoHttp {
     );
 
     if (res.data['code'] == 0) {
-      _debugDump(
-        '[rcmd-app-raw]',
-        '[rcmd-app-raw] idx=$freshIdx\n${jsonEncode(res.data)}',
-      );
       List<RecVideoItemAppModel> list = <RecVideoItemAppModel>[];
       for (final i in res.data['data']['items']) {
-        if (i['card_goto'] == 'ad_av' || i['card_goto'] == 'ad_web_s') {
-          _debugDump(
-            '[rcmd-app-filter]',
-            '[rcmd-app-filter] idx=$freshIdx reason=card_goto card_goto=${i['card_goto']} title=${i['title']}',
-          );
-          continue;
+        // 屏蔽推广和拉黑用户
+        if (i['card_goto'] != 'ad_av' &&
+            i['card_goto'] != 'ad_web_s' &&
+            i['ad_info'] == null &&
+            (i['args'] != null &&
+                !GlobalData().blackMids.contains(i['args']['up_id']))) {
+          if (enableFilter &&
+              i['args']?['tname'] != null &&
+              zoneRegExp.hasMatch(i['args']['tname'])) {
+            continue;
+          }
+          RecVideoItemAppModel videoItem = RecVideoItemAppModel.fromJson(i);
+          if (!RecommendFilter.filter(videoItem)) {
+            list.add(videoItem);
+          }
         }
-        if (i['ad_info'] != null) {
-          _debugDump(
-            '[rcmd-app-filter]',
-            '[rcmd-app-filter] idx=$freshIdx reason=ad_info title=${i['title']}',
-          );
-          continue;
-        }
-        if (i['args'] == null ||
-            GlobalData().blackMids.contains(i['args']['up_id'])) {
-          _debugDump(
-            '[rcmd-app-filter]',
-            '[rcmd-app-filter] idx=$freshIdx reason=args_or_blacklist title=${i['title']} upId=${i['args']?['up_id']}',
-          );
-          continue;
-        }
-        if (enableFilter &&
-            i['args']?['tname'] != null &&
-            zoneRegExp.hasMatch(i['args']['tname'])) {
-          _debugDump(
-            '[rcmd-app-filter]',
-            '[rcmd-app-filter] idx=$freshIdx reason=zone_regex title=${i['title']} tname=${i['args']?['tname']}',
-          );
-          continue;
-        }
-        final videoItem = RecVideoItemAppModel.fromJson(i);
-        if (RecommendFilter.filter(videoItem)) {
-          _debugDump(
-            '[rcmd-app-filter]',
-            '[rcmd-app-filter] idx=$freshIdx reason=recommend_filter aid=${videoItem.aid} bvid=${videoItem.bvid} title=${videoItem.title}',
-          );
-          continue;
-        }
-        list.add(videoItem);
       }
-      _debugDump(
-        '[rcmd-app-count]',
-        '[rcmd-app-count] idx=$freshIdx rawItems=${res.data['data']?['items']?.length} mappedItems=${list.length}',
-      );
       return Success(list);
     } else {
       return Error(res.data['message']);
