@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:PiliPlus/utils/path_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
@@ -64,10 +63,10 @@ abstract final class AppFont {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final targetPath = path.join(fontDir.path, 'custom_font_$timestamp.$extension');
     final targetFile = File(targetPath);
-    if (picked.path case final String sourcePath) {
-      await File(sourcePath).copy(targetPath);
-    } else if (picked.bytes case final Uint8List bytes) {
+    if (picked.bytes case final Uint8List bytes) {
       await targetFile.writeAsBytes(bytes, flush: true);
+    } else if (picked.path case final String sourcePath) {
+      await File(sourcePath).copy(targetPath);
     } else {
       throw StateError('missing font bytes');
     }
@@ -102,21 +101,23 @@ abstract final class AppFont {
 
   static Future<bool> clear() async {
     final fontPath = Pref.customFontPath;
+    final hadCustomFont =
+        (fontPath != null && fontPath.isNotEmpty) ||
+        Pref.customFontFamily != null ||
+        Pref.customFontName != null;
     await GStorage.setting.delete(SettingBoxKey.customFontPath);
     await GStorage.setting.delete(SettingBoxKey.customFontFamily);
     await GStorage.setting.delete(SettingBoxKey.customFontName);
-    if (fontPath == null || fontPath.isEmpty) {
-      return false;
+    if (fontPath != null && fontPath.isNotEmpty) {
+      final file = File(fontPath);
+      if (file.existsSync()) {
+        try {
+          await file.delete();
+        } catch (_) {}
+      }
     }
-
-    final file = File(fontPath);
-    if (file.existsSync()) {
-      try {
-        await file.delete();
-      } catch (_) {}
-    }
-    await _cleanupFontDir();
-    return true;
+    final deletedFiles = await _cleanupFontDir();
+    return hadCustomFont || deletedFiles;
   }
 
   static Future<void> _loadFont({
@@ -124,17 +125,18 @@ abstract final class AppFont {
     required String fontFamily,
   }) async {
     final bytes = await File(fontPath).readAsBytes();
-    final loader = FontLoader(fontFamily);
-    loader.addFont(Future.value(ByteData.sublistView(bytes)));
-    await loader.load();
+    await (FontLoader(fontFamily)
+          ..addFont(Future.value(ByteData.sublistView(bytes))))
+        .load();
   }
 
-  static Future<void> _cleanupFontDir({String? excludePath}) async {
+  static Future<bool> _cleanupFontDir({String? excludePath}) async {
     final fontDir = Directory(path.join(appSupportDirPath, _fontDirName));
     if (!fontDir.existsSync()) {
-      return;
+      return false;
     }
 
+    var deletedAny = false;
     await for (final entity in fontDir.list()) {
       if (entity is! File) {
         continue;
@@ -148,7 +150,9 @@ abstract final class AppFont {
       }
       try {
         await entity.delete();
+        deletedAny = true;
       } catch (_) {}
     }
+    return deletedAny;
   }
 }
