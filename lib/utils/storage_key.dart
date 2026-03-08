@@ -113,6 +113,7 @@ abstract final class SettingBoxKey {
       isPureBlackTheme = 'isPureBlackTheme',
       antiGoodsDyn = 'antiGoodsDyn',
       removeBlockedDyn = 'removeBlockedDyn',
+      removeOnlyFansVideoDyn = 'removeOnlyFansVideoDyn',
       antiGoodsReply = 'antiGoodsReply',
       expandDynLivePanel = 'expandDynLivePanel',
       springDescription = 'springDescription',

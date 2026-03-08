@@ -38,12 +38,22 @@ List<SettingsModel> get dynamicsSettings => [
   ),
   SwitchModel(
     title: '屏蔽无权查看的动态',
-    subtitle: '过滤当前账号无权查看的受限动态,比如充电专属',
+    subtitle: '过滤当前账号无权查看的受限动态,如充电专属(文章,图文等)动态',
     leading: const Icon(Icons.visibility_off_outlined),
     setKey: SettingBoxKey.removeBlockedDyn,
     defaultVal: false,
     onChanged: (value) {
       DynamicsDataModel.removeBlockedDyn = value;
+    },
+  ),
+  SwitchModel(
+    title: '屏蔽充电专属视频动态',
+    subtitle: '过滤充电专属视频动态',
+    leading: const Icon(Icons.video_library_outlined),
+    setKey: SettingBoxKey.removeOnlyFansVideoDyn,
+    defaultVal: false,
+    onChanged: (value) {
+      DynamicsDataModel.removeOnlyFansVideoDyn = value;
     },
   ),
 ];
