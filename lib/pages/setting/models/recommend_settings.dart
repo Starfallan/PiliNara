@@ -106,11 +106,12 @@ List<SettingsModel> get recommendSettings => [
     getSubtitle: () => Pref.appRcmd
         ? '仅对首页 app 端推荐生效，屏蔽无权查看的视频(如充电专属视频)'
         : '仅对首页 app 端推荐生效，请先开启“首页使用app端推荐”',
-    getTrailing: (_) => ValueListenableBuilder<Box>(
-      valueListenable: GStorage.setting.listenable(
-        keys: [SettingBoxKey.appRcmd, SettingBoxKey.removeBlockedRcmd],
+    getTrailing: (_) => StreamBuilder<BoxEvent>(
+      stream: GStorage.setting.watch().where(
+        (event) => event.key == SettingBoxKey.appRcmd ||
+            event.key == SettingBoxKey.removeBlockedRcmd,
       ),
-      builder: (_, __, ___) => Switch(
+      builder: (_, __) => Switch(
         value: Pref.removeBlockedRcmd,
         onChanged: Pref.appRcmd
             ? (value) {
