@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:PiliPlus/grpc/bilibili/app/card/v1.pb.dart' show AdInfo;
 import 'package:PiliPlus/common/widgets/pendant_avatar.dart';
 import 'package:PiliPlus/models/common/dynamic/dynamics_type.dart';
 import 'package:PiliPlus/models/dynamics/article_content_model.dart';
@@ -10,7 +9,6 @@ import 'package:PiliPlus/models_new/live/live_feed_index/watched_show.dart';
 import 'package:PiliPlus/utils/extension/iterable_ext.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
-import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 
 class DynamicsDataModel {
   bool? hasMore;
@@ -47,17 +45,7 @@ class DynamicsDataModel {
 
   static bool antiGoodsDyn = Pref.antiGoodsDyn;
   static bool removeBlockedDyn = Pref.removeBlockedDyn;
-  static bool removeCommercialDyn = Pref.removeCommercialDyn;
   static Set<int> dynamicsBlockedMids = Pref.dynamicsBlockedMids;
-
-  static bool get _debugDynFilter =>
-      kDebugMode && (removeBlockedDyn || removeCommercialDyn);
-
-  static void _debugLog(String message) {
-    if (_debugDynFilter) {
-      debugPrint('[dyn-filter] $message');
-    }
-  }
 
   DynamicsDataModel.fromJson(
     Map<String, dynamic> json, {
@@ -74,27 +62,9 @@ class DynamicsDataModel {
       late final filterBlockedUsers = type != DynamicsTabType.up && dynamicsBlockedMids.isNotEmpty;
       for (final e in list) {
         DynamicItemModel item = DynamicItemModel.fromJson(e);
-        if (_debugDynFilter) {
-          _debugLog(
-            'item id=${item.idStr} type=${item.type} '
-            'extend=${item.extend != null} '
-            'onlyFans=${item.extend?.onlyFansProperty?.isOnlyFans} '
-            'hasPrivilege=${item.extend?.onlyFansProperty?.hasPrivilege} '
-            'sourceType=${item.extend?.sourceContent?.typeUrl} '
-            'isAdLoc=${item.extend?.sourceContent?.isAdLoc} '
-            'origExtend=${item.orig?.extend != null}',
-          );
-        }
         if (removeBlockedDyn &&
             (item.hasNoPrivilegeDynamic ||
                 (item.orig?.hasNoPrivilegeDynamic ?? false))) {
-          _debugLog('remove blocked item id=${item.idStr}');
-          continue;
-        }
-        if (removeCommercialDyn &&
-            (item.isCommercialDynamic ||
-                (item.orig?.isCommercialDynamic ?? false))) {
-          _debugLog('remove commercial item id=${item.idStr}');
           continue;
         }
         if (antiGoodsDyn &&
@@ -122,12 +92,6 @@ class DynamicsDataModel {
             dynamicsBlockedMids.contains(item.modules.moduleAuthor?.mid)) {
           continue;
         }
-        if (_debugDynFilter &&
-            (removeBlockedDyn || removeCommercialDyn) &&
-            item.extend == null &&
-            item.orig?.extend == null) {
-          _debugLog('keep item id=${item.idStr}: missing extend/orig.extend');
-        }
         items!.add(item);
       }
       // filtered all
@@ -150,7 +114,6 @@ class DynamicItemModel {
   DynamicItemModel? orig;
   String? type;
   bool? visible;
-  DynamicExtendModel? extend;
 
   // opus
   Fallback? fallback;
@@ -166,9 +129,6 @@ class DynamicItemModel {
     }
     type = json['type'];
     visible = json['visible'];
-    extend = json['extend'] == null
-        ? null
-        : DynamicExtendModel.fromJson(json['extend']);
   }
 
   DynamicItemModel.fromOpusJson(Map<String, dynamic> json) {
@@ -188,10 +148,9 @@ class DynamicItemModel {
   }
 
   bool get hasNoPrivilegeDynamic =>
-      extend?.onlyFansProperty?.isOnlyFans == true &&
-      extend?.onlyFansProperty?.hasPrivilege == false;
-
-  bool get isCommercialDynamic => extend?.sourceContent?.isAdLoc == true;
+      (basic?.isOnlyFans ?? false) &&
+          modules.moduleDynamic?.major?.type == 'MAJOR_TYPE_BLOCKED' &&
+          modules.moduleDynamic?.major?.blocked != null;
 }
 
 class Fallback {
@@ -395,131 +354,6 @@ class ModuleTopAlbum {
   }
 }
 
-class DynamicExtendModel {
-  DynamicExtendModel({
-    this.sourceContent,
-    this.onlyFansProperty,
-  });
-
-  DynamicSourceContentModel? sourceContent;
-  OnlyFansPropertyModel? onlyFansProperty;
-
-  factory DynamicExtendModel.fromJson(Map<String, dynamic> json) {
-    return DynamicExtendModel(
-      sourceContent: (json['source_content'] ?? json['sourceContent']) == null
-          ? null
-          : DynamicSourceContentModel.fromJson(
-              json['source_content'] ?? json['sourceContent'],
-            ),
-      onlyFansProperty:
-          (json['only_fans_property'] ?? json['onlyFansProperty']) == null
-          ? null
-          : OnlyFansPropertyModel.fromJson(
-              json['only_fans_property'] ?? json['onlyFansProperty'],
-            ),
-    );
-  }
-}
-
-class DynamicSourceContentModel {
-  DynamicSourceContentModel({
-    this.typeUrl,
-    this.isAdLoc,
-  });
-
-  static const Set<String> _adTypeUrls = {
-    'type.googleapis.com/bilibili.ad.v1.SourceContentDto',
-    'type.googleapis.com/bilibili.app.card.v1.AdInfo',
-  };
-
-  String? typeUrl;
-  bool? isAdLoc;
-
-  factory DynamicSourceContentModel.fromJson(Map<String, dynamic> json) {
-    final typeUrl =
-        _parseString(json['type_url']) ?? _parseString(json['typeUrl']);
-    final explicitIsAdLoc = json['is_ad_loc'] ?? json['isAdLoc'];
-    return DynamicSourceContentModel(
-      typeUrl: typeUrl,
-      isAdLoc: explicitIsAdLoc is bool
-          ? explicitIsAdLoc
-          : _parseIsAdLoc(typeUrl, json['value']),
-    );
-  }
-
-  static bool? _parseIsAdLoc(String? typeUrl, dynamic value) {
-    if (typeUrl == null || !_adTypeUrls.contains(typeUrl)) {
-      if (DynamicsDataModel._debugDynFilter) {
-        DynamicsDataModel._debugLog(
-          'skip sourceContent parse: unsupported typeUrl=$typeUrl',
-        );
-      }
-      return null;
-    }
-    final bytes = _decodeBytes(value);
-    if (bytes == null || bytes.isEmpty) {
-      if (DynamicsDataModel._debugDynFilter) {
-        DynamicsDataModel._debugLog(
-          'skip sourceContent parse: empty value for typeUrl=$typeUrl',
-        );
-      }
-      return null;
-    }
-    try {
-      final isAdLoc = AdInfo.fromBuffer(bytes).isAdLoc;
-      if (DynamicsDataModel._debugDynFilter) {
-        DynamicsDataModel._debugLog(
-          'parsed sourceContent typeUrl=$typeUrl bytes=${bytes.length} isAdLoc=$isAdLoc',
-        );
-      }
-      return isAdLoc;
-    } catch (_) {
-      if (DynamicsDataModel._debugDynFilter) {
-        DynamicsDataModel._debugLog(
-          'parse sourceContent failed for typeUrl=$typeUrl',
-        );
-      }
-      return null;
-    }
-  }
-
-  static List<int>? _decodeBytes(dynamic value) {
-    if (value is List<int>) {
-      return value;
-    }
-    if (value is String && value.isNotEmpty) {
-      try {
-        return base64Decode(_normalizeBase64(value));
-      } catch (_) {
-        return null;
-      }
-    }
-    return null;
-  }
-
-  static String _normalizeBase64(String value) {
-    final padding = -value.length & 3;
-    return padding == 0 ? value : '$value${'=' * padding}';
-  }
-}
-
-class OnlyFansPropertyModel {
-  OnlyFansPropertyModel({
-    this.hasPrivilege,
-    this.isOnlyFans,
-  });
-
-  bool? hasPrivilege;
-  bool? isOnlyFans;
-
-  factory OnlyFansPropertyModel.fromJson(Map<String, dynamic> json) {
-    return OnlyFansPropertyModel(
-      hasPrivilege: (json['has_privilege'] ?? json['hasPrivilege']) as bool?,
-      isOnlyFans: (json['is_only_fans'] ?? json['isOnlyFans']) as bool?,
-    );
-  }
-}
-
 class ModuleBlocked {
   BgImg? bgImg;
   int? blockedType;
@@ -578,11 +412,13 @@ class Basic {
   String? commentIdStr;
   int? commentType;
   String? ridStr;
+  bool? isOnlyFans;
 
   Basic.fromJson(Map<String, dynamic> json) {
     commentIdStr = json['comment_id_str'];
     commentType = Utils.safeToInt(json['comment_type']);
     ridStr = json['rid_str'];
+    isOnlyFans = json['is_only_fans'] as bool? ?? json['isOnlyFans'] as bool?;
   }
 }
 

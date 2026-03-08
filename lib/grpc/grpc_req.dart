@@ -7,7 +7,8 @@ import 'package:PiliPlus/http/init.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:archive/archive.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show kDebugMode, compute;
+import 'package:flutter/foundation.dart'
+    show compute, debugPrintSynchronously, kDebugMode;
 import 'package:protobuf/protobuf.dart' show GeneratedMessage;
 
 abstract final class GrpcReq {
@@ -18,6 +19,43 @@ abstract final class GrpcReq {
     contentType: 'application/grpc',
     responseType: ResponseType.bytes,
   );
+
+  static bool _shouldDebugGrpc(String url) =>
+      kDebugMode && url.startsWith('/bilibili.app.dynamic.');
+
+  static void _debugGrpcDump(String content) {
+    const chunkSize = 800;
+    for (int i = 0; i < content.length; i += chunkSize) {
+      final end = i + chunkSize > content.length
+          ? content.length
+          : i + chunkSize;
+      debugPrintSynchronously(content.substring(i, end));
+    }
+  }
+
+  static void _debugGrpcMessage(
+    String stage,
+    String url,
+    GeneratedMessage message,
+  ) {
+    if (!_shouldDebugGrpc(url)) {
+      return;
+    }
+    _debugGrpcDump(
+      '[grpc-dynamic] $stage url=$url\n${message.writeToJson()}',
+    );
+  }
+
+  static void _debugGrpcText(
+    String stage,
+    String url,
+    String content,
+  ) {
+    if (!_shouldDebugGrpc(url)) {
+      return;
+    }
+    _debugGrpcDump('[grpc-dynamic] $stage url=$url\n$content');
+  }
 
   static Uint8List compressProtobuf(Uint8List proto) {
     final compress = proto.length > _gzipMinLength;
@@ -58,6 +96,7 @@ abstract final class GrpcReq {
     T Function(Uint8List) grpcParser, {
     bool isolate = false,
   }) async {
+    _debugGrpcMessage('request', url, request);
     final response = await Request().post<Uint8List>(
       HttpString.appBaseUrl + url,
       data: compressProtobuf(request.writeToBuffer()),
@@ -71,9 +110,15 @@ abstract final class GrpcReq {
     if (response.headers.value('Grpc-Status') == '0') {
       final data = response.data;
       if (data is Uint8List) {
-        return isolate && data.length > _isolateSize
+        final result = await (isolate && data.length > _isolateSize
             ? compute(_parse, (data, grpcParser))
-            : _parse((data, grpcParser));
+            : Future.value(_parse((data, grpcParser))));
+        if (result case Success(:final response)) {
+          _debugGrpcMessage('response', url, response);
+        } else if (result case Error(:final errMsg)) {
+          _debugGrpcText('response-parse-error', url, errMsg);
+        }
+        return result;
       } else {
         return Error('grpc: ${data.runtimeType} is not Uint8List');
       }
@@ -103,8 +148,10 @@ abstract final class GrpcReq {
             msg = utf8.decode(msgBytes, allowMalformed: true);
           }
         }
+        _debugGrpcText('response-error', url, msg);
         return Error(msg, code: code);
       } catch (e) {
+        _debugGrpcText('response-error', url, e.toString());
         return Error(e.toString());
       }
     }
