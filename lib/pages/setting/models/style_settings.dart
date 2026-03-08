@@ -403,9 +403,10 @@ Future<void> _showCustomFontDialog(
   BuildContext context,
   VoidCallback setState,
 ) async {
+  final pageContext = context;
   await showDialog<void>(
-    context: context,
-    builder: (context) => AlertDialog(
+    context: pageContext,
+    builder: (dialogContext) => AlertDialog(
       title: const Text('应用字体'),
       content: Text(
         AppFont.currentFontName == null
@@ -414,13 +415,16 @@ Future<void> _showCustomFontDialog(
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => Navigator.of(dialogContext).pop(),
           child: const Text('取消'),
         ),
         TextButton(
           onPressed: () async {
-            Navigator.of(context).pop();
+            Navigator.of(dialogContext).pop();
             final cleared = await AppFont.clear();
+            if (!pageContext.mounted) {
+              return;
+            }
             if (cleared) {
               setState();
               Get.forceAppUpdate();
@@ -433,9 +437,12 @@ Future<void> _showCustomFontDialog(
         ),
         FilledButton(
           onPressed: () async {
-            Navigator.of(context).pop();
+            Navigator.of(dialogContext).pop();
             try {
               final changed = await AppFont.pickAndApply();
+              if (!pageContext.mounted) {
+                return;
+              }
               if (changed) {
                 setState();
                 Get.forceAppUpdate();
