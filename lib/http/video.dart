@@ -138,6 +138,7 @@ abstract final class VideoHttp {
 
     if (res.data['code'] == 0) {
       List<RecVideoItemAppModel> list = <RecVideoItemAppModel>[];
+      final bool removeBlockedRcmd = Pref.removeBlockedRcmd;
       for (final i in res.data['data']['items']) {
         // 屏蔽推广和拉黑用户
         if (i['card_goto'] != 'ad_av' &&
@@ -148,6 +149,9 @@ abstract final class VideoHttp {
           if (enableFilter &&
               i['args']?['tname'] != null &&
               zoneRegExp.hasMatch(i['args']['tname'])) {
+            continue;
+          }
+          if (removeBlockedRcmd && i['can_play'] != 1) {
             continue;
           }
           RecVideoItemAppModel videoItem = RecVideoItemAppModel.fromJson(i);

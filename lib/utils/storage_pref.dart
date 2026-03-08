@@ -358,6 +358,9 @@ abstract final class Pref {
   static bool get appRcmd =>
       _setting.get(SettingBoxKey.appRcmd, defaultValue: true);
 
+  static bool get removeBlockedRcmd =>
+      _setting.get(SettingBoxKey.removeBlockedRcmd, defaultValue: false);
+
   static String get systemProxyHost =>
       _setting.get(SettingBoxKey.systemProxyHost, defaultValue: '');
 

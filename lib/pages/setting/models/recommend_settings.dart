@@ -3,11 +3,13 @@ import 'package:PiliPlus/pages/rcmd/controller.dart';
 import 'package:PiliPlus/pages/setting/models/model.dart';
 import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/recommend_filter.dart';
+import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hive/hive.dart';
 
 List<SettingsModel> get recommendSettings => [
   const SwitchModel(
@@ -97,6 +99,36 @@ List<SettingsModel> get recommendSettings => [
     key: SettingBoxKey.minPlayForRcmd,
     values: [0, 50, 100, 500, 1000],
     onChanged: (value) => RecommendFilter.minPlayForRcmd = value,
+  ),
+  NormalModel(
+    title: '屏蔽无权查看视频',
+    leading: const Icon(Icons.block_outlined),
+    getSubtitle: () => Pref.appRcmd
+        ? '仅对首页 app 端推荐生效，屏蔽无权查看的视频(如充电专属视频)'
+        : '仅对首页 app 端推荐生效，请先开启“首页使用app端推荐”',
+    getTrailing: (_) => ValueListenableBuilder<Box>(
+      valueListenable: GStorage.setting.listenable(
+        keys: [SettingBoxKey.appRcmd, SettingBoxKey.removeBlockedRcmd],
+      ),
+      builder: (_, __, ___) => Switch(
+        value: Pref.removeBlockedRcmd,
+        onChanged: Pref.appRcmd
+            ? (value) {
+                GStorage.setting.put(SettingBoxKey.removeBlockedRcmd, value);
+              }
+            : null,
+      ),
+    ),
+    onTap: (context, setState) {
+      if (!Pref.appRcmd) {
+        return;
+      }
+      GStorage.setting.put(
+        SettingBoxKey.removeBlockedRcmd,
+        !Pref.removeBlockedRcmd,
+      );
+      setState();
+    },
   ),
   SwitchModel(
     title: '已关注UP豁免推荐过滤',

@@ -7,6 +7,7 @@ class RecVideoItemAppModel extends BaseRecVideoItemModel {
   int? get id => aid;
   String? talkBack;
   String? tname;
+  int? canPlay;
 
   String? cardType;
   ThreePoint? threePoint;
@@ -39,6 +40,7 @@ class RecVideoItemAppModel extends BaseRecVideoItemModel {
     param = int.parse(json['param']);
     uri = json['uri'];
     talkBack = json['talk_back'];
+    canPlay = json['can_play'];
 
     if (json['goto'] == 'bangumi') {
       pgcBadge = json['cover_right_text'];
