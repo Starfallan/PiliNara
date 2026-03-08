@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:PiliPlus/common/constants.dart';
 import 'package:PiliPlus/common/widgets/pair.dart';
 import 'package:PiliPlus/http/api.dart';
 import 'package:PiliPlus/http/constants.dart';
@@ -43,7 +44,7 @@ abstract final class DynamicsHttp {
         'timezone_offset': '-480',
       },
       'offset': offset,
-      'features': 'itemOpusStyle,listOnlyfans',
+      'features': Constants.dynFeatures,
     };
     final res = await Request().get(Api.followDynamic, queryParameters: data);
     final code = res.data['code'];
@@ -254,7 +255,7 @@ abstract final class DynamicsHttp {
         'id': ?id,
         'rid': ?rid,
         'type': ?type,
-        'features': 'itemOpusStyle',
+        'features': Constants.dynFeatures,
         'gaia_source': 'Athena',
         'web_location': '333.1330',
         'x-bili-device-req-json':
@@ -442,8 +443,7 @@ abstract final class DynamicsHttp {
         'offset': offset,
         'page_size': 20,
         'source': 'Web',
-        // itemOpusStyle,listOnlyfans,opusBigCover,onlyfansVote,decorationCard
-        'features': 'itemOpusStyle,listOnlyfans',
+        'features': Constants.dynFeatures,
       },
     );
     if (res.data['code'] == 0) {

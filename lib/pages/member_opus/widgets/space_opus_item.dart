@@ -1,21 +1,19 @@
-import 'package:PiliPlus/common/widgets/flutter/dyn/ink_well.dart';
+import 'package:PiliPlus/common/widgets/flutter/layout_builder.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/stat/stat.dart';
 import 'package:PiliPlus/models/common/image_type.dart';
 import 'package:PiliPlus/models/common/stat_type.dart';
 import 'package:PiliPlus/models_new/space/space_opus/item.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
-import 'package:flutter/material.dart' hide InkWell;
+import 'package:flutter/material.dart' hide LayoutBuilder;
 
 class SpaceOpusItem extends StatelessWidget {
   const SpaceOpusItem({
     super.key,
     required this.item,
-    required this.maxWidth,
   });
 
   final SpaceOpusItemModel item;
-  final double maxWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -34,12 +32,14 @@ class SpaceOpusItem extends StatelessWidget {
             if (hasPic)
               Stack(
                 children: [
-                  NetworkImgLayer(
-                    width: maxWidth,
-                    height: maxWidth * item.cover!.ratio,
-                    src: item.cover!.url,
-                    type: ImageType.emote,
-                    quality: 60,
+                  LayoutBuilder(
+                    builder: (context, constraints) => NetworkImgLayer(
+                      width: constraints.maxWidth,
+                      height: constraints.maxWidth * item.cover!.ratio,
+                      src: item.cover!.url,
+                      type: ImageType.emote,
+                      quality: 60,
+                    ),
                   ),
                   Positioned(
                     left: 0,

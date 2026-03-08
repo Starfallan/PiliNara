@@ -1,4 +1,3 @@
-import 'package:PiliPlus/common/widgets/flutter/dyn/ink_well.dart';
 import 'package:PiliPlus/common/widgets/image/image_save.dart';
 import 'package:PiliPlus/models/dynamics/result.dart';
 import 'package:PiliPlus/pages/dynamics/widgets/dyn_content.dart';
@@ -6,7 +5,7 @@ import 'package:PiliPlus/pages/dynamics/widgets/module_panel.dart';
 import 'package:PiliPlus/utils/date_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
-import 'package:flutter/material.dart' hide InkWell;
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 Widget forwardPanel(
@@ -16,7 +15,6 @@ Widget forwardPanel(
   required DynamicItemModel orig,
   required bool isSave,
   required bool isDetail,
-  required double maxWidth,
 }) {
   final moduleDynamic = orig.modules.moduleDynamic;
   final major = moduleDynamic?.major;
@@ -44,7 +42,6 @@ Widget forwardPanel(
           isDetail: isDetail,
           item: orig,
           floor: floor + 1,
-          maxWidth: maxWidth - 30,
         ),
       ],
     );

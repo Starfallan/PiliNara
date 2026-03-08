@@ -17,10 +17,12 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:PiliPlus/common/widgets/flutter/layout_builder.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart' hide DraggableScrollableSheet;
+import 'package:flutter/material.dart'
+    hide DraggableScrollableSheet, LayoutBuilder;
 
 /// Controls a [DraggableScrollableSheet].
 ///

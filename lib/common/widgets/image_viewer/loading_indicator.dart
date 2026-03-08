@@ -95,6 +95,9 @@ class RenderLoadingIndicator extends RenderBox {
     final radius = size.width / 2 - strokeWidth;
     final center = size.center(.zero);
 
+    // TODO: remove
+    // https://github.com/flutter/flutter/issues/182708
+    // https://github.com/flutter/flutter/issues/183083
     if (Platform.isIOS) {
       context.canvas
         ..drawCircle(

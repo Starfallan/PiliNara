@@ -1,20 +1,19 @@
 import 'package:PiliPlus/common/widgets/badge.dart';
+import 'package:PiliPlus/common/widgets/flutter/layout_builder.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/models/common/badge_type.dart';
 import 'package:PiliPlus/models_new/space/space_shop/item.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide LayoutBuilder;
 import 'package:get/get.dart';
 
 class MemberShopItem extends StatelessWidget {
   const MemberShopItem({
     super.key,
     required this.item,
-    required this.maxWidth,
   });
 
   final SpaceShopItem item;
-  final double maxWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -34,11 +33,13 @@ class MemberShopItem extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            NetworkImgLayer(
-              type: .emote,
-              src: item.cover?.url,
-              width: maxWidth,
-              height: maxWidth,
+            LayoutBuilder(
+              builder: (context, constraints) => NetworkImgLayer(
+                type: .emote,
+                src: item.cover?.url,
+                width: constraints.maxWidth,
+                height: constraints.maxWidth,
+              ),
             ),
             Padding(
               padding: const EdgeInsets.all(8),

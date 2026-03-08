@@ -430,6 +430,11 @@ class _MediaPageState extends CommonPageState<MinePage>
     );
   }
 
+  void _autoRefresh() => Future.delayed(
+    const Duration(milliseconds: 150),
+    () => controller.onRefresh(isManual: false),
+  );
+
   Widget _buildFav(ThemeData theme, Color secondary) {
     return Column(
       children: [
@@ -438,12 +443,7 @@ class _MediaPageState extends CommonPageState<MinePage>
           color: theme.dividerColor.withValues(alpha: 0.1),
         ),
         ListTile(
-          onTap: () => Get.toNamed('/fav')?.whenComplete(
-            () => Future.delayed(
-              const Duration(milliseconds: 150),
-              controller.onRefresh,
-            ),
-          ),
+          onTap: () => Get.toNamed('/fav')?.whenComplete(_autoRefresh),
           dense: true,
           title: Padding(
             padding: const EdgeInsets.only(left: 10),
@@ -522,12 +522,8 @@ class _MediaPageState extends CommonPageState<MinePage>
                             ),
                           ),
                         ),
-                        onPressed: () => Get.toNamed('/fav')?.whenComplete(
-                          () => Future.delayed(
-                            const Duration(milliseconds: 150),
-                            controller.onRefresh,
-                          ),
-                        ),
+                        onPressed: () =>
+                            Get.toNamed('/fav')?.whenComplete(_autoRefresh),
                         icon: Icon(
                           Icons.arrow_forward_ios,
                           size: 18,
@@ -540,10 +536,7 @@ class _MediaPageState extends CommonPageState<MinePage>
                   return FavFolderItem(
                     heroTag: Utils.generateRandomString(8),
                     item: response.list[index],
-                    onPop: () => Future.delayed(
-                      const Duration(milliseconds: 150),
-                      controller.onRefresh,
-                    ),
+                    onPop: _autoRefresh,
                   );
                 }
               },

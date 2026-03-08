@@ -1,12 +1,13 @@
 // 视频or合集
 import 'package:PiliPlus/common/constants.dart';
 import 'package:PiliPlus/common/widgets/badge.dart';
+import 'package:PiliPlus/common/widgets/flutter/layout_builder.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/models/common/badge_type.dart';
 import 'package:PiliPlus/models/dynamics/result.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/num_utils.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide LayoutBuilder;
 
 Widget videoSeasonWidget(
   BuildContext context, {
@@ -15,7 +16,6 @@ Widget videoSeasonWidget(
   required DynamicItemModel item,
   required bool isSave,
   required bool isDetail,
-  required double maxWidth,
 }) {
   // type archive  ugcSeason
   // archive 视频/显示发布人
@@ -36,7 +36,6 @@ Widget videoSeasonWidget(
 
   EdgeInsets padding;
   if (floor == 1) {
-    maxWidth -= 24;
     padding = const EdgeInsets.symmetric(horizontal: 12);
   } else {
     padding = EdgeInsets.zero;
@@ -51,11 +50,13 @@ Widget videoSeasonWidget(
           Stack(
             clipBehavior: Clip.none,
             children: [
-              NetworkImgLayer(
-                width: maxWidth,
-                height: maxWidth / StyleString.aspectRatio,
-                src: cover,
-                quality: 40,
+              LayoutBuilder(
+                builder: (context, constraints) => NetworkImgLayer(
+                  width: constraints.maxWidth,
+                  height: constraints.maxWidth / StyleString.aspectRatio,
+                  src: cover,
+                  quality: 40,
+                ),
               ),
               if (video.badge?.text case final badge?)
                 PBadge(

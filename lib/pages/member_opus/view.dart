@@ -33,8 +33,6 @@ class _MemberOpusState extends State<MemberOpus>
     with AutomaticKeepAliveClientMixin {
   late final MemberOpusController _controller;
 
-  late double _maxWidth;
-
   @override
   void initState() {
     super.initState();
@@ -127,7 +125,6 @@ class _MemberOpusState extends State<MemberOpus>
     maxCrossAxisExtent: Grid.smallCardWidth,
     mainAxisSpacing: StyleString.safeSpace,
     crossAxisSpacing: StyleString.safeSpace,
-    afterCalc: (value) => _maxWidth = value,
   );
 
   Widget _buildBody(LoadingState<List<SpaceOpusItemModel>?> loadingState) {
@@ -148,10 +145,7 @@ class _MemberOpusState extends State<MemberOpus>
                     if (index == response.length - 1) {
                       _controller.onLoadMore();
                     }
-                    return SpaceOpusItem(
-                      item: response[index],
-                      maxWidth: _maxWidth,
-                    );
+                    return SpaceOpusItem(item: response[index]);
                   },
                   childCount: response.length,
                 ),

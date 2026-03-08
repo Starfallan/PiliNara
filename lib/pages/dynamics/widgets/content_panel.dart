@@ -1,7 +1,7 @@
 // 内容
 import 'package:PiliPlus/common/widgets/custom_icon.dart';
 import 'package:PiliPlus/common/widgets/flutter/text/text.dart' as custom_text;
-import 'package:PiliPlus/common/widgets/image/custom_grid_view.dart';
+import 'package:PiliPlus/common/widgets/image_grid/image_grid_view.dart';
 import 'package:PiliPlus/models/dynamics/result.dart';
 import 'package:PiliPlus/pages/dynamics/widgets/rich_node_panel.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
@@ -15,16 +15,11 @@ Widget content(
   required DynamicItemModel item,
   required bool isSave,
   required bool isDetail,
-  required double maxWidth,
 }) {
-  if (floor == 1) {
-    maxWidth -= 24;
-  }
   TextSpan? richNodes = richNode(
     context,
     theme: theme,
     item: item,
-    maxWidth: maxWidth,
   );
   final moduleDynamic = item.modules.moduleDynamic;
   final pics = moduleDynamic?.major?.opus?.pics;
@@ -94,8 +89,7 @@ Widget content(
                   primary: theme.colorScheme.primary,
                 ),
         if (pics != null && pics.isNotEmpty)
-          CustomGridView(
-            maxWidth: maxWidth,
+          ImageGridView(
             picArr: pics
                 .map(
                   (item) => ImageModel(

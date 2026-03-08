@@ -1,6 +1,7 @@
 import 'package:PiliPlus/common/skeleton/skeleton.dart';
+import 'package:PiliPlus/common/widgets/flutter/layout_builder.dart';
 import 'package:PiliPlus/utils/utils.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide LayoutBuilder;
 
 class SpaceOpusSkeleton extends StatelessWidget {
   const SpaceOpusSkeleton({super.key});

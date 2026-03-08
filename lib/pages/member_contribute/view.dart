@@ -97,13 +97,14 @@ class _MemberContributeState extends State<MemberContribute>
   }
 
   Widget _getPageFromType(SpaceTab2Item item) {
+    final isSingle = _controller.tabs == null;
     return switch (item.param) {
       'video' => MemberVideo(
         type: ContributeType.video,
         heroTag: widget.heroTag,
         mid: widget.mid,
         title: item.title,
-        isSingle: _controller.tabs == null,
+        isSingle: isSingle,
       ),
       'charging_video' => MemberVideo(
         type: ContributeType.charging,
@@ -116,9 +117,9 @@ class _MemberContributeState extends State<MemberContribute>
         mid: widget.mid,
       ),
       'opus' => MemberOpus(
-        isSingle: _controller.tabs == null,
         heroTag: widget.heroTag,
         mid: widget.mid,
+        isSingle: isSingle,
       ),
       'audio' => MemberAudio(
         heroTag: widget.heroTag,

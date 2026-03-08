@@ -88,31 +88,9 @@ jobs:
                   flutter-version-file: pubspec.yaml
                   cache: true
 
-            - name: revert new overscrollindicator
-              working-directory: ${{ env.FLUTTER_ROOT }}
-              # https://github.com/flutter/flutter/issues/182281
-              run: |
-                  git config --global user.name "ci"
-                  git config --global user.email "example@example.com"
-                  git stash || true
-                  git revert 362b1de29974ffc1ed6faa826e1df870d7bec75f --no-edit
-                  git reset --soft HEAD~1
-                  git stash pop || true
-              continue-on-error: true
-
-            - name: apply bottom sheet patch
-              working-directory: ${{ env.FLUTTER_ROOT }}
-              run: git apply $GITHUB_WORKSPACE/lib/scripts/bottom_sheet_patch.diff || true
-              continue-on-error: true
-
-            - name: apply modal barrier patch
-              working-directory: ${{ env.FLUTTER_ROOT }}
-              run: git apply $GITHUB_WORKSPACE/lib/scripts/modal_barrier_patch.diff || true
-              continue-on-error: true
-
-            - name: apply mouse cursor patch
-              working-directory: ${{ env.FLUTTER_ROOT }}
-              run: git apply $GITHUB_WORKSPACE/lib/scripts/mouse_cursor_patch.diff || true
+            - name: Apply Patch
+              shell: pwsh
+              run: lib/scripts/patch.ps1 android
               continue-on-error: true
 
             - name: Write key
@@ -127,13 +105,20 @@ jobs:
                   fi
 
             - name: Set and Extract version
+              if: ${{ github.event_name == 'workflow_dispatch' }}
               shell: pwsh
               run: lib/scripts/build.ps1 android
 
-            - name: flutter build apk
-              run: flutter build apk --release --split-per-abi --target-platform android-arm64 --dart-define-from-file=pili_release.json --pub
+            - name: Flutter Build Release Apk
+              if: ${{ github.event_name == 'workflow_dispatch' }}
+              run: flutter build apk --release --target-platform android-arm64 --dart-define-from-file=pili_release.json --pub
 
-            - name: rename
+            - name: Flutter Build Dev Apk
+              if: ${{ github.event_name == 'pull_request' }}
+              run: |
+                flutter build apk --release --target-platform android-arm64 --android-project-arg dev=1 --pub
+
+            - name: Rename
               run: |
                   tag_name=${{ github.event_name == 'push' && github.ref_name || github.event.inputs.tag }}
                   mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "PiliPlusX_android_${tag_name}_arm64-v8a.apk"

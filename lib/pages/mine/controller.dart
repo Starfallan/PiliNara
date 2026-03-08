@@ -136,7 +136,6 @@ class MineController extends CommonDataController<FavFolderData, FavFolderData>
   bool customHandleResponse(bool isRefresh, Success<FavFolderData> response) {
     favFolderCount = response.response.count;
     loadingState.value = response;
-    scrollController.jumpToTop();
     return true;
   }
 
@@ -286,12 +285,16 @@ class MineController extends CommonDataController<FavFolderData, FavFolderData>
   }
 
   @override
-  Future<void> onRefresh() {
+  Future<void> onRefresh({bool isManual = true}) {
     if (!accountService.isLogin.value) {
       return Future.syncValue(null);
     }
     queryUserInfo();
-    return super.onRefresh();
+    return super.onRefresh().whenComplete(() {
+      if (isManual) {
+        scrollController.jumpToTop();
+      }
+    });
   }
 
   @override

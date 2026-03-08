@@ -386,7 +386,6 @@ class _SavePanelState extends State<SavePanel> {
                                 item: dyn,
                                 isDetail: true,
                                 isSave: true,
-                                maxWidth: maxWidth - 24,
                               ),
                             ),
                           if (cover?.isNotEmpty == true &&

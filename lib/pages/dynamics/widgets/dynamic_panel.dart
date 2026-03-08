@@ -1,5 +1,4 @@
 import 'package:PiliPlus/common/widgets/avatars.dart';
-import 'package:PiliPlus/common/widgets/flutter/dyn/ink_well.dart';
 import 'package:PiliPlus/common/widgets/image/image_save.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/models/dynamics/result.dart';
@@ -10,11 +9,10 @@ import 'package:PiliPlus/pages/dynamics/widgets/interaction.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
-import 'package:flutter/material.dart' hide InkWell;
+import 'package:flutter/material.dart';
 
 class DynamicPanel extends StatelessWidget {
   final DynamicItemModel item;
-  final double maxWidth;
   final bool isDetail;
   final ValueChanged<Object>? onRemove;
   final bool isSave;
@@ -30,7 +28,6 @@ class DynamicPanel extends StatelessWidget {
   const DynamicPanel({
     super.key,
     required this.item,
-    required this.maxWidth,
     this.isDetail = false,
     this.onRemove,
     this.isSave = false,
@@ -99,7 +96,6 @@ class DynamicPanel extends StatelessWidget {
               isDetail: isDetail,
               item: item,
               floor: 1,
-              maxWidth: maxWidth,
             ),
             const SizedBox(height: 2),
             if (!isDetail) ...[

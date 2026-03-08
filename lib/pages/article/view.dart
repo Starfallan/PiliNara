@@ -177,7 +177,7 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
             // if (kDebugMode) debugPrint('moduleBlocked');
             final moduleBlocked = controller.opusData!.modules.moduleBlocked!;
             content = SliverToBoxAdapter(
-              child: moduleBlockedItem(context, theme, moduleBlocked, maxWidth),
+              child: moduleBlockedItem(context, theme, moduleBlocked),
             );
           } else if (controller.articleData?.content != null) {
             if (controller.articleData?.type == 3) {

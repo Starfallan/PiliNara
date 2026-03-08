@@ -8,7 +8,6 @@ Widget livePanel(
   required ThemeData theme,
   required DynamicItemModel item,
   required bool isDetail,
-  required double maxWidth,
   Function(List<String>, int)? callback,
 }) {
   DynamicLive2Model? live = item.modules.moduleDynamic!.major!.live;

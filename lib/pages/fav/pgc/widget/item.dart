@@ -1,6 +1,7 @@
 import 'package:PiliPlus/common/constants.dart';
 import 'package:PiliPlus/common/widgets/badge.dart';
 import 'package:PiliPlus/common/widgets/button/icon_button.dart';
+import 'package:PiliPlus/common/widgets/flutter/layout_builder.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/select_mask.dart';
 import 'package:PiliPlus/models/common/badge_type.dart';
@@ -8,7 +9,7 @@ import 'package:PiliPlus/models_new/fav/fav_pgc/list.dart';
 import 'package:PiliPlus/pages/common/multi_select/base.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide LayoutBuilder;
 
 class FavPgcItem extends StatelessWidget {
   const FavPgcItem({
@@ -60,45 +61,41 @@ class FavPgcItem extends StatelessWidget {
                   AspectRatio(
                     aspectRatio: 3 / 4,
                     child: LayoutBuilder(
-                      builder:
-                          (
-                            BuildContext context,
-                            BoxConstraints boxConstraints,
-                          ) {
-                            return Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                NetworkImgLayer(
-                                  src: item.cover,
-                                  width: boxConstraints.maxWidth,
-                                  height: boxConstraints.maxHeight,
-                                  borderRadius: const BorderRadius.all(
-                                    Radius.circular(4),
-                                  ),
+                      builder: (context, boxConstraints) {
+                        return Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            NetworkImgLayer(
+                              src: item.cover,
+                              width: boxConstraints.maxWidth,
+                              height: boxConstraints.maxHeight,
+                              borderRadius: const BorderRadius.all(
+                                Radius.circular(4),
+                              ),
+                            ),
+                            PBadge(
+                              right: 4,
+                              top: 4,
+                              text: item.badge,
+                              size: PBadgeSize.small,
+                              fontSize: 10,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 2,
+                                vertical: 1,
+                              ),
+                            ),
+                            Positioned.fill(
+                              child: selectMask(
+                                theme,
+                                item.checked,
+                                borderRadius: const BorderRadius.all(
+                                  Radius.circular(4),
                                 ),
-                                PBadge(
-                                  right: 4,
-                                  top: 4,
-                                  text: item.badge,
-                                  size: PBadgeSize.small,
-                                  fontSize: 10,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 2,
-                                    vertical: 1,
-                                  ),
-                                ),
-                                Positioned.fill(
-                                  child: selectMask(
-                                    theme,
-                                    item.checked,
-                                    borderRadius: const BorderRadius.all(
-                                      Radius.circular(4),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(width: 10),

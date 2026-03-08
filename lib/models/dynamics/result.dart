@@ -867,6 +867,7 @@ class DynamicMajorModel {
   String? type;
   DynamicArchiveModel? courses;
   Common? common;
+  Common? upowerCommon;
   Music? music;
   ModuleBlocked? blocked;
   Medialist? medialist;
@@ -900,6 +901,9 @@ class DynamicMajorModel {
         ? null
         : DynamicArchiveModel.fromJson(json['courses']);
     common = json['common'] == null ? null : Common.fromJson(json['common']);
+    upowerCommon = json['upower_common'] == null
+        ? null
+        : Common.fromJson(json['upower_common']);
     music = json['music'] == null ? null : Music.fromJson(json['music']);
     blocked = json['blocked'] == null
         ? null

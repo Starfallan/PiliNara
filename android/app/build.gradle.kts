@@ -54,6 +54,14 @@ android {
             signingConfig = config ?: signingConfigs["debug"]
         }
         release {
+            if (project.hasProperty("dev")) {
+                applicationIdSuffix = ".dev"
+                resValue(
+                    type = "string",
+                    name = "app_name",
+                    value = "PiliPlusX dev",
+                )
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

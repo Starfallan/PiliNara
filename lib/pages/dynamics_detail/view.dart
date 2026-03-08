@@ -251,7 +251,6 @@ class _DynamicDetailPageState extends CommonDynPageState<DynamicDetailPage> {
               child: DynamicPanel(
                 item: controller.dynItem,
                 isDetail: true,
-                maxWidth: maxWidth - this.padding.horizontal - 2 * padding,
                 isDetailPortraitW: isPortrait,
                 onSetPubSetting: controller.onSetPubSetting,
                 onEdit: _onEdit,
@@ -284,10 +283,6 @@ class _DynamicDetailPageState extends CommonDynPageState<DynamicDetailPage> {
                     child: DynamicPanel(
                       item: controller.dynItem,
                       isDetail: true,
-                      maxWidth:
-                          (maxWidth - this.padding.horizontal) *
-                              (flex / (flex + flex1)) -
-                          padding,
                       isDetailPortraitW: isPortrait,
                       onSetPubSetting: controller.onSetPubSetting,
                       onEdit: _onEdit,

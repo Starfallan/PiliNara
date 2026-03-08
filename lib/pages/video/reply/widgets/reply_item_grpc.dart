@@ -5,8 +5,8 @@ import 'package:PiliPlus/common/widgets/badge.dart';
 import 'package:PiliPlus/common/widgets/dialog/report.dart';
 import 'package:PiliPlus/common/widgets/flutter/text/text.dart' as custom_text;
 import 'package:PiliPlus/common/widgets/gesture/tap_gesture_recognizer.dart';
-import 'package:PiliPlus/common/widgets/image/custom_grid_view.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
+import 'package:PiliPlus/common/widgets/image_grid/image_grid_view.dart';
 import 'package:PiliPlus/common/widgets/pendant_avatar.dart';
 import 'package:PiliPlus/grpc/bilibili/main/community/reply/v1.pb.dart'
     show ReplyInfo, ReplyControl, Content, Url;
@@ -298,20 +298,17 @@ class ReplyItemGrpc extends StatelessWidget {
         if (replyItem.content.pictures.isNotEmpty) ...[
           Padding(
             padding: padding,
-            child: LayoutBuilder(
-              builder: (context, constraints) => CustomGridView(
-                maxWidth: constraints.maxWidth,
-                picArr: replyItem.content.pictures
-                    .map(
-                      (item) => ImageModel(
-                        width: item.imgWidth,
-                        height: item.imgHeight,
-                        url: item.imgSrc,
-                      ),
-                    )
-                    .toList(),
-                onViewImage: onViewImage,
-              ),
+            child: ImageGridView(
+              picArr: replyItem.content.pictures
+                  .map(
+                    (item) => ImageModel(
+                      width: item.imgWidth,
+                      height: item.imgHeight,
+                      url: item.imgSrc,
+                    ),
+                  )
+                  .toList(),
+              onViewImage: onViewImage,
             ),
           ),
           const SizedBox(height: 4),

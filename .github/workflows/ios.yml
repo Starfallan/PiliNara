@@ -30,14 +30,9 @@ jobs:
         shell: pwsh
         run: lib/scripts/build.ps1
 
-      - name: apply modal barrier patch
-        working-directory: ${{ env.FLUTTER_ROOT }}
-        run: git apply $GITHUB_WORKSPACE/lib/scripts/modal_barrier_patch.diff || true
-        continue-on-error: true
-
-      - name: apply mouse cursor patch
-        working-directory: ${{ env.FLUTTER_ROOT }}
-        run: git apply $GITHUB_WORKSPACE/lib/scripts/mouse_cursor_patch.diff || true
+      - name: Apply Patch
+        shell: pwsh
+        run: lib/scripts/patch.ps1 iOS
         continue-on-error: true
 
       - name: Build iOS
@@ -46,7 +41,7 @@ jobs:
           ln -sf ./build/ios/iphoneos Payload
           # make AltSign happy...
           find Payload/Runner.app/Frameworks -type d -name "*.framework" -exec codesign --force --sign - --preserve-metadata=identifier,entitlements {} \;
-          zip -r9 PiliPlusX_ios_${{ inputs.tag }}.ipa Payload/runner.app
+          zip -r9 PiliPlusX_ios_${{ inputs.tag }}.ipa Payload/Runner.app
 
       - name: Release
         if: ${{ inputs.tag != '' && !contains(inputs.tag, 'test') }}

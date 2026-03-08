@@ -1,3 +1,4 @@
+import 'package:PiliPlus/common/constants.dart';
 import 'package:PiliPlus/common/skeleton/video_card_h.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
@@ -136,24 +137,22 @@ class _HorizontalMemberPageState extends State<HorizontalMemberPage> {
               );
             },
           ),
-          SizedBox(
-            height: 35,
-            child: TextButton.icon(
-              onPressed: () => _controller
-                ..lastAid = widget.videoDetailController.aid.toString()
-                ..queryBySort(),
-              icon: Icon(
-                Icons.sort,
-                size: 16,
-                color: theme.colorScheme.secondary,
-              ),
-              label: Obx(
-                () => Text(
-                  _controller.order.value == 'pubdate' ? '最新发布' : '最多播放',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: theme.colorScheme.secondary,
-                  ),
+          TextButton.icon(
+            style: StyleString.buttonStyle,
+            onPressed: () => _controller
+              ..lastAid = widget.videoDetailController.aid.toString()
+              ..queryBySort(),
+            icon: Icon(
+              Icons.sort,
+              size: 16,
+              color: theme.colorScheme.secondary,
+            ),
+            label: Obx(
+              () => Text(
+                _controller.order.value == 'pubdate' ? '最新发布' : '最多播放',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: theme.colorScheme.secondary,
                 ),
               ),
             ),

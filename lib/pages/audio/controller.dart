@@ -300,8 +300,9 @@ class AudioController extends GetxController
       player = null;
       return;
     }
+    final stream = player!.stream;
     _subscriptions = [
-      player!.stream.position.listen((position) {
+      stream.position.listen((position) {
         if (isDragging) return;
         if (position.inSeconds != this.position.value.inSeconds) {
           this.position.value = position;
@@ -309,8 +310,8 @@ class AudioController extends GetxController
           videoPlayerServiceHandler?.onPositionChange(position);
         }
       }),
-      player!.stream.duration.listen(duration.call),
-      player!.stream.playing.listen((playing) {
+      stream.duration.listen(duration.call),
+      stream.playing.listen((playing) {
         final PlayerStatus playerStatus;
         if (playing) {
           animController.forward();
@@ -321,7 +322,7 @@ class AudioController extends GetxController
         }
         videoPlayerServiceHandler?.onStatusChange(playerStatus, false, false);
       }),
-      player!.stream.completed.listen((completed) {
+      stream.completed.listen((completed) {
         _videoDetailController?.playedTime = duration.value;
         videoPlayerServiceHandler?.onStatusChange(
           PlayerStatus.completed,
@@ -774,6 +775,7 @@ class AudioController extends GetxController
       ..onSeek = null
       ..onVideoDetailDispose(hashCode.toString());
     _subscriptions?.forEach((e) => e.cancel());
+    _subscriptions?.clear();
     _subscriptions = null;
     player?.dispose();
     player = null;

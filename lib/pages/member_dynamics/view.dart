@@ -93,7 +93,6 @@ class _MemberDynamicsPageState extends State<MemberDynamicsPage>
                             item: response[index],
                             onRemove: _memberDynamicController.onRemove,
                             onSetTop: _memberDynamicController.onSetTop,
-                            maxWidth: maxWidth,
                           );
                         },
                         childCount: response.length,
@@ -108,7 +107,6 @@ class _MemberDynamicsPageState extends State<MemberDynamicsPage>
                           item: response[index],
                           onRemove: _memberDynamicController.onRemove,
                           onSetTop: _memberDynamicController.onSetTop,
-                          maxWidth: maxWidth,
                         );
                       },
                       itemCount: response.length,

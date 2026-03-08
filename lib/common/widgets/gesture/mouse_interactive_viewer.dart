@@ -686,6 +686,7 @@ class _MouseInteractiveViewerState extends State<MouseInteractiveViewer>
     _scaleGestureRecognizer =
         ScaleGestureRecognizer(
             debugOwner: this,
+            dragStartBehavior: .start,
             allowedButtonsFilter: (buttons) => buttons == kPrimaryButton,
             trackpadScrollToScaleFactor: Offset(0, -1 / widget.scaleFactor),
             trackpadScrollCausesScale: widget.trackpadScrollCausesScale,

@@ -1,6 +1,7 @@
 import 'package:PiliPlus/common/constants.dart';
 import 'package:PiliPlus/common/skeleton/skeleton.dart';
-import 'package:flutter/material.dart';
+import 'package:PiliPlus/common/widgets/flutter/layout_builder.dart';
+import 'package:flutter/material.dart' hide LayoutBuilder;
 
 class FavPgcItemSkeleton extends StatelessWidget {
   const FavPgcItemSkeleton({super.key});

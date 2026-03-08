@@ -65,13 +65,10 @@ class _MemberShopState extends State<MemberShop>
   @override
   bool get wantKeepAlive => true;
 
-  late double _maxWidth;
-
   late final gridDelegate = SliverWaterfallFlowDelegateWithMaxCrossAxisExtent(
     maxCrossAxisExtent: Grid.smallCardWidth,
     mainAxisSpacing: StyleString.safeSpace,
     crossAxisSpacing: StyleString.safeSpace,
-    afterCalc: (value) => _maxWidth = value,
   );
 
   Widget _buildBody(LoadingState<List<SpaceShopItem>?> loadingState) {
@@ -92,10 +89,7 @@ class _MemberShopState extends State<MemberShop>
           gridDelegate: gridDelegate,
           delegate: SliverChildBuilderDelegate(
             (_, index) {
-              return MemberShopItem(
-                item: response[index],
-                maxWidth: _maxWidth,
-              );
+              return MemberShopItem(item: response[index]);
             },
             childCount: response.length,
           ),

@@ -1,10 +1,11 @@
 import 'package:PiliPlus/common/constants.dart';
 import 'package:PiliPlus/common/widgets/badge.dart';
+import 'package:PiliPlus/common/widgets/flutter/layout_builder.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/models/common/badge_type.dart';
 import 'package:PiliPlus/models/dynamics/result.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide LayoutBuilder;
 
 Widget livePanelSub(
   BuildContext context, {
@@ -12,7 +13,6 @@ Widget livePanelSub(
   required ThemeData theme,
   required DynamicItemModel item,
   required bool isDetail,
-  required double maxWidth,
 }) {
   LivePlayInfo? live = item
       .modules
@@ -27,7 +27,6 @@ Widget livePanelSub(
   }
   EdgeInsets padding;
   if (floor == 1) {
-    maxWidth -= 24;
     padding = const EdgeInsets.symmetric(horizontal: 12);
   } else {
     padding = EdgeInsets.zero;
@@ -40,11 +39,13 @@ Widget livePanelSub(
         Stack(
           clipBehavior: Clip.none,
           children: [
-            NetworkImgLayer(
-              width: maxWidth,
-              height: maxWidth / StyleString.aspectRatio,
-              src: live.cover,
-              quality: 40,
+            LayoutBuilder(
+              builder: (context, constraints) => NetworkImgLayer(
+                width: constraints.maxWidth,
+                height: constraints.maxWidth / StyleString.aspectRatio,
+                src: live.cover,
+                quality: 40,
+              ),
             ),
             PBadge(
               text: live.watchedShow?.textLarge,

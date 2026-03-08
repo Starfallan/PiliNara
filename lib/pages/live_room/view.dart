@@ -75,11 +75,9 @@ class _LiveRoomPageState extends State<LiveRoomPage>
       LiveRoomController(heroTag),
       tag: heroTag,
     );
-    plPlayerController = _liveRoomController.plPlayerController;
-    PlPlayerController.setPlayCallBack(plPlayerController.play);
-    plPlayerController
-      ..autoEnterFullscreen()
+    plPlayerController = _liveRoomController.plPlayerController
       ..addStatusLister(playerListener);
+    PlPlayerController.setPlayCallBack(plPlayerController.play);
   }
 
   @override

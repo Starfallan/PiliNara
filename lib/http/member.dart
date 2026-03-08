@@ -405,7 +405,7 @@ abstract final class MemberHttp {
       'offset': offset ?? '',
       'host_mid': mid,
       'timezone_offset': '-480',
-      'features': 'itemOpusStyle,listOnlyfans',
+      'features': Constants.dynFeatures,
       'platform': 'web',
       'web_location': '333.1387',
       'dm_img_list': '[]',
@@ -457,7 +457,7 @@ abstract final class MemberHttp {
         'page': pn,
         'offset': offset,
         'keyword': keyword,
-        'features': 'itemOpusStyle,listOnlyfans',
+        'features': Constants.dynFeatures,
         'web_location': 333.1387,
       },
     );

@@ -184,7 +184,7 @@ class LiveRoomController extends GetxController {
     final account = Accounts.main;
     isLogin = account.isLogin;
     mid = account.mid;
-    queryLiveUrl();
+    queryLiveUrl(autoFullScreenFlag: true);
     queryLiveInfoH5();
     if (Accounts.heartbeat.isLogin && !Pref.historyPause) {
       VideoHttp.roomEntryAction(roomId: roomId);
@@ -194,7 +194,10 @@ class LiveRoomController extends GetxController {
     }
   }
 
-  Future<void>? playerInit({bool autoplay = true}) {
+  Future<void>? playerInit({
+    bool autoplay = true,
+    bool autoFullScreenFlag = false,
+  }) {
     if (videoUrl == null) {
       return null;
     }
@@ -203,10 +206,11 @@ class LiveRoomController extends GetxController {
       isLive: true,
       autoplay: autoplay,
       isVertical: isPortrait.value,
+      autoFullScreenFlag: autoFullScreenFlag,
     );
   }
 
-  Future<void> queryLiveUrl() async {
+  Future<void> queryLiveUrl({bool autoFullScreenFlag = false}) async {
     currentQn ??= await Utils.isWiFi
         ? Pref.liveQuality
         : Pref.liveQualityCellular;
@@ -245,7 +249,7 @@ class LiveRoomController extends GetxController {
       currentQnDesc.value =
           LiveQuality.fromCode(currentQn)?.desc ?? currentQn.toString();
       videoUrl = VideoUtils.getLiveCdnUrl(item);
-      await playerInit();
+      await playerInit(autoFullScreenFlag: autoFullScreenFlag);
       isLoaded.value = true;
     } else {
       _showDialog(res.toString());

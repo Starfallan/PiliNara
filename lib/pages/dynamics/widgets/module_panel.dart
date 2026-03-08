@@ -1,6 +1,5 @@
 import 'package:PiliPlus/common/constants.dart';
 import 'package:PiliPlus/common/widgets/badge.dart';
-import 'package:PiliPlus/common/widgets/flutter/dyn/ink_well.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/grpc/bilibili/app/listener/v1.pbenum.dart'
     show PlaylistSource;
@@ -15,7 +14,7 @@ import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/image_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/material.dart' hide InkWell;
+import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 Widget noneWidget(ThemeData theme, String? tips) => Row(
@@ -40,7 +39,6 @@ Widget module(
   required DynamicItemModel item,
   required bool isSave,
   required bool isDetail,
-  required double maxWidth,
 }) {
   final moduleDynamic = item.modules.moduleDynamic;
   final major = moduleDynamic?.major;
@@ -77,7 +75,6 @@ Widget module(
         floor: floor,
         isSave: isSave,
         isDetail: isDetail,
-        maxWidth: maxWidth,
       );
     // 转发
     case 'DYNAMIC_TYPE_FORWARD':
@@ -88,7 +85,6 @@ Widget module(
         orig: item.orig!,
         isDetail: isDetail,
         floor: floor + 1,
-        maxWidth: maxWidth,
       );
     // 直播
     case 'DYNAMIC_TYPE_LIVE_RCMD':
@@ -98,7 +94,6 @@ Widget module(
         isDetail: isDetail,
         item: item,
         floor: floor,
-        maxWidth: maxWidth,
       );
     // 直播
     case 'DYNAMIC_TYPE_LIVE':
@@ -108,10 +103,11 @@ Widget module(
         item: item,
         floor: floor,
         isDetail: isDetail,
-        maxWidth: maxWidth,
       );
     // 活动
     case 'DYNAMIC_TYPE_COMMON_SQUARE':
+      final common = major?.common ?? major?.upowerCommon;
+      if (common == null) return const SizedBox.shrink();
       return Material(
         color: floor == 1
             ? theme.dividerColor.withValues(alpha: 0.08)
@@ -123,7 +119,7 @@ Widget module(
           borderRadius: floor == 1 ? null : StyleString.mdRadius,
           onTap: () {
             try {
-              String url = major.common!.jumpUrl!;
+              String url = common.jumpUrl!;
               if (url.contains('bangumi/play') &&
                   PageUtils.viewPgcFromUri(url)) {
                 return;
@@ -141,14 +137,7 @@ Widget module(
             child: Row(
               spacing: 10,
               children: [
-                if (item
-                        .modules
-                        .moduleDynamic!
-                        .major!
-                        .common!
-                        .cover
-                        ?.isNotEmpty ==
-                    true)
+                if (common.cover?.isNotEmpty ?? false)
                   ClipRRect(
                     borderRadius: const BorderRadius.all(Radius.circular(6)),
                     child: CachedNetworkImage(
@@ -156,9 +145,7 @@ Widget module(
                       height: 45,
                       fit: BoxFit.cover,
                       memCacheWidth: 45.cacheSize(context),
-                      imageUrl: ImageUtils.safeThumbnailUrl(
-                        item.modules.moduleDynamic!.major!.common!.cover,
-                      ),
+                      imageUrl: ImageUtils.safeThumbnailUrl(common.cover),
                     ),
                   ),
                 Expanded(
@@ -166,22 +153,16 @@ Widget module(
                     spacing: 2,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        major!.common!.title!,
-                        style: TextStyle(color: theme.colorScheme.primary),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (item
-                              .modules
-                              .moduleDynamic!
-                              .major!
-                              .common!
-                              .desc
-                              ?.isNotEmpty ==
-                          true)
+                      if (common.title?.isNotEmpty ?? false)
                         Text(
-                          major.common!.desc!,
+                          common.title!,
+                          style: TextStyle(color: theme.colorScheme.primary),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      if (common.desc?.isNotEmpty ?? false)
+                        Text(
+                          common.desc!,
                           style: TextStyle(
                             color: theme.colorScheme.outline,
                             fontSize: theme.textTheme.labelMedium!.fontSize,
@@ -328,7 +309,6 @@ Widget module(
         isDetail: isDetail,
         item: item,
         floor: floor,
-        maxWidth: maxWidth,
       );
 
     default:

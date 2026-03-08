@@ -161,7 +161,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
 
   int? tmpSubtitlePaddingB;
   StreamSubscription? _controlsListener;
-  void _controlListener(bool val) {
+  void _onControlChanged(bool val) {
     final visible = val && !plPlayerController.controlsLock.value;
 
     if ((widget.headerControl.key as GlobalKey<TimeBatteryMixin>).currentState
@@ -213,9 +213,11 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
     WidgetsBinding.instance.addObserver(this);
 
     _controlsListener = plPlayerController.showControls.listen(
-      _controlListener,
+      _onControlChanged,
     );
+
     transformationController = TransformationController();
+
     animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 100),
@@ -1382,6 +1384,10 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
         plPlayerController.updatePreviewIndex(newPos ~/ 1000);
       }
     } else if (_gestureType == GestureType.right) {
+      if (!plPlayerController.enableSlideVolumeBrightness) {
+        return;
+      }
+
       final double level = maxHeight * 0.5;
       EasyThrottle.throttle(
         'setVolume',

@@ -71,6 +71,9 @@ abstract class ReplyController<R> extends CommonListController<R, ReplyInfo> {
       if (data.hasUpTop()) {
         data.replies.insert(0, data.upTop);
       }
+      if (subjectControl?.title == ReplySortType.select.title) {
+        sortType.value = .select;
+      }
     }
     isEnd = data.cursor.isEnd;
     return false;
@@ -87,7 +90,6 @@ abstract class ReplyController<R> extends CommonListController<R, ReplyInfo> {
   // 排序搜索评论
   void queryBySort() {
     if (isLoading) return;
-    feedBack();
     switch (sortType.value) {
       case ReplySortType.time:
         sortType.value = ReplySortType.hot;
@@ -97,7 +99,10 @@ abstract class ReplyController<R> extends CommonListController<R, ReplyInfo> {
         sortType.value = ReplySortType.time;
         mode.value = Mode.MAIN_LIST_TIME;
         break;
+      case ReplySortType.select:
+        return;
     }
+    feedBack();
     onReload();
   }
 

@@ -1,5 +1,5 @@
 import 'package:PiliPlus/common/widgets/dialog/report_member.dart';
-import 'package:PiliPlus/common/widgets/dynamic_sliver_appbar_medium.dart';
+import 'package:PiliPlus/common/widgets/dynamic_sliver_app_bar/dynamic_sliver_app_bar.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/loading_widget.dart';
 import 'package:PiliPlus/common/widgets/scroll_physics.dart';
 import 'package:PiliPlus/http/loading_state.dart';
@@ -328,8 +328,7 @@ class _MemberPageState extends State<MemberPage> {
         return const CircularProgressIndicator();
       case Success<SpaceData?>(:final response):
         if (response != null) {
-          return DynamicSliverAppBarMedium(
-            pinned: true,
+          return DynamicSliverAppBar.medium(
             actions: _actions(theme),
             title: Text(_userController.username ?? ''),
             flexibleSpace: Obx(

@@ -7,10 +7,9 @@ Widget blockedItem(
   BuildContext context, {
   required ThemeData theme,
   required ModuleBlocked blocked,
-  required double maxWidth,
 }) {
   return Padding(
     padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 1),
-    child: moduleBlockedItem(context, theme, blocked, maxWidth - 26),
+    child: moduleBlockedItem(context, theme, blocked),
   );
 }

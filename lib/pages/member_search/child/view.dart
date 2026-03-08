@@ -95,10 +95,7 @@ class _MemberSearchChildPageState extends State<MemberSearchChildPage>
                                   if (index == response.length - 1) {
                                     _controller.onLoadMore();
                                   }
-                                  return DynamicPanel(
-                                    item: response[index],
-                                    maxWidth: maxWidth,
-                                  );
+                                  return DynamicPanel(item: response[index]);
                                 },
                                 childCount: response.length,
                               ),
@@ -108,10 +105,7 @@ class _MemberSearchChildPageState extends State<MemberSearchChildPage>
                                 if (index == response.length - 1) {
                                   _controller.onLoadMore();
                                 }
-                                return DynamicPanel(
-                                  item: response[index],
-                                  maxWidth: maxWidth,
-                                );
+                                return DynamicPanel(item: response[index]);
                               },
                               itemCount: response.length,
                             ),
