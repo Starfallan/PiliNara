@@ -154,10 +154,46 @@ abstract final class VideoHttp {
       );
       List<RecVideoItemAppModel> list = <RecVideoItemAppModel>[];
       for (final i in res.data['data']['items']) {
-        if (i['args'] == null && i['player_args'] == null && i['param'] == null) {
+        if (i['card_goto'] == 'ad_av' || i['card_goto'] == 'ad_web_s') {
+          _debugDump(
+            '[rcmd-app-filter]',
+            '[rcmd-app-filter] idx=$freshIdx reason=card_goto card_goto=${i['card_goto']} title=${i['title']}',
+          );
           continue;
         }
-        list.add(RecVideoItemAppModel.fromJson(i));
+        if (i['ad_info'] != null) {
+          _debugDump(
+            '[rcmd-app-filter]',
+            '[rcmd-app-filter] idx=$freshIdx reason=ad_info title=${i['title']}',
+          );
+          continue;
+        }
+        if (i['args'] == null ||
+            GlobalData().blackMids.contains(i['args']['up_id'])) {
+          _debugDump(
+            '[rcmd-app-filter]',
+            '[rcmd-app-filter] idx=$freshIdx reason=args_or_blacklist title=${i['title']} upId=${i['args']?['up_id']}',
+          );
+          continue;
+        }
+        if (enableFilter &&
+            i['args']?['tname'] != null &&
+            zoneRegExp.hasMatch(i['args']['tname'])) {
+          _debugDump(
+            '[rcmd-app-filter]',
+            '[rcmd-app-filter] idx=$freshIdx reason=zone_regex title=${i['title']} tname=${i['args']?['tname']}',
+          );
+          continue;
+        }
+        final videoItem = RecVideoItemAppModel.fromJson(i);
+        if (RecommendFilter.filter(videoItem)) {
+          _debugDump(
+            '[rcmd-app-filter]',
+            '[rcmd-app-filter] idx=$freshIdx reason=recommend_filter aid=${videoItem.aid} bvid=${videoItem.bvid} title=${videoItem.title}',
+          );
+          continue;
+        }
+        list.add(videoItem);
       }
       _debugDump(
         '[rcmd-app-count]',
