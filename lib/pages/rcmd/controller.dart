@@ -2,6 +2,7 @@ import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/http/video.dart';
 import 'package:PiliPlus/pages/common/common_list_controller.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 
 class RcmdController extends CommonListController {
   late bool enableSaveLastData = Pref.enableSaveLastData;
@@ -26,6 +27,10 @@ class RcmdController extends CommonListController {
 
   @override
   void handleListResponse(List dataList) {
+    if (kDebugMode) {
+      lastRefreshAt = null;
+      return;
+    }
     if (enableSaveLastData && page == 0) {
       if (loadingState.value case Success(:final response)) {
         if (response != null && response.isNotEmpty) {
