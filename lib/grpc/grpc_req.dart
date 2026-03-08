@@ -111,12 +111,15 @@ abstract final class GrpcReq {
       final data = response.data;
       if (data is Uint8List) {
         final result = await (isolate && data.length > _isolateSize
-            ? compute(_parse, (data, grpcParser))
-            : Future.value(_parse((data, grpcParser))));
+            ? compute<(
+                Uint8List,
+                T Function(Uint8List),
+              ), LoadingState<T>>(_parse, (data, grpcParser))
+            : Future.value(_parse<T>((data, grpcParser))));
         if (result case Success(:final response)) {
           _debugGrpcMessage('response', url, response);
         } else if (result case Error(:final errMsg)) {
-          _debugGrpcText('response-parse-error', url, errMsg);
+          _debugGrpcText('response-parse-error', url, errMsg ?? '');
         }
         return result;
       } else {
