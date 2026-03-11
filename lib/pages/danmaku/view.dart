@@ -7,6 +7,7 @@ import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/danmaku_options.dart';
 import 'package:PiliPlus/utils/danmaku_utils.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -131,6 +132,14 @@ class _PlDanmakuState extends State<PlDanmaku> {
             );
           } catch (_) {}
         } else {
+          final displayCount = e.count > Pref.mergeDanmakuMarkThreshold
+              ? e.count
+              : null;
+          final countPosition = displayCount == null
+              ? DanmakuCountPosition.hidden
+              : Pref.mergeDanmakuMarkAtTail
+              ? DanmakuCountPosition.tail
+              : DanmakuCountPosition.head;
           // Apply fontSize for merged danmaku (count > 1)
           // e.fontsize contains base * enlargeRate, multiply by user's scale
           double? itemFontSize;
@@ -152,7 +161,8 @@ class _PlDanmakuState extends State<PlDanmaku> {
               isColorful:
                   playerController.showVipDanmaku &&
                   e.colorful == DmColorfulType.VipGradualColor,
-              count: e.count > 1 ? e.count : null,
+              count: displayCount,
+              countPosition: countPosition,
               fontSize: itemFontSize,
               selfSend: e.isSelf,
               extra: VideoDanmaku(
@@ -199,4 +209,5 @@ class _PlDanmakuState extends State<PlDanmaku> {
       ),
     );
   }
+
 }
