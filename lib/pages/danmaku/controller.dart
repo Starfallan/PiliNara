@@ -9,9 +9,8 @@ import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/data_source.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/danmaku_options.dart';
 import 'package:PiliPlus/utils/accounts.dart';
-import 'package:PiliPlus/utils/danmaku_merge/clusterer.dart';
 import 'package:PiliPlus/utils/danmaku_merge/models.dart';
-import 'package:PiliPlus/utils/danmaku_merge/pinyin_encoder.dart';
+import 'package:PiliPlus/utils/danmaku_merge/worker_client.dart';
 import 'package:PiliPlus/utils/path_utils.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
@@ -37,16 +36,16 @@ class PlDanmakuController {
   // 已请求的段落标记
   late final Set<int> _requestedSeg = HashSet();
   late final Set<int> _mergedSeg = HashSet();
+  bool _disposed = false;
 
   static const int segmentLength = 60 * 6 * 1000;
 
   // Default font size for standard danmaku (base before user scaling)
   // This matches the base size used in view.dart: 15 * scale
   static const int _defaultFontSize = 15;
-  late final DanmakuPinyinEncoder _pinyinEncoder =
-      DanmakuPinyinEncoder.withLoader(
-        rootBundle.loadString,
-      );
+  late final DanmakuMergeWorkerClient _mergeWorker = DanmakuMergeWorkerClient(
+    dictionaryLoader: rootBundle.loadString,
+  );
 
   /// Get the current enlarge threshold from settings
   /// Can be configured by user in danmaku settings
@@ -74,6 +73,8 @@ class PlDanmakuController {
   double get _logBaseValue => log(_logBase.toDouble());
 
   void dispose() {
+    _disposed = true;
+    _mergeWorker.dispose();
     _dmSegMap.clear();
     _rawDmSegMap.clear();
     _requestedSeg.clear();
@@ -165,18 +166,26 @@ class PlDanmakuController {
             .toList(growable: false) ??
         const <DanmakuElem>[];
 
-    final merged =
-        await DanmakuClusterer(
-          config: _mergeConfig,
-          pinyinEncoder: _pinyinEncoder,
-        ).mergeSegment(
-          segmentIndex: segmentIndex,
-          currentSegment: sortedCurrent,
-          nextSegmentPrefix: nextSegmentPrefix,
-        );
-
-    _mergedSeg.add(segmentIndex);
-    _storeDanmaku(merged);
+    try {
+      final merged = await _mergeWorker.mergeSegment(
+        segmentIndex: segmentIndex,
+        config: _mergeConfig,
+        currentSegment: sortedCurrent,
+        nextSegmentPrefix: nextSegmentPrefix,
+      );
+      if (_disposed) {
+        return;
+      }
+      _mergedSeg.add(segmentIndex);
+      _storeDanmaku(merged);
+    } catch (e, s) {
+      Utils.reportError(e, s);
+      if (_disposed) {
+        return;
+      }
+      _mergedSeg.add(segmentIndex);
+      _storeDanmaku(sortedCurrent);
+    }
   }
 
   void _storeDanmaku(List<DanmakuElem> elems) {

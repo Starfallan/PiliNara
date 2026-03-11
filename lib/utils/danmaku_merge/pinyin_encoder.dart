@@ -26,6 +26,12 @@ class DanmakuPinyinEncoder {
     );
   }
 
+  factory DanmakuPinyinEncoder.withDictionaryContent(String content) {
+    return DanmakuPinyinEncoder._(
+      loader: (_) async => content,
+    );
+  }
+
   final Map<String, List<int>> _cache = <String, List<int>>{};
   final Map<int, List<int>> _dict = HashMap<int, List<int>>();
   final Future<String> Function(String path) _loader;
