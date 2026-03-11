@@ -58,6 +58,7 @@ class PlDanmakuController {
     enabled: _mergeDanmaku,
     windowMs: _mergeWindowMs,
     maxDistance: 5,
+    maxCosine: 45,
     crossMode: Pref.mergeDanmakuCrossMode,
     skipSubtitle: Pref.mergeDanmakuSkipSubtitle,
     skipAdvanced: Pref.mergeDanmakuSkipAdvanced,

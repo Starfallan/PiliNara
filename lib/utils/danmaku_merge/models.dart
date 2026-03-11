@@ -7,6 +7,7 @@ enum DanmakuMergeReason {
   exact,
   charDistance,
   pinyinDistance,
+  cosineDistance,
 }
 
 class DanmakuMergeConfig {
@@ -14,6 +15,7 @@ class DanmakuMergeConfig {
     required this.enabled,
     required this.windowMs,
     required this.maxDistance,
+    required this.maxCosine,
     required this.crossMode,
     required this.skipSubtitle,
     required this.skipAdvanced,
@@ -23,6 +25,7 @@ class DanmakuMergeConfig {
   final bool enabled;
   final int windowMs;
   final int maxDistance;
+  final int maxCosine;
   final bool crossMode;
   final bool skipSubtitle;
   final bool skipAdvanced;
@@ -35,12 +38,14 @@ class DanmakuMergeCandidate {
     required this.segmentIndex,
     required this.normalizedText,
     required this.charTokens,
+    required this.gramTokens,
   });
 
   final DanmakuElem element;
   final int segmentIndex;
   final String normalizedText;
   final List<int> charTokens;
+  final List<int> gramTokens;
 
   int get mode => element.mode;
   int get progress => element.progress;

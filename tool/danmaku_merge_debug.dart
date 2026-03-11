@@ -63,12 +63,14 @@ Future<void> _compare(String left, String right) async {
       segmentIndex: 0,
       normalizedText: leftNormalized,
       charTokens: leftTokens,
+      gramTokens: DanmakuSimilarityMatcher.buildGramTokens(leftNormalized),
     ),
     DanmakuMergeCandidate(
       element: _fakeElem(content: right, progress: 0),
       segmentIndex: 0,
       normalizedText: rightNormalized,
       charTokens: rightTokens,
+      gramTokens: DanmakuSimilarityMatcher.buildGramTokens(rightNormalized),
     ),
   );
 
@@ -76,6 +78,10 @@ Future<void> _compare(String left, String right) async {
   final pinyinDistance = await matcher.pinyinDistance(
     leftNormalized,
     rightNormalized,
+  );
+  final cosineSimilarity = matcher.cosineSimilarity(
+    DanmakuSimilarityMatcher.buildGramTokens(leftNormalized),
+    DanmakuSimilarityMatcher.buildGramTokens(rightNormalized),
   );
 
   final buffer = StringBuffer()
@@ -85,6 +91,7 @@ Future<void> _compare(String left, String right) async {
     ..writeln('right.normalized: $rightNormalized')
     ..writeln('charDistance   : $charDistance')
     ..writeln('pinyinDistance : $pinyinDistance')
+    ..writeln('cosineSimilarity: $cosineSimilarity')
     ..writeln(
       'match          : ${result == null ? 'false' : 'true (${result.reason.name}, ${result.distance})'}',
     );
@@ -183,6 +190,7 @@ DanmakuMergeConfig _defaultConfig() {
     enabled: true,
     windowMs: 20000,
     maxDistance: 5,
+    maxCosine: 45,
     crossMode: false,
     skipSubtitle: true,
     skipAdvanced: true,

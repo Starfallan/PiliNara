@@ -119,6 +119,7 @@ class DanmakuClusterer {
       segmentIndex: segmentIndex,
       normalizedText: normalizedText,
       charTokens: normalizedText.runes.toList(growable: false),
+      gramTokens: DanmakuSimilarityMatcher.buildGramTokens(normalizedText),
     );
   }
 
