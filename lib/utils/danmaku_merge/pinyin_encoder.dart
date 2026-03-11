@@ -3,19 +3,32 @@
 // pakkujs/similarity/repo-cpp/src/pinyin_dict.txt.
 
 import 'dart:collection';
-
-import 'package:flutter/services.dart' show rootBundle;
+import 'dart:io' show File;
 
 class DanmakuPinyinEncoder {
-  DanmakuPinyinEncoder._();
-
-  static final DanmakuPinyinEncoder instance = DanmakuPinyinEncoder._();
+  DanmakuPinyinEncoder._({required Future<String> Function(String path) loader})
+    : _loader = loader;
 
   static const String _assetPath = 'assets/danmaku_merge/pinyin_dict.txt';
   static const int _tokenBase = 0xE000;
 
+  static String get assetPath => _assetPath;
+
+  factory DanmakuPinyinEncoder.withLoader(
+    Future<String> Function(String path) loader,
+  ) {
+    return DanmakuPinyinEncoder._(loader: loader);
+  }
+
+  factory DanmakuPinyinEncoder.fromFileSystem() {
+    return DanmakuPinyinEncoder._(
+      loader: (path) => File(path).readAsString(),
+    );
+  }
+
   final Map<String, List<int>> _cache = <String, List<int>>{};
   final Map<int, List<int>> _dict = HashMap<int, List<int>>();
+  final Future<String> Function(String path) _loader;
   Future<void>? _loading;
 
   Future<void> ensureLoaded() {
@@ -45,7 +58,7 @@ class DanmakuPinyinEncoder {
   }
 
   Future<void> _load() async {
-    final content = await rootBundle.loadString(_assetPath);
+    final content = await _loader(_assetPath);
     final lineRe = RegExp(r'^\{0x([0-9a-fA-F]+), \{(\d+), (\d+)\}\},?$');
     for (final rawLine in content.split('\n')) {
       final line = rawLine.trim();

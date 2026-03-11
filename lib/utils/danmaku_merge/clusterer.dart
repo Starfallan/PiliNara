@@ -12,10 +12,10 @@ import 'package:PiliPlus/utils/danmaku_merge/similarity_matcher.dart';
 class DanmakuClusterer {
   DanmakuClusterer({
     required this.config,
-    DanmakuPinyinEncoder? pinyinEncoder,
+    required DanmakuPinyinEncoder pinyinEncoder,
   }) : _matcher = DanmakuSimilarityMatcher(
          config: config,
-         pinyinEncoder: pinyinEncoder ?? DanmakuPinyinEncoder.instance,
+         pinyinEncoder: pinyinEncoder,
        );
 
   final DanmakuMergeConfig config;

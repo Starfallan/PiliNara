@@ -11,9 +11,11 @@ import 'package:PiliPlus/plugin/pl_player/utils/danmaku_options.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/danmaku_merge/clusterer.dart';
 import 'package:PiliPlus/utils/danmaku_merge/models.dart';
+import 'package:PiliPlus/utils/danmaku_merge/pinyin_encoder.dart';
 import 'package:PiliPlus/utils/path_utils.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart' as path;
 
 class PlDanmakuController {
@@ -41,6 +43,10 @@ class PlDanmakuController {
   // Default font size for standard danmaku (base before user scaling)
   // This matches the base size used in view.dart: 15 * scale
   static const int _defaultFontSize = 15;
+  late final DanmakuPinyinEncoder _pinyinEncoder =
+      DanmakuPinyinEncoder.withLoader(
+        rootBundle.loadString,
+      );
 
   /// Get the current enlarge threshold from settings
   /// Can be configured by user in danmaku settings
@@ -160,6 +166,7 @@ class PlDanmakuController {
     final merged =
         await DanmakuClusterer(
           config: _mergeConfig,
+          pinyinEncoder: _pinyinEncoder,
         ).mergeSegment(
           segmentIndex: segmentIndex,
           currentSegment: sortedCurrent,

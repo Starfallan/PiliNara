@@ -2,7 +2,6 @@
 // This file defines internal merge models used by the danmaku merge pipeline.
 
 import 'package:PiliPlus/grpc/bilibili/community/service/dm/v1.pb.dart';
-import 'package:flutter/foundation.dart';
 
 enum DanmakuMergeReason {
   exact,
@@ -10,7 +9,6 @@ enum DanmakuMergeReason {
   pinyinDistance,
 }
 
-@immutable
 class DanmakuMergeConfig {
   const DanmakuMergeConfig({
     required this.enabled,
@@ -31,7 +29,6 @@ class DanmakuMergeConfig {
   final bool skipBottom;
 }
 
-@immutable
 class DanmakuMergeCandidate {
   const DanmakuMergeCandidate({
     required this.element,
@@ -49,7 +46,6 @@ class DanmakuMergeCandidate {
   int get progress => element.progress;
 }
 
-@immutable
 class DanmakuSimilarityMatchResult {
   const DanmakuSimilarityMatchResult({
     required this.reason,

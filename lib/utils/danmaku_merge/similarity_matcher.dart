@@ -53,6 +53,16 @@ class DanmakuSimilarityMatcher {
     return null;
   }
 
+  int charDistance(List<int> source, List<int> target) {
+    return _bagDistance(source, target);
+  }
+
+  Future<int> pinyinDistance(String source, String target) async {
+    final sourcePinyin = await _getPinyinTokens(source);
+    final targetPinyin = await _getPinyinTokens(target);
+    return _bagDistance(sourcePinyin, targetPinyin);
+  }
+
   Future<List<int>> _getPinyinTokens(String text) async {
     final cached = _pinyinCache[text];
     if (cached != null) {
