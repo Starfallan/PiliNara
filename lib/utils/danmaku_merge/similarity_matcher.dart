@@ -42,14 +42,16 @@ class DanmakuSimilarityMatcher {
       );
     }
 
-    final sourcePinyin = await _getPinyinTokens(source.normalizedText);
-    final targetPinyin = await _getPinyinTokens(target.normalizedText);
-    final pinyinDistance = _matchDistance(sourcePinyin, targetPinyin);
-    if (pinyinDistance != null) {
-      return DanmakuSimilarityMatchResult(
-        reason: DanmakuMergeReason.pinyinDistance,
-        distance: pinyinDistance,
-      );
+    if (config.usePinyin) {
+      final sourcePinyin = await _getPinyinTokens(source.normalizedText);
+      final targetPinyin = await _getPinyinTokens(target.normalizedText);
+      final pinyinDistance = _matchDistance(sourcePinyin, targetPinyin);
+      if (pinyinDistance != null) {
+        return DanmakuSimilarityMatchResult(
+          reason: DanmakuMergeReason.pinyinDistance,
+          distance: pinyinDistance,
+        );
+      }
     }
 
     final cosineSimilarity = _cosineSimilarity(

@@ -542,6 +542,15 @@ abstract final class Pref {
   static int get mergeDanmakuWindowSeconds =>
       _setting.get(SettingBoxKey.mergeDanmakuWindowSeconds, defaultValue: 20);
 
+  static int get mergeDanmakuMaxDistance =>
+      _setting.get(SettingBoxKey.mergeDanmakuMaxDistance, defaultValue: 5);
+
+  static int get mergeDanmakuMaxCosine =>
+      _setting.get(SettingBoxKey.mergeDanmakuMaxCosine, defaultValue: 45);
+
+  static bool get mergeDanmakuUsePinyin =>
+      _setting.get(SettingBoxKey.mergeDanmakuUsePinyin, defaultValue: true);
+
   static bool get mergeDanmakuCrossMode =>
       _setting.get(SettingBoxKey.mergeDanmakuCrossMode, defaultValue: false);
 

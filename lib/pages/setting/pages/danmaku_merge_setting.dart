@@ -12,8 +12,25 @@ class DanmakuMergeSettingPage extends StatefulWidget {
 }
 
 class _DanmakuMergeSettingPageState extends State<DanmakuMergeSettingPage> {
+  static const List<_MergePreset> _distancePresets = <_MergePreset>[
+    _MergePreset(value: 0, label: '禁用'),
+    _MergePreset(value: 3, label: '轻微 (≤3)'),
+    _MergePreset(value: 5, label: '中等 (≤5)'),
+    _MergePreset(value: 8, label: '强力 (≤8)'),
+  ];
+
+  static const List<_MergePreset> _cosinePresets = <_MergePreset>[
+    _MergePreset(value: 101, label: '禁用'),
+    _MergePreset(value: 60, label: '轻微 (60%)'),
+    _MergePreset(value: 45, label: '中等 (45%)'),
+    _MergePreset(value: 30, label: '强力 (30%)'),
+  ];
+
   late bool _mergeDanmaku;
   late double _windowSeconds;
+  late int _maxDistance;
+  late int _maxCosine;
+  late bool _usePinyin;
   late bool _crossMode;
   late bool _skipSubtitle;
   late bool _skipAdvanced;
@@ -28,6 +45,15 @@ class _DanmakuMergeSettingPageState extends State<DanmakuMergeSettingPage> {
     super.initState();
     _mergeDanmaku = Pref.mergeDanmaku;
     _windowSeconds = Pref.mergeDanmakuWindowSeconds.toDouble();
+    _maxDistance = _normalizePresetValue(
+      Pref.mergeDanmakuMaxDistance,
+      _distancePresets,
+    );
+    _maxCosine = _normalizePresetValue(
+      Pref.mergeDanmakuMaxCosine,
+      _cosinePresets,
+    );
+    _usePinyin = Pref.mergeDanmakuUsePinyin;
     _crossMode = Pref.mergeDanmakuCrossMode;
     _skipSubtitle = Pref.mergeDanmakuSkipSubtitle;
     _skipAdvanced = Pref.mergeDanmakuSkipAdvanced;
@@ -80,6 +106,57 @@ class _DanmakuMergeSettingPageState extends State<DanmakuMergeSettingPage> {
                 color: theme.colorScheme.outline,
               ),
             ),
+          ),
+          _SectionTitle('高级选项', theme),
+          ListTile(
+            title: const Text('编辑距离合并阈值'),
+            subtitle: Text(
+              _maxDistance == 0
+                  ? '禁用字符频次差合并，仅保留其他相似度判定'
+                  : '根据编辑距离判断不完全一致但内容接近的弹幕',
+            ),
+            trailing: _PresetDropdown(
+              value: _maxDistance,
+              presets: _distancePresets,
+              onChanged: (value) => setState(() => _maxDistance = value),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Text(
+              '较高阈值能更积极地吞并错别字、少量漏字或重复字符弹幕。',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            ),
+          ),
+          ListTile(
+            title: const Text('词频向量合并阈值'),
+            subtitle: Text(
+              _maxCosine > 100
+                  ? '禁用 2-Gram 词频向量相似判定'
+                  : '根据 2-Gram 词频向量夹角判断内容类似的弹幕',
+            ),
+            trailing: _PresetDropdown(
+              value: _maxCosine,
+              presets: _cosinePresets,
+              onChanged: (value) => setState(() => _maxCosine = value),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Text(
+              '阈值越低越容易命中，越高则越严格；禁用后只依赖前面的规则。',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            ),
+          ),
+          SwitchListTile(
+            title: const Text('识别谐音弹幕'),
+            subtitle: const Text('将文本转换为拼音后再进行一次相似匹配'),
+            value: _usePinyin,
+            onChanged: (value) => setState(() => _usePinyin = value),
           ),
           _SectionTitle('例外设置', theme),
           SwitchListTile(
@@ -193,6 +270,9 @@ class _DanmakuMergeSettingPageState extends State<DanmakuMergeSettingPage> {
       SettingBoxKey.mergeDanmakuWindowSeconds,
       _windowSeconds.round(),
     );
+    GStorage.setting.put(SettingBoxKey.mergeDanmakuMaxDistance, _maxDistance);
+    GStorage.setting.put(SettingBoxKey.mergeDanmakuMaxCosine, _maxCosine);
+    GStorage.setting.put(SettingBoxKey.mergeDanmakuUsePinyin, _usePinyin);
     GStorage.setting.put(SettingBoxKey.mergeDanmakuCrossMode, _crossMode);
     GStorage.setting.put(SettingBoxKey.mergeDanmakuSkipSubtitle, _skipSubtitle);
     GStorage.setting.put(SettingBoxKey.mergeDanmakuSkipAdvanced, _skipAdvanced);
@@ -211,6 +291,12 @@ class _DanmakuMergeSettingPageState extends State<DanmakuMergeSettingPage> {
       _enlargeLogBase.round(),
     );
     Navigator.of(context).pop(true);
+  }
+
+  static int _normalizePresetValue(int value, List<_MergePreset> presets) {
+    return presets.any((preset) => preset.value == value)
+        ? value
+        : presets.first.value;
   }
 }
 
@@ -233,4 +319,48 @@ class _SectionTitle extends StatelessWidget {
       ),
     );
   }
+}
+
+class _PresetDropdown extends StatelessWidget {
+  const _PresetDropdown({
+    required this.value,
+    required this.presets,
+    required this.onChanged,
+  });
+
+  final int value;
+  final List<_MergePreset> presets;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonHideUnderline(
+      child: DropdownButton<int>(
+        value: value,
+        items: presets
+            .map(
+              (preset) => DropdownMenuItem<int>(
+                value: preset.value,
+                child: Text(preset.label),
+              ),
+            )
+            .toList(growable: false),
+        onChanged: (value) {
+          if (value != null) {
+            onChanged(value);
+          }
+        },
+      ),
+    );
+  }
+}
+
+class _MergePreset {
+  const _MergePreset({
+    required this.value,
+    required this.label,
+  });
+
+  final int value;
+  final String label;
 }

@@ -16,6 +16,7 @@ class DanmakuMergeConfig {
     required this.windowMs,
     required this.maxDistance,
     required this.maxCosine,
+    required this.usePinyin,
     required this.crossMode,
     required this.skipSubtitle,
     required this.skipAdvanced,
@@ -26,6 +27,7 @@ class DanmakuMergeConfig {
   final int windowMs;
   final int maxDistance;
   final int maxCosine;
+  final bool usePinyin;
   final bool crossMode;
   final bool skipSubtitle;
   final bool skipAdvanced;

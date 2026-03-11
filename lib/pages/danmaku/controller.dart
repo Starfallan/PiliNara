@@ -57,8 +57,9 @@ class PlDanmakuController {
   DanmakuMergeConfig get _mergeConfig => DanmakuMergeConfig(
     enabled: _mergeDanmaku,
     windowMs: _mergeWindowMs,
-    maxDistance: 5,
-    maxCosine: 45,
+    maxDistance: Pref.mergeDanmakuMaxDistance,
+    maxCosine: Pref.mergeDanmakuMaxCosine,
+    usePinyin: Pref.mergeDanmakuUsePinyin,
     crossMode: Pref.mergeDanmakuCrossMode,
     skipSubtitle: Pref.mergeDanmakuSkipSubtitle,
     skipAdvanced: Pref.mergeDanmakuSkipAdvanced,

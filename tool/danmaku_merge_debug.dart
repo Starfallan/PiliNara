@@ -191,6 +191,7 @@ DanmakuMergeConfig _defaultConfig() {
     windowMs: 20000,
     maxDistance: 5,
     maxCosine: 45,
+    usePinyin: true,
     crossMode: false,
     skipSubtitle: true,
     skipAdvanced: true,
