@@ -13,13 +13,16 @@ class DanmakuClusterer {
   DanmakuClusterer({
     required this.config,
     required DanmakuPinyinEncoder pinyinEncoder,
+    DanmakuPreparedText Function(String text)? prepareText,
   }) : _matcher = DanmakuSimilarityMatcher(
          config: config,
          pinyinEncoder: pinyinEncoder,
-       );
+       ),
+       _prepareText = prepareText ?? _defaultPrepareText;
 
   final DanmakuMergeConfig config;
   final DanmakuSimilarityMatcher _matcher;
+  final DanmakuPreparedText Function(String text) _prepareText;
 
   Future<List<DanmakuElem>> mergeSegment({
     required int segmentIndex,
@@ -113,10 +116,19 @@ class DanmakuClusterer {
   }
 
   DanmakuMergeCandidate _toCandidate(DanmakuElem element, int segmentIndex) {
-    final normalizedText = DanmakuNormalizer.normalize(element.content);
+    final prepared = _prepareText(element.content);
     return DanmakuMergeCandidate(
       element: element,
       segmentIndex: segmentIndex,
+      normalizedText: prepared.normalizedText,
+      charTokens: prepared.charTokens,
+      gramTokens: prepared.gramTokens,
+    );
+  }
+
+  static DanmakuPreparedText _defaultPrepareText(String text) {
+    final normalizedText = DanmakuNormalizer.normalize(text);
+    return DanmakuPreparedText(
       normalizedText: normalizedText,
       charTokens: normalizedText.runes.toList(growable: false),
       gramTokens: DanmakuSimilarityMatcher.buildGramTokens(normalizedText),

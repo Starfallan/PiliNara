@@ -4,7 +4,10 @@
 import 'dart:isolate';
 
 import 'package:PiliPlus/utils/danmaku_merge/clusterer.dart';
+import 'package:PiliPlus/utils/danmaku_merge/models.dart';
+import 'package:PiliPlus/utils/danmaku_merge/normalizer.dart';
 import 'package:PiliPlus/utils/danmaku_merge/pinyin_encoder.dart';
+import 'package:PiliPlus/utils/danmaku_merge/similarity_matcher.dart';
 import 'package:PiliPlus/utils/danmaku_merge/worker_models.dart';
 import 'package:flutter/foundation.dart';
 
@@ -21,6 +24,7 @@ void danmakuMergeWorkerMain(List<Object?> args) {
   }
 
   final pinyinEncoder = DanmakuPinyinEncoder.withDictionaryContent(dictContent);
+  final preparedTextCache = <String, DanmakuPreparedText>{};
   Future<void> queue = Future<void>.value();
 
   receivePort.listen((message) {
@@ -52,6 +56,10 @@ void danmakuMergeWorkerMain(List<Object?> args) {
         final clusterer = DanmakuClusterer(
           config: task.config,
           pinyinEncoder: pinyinEncoder,
+          prepareText: (text) => preparedTextCache.putIfAbsent(
+            text,
+            () => _prepareText(text),
+          ),
         );
         final merged = await clusterer.mergeSegment(
           segmentIndex: task.segmentIndex,
@@ -65,7 +73,8 @@ void danmakuMergeWorkerMain(List<Object?> args) {
         if (kDebugMode) {
           debugPrint(
             '[DanmakuMergeWorker:Isolate] done task=${task.taskId} '
-            'segment=${task.segmentIndex} merged=${merged.length}',
+            'segment=${task.segmentIndex} merged=${merged.length} '
+            'textCache=${preparedTextCache.length}',
           );
         }
         sendPort.send(
@@ -94,4 +103,13 @@ void danmakuMergeWorkerMain(List<Object?> args) {
       }
     });
   });
+}
+
+DanmakuPreparedText _prepareText(String text) {
+  final normalizedText = DanmakuNormalizer.normalize(text);
+  return DanmakuPreparedText(
+    normalizedText: normalizedText,
+    charTokens: normalizedText.runes.toList(growable: false),
+    gramTokens: DanmakuSimilarityMatcher.buildGramTokens(normalizedText),
+  );
 }

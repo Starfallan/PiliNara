@@ -17,7 +17,6 @@ class DanmakuSimilarityMatcher {
 
   final DanmakuMergeConfig config;
   final DanmakuPinyinEncoder pinyinEncoder;
-  final Map<String, List<int>> _pinyinCache = <String, List<int>>{};
 
   Future<DanmakuSimilarityMatchResult?> match(
     DanmakuMergeCandidate source,
@@ -98,14 +97,8 @@ class DanmakuSimilarityMatcher {
     return _cosineSimilarity(source, target);
   }
 
-  Future<List<int>> _getPinyinTokens(String text) async {
-    final cached = _pinyinCache[text];
-    if (cached != null) {
-      return cached;
-    }
-    final tokens = await pinyinEncoder.encode(text);
-    _pinyinCache[text] = tokens;
-    return tokens;
+  Future<List<int>> _getPinyinTokens(String text) {
+    return pinyinEncoder.encode(text);
   }
 
   int? _matchDistance(List<int> source, List<int> target) {

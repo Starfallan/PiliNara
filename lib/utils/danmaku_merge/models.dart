@@ -34,6 +34,18 @@ class DanmakuMergeConfig {
   final bool skipBottom;
 }
 
+class DanmakuPreparedText {
+  const DanmakuPreparedText({
+    required this.normalizedText,
+    required this.charTokens,
+    required this.gramTokens,
+  });
+
+  final String normalizedText;
+  final List<int> charTokens;
+  final List<int> gramTokens;
+}
+
 class DanmakuMergeCandidate {
   const DanmakuMergeCandidate({
     required this.element,
