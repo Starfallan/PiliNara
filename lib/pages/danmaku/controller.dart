@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'dart:collection';
 import 'dart:io' show File;
 import 'dart:math' show log;
@@ -41,12 +42,21 @@ class PlDanmakuController {
 
   final Map<int, List<DanmakuElem>> _dmSegMap = HashMap();
   final Map<int, List<DanmakuElem>> _rawDmSegMap = HashMap();
+  final Map<int, int> _prefetchRetryAtMs = HashMap();
+  final Map<int, int> _prefetchFailureCount = HashMap();
+  final Set<int> _missingSeg = HashSet();
   // 已请求的段落标记
   late final Set<int> _requestedSeg = HashSet();
+  late final Set<int> _queuedSeg = HashSet();
   late final Set<int> _mergedSeg = HashSet();
+  final ListQueue<_QueuedDanmakuRequest> _downloadQueue = ListQueue();
+  bool _downloadLoopRunning = false;
   bool _disposed = false;
 
   static const int segmentLength = 60 * 6 * 1000;
+  static const int _prefetchRetryCooldownMs = 5000;
+  static const int _prefetchLeadMs = 30000;
+  static const int _maxPrefetchFailures = 5;
 
   // Default font size for standard danmaku (base before user scaling)
   // This matches the base size used in view.dart: 15 * scale
@@ -91,8 +101,13 @@ class PlDanmakuController {
     _mergeWorker.dispose();
     _dmSegMap.clear();
     _rawDmSegMap.clear();
+    _prefetchRetryAtMs.clear();
+    _prefetchFailureCount.clear();
+    _missingSeg.clear();
     _requestedSeg.clear();
+    _queuedSeg.clear();
     _mergedSeg.clear();
+    _downloadQueue.clear();
   }
 
   static int calcSegment(int progress) {
@@ -118,7 +133,7 @@ class PlDanmakuController {
     return (baseFontSize * _calcEnlargeRate(count)).round();
   }
 
-  Future<void> queryDanmaku(int segmentIndex) async {
+  Future<void> queryDanmaku(int segmentIndex, {bool isPrefetch = false}) async {
     if (_isFileSource) {
       return;
     }
@@ -131,10 +146,34 @@ class PlDanmakuController {
       }
       return;
     }
+    if (_missingSeg.contains(segmentIndex)) {
+      if (kDebugMode) {
+        debugPrint(
+          '[PlDanmakuController] skip missing instance=${identityHashCode(this)} '
+          'cid=$_cid segment=$segmentIndex',
+        );
+      }
+      return;
+    }
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (isPrefetch) {
+      final retryAtMs = _prefetchRetryAtMs[segmentIndex];
+      if (retryAtMs != null && nowMs < retryAtMs) {
+        if (kDebugMode) {
+          debugPrint(
+            '[PlDanmakuController] skip prefetch cooldown '
+            'instance=${identityHashCode(this)} cid=$_cid segment=$segmentIndex '
+            'retryAfter=${retryAtMs - nowMs}ms',
+          );
+        }
+        return;
+      }
+    }
     if (kDebugMode) {
       debugPrint(
         '[PlDanmakuController] request instance=${identityHashCode(this)} '
-        'cid=$_cid segment=$segmentIndex requestedBefore=${_requestedSeg.length}',
+        'cid=$_cid segment=$segmentIndex requestedBefore=${_requestedSeg.length} '
+        'prefetch=$isPrefetch',
       );
     }
     _requestedSeg.add(segmentIndex);
@@ -147,19 +186,43 @@ class PlDanmakuController {
       if (kDebugMode) {
         debugPrint(
           '[PlDanmakuController] response instance=${identityHashCode(this)} '
-          'cid=$_cid segment=$segmentIndex elems=${response.elems.length}',
+          'cid=$_cid segment=$segmentIndex elems=${response.elems.length} '
+          'prefetch=$isPrefetch',
         );
       }
+      _prefetchRetryAtMs.remove(segmentIndex);
+      _prefetchFailureCount.remove(segmentIndex);
       if (response.state == 1) {
         _plPlayerController.dmState.add(_cid);
       }
       await handleDanmaku(segmentIndex, response.elems);
+      if (_mergeDanmaku) {
+        _scheduleSegment(segmentIndex + 1, isPrefetch: true);
+      }
     } else {
       if (kDebugMode) {
         debugPrint(
           '[PlDanmakuController] request failed instance=${identityHashCode(this)} '
-          'cid=$_cid segment=$segmentIndex',
+          'cid=$_cid segment=$segmentIndex prefetch=$isPrefetch',
         );
+      }
+      if (isPrefetch) {
+        final failures = (_prefetchFailureCount[segmentIndex] ?? 0) + 1;
+        _prefetchFailureCount[segmentIndex] = failures;
+        _prefetchRetryAtMs[segmentIndex] =
+            nowMs + _prefetchRetryCooldownMs;
+        if (failures >= _maxPrefetchFailures) {
+          _missingSeg.add(segmentIndex);
+          if (kDebugMode) {
+            debugPrint(
+              '[PlDanmakuController] mark missing instance=${identityHashCode(this)} '
+              'cid=$_cid segment=$segmentIndex failures=$failures',
+            );
+          }
+        }
+        if (segmentIndex > 0) {
+          unawaited(_mergeSegment(segmentIndex - 1));
+        }
       }
       _requestedSeg.remove(segmentIndex);
     }
@@ -179,7 +242,16 @@ class PlDanmakuController {
     }
 
     _rawDmSegMap[segmentIndex] = elems;
-    await _mergeSegment(segmentIndex);
+    await _tryMergeReadySegments(segmentIndex);
+  }
+
+  Future<void> _tryMergeReadySegments(int segmentIndex) async {
+    if (segmentIndex > 0) {
+      await _mergeSegment(segmentIndex - 1);
+    }
+    if (_rawDmSegMap.containsKey(segmentIndex + 1) || _isLastSegment(segmentIndex)) {
+      await _mergeSegment(segmentIndex);
+    }
   }
 
   Future<void> _mergeSegment(int segmentIndex) async {
@@ -188,6 +260,15 @@ class PlDanmakuController {
     }
     final currentSegment = _rawDmSegMap[segmentIndex];
     if (currentSegment == null || currentSegment.isEmpty) {
+      return;
+    }
+    if (!_isLastSegment(segmentIndex) &&
+        !_rawDmSegMap.containsKey(segmentIndex + 1)) {
+      if (kDebugMode) {
+        debugPrint(
+          '[DanmakuMerge] postpone segment=$segmentIndex waiting for next chunk',
+        );
+      }
       return;
     }
 
@@ -274,14 +355,14 @@ class PlDanmakuController {
       initFileDmIfNeeded();
     } else {
       final int segmentIndex = calcSegment(progress);
-      if (_mergeDanmaku && !_requestedSeg.contains(segmentIndex + 1)) {
+      if (_shouldPrefetchNextSegment(progress, segmentIndex)) {
         if (kDebugMode) {
           debugPrint(
             '[PlDanmakuController] prefetch instance=${identityHashCode(this)} '
             'cid=$_cid progress=$progress currentSegment=$segmentIndex nextSegment=${segmentIndex + 1}',
           );
         }
-        queryDanmaku(segmentIndex + 1);
+        _scheduleSegment(segmentIndex + 1, isPrefetch: true);
       }
       if (!_requestedSeg.contains(segmentIndex)) {
         if (kDebugMode) {
@@ -290,11 +371,116 @@ class PlDanmakuController {
             'cid=$_cid progress=$progress segment=$segmentIndex',
           );
         }
-        queryDanmaku(segmentIndex);
+        _scheduleSegment(segmentIndex);
+        _scheduleSegment(segmentIndex + 1, isPrefetch: true);
         return null;
       }
     }
     return _dmSegMap[progress ~/ 100];
+  }
+
+  bool _shouldPrefetchNextSegment(int progress, int segmentIndex) {
+    if (!_mergeDanmaku) {
+      return false;
+    }
+    final maxSegmentIndex = _maxSegmentIndex;
+    if (maxSegmentIndex == null) {
+      return false;
+    }
+    if (segmentIndex + 1 > maxSegmentIndex) {
+      return false;
+    }
+    final currentSegmentEndMs = (segmentIndex + 1) * segmentLength;
+    return currentSegmentEndMs - progress <= _prefetchLeadMs;
+  }
+
+  int? get _maxSegmentIndex {
+    final totalDurationMs = _plPlayerController.duration.value.inMilliseconds;
+    if (totalDurationMs <= 0) {
+      return null;
+    }
+    return (totalDurationMs - 1) ~/ segmentLength;
+  }
+
+  bool _isLastSegment(int segmentIndex) {
+    final maxSegmentIndex = _maxSegmentIndex;
+    return maxSegmentIndex != null && segmentIndex >= maxSegmentIndex;
+  }
+
+  void _scheduleSegment(int segmentIndex, {bool isPrefetch = false}) {
+    if (_isFileSource || _disposed || segmentIndex < 0) {
+      return;
+    }
+    if (isPrefetch) {
+      final maxSegmentIndex = _maxSegmentIndex;
+      if (maxSegmentIndex == null || segmentIndex > maxSegmentIndex) {
+        return;
+      }
+    }
+    if (_missingSeg.contains(segmentIndex)) {
+      return;
+    }
+    if (_requestedSeg.contains(segmentIndex) || _queuedSeg.contains(segmentIndex)) {
+      return;
+    }
+
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (isPrefetch) {
+      final retryAtMs = _prefetchRetryAtMs[segmentIndex];
+      if (retryAtMs != null && nowMs < retryAtMs) {
+        if (kDebugMode) {
+          debugPrint(
+            '[PlDanmakuController] skip prefetch cooldown '
+            'instance=${identityHashCode(this)} cid=$_cid segment=$segmentIndex '
+            'retryAfter=${retryAtMs - nowMs}ms',
+          );
+        }
+        return;
+      }
+    }
+
+    final request = _QueuedDanmakuRequest(
+      segmentIndex: segmentIndex,
+      isPrefetch: isPrefetch,
+    );
+    _queuedSeg.add(segmentIndex);
+    if (isPrefetch) {
+      _downloadQueue.addLast(request);
+      if (kDebugMode) {
+        debugPrint(
+          '[PlDanmakuController] queue prefetch instance=${identityHashCode(this)} '
+          'cid=$_cid segment=$segmentIndex queue=${_downloadQueue.length}',
+        );
+      }
+    } else {
+      _downloadQueue.addFirst(request);
+      if (kDebugMode) {
+        debugPrint(
+          '[PlDanmakuController] queue current instance=${identityHashCode(this)} '
+          'cid=$_cid segment=$segmentIndex queue=${_downloadQueue.length}',
+        );
+      }
+    }
+    unawaited(_pumpDownloadQueue());
+  }
+
+  Future<void> _pumpDownloadQueue() async {
+    if (_downloadLoopRunning || _disposed) {
+      return;
+    }
+    _downloadLoopRunning = true;
+    try {
+      while (_downloadQueue.isNotEmpty && !_disposed) {
+        final request = _downloadQueue.removeFirst();
+        _queuedSeg.remove(request.segmentIndex);
+        await queryDanmaku(
+          request.segmentIndex,
+          isPrefetch: request.isPrefetch,
+        );
+      }
+    } finally {
+      _downloadLoopRunning = false;
+    }
   }
 
   bool _fileDmLoaded = false;
@@ -323,4 +509,14 @@ class PlDanmakuController {
       Utils.reportError(e, s);
     }
   }
+}
+
+class _QueuedDanmakuRequest {
+  const _QueuedDanmakuRequest({
+    required this.segmentIndex,
+    required this.isPrefetch,
+  });
+
+  final int segmentIndex;
+  final bool isPrefetch;
 }
