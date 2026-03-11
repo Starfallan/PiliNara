@@ -23,7 +23,7 @@ import 'package:PiliPlus/pages/common/slide/common_slide_page.dart';
 import 'package:PiliPlus/pages/home/controller.dart';
 import 'package:PiliPlus/pages/main/controller.dart';
 import 'package:PiliPlus/pages/setting/models/model.dart';
-import 'package:PiliPlus/pages/setting/widgets/merge_danmaku_dialog.dart';
+import 'package:PiliPlus/pages/setting/pages/danmaku_merge_setting.dart';
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/slider_dialog.dart';
 import 'package:PiliPlus/pages/video/reply/widgets/reply_item_grpc.dart';
@@ -265,15 +265,17 @@ List<SettingsModel> get extraSettings => [
     getSubtitle: () {
       final enabled = Pref.mergeDanmaku;
       if (!enabled) return '已关闭';
+      final window = Pref.mergeDanmakuWindowSeconds;
+      final crossMode = Pref.mergeDanmakuCrossMode ? '跨类型' : '同类型';
       final threshold = Pref.danmakuEnlargeThreshold;
-      final logBase = Pref.danmakuEnlargeLogBase;
-      return '门槛: $threshold, 底数: $logBase';
+      return '时间窗: ${window}s, $crossMode, 放大门槛: $threshold';
     },
     leading: const Icon(Icons.merge),
     onTap: (context, setState) async {
-      final result = await showDialog(
-        context: context,
-        builder: (context) => const MergeDanmakuDialog(),
+      final result = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (context) => const DanmakuMergeSettingPage(),
+        ),
       );
       if (result == true) {
         setState();

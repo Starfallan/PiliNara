@@ -239,7 +239,7 @@ packages:
     description:
       path: "."
       ref: main
-      resolved-ref: "63e1b7c6d7e26987cef5a1bb5bc8a06ed1fe941c"
+      resolved-ref: "43458c831cdee4cb9822e6b16e9c372be3f7e65f"
       url: "https://github.com/Starfallan/canvas_danmaku.git"
     source: git
     version: "0.2.6"
@@ -247,10 +247,10 @@ packages:
     dependency: "direct main"
     description:
       name: catcher_2
-      sha256: "3c9bc7435d250c1a958bbc7beb2f1d960ffb6c2658f2a5afd8d8e6db15cf8708"
+      sha256: b74a258033627564a8554ada884f742a4086d24b18c6ee83eb243e8015c50967
       url: "https://pub.dev"
     source: hosted
-    version: "2.1.8"
+    version: "2.1.6"
   characters:
     dependency: "direct main"
     description:
@@ -578,10 +578,10 @@ packages:
     dependency: "direct main"
     description:
       name: fl_chart
-      sha256: b938f77d042cbcd822936a7a359a7235bad8bd72070de1f827efc2cc297ac888
+      sha256: "7ca9a40f4eb85949190e54087be8b4d6ac09dc4c54238d782a34cf1f7c011de9"
       url: "https://pub.dev"
     source: hosted
-    version: "1.2.0"
+    version: "1.1.1"
   flex_seed_scheme:
     dependency: "direct main"
     description:
@@ -742,10 +742,10 @@ packages:
     description:
       path: "."
       ref: main
-      resolved-ref: b87bda5672e1c8494853bb44bbf08515ef748bca
+      resolved-ref: c08f651c60f1451feba2ec4895caf12771661809
       url: "https://github.com/bggRGjQaUbCoE/flutter_smart_dialog.git"
     source: git
-    version: "5.1.0"
+    version: "5.0.1"
   flutter_sortable_wrap:
     dependency: "direct main"
     description:
@@ -1895,10 +1895,10 @@ packages:
     dependency: transitive
     description:
       name: vector_graphics
-      sha256: "7076216a10d5c390315fbe536a30f1254c341e7543e6c4c8a815e591307772b1"
+      sha256: a4f059dc26fc8295b5921376600a194c4ec7d55e72f2fe4c7d2831e103d461e6
       url: "https://pub.dev"
     source: hosted
-    version: "1.1.20"
+    version: "1.1.19"
   vector_graphics_codec:
     dependency: transitive
     description:
@@ -1943,18 +1943,18 @@ packages:
     dependency: "direct main"
     description:
       name: wakelock_plus
-      sha256: "8b12256f616346910c519a35606fb69b1fe0737c06b6a447c6df43888b097f39"
+      sha256: "9296d40c9adbedaba95d1e704f4e0b434be446e2792948d0e4aa977048104228"
       url: "https://pub.dev"
     source: hosted
-    version: "1.5.1"
+    version: "1.4.0"
   wakelock_plus_platform_interface:
     dependency: transitive
     description:
       name: wakelock_plus_platform_interface
-      sha256: "24b84143787220a403491c2e5de0877fbbb87baf3f0b18a2a988973863db4b03"
+      sha256: "036deb14cd62f558ca3b73006d52ce049fabcdcb2eddfe0bf0fe4e8a943b5cf2"
       url: "https://pub.dev"
     source: hosted
-    version: "1.4.0"
+    version: "1.3.0"
   watcher:
     dependency: transitive
     description:

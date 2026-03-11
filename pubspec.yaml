@@ -346,6 +346,8 @@ flutter:
     - path: assets/images/video/
     - path: assets/images/paycoins/
     - path: assets/shaders/
+    - assets/danmaku_merge/pinyin_dict.txt
+    - assets/danmaku_merge/NOTICE.pakku
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
 

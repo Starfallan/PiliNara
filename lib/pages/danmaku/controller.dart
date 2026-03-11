@@ -8,6 +8,8 @@ import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/data_source.dart';
 import 'package:PiliPlus/utils/accounts.dart';
+import 'package:PiliPlus/utils/danmaku_merge/clusterer.dart';
+import 'package:PiliPlus/utils/danmaku_merge/models.dart';
 import 'package:PiliPlus/utils/path_utils.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
@@ -28,29 +30,45 @@ class PlDanmakuController {
   late final _isLogin = Accounts.main.isLogin;
 
   final Map<int, List<DanmakuElem>> _dmSegMap = HashMap();
+  final Map<int, List<DanmakuElem>> _rawDmSegMap = HashMap();
   // 已请求的段落标记
   late final Set<int> _requestedSeg = HashSet();
+  late final Set<int> _mergedSeg = HashSet();
 
   static const int segmentLength = 60 * 6 * 1000;
-  
+
   // Default font size for standard danmaku (base before user scaling)
   // This matches the base size used in view.dart: 15 * scale
   static const int _defaultFontSize = 15;
-  
+
   /// Get the current enlarge threshold from settings
   /// Can be configured by user in danmaku settings
   int get _enlargeThreshold => Pref.danmakuEnlargeThreshold;
-  
-  /// Get the current log base from settings  
+
+  int get _mergeWindowMs => Pref.mergeDanmakuWindowSeconds * 1000;
+
+  DanmakuMergeConfig get _mergeConfig => DanmakuMergeConfig(
+    enabled: _mergeDanmaku,
+    windowMs: _mergeWindowMs,
+    maxDistance: 5,
+    crossMode: Pref.mergeDanmakuCrossMode,
+    skipSubtitle: Pref.mergeDanmakuSkipSubtitle,
+    skipAdvanced: Pref.mergeDanmakuSkipAdvanced,
+    skipBottom: Pref.mergeDanmakuSkipBottom,
+  );
+
+  /// Get the current log base from settings
   /// Can be configured by user in danmaku settings
   int get _logBase => Pref.danmakuEnlargeLogBase;
-  
+
   /// Get precomputed log value for the current base
   double get _logBaseValue => log(_logBase.toDouble());
 
   void dispose() {
     _dmSegMap.clear();
+    _rawDmSegMap.clear();
     _requestedSeg.clear();
+    _mergedSeg.clear();
   }
 
   static int calcSegment(int progress) {
@@ -58,7 +76,7 @@ class PlDanmakuController {
   }
 
   /// Calculate the font size enlargement rate based on the number of merged danmaku
-  /// 
+  ///
   /// Formula adapted from Pakku.js for mobile screens:
   /// - count <= threshold: return 1 (no enlargement)
   /// - count > threshold: return log(count) / log(base)
@@ -93,17 +111,17 @@ class PlDanmakuController {
       if (response.state == 1) {
         _plPlayerController.dmState.add(_cid);
       }
-      handleDanmaku(response.elems);
+      await handleDanmaku(segmentIndex, response.elems);
     } else {
       _requestedSeg.remove(segmentIndex);
     }
   }
 
-  void handleDanmaku(List<DanmakuElem> elems) {
+  Future<void> handleDanmaku(int segmentIndex, List<DanmakuElem> elems) async {
     if (elems.isEmpty) return;
-    final uniques = HashMap<String, DanmakuElem>();
-    // Track base font sizes for merged danmaku to avoid recalculation
-    final baseFontSizes = HashMap<String, int>();
+    // final uniques = HashMap<String, DanmakuElem>();
+    // // Track base font sizes for merged danmaku to avoid recalculation
+    // final baseFontSizes = HashMap<String, int>();
 
     final filters = _plPlayerController.filters;
     final shouldFilter = filters.count != 0;
@@ -111,31 +129,71 @@ class PlDanmakuController {
       if (_isLogin) {
         element.isSelf = element.midHash == _plPlayerController.midHash;
       }
+    }
 
+    if (!_mergeDanmaku) {
+      _storeDanmaku(elems);
+      return;
+    }
+
+    _rawDmSegMap[segmentIndex] = elems;
+    await _mergeSegment(segmentIndex);
+  }
+
+  Future<void> _mergeSegment(int segmentIndex) async {
+    if (_mergedSeg.contains(segmentIndex)) {
+      return;
+    }
+    final currentSegment = _rawDmSegMap[segmentIndex];
+    if (currentSegment == null || currentSegment.isEmpty) {
+      return;
+    }
+
+    final sortedCurrent = List<DanmakuElem>.from(currentSegment)
+      ..sort((a, b) => a.progress.compareTo(b.progress));
+    final lastProgress = sortedCurrent.last.progress;
+
+    final nextSegment = _rawDmSegMap[segmentIndex + 1];
+    final nextSegmentPrefix =
+        nextSegment
+            ?.where(
+              (element) => element.progress < lastProgress + _mergeWindowMs,
+            )
+            .toList(growable: false) ??
+        const <DanmakuElem>[];
+
+    final merged =
+        await DanmakuClusterer(
+          config: _mergeConfig,
+        ).mergeSegment(
+          segmentIndex: segmentIndex,
+          currentSegment: sortedCurrent,
+          nextSegmentPrefix: nextSegmentPrefix,
+        );
+
+    _mergedSeg.add(segmentIndex);
+    _storeDanmaku(merged);
+  }
+
+  void _storeDanmaku(List<DanmakuElem> elems) {
+    final shouldFilter = _plPlayerController.filters.count != 0;
+    final danmakuWeight = DanmakuOptions.danmakuWeight;
+    for (final element in elems) {
       if (!element.isSelf) {
-        if (_mergeDanmaku) {
-          final elem = uniques[element.content];
-          if (elem == null) {
-            // First occurrence: initialize count
-            // Don't set fontsize yet - only set it when actually merged (count > 1)
-            baseFontSizes[element.content] = _defaultFontSize;
-            uniques[element.content] = element..count = 1;
-          } else {
-            // Subsequent occurrence: this is now a merged danmaku
-            elem.count++;
-            final baseFontSize = baseFontSizes[element.content] ?? _defaultFontSize;
-            // Calculate enlarged font size (rate is 1.0 for count <= 5, increases after)
-            elem.fontsize = _calcEnlargedFontSize(baseFontSize, elem.count);
-            continue;
-          }
-        }
-
-        if (shouldFilter && filters.remove(element)) {
+        if (element.weight < danmakuWeight ||
+            (shouldFilter && _plPlayerController.filters.remove(element))) {
           continue;
         }
       }
 
-      final int pos = element.progress ~/ 100; //每0.1秒存储一次
+      if (element.count > 1) {
+        element.fontsize = _calcEnlargedFontSize(
+          _defaultFontSize,
+          element.count,
+        );
+      }
+
+      final pos = element.progress ~/ 100;
       (_dmSegMap[pos] ??= []).add(element);
     }
   }
@@ -145,6 +203,9 @@ class PlDanmakuController {
       initFileDmIfNeeded();
     } else {
       final int segmentIndex = calcSegment(progress);
+      if (_mergeDanmaku && !_requestedSeg.contains(segmentIndex + 1)) {
+        queryDanmaku(segmentIndex + 1);
+      }
       if (!_requestedSeg.contains(segmentIndex)) {
         queryDanmaku(segmentIndex);
         return null;
@@ -174,7 +235,7 @@ class PlDanmakuController {
       final bytes = await file.readAsBytes();
       if (bytes.isEmpty) return;
       final elem = DmSegMobileReply.fromBuffer(bytes).elems;
-      handleDanmaku(elem);
+      await handleDanmaku(0, elem);
     } catch (e, s) {
       Utils.reportError(e, s);
     }
