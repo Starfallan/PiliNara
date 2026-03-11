@@ -61,7 +61,10 @@ abstract final class Pref {
   );
 
   static Set<int> get blackMids {
-    final data = _localCache.get(LocalCacheKey.blackMids, defaultValue: <int>{});
+    final data = _localCache.get(
+      LocalCacheKey.blackMids,
+      defaultValue: <int>{},
+    );
     // 处理 JSON 导入时可能为 List 的情况
     if (data is List) {
       final set = data.whereType<int>().toSet();
@@ -77,7 +80,10 @@ abstract final class Pref {
       _localCache.put(LocalCacheKey.blackMids, blackMidsSet);
 
   static Set<int> get dynamicsBlockedMids {
-    final data = _localCache.get(LocalCacheKey.dynamicsBlockedMids, defaultValue: <int>{});
+    final data = _localCache.get(
+      LocalCacheKey.dynamicsBlockedMids,
+      defaultValue: <int>{},
+    );
     // 处理 JSON 导入时可能为 List 的情况
     if (data is List) {
       final set = data.whereType<int>().toSet();
@@ -95,7 +101,7 @@ abstract final class Pref {
 
   static Map<int, String> get recommendBlockedMids {
     final data = _localCache.get(LocalCacheKey.recommendBlockedMids);
-    
+
     // 向后兼容：如果是旧的 Set<int> 格式，转换为 Map<int, String>
     if (data is Set) {
       final map = <int, String>{};
@@ -108,14 +114,14 @@ abstract final class Pref {
       _localCache.put(LocalCacheKey.recommendBlockedMids, map);
       return map;
     }
-    
+
     // 如果是新格式 Map，需要处理 key 可能是 String 的情况（JSON 导入）
     if (data is Map) {
       final map = <int, String>{};
       for (final entry in data.entries) {
         final key = entry.key;
         final value = entry.value;
-        
+
         // 处理 key：可能是 int 或 String（JSON 导入时）
         int? uid;
         if (key is int) {
@@ -123,21 +129,21 @@ abstract final class Pref {
         } else if (key is String) {
           uid = int.tryParse(key);
         }
-        
+
         // 处理 value：确保是 String
         if (uid != null && value is String) {
           map[uid] = value;
         }
       }
-      
+
       // 如果经过转换，保存标准格式
       if (map.isNotEmpty && data.keys.first is! int) {
         _localCache.put(LocalCacheKey.recommendBlockedMids, map);
       }
-      
+
       return map;
     }
-    
+
     // 默认返回空 Map
     return <int, String>{};
   }
@@ -533,6 +539,21 @@ abstract final class Pref {
   static bool get mergeDanmaku =>
       _setting.get(SettingBoxKey.mergeDanmaku, defaultValue: false);
 
+  static int get mergeDanmakuWindowSeconds =>
+      _setting.get(SettingBoxKey.mergeDanmakuWindowSeconds, defaultValue: 20);
+
+  static bool get mergeDanmakuCrossMode =>
+      _setting.get(SettingBoxKey.mergeDanmakuCrossMode, defaultValue: false);
+
+  static bool get mergeDanmakuSkipSubtitle =>
+      _setting.get(SettingBoxKey.mergeDanmakuSkipSubtitle, defaultValue: true);
+
+  static bool get mergeDanmakuSkipAdvanced =>
+      _setting.get(SettingBoxKey.mergeDanmakuSkipAdvanced, defaultValue: true);
+
+  static bool get mergeDanmakuSkipBottom =>
+      _setting.get(SettingBoxKey.mergeDanmakuSkipBottom, defaultValue: false);
+
   static int get danmakuEnlargeThreshold =>
       _setting.get(SettingBoxKey.danmakuEnlargeThreshold, defaultValue: 7);
 
@@ -657,7 +678,10 @@ abstract final class Pref {
       _setting.get(SettingBoxKey.customFontPath);
 
   static String? get customFontFamily {
-    final value = _setting.get(SettingBoxKey.customFontFamily, defaultValue: '');
+    final value = _setting.get(
+      SettingBoxKey.customFontFamily,
+      defaultValue: '',
+    );
     return value is String && value.isNotEmpty ? value : null;
   }
 
@@ -720,21 +744,30 @@ abstract final class Pref {
   /// Returns a regex pattern string with proper alternation
   static String parseBanWordToRegex(String stored) {
     if (stored.isEmpty) return '';
-    
+
     List<String> items;
-    
+
     // Check if it's the old pipe-separated format (no newlines)
     if (!stored.contains('\n') && stored.contains('|')) {
       // Old format: pipe-separated
       // Heuristic: if it looks like multiple short items, it's old format
-      final parts = stored.split('|').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-      
+      final parts = stored
+          .split('|')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+
       if (parts.length > 1) {
-        final hasComplexRegex = parts.any((p) => 
-          p.contains('(') || p.contains('[') || p.contains('{') || 
-          p.contains('\\') || p.contains('^') || p.contains('\$')
+        final hasComplexRegex = parts.any(
+          (p) =>
+              p.contains('(') ||
+              p.contains('[') ||
+              p.contains('{') ||
+              p.contains('\\') ||
+              p.contains('^') ||
+              p.contains('\$'),
         );
-        
+
         if (!hasComplexRegex) {
           // Old format with simple keywords
           items = parts;
@@ -748,19 +781,25 @@ abstract final class Pref {
       }
     } else {
       // New format: newline-separated
-      items = stored.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      items = stored
+          .split('\n')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
     }
-    
+
     if (items.isEmpty) return '';
-    
+
     // Build regex by joining all patterns with alternation
-    return items.map((item) {
-      // If the item contains '|' and isn't already grouped, wrap it
-      if (item.contains('|') && !item.startsWith('(')) {
-        return '($item)';
-      }
-      return item;
-    }).join('|');
+    return items
+        .map((item) {
+          // If the item contains '|' and isn't already grouped, wrap it
+          if (item.contains('|') && !item.startsWith('(')) {
+            return '($item)';
+          }
+          return item;
+        })
+        .join('|');
   }
 
   static bool get enableLog =>
