@@ -145,7 +145,7 @@ Map<String, Object?> serializeDanmakuElem(DanmakuElem element) {
     'idStr': element.idStr,
     'attr': element.attr,
     'animation': element.animation,
-    'colorful': element.colorful,
+    'colorful': element.colorful.value,
     'isSelf': element.isSelf,
     'count': element.count,
   };

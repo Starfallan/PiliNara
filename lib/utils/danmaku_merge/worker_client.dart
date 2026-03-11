@@ -9,6 +9,7 @@ import 'package:PiliPlus/utils/danmaku_merge/models.dart';
 import 'package:PiliPlus/utils/danmaku_merge/pinyin_encoder.dart';
 import 'package:PiliPlus/utils/danmaku_merge/worker_entry.dart';
 import 'package:PiliPlus/utils/danmaku_merge/worker_models.dart';
+import 'package:flutter/foundation.dart';
 
 class DanmakuMergeWorkerClient {
   DanmakuMergeWorkerClient({
@@ -36,6 +37,12 @@ class DanmakuMergeWorkerClient {
     final taskId = _nextTaskId++;
     final completer = Completer<List<DanmakuElem>>();
     _pending[taskId] = completer;
+    if (kDebugMode) {
+      debugPrint(
+        '[DanmakuMergeWorker] submit task=$taskId segment=$segmentIndex '
+        'current=${currentSegment.length} next=${nextSegmentPrefix.length}',
+      );
+    }
 
     _sendPort!.send(
       DanmakuMergeTaskPayload(
@@ -87,6 +94,11 @@ class DanmakuMergeWorkerClient {
     _subscription = _receivePort!.listen(_handleMessage);
 
     final dictContent = await dictionaryLoader(DanmakuPinyinEncoder.assetPath);
+    if (kDebugMode) {
+      debugPrint(
+        '[DanmakuMergeWorker] spawning isolate, dictLength=${dictContent.length}',
+      );
+    }
     _isolate = await Isolate.spawn<List<Object?>>(
       danmakuMergeWorkerMain,
       <Object?>[_receivePort!.sendPort, dictContent],
@@ -97,6 +109,9 @@ class DanmakuMergeWorkerClient {
   void _handleMessage(Object? message) {
     if (message is SendPort) {
       _sendPort = message;
+      if (kDebugMode) {
+        debugPrint('[DanmakuMergeWorker] isolate ready');
+      }
       _startupCompleter?.complete();
       _startupCompleter = null;
       return;
@@ -108,6 +123,12 @@ class DanmakuMergeWorkerClient {
     final type = message['type'];
     if (type == 'result') {
       final result = DanmakuMergeResultPayload.fromMessage(message);
+      if (kDebugMode) {
+        debugPrint(
+          '[DanmakuMergeWorker] result task=${result.taskId} '
+          'segment=${result.segmentIndex} merged=${result.mergedSegment.length}',
+        );
+      }
       final completer = _pending.remove(result.taskId);
       if (completer != null && !completer.isCompleted) {
         completer.complete(
@@ -121,6 +142,12 @@ class DanmakuMergeWorkerClient {
 
     if (type == 'error') {
       final taskId = message['taskId']! as int;
+      if (kDebugMode) {
+        debugPrint(
+          '[DanmakuMergeWorker] error task=$taskId '
+          '${message['message']}',
+        );
+      }
       final completer = _pending.remove(taskId);
       if (completer != null && !completer.isCompleted) {
         completer.completeError(
