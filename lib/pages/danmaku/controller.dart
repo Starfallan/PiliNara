@@ -23,7 +23,14 @@ class PlDanmakuController {
     this._cid,
     this._plPlayerController,
     this._isFileSource,
-  ) : _mergeDanmaku = _plPlayerController.mergeDanmaku;
+  ) : _mergeDanmaku = _plPlayerController.mergeDanmaku {
+    if (kDebugMode) {
+      debugPrint(
+        '[PlDanmakuController] create instance=${identityHashCode(this)} '
+        'cid=$_cid fileSource=$_isFileSource merge=$_mergeDanmaku',
+      );
+    }
+  }
 
   final int _cid;
   final PlPlayerController _plPlayerController;
@@ -74,6 +81,12 @@ class PlDanmakuController {
   double get _logBaseValue => log(_logBase.toDouble());
 
   void dispose() {
+    if (kDebugMode) {
+      debugPrint(
+        '[PlDanmakuController] dispose instance=${identityHashCode(this)} '
+        'cid=$_cid requested=${_requestedSeg.length} merged=${_mergedSeg.length}',
+      );
+    }
     _disposed = true;
     _mergeWorker.dispose();
     _dmSegMap.clear();
@@ -110,7 +123,19 @@ class PlDanmakuController {
       return;
     }
     if (_requestedSeg.contains(segmentIndex)) {
+      if (kDebugMode) {
+        debugPrint(
+          '[PlDanmakuController] skip duplicate instance=${identityHashCode(this)} '
+          'cid=$_cid segment=$segmentIndex requested=${_requestedSeg.length}',
+        );
+      }
       return;
+    }
+    if (kDebugMode) {
+      debugPrint(
+        '[PlDanmakuController] request instance=${identityHashCode(this)} '
+        'cid=$_cid segment=$segmentIndex requestedBefore=${_requestedSeg.length}',
+      );
     }
     _requestedSeg.add(segmentIndex);
     final res = await DmGrpc.dmSegMobile(
@@ -119,11 +144,23 @@ class PlDanmakuController {
     );
 
     if (res case Success(:final response)) {
+      if (kDebugMode) {
+        debugPrint(
+          '[PlDanmakuController] response instance=${identityHashCode(this)} '
+          'cid=$_cid segment=$segmentIndex elems=${response.elems.length}',
+        );
+      }
       if (response.state == 1) {
         _plPlayerController.dmState.add(_cid);
       }
       await handleDanmaku(segmentIndex, response.elems);
     } else {
+      if (kDebugMode) {
+        debugPrint(
+          '[PlDanmakuController] request failed instance=${identityHashCode(this)} '
+          'cid=$_cid segment=$segmentIndex',
+        );
+      }
       _requestedSeg.remove(segmentIndex);
     }
   }
@@ -238,9 +275,21 @@ class PlDanmakuController {
     } else {
       final int segmentIndex = calcSegment(progress);
       if (_mergeDanmaku && !_requestedSeg.contains(segmentIndex + 1)) {
+        if (kDebugMode) {
+          debugPrint(
+            '[PlDanmakuController] prefetch instance=${identityHashCode(this)} '
+            'cid=$_cid progress=$progress currentSegment=$segmentIndex nextSegment=${segmentIndex + 1}',
+          );
+        }
         queryDanmaku(segmentIndex + 1);
       }
       if (!_requestedSeg.contains(segmentIndex)) {
+        if (kDebugMode) {
+          debugPrint(
+            '[PlDanmakuController] current miss instance=${identityHashCode(this)} '
+            'cid=$_cid progress=$progress segment=$segmentIndex',
+          );
+        }
         queryDanmaku(segmentIndex);
         return null;
       }
