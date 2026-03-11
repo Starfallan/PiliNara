@@ -77,11 +77,6 @@ class PlDanmakuController {
     return (baseFontSize * _calcEnlargeRate(count)).round();
   }
 
-  /// Get the base font size from DanmakuElem, falling back to default if not set
-  static int _getBaseFontSize(DanmakuElem element) {
-    return element.fontsize != 0 ? element.fontsize : _defaultFontSize;
-  }
-
   Future<void> queryDanmaku(int segmentIndex) async {
     if (_isFileSource) {
       return;

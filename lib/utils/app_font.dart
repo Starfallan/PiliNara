@@ -37,7 +37,7 @@ abstract final class AppFont {
   }
 
   static Future<bool> pickAndApply() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: allowedExtensions,
       withData: true,
@@ -65,10 +65,12 @@ abstract final class AppFont {
     final targetFile = File(targetPath);
     if (picked.bytes case final Uint8List bytes) {
       await targetFile.writeAsBytes(bytes, flush: true);
-    } else if (picked.path case final String sourcePath) {
-      await File(sourcePath).copy(targetPath);
     } else {
-      throw StateError('missing font bytes');
+      final sourcePath = picked.path;
+      if (sourcePath == null || sourcePath.isEmpty) {
+        throw StateError('missing font bytes');
+      }
+      await File(sourcePath).copy(targetPath);
     }
 
     final fontFamily = 'custom_font_$timestamp';
