@@ -554,6 +554,12 @@ abstract final class Pref {
   static bool get mergeDanmakuSkipBottom =>
       _setting.get(SettingBoxKey.mergeDanmakuSkipBottom, defaultValue: false);
 
+  static bool get mergeDanmakuMarkAtTail =>
+      _setting.get(SettingBoxKey.mergeDanmakuMarkAtTail, defaultValue: true);
+
+  static int get mergeDanmakuMarkThreshold =>
+      _setting.get(SettingBoxKey.mergeDanmakuMarkThreshold, defaultValue: 1);
+
   static int get danmakuEnlargeThreshold =>
       _setting.get(SettingBoxKey.danmakuEnlargeThreshold, defaultValue: 7);
 

@@ -18,6 +18,8 @@ class _DanmakuMergeSettingPageState extends State<DanmakuMergeSettingPage> {
   late bool _skipSubtitle;
   late bool _skipAdvanced;
   late bool _skipBottom;
+  late bool _markAtTail;
+  late double _markThreshold;
   late double _enlargeThreshold;
   late double _enlargeLogBase;
 
@@ -30,6 +32,8 @@ class _DanmakuMergeSettingPageState extends State<DanmakuMergeSettingPage> {
     _skipSubtitle = Pref.mergeDanmakuSkipSubtitle;
     _skipAdvanced = Pref.mergeDanmakuSkipAdvanced;
     _skipBottom = Pref.mergeDanmakuSkipBottom;
+    _markAtTail = Pref.mergeDanmakuMarkAtTail;
+    _markThreshold = Pref.mergeDanmakuMarkThreshold.toDouble();
     _enlargeThreshold = Pref.danmakuEnlargeThreshold.toDouble();
     _enlargeLogBase = Pref.danmakuEnlargeLogBase.toDouble();
   }
@@ -101,6 +105,39 @@ class _DanmakuMergeSettingPageState extends State<DanmakuMergeSettingPage> {
           ),
           _SectionTitle('显示设置', theme),
           ListTile(
+            title: const Text('数量标记位置'),
+            subtitle: Text(_markAtTail ? '显示在弹幕尾部' : '显示在弹幕开头'),
+            trailing: SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment<bool>(value: false, label: Text('开头')),
+                ButtonSegment<bool>(value: true, label: Text('尾部')),
+              ],
+              selected: {_markAtTail},
+              onSelectionChanged: (selection) {
+                setState(() => _markAtTail = selection.first);
+              },
+            ),
+          ),
+          ListTile(
+            title: const Text('数量标记门槛'),
+            subtitle: Text('仅当数量大于 ${_markThreshold.round()} 时显示标记'),
+            trailing: Text(
+              '> ${_markThreshold.round()}',
+              style: TextStyle(color: theme.colorScheme.primary, fontSize: 16),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Slider(
+              value: _markThreshold,
+              min: 1,
+              max: 20,
+              divisions: 19,
+              label: '${_markThreshold.round()}',
+              onChanged: (value) => setState(() => _markThreshold = value),
+            ),
+          ),
+          ListTile(
             title: const Text('字体放大门槛'),
             subtitle: Text('重复 ${_enlargeThreshold.round()} 条以上开始放大'),
             trailing: Text(
@@ -160,6 +197,11 @@ class _DanmakuMergeSettingPageState extends State<DanmakuMergeSettingPage> {
     GStorage.setting.put(SettingBoxKey.mergeDanmakuSkipSubtitle, _skipSubtitle);
     GStorage.setting.put(SettingBoxKey.mergeDanmakuSkipAdvanced, _skipAdvanced);
     GStorage.setting.put(SettingBoxKey.mergeDanmakuSkipBottom, _skipBottom);
+    GStorage.setting.put(SettingBoxKey.mergeDanmakuMarkAtTail, _markAtTail);
+    GStorage.setting.put(
+      SettingBoxKey.mergeDanmakuMarkThreshold,
+      _markThreshold.round(),
+    );
     GStorage.setting.put(
       SettingBoxKey.danmakuEnlargeThreshold,
       _enlargeThreshold.round(),
