@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:PiliPlus/common/widgets/dialog/report_member.dart';
 import 'package:PiliPlus/common/widgets/dynamic_sliver_app_bar/dynamic_sliver_app_bar.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/loading_widget.dart';
@@ -18,8 +20,10 @@ import 'package:PiliPlus/pages/member_favorite/view.dart';
 import 'package:PiliPlus/pages/member_home/view.dart';
 import 'package:PiliPlus/pages/member_pgc/view.dart';
 import 'package:PiliPlus/pages/member_shop/view.dart';
+import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:extended_nested_scroll_view/extended_nested_scroll_view.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
@@ -35,6 +39,8 @@ class _MemberPageState extends State<MemberPage> {
   late final int _mid;
   late final String _heroTag;
   late final MemberController _userController;
+  PageController? _headerController;
+  PageController get headerController => _headerController ??= PageController();
 
   @override
   void initState() {
@@ -45,6 +51,13 @@ class _MemberPageState extends State<MemberPage> {
       MemberController(mid: _mid),
       tag: _heroTag,
     );
+  }
+
+  @override
+  void dispose() {
+    _headerController?.dispose();
+    _headerController = null;
+    super.dispose();
   }
 
   @override
@@ -153,6 +166,20 @@ class _MemberPageState extends State<MemberPage> {
             ],
           ),
         ),
+        if (kDebugMode || Platform.isIOS)
+          PopupMenuItem(
+            onTap: () => PageUtils.launchURL(
+              'https://www.bilibili.com/blackboard/disablelink/go-to-up-space.html?mid=$_mid',
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.add_box_outlined, size: 19),
+                SizedBox(width: 10),
+                Text('添加至桌面'),
+              ],
+            ),
+          ),
         PopupMenuItem(
           onTap: () => Get.toNamed(
             '/upowerRank',
@@ -340,6 +367,7 @@ class _MemberPageState extends State<MemberPage> {
                 onFollow: () => _userController.onFollow(context),
                 live: _userController.live,
                 silence: _userController.silence,
+                headerControllerBuilder: () => headerController,
               ),
             ),
           );

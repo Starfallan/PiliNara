@@ -7,7 +7,7 @@ abstract final class StyleString {
   static const Radius imgRadius = Radius.circular(10);
   static const double aspectRatio = 16 / 10;
   static const double aspectRatio16x9 = 16 / 9;
-  static const double imgMaxRatio = 3.0;
+  static const double imgMaxRatio = 2.6;
   static const bottomSheetRadius = BorderRadius.vertical(
     top: Radius.circular(18),
   );

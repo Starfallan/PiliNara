@@ -17,6 +17,7 @@
 
 import 'dart:math' as math;
 
+import 'package:PiliPlus/common/widgets/custom_height_widget.dart';
 import 'package:PiliPlus/common/widgets/dynamic_sliver_app_bar/rendering/sliver_persistent_header.dart';
 import 'package:PiliPlus/common/widgets/dynamic_sliver_app_bar/sliver_persistent_header.dart';
 import 'package:PiliPlus/common/widgets/only_layout_widget.dart'
@@ -24,6 +25,7 @@ import 'package:PiliPlus/common/widgets/only_layout_widget.dart'
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart'
     hide SliverPersistentHeader, SliverPersistentHeaderDelegate;
+import 'package:flutter/rendering.dart' show RenderOpacity, OpacityLayer;
 import 'package:flutter/services.dart';
 
 /// ref [SliverAppBar]
@@ -133,12 +135,10 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
         title: effectiveTitle,
         actions: actions,
         automaticallyImplyActions: automaticallyImplyActions,
-        flexibleSpace: maxExtent == .infinity
-            ? flexibleSpace
-            : IgnorePointer(
-                ignoring: isScrolledUnder,
-                child: FlexibleSpaceBar(background: flexibleSpace),
-              ),
+        flexibleSpace: IgnorePointer(
+          ignoring: isScrolledUnder,
+          child: DynamicFlexibleSpaceBar(background: flexibleSpace),
+        ),
         bottom: bottom,
         elevation: isScrolledUnder ? elevation : 0.0,
         scrolledUnderElevation: scrolledUnderElevation,
@@ -348,5 +348,150 @@ class _DynamicSliverAppBarState extends State<DynamicSliverAppBar> {
         actionsPadding: widget.actionsPadding,
       ),
     );
+  }
+}
+
+/// ref [FlexibleSpaceBar]
+class DynamicFlexibleSpaceBar extends StatefulWidget {
+  const DynamicFlexibleSpaceBar({
+    super.key,
+    required this.background,
+    this.collapseMode = CollapseMode.parallax,
+  });
+
+  final Widget background;
+
+  final CollapseMode collapseMode;
+
+  @override
+  State<DynamicFlexibleSpaceBar> createState() =>
+      _DynamicFlexibleSpaceBarState();
+}
+
+class _DynamicFlexibleSpaceBarState extends State<DynamicFlexibleSpaceBar> {
+  double _getCollapsePadding(double t, FlexibleSpaceBarSettings settings) {
+    switch (widget.collapseMode) {
+      case CollapseMode.pin:
+        return -(settings.maxExtent - settings.currentExtent);
+      case CollapseMode.none:
+        return 0.0;
+      case CollapseMode.parallax:
+        final double deltaExtent = settings.maxExtent - settings.minExtent;
+        return -Tween<double>(begin: 0.0, end: deltaExtent / 4.0).transform(t);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final FlexibleSpaceBarSettings settings = context
+        .dependOnInheritedWidgetOfExactType<FlexibleSpaceBarSettings>()!;
+
+    double? height;
+    final double opacity;
+    final double topPadding;
+    if (settings.maxExtent == .infinity) {
+      opacity = 1.0;
+      topPadding = 0.0;
+    } else {
+      final double deltaExtent = settings.maxExtent - settings.minExtent;
+
+      // 0.0 -> Expanded
+      // 1.0 -> Collapsed to toolbar
+      final double t = clampDouble(
+        1.0 - (settings.currentExtent - settings.minExtent) / deltaExtent,
+        0.0,
+        1.0,
+      );
+
+      final double fadeStart = math.max(
+        0.0,
+        1.0 - kToolbarHeight / deltaExtent,
+      );
+      const fadeEnd = 1.0;
+      assert(fadeStart <= fadeEnd);
+      // If the min and max extent are the same, the app bar cannot collapse
+      // and the content should be visible, so opacity = 1.
+      opacity = settings.maxExtent == settings.minExtent
+          ? 1.0
+          : 1.0 - Interval(fadeStart, fadeEnd).transform(t);
+
+      topPadding = _getCollapsePadding(t, settings);
+    }
+
+    return ClipRect(
+      child: CustomHeightWidget(
+        height: height,
+        offset: Offset(0.0, topPadding),
+        child: _FlexibleSpaceHeaderOpacity(
+          // IOS is relying on this semantics node to correctly traverse
+          // through the app bar when it is collapsed.
+          alwaysIncludeSemantics: true,
+          opacity: opacity,
+          child: widget.background,
+        ),
+      ),
+    );
+  }
+}
+
+/// [_FlexibleSpaceHeaderOpacity]
+class _FlexibleSpaceHeaderOpacity extends SingleChildRenderObjectWidget {
+  const _FlexibleSpaceHeaderOpacity({
+    required this.opacity,
+    required super.child,
+    required this.alwaysIncludeSemantics,
+  });
+
+  final double opacity;
+  final bool alwaysIncludeSemantics;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    return _RenderFlexibleSpaceHeaderOpacity(
+      opacity: opacity,
+      alwaysIncludeSemantics: alwaysIncludeSemantics,
+    );
+  }
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    covariant _RenderFlexibleSpaceHeaderOpacity renderObject,
+  ) {
+    renderObject
+      ..alwaysIncludeSemantics = alwaysIncludeSemantics
+      ..opacity = opacity;
+  }
+}
+
+class _RenderFlexibleSpaceHeaderOpacity extends RenderOpacity {
+  _RenderFlexibleSpaceHeaderOpacity({
+    super.opacity,
+    super.alwaysIncludeSemantics,
+  });
+
+  @override
+  bool get isRepaintBoundary => false;
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    if (child == null) {
+      return;
+    }
+    if ((opacity * 255).roundToDouble() <= 0) {
+      layer = null;
+      return;
+    }
+    assert(needsCompositing);
+    layer = context.pushOpacity(
+      offset,
+      (opacity * 255).round(),
+      super.paint,
+      oldLayer: layer as OpacityLayer?,
+    );
+    assert(() {
+      layer!.debugCreator = debugCreator;
+      return true;
+    }());
   }
 }

@@ -36,6 +36,8 @@ class LiveController extends CommonListController with AccountMixin {
 
   final followController = ScrollController();
 
+  bool showFirstFrame = false;
+
   @override
   void checkIsEnd(int length) {
     if (count != null && length >= count!) {

@@ -742,10 +742,10 @@ packages:
     description:
       path: "."
       ref: main
-      resolved-ref: "0d839994ecbf0e33ecd12a116a37b715b68a27ac"
+      resolved-ref: c08f651c60f1451feba2ec4895caf12771661809
       url: "https://github.com/bggRGjQaUbCoE/flutter_smart_dialog.git"
     source: git
-    version: "5.0.0"
+    version: "5.0.1"
   flutter_sortable_wrap:
     dependency: "direct main"
     description:

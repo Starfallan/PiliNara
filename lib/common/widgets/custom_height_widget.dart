@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show RenderProxyBox;
+import 'package:flutter/rendering.dart' show RenderProxyBox, BoxHitTestResult;
 
 class CustomHeightWidget extends SingleChildRenderObjectWidget {
   const CustomHeightWidget({
     super.key,
-    required this.height,
+    this.height,
     this.offset = .zero,
-    required super.child,
+    required Widget super.child,
   });
 
-  final double height;
+  final double? height;
 
   final Offset offset;
 
@@ -34,14 +34,14 @@ class CustomHeightWidget extends SingleChildRenderObjectWidget {
 
 class RenderCustomHeightWidget extends RenderProxyBox {
   RenderCustomHeightWidget({
-    required double height,
+    double? height,
     required Offset offset,
   }) : _height = height,
        _offset = offset;
 
-  double _height;
-  double get height => _height;
-  set height(double value) {
+  double? _height;
+  double? get height => _height;
+  set height(double? value) {
     if (_height == value) return;
     _height = value;
     markNeedsLayout();
@@ -57,12 +57,40 @@ class RenderCustomHeightWidget extends RenderProxyBox {
 
   @override
   void performLayout() {
-    child!.layout(constraints);
-    size = constraints.constrainDimensions(constraints.maxWidth, height);
+    if (height != null) {
+      child!.layout(constraints.copyWith(maxHeight: .infinity));
+      size = constraints.constrainDimensions(constraints.maxWidth, height!);
+    } else {
+      child!.layout(
+        constraints.copyWith(maxHeight: .infinity),
+        parentUsesSize: true,
+      );
+      size = constraints.constrainDimensions(
+        constraints.maxWidth,
+        child!.size.height,
+      );
+    }
   }
 
   @override
   void paint(PaintingContext context, Offset offset) {
     context.paintChild(child!, offset + _offset);
+  }
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    return result.addWithPaintOffset(
+      offset: _offset,
+      position: position,
+      hitTest: (BoxHitTestResult result, Offset transformed) {
+        assert(transformed == position - _offset);
+        return child!.hitTest(result, position: transformed);
+      },
+    );
+  }
+
+  @override
+  void applyPaintTransform(covariant RenderObject child, Matrix4 transform) {
+    transform.translateByDouble(_offset.dx, _offset.dy, 0.0, 1.0);
   }
 }

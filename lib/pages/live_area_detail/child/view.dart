@@ -17,10 +17,12 @@ class LiveAreaChildPage extends StatefulWidget {
     super.key,
     required this.areaId,
     required this.parentAreaId,
+    required this.showFirstFrame,
   });
 
   final dynamic areaId;
   final dynamic parentAreaId;
+  final bool showFirstFrame;
 
   @override
   State<LiveAreaChildPage> createState() => _LiveAreaChildPageState();
@@ -120,7 +122,10 @@ class _LiveAreaChildPageState extends State<LiveAreaChildPage>
                     if (index == response.length - 1) {
                       _controller.onLoadMore();
                     }
-                    return LiveCardVApp(item: response[index]);
+                    return LiveCardVApp(
+                      item: response[index],
+                      showFirstFrame: widget.showFirstFrame,
+                    );
                   },
                   itemCount: response.length,
                 )

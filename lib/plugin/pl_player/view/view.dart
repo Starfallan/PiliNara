@@ -1371,7 +1371,8 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
   Widget build(BuildContext context) {
     maxWidth = widget.maxWidth;
     maxHeight = widget.maxHeight;
-    final primary = colorScheme.isLight
+    final isFullScreen = this.isFullScreen;
+    final primary = isFullScreen && colorScheme.isLight
         ? colorScheme.inversePrimary
         : colorScheme.primary;
     late final thumbGlowColor = primary.withAlpha(80);
@@ -1380,7 +1381,6 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
       color: Colors.white,
       fontSize: 12,
     );
-    final isFullScreen = this.isFullScreen;
     final isLive = plPlayerController.isLive;
 
     final child = Stack(

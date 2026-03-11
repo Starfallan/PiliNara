@@ -2,6 +2,7 @@ import 'package:PiliPlus/common/constants.dart';
 import 'package:PiliPlus/common/widgets/avatars.dart';
 import 'package:PiliPlus/common/widgets/image_viewer/hero.dart';
 import 'package:PiliPlus/common/widgets/pendant_avatar.dart';
+import 'package:PiliPlus/common/widgets/scroll_physics.dart';
 import 'package:PiliPlus/common/widgets/view_safe_area.dart';
 import 'package:PiliPlus/models/common/image_preview_type.dart';
 import 'package:PiliPlus/models/common/member/user_info_type.dart';
@@ -10,6 +11,7 @@ import 'package:PiliPlus/models_new/space/space/followings_followed_upper.dart';
 import 'package:PiliPlus/models_new/space/space/images.dart';
 import 'package:PiliPlus/models_new/space/space/live.dart';
 import 'package:PiliPlus/models_new/space/space/pr_info.dart';
+import 'package:PiliPlus/models_new/space/space/top.dart';
 import 'package:PiliPlus/pages/fan/view.dart';
 import 'package:PiliPlus/pages/follow/view.dart';
 import 'package:PiliPlus/pages/follow_type/followed/view.dart';
@@ -38,6 +40,7 @@ class UserInfoCard extends StatelessWidget {
     required this.onFollow,
     this.live,
     this.silence,
+    required this.headerControllerBuilder,
   });
 
   final bool isOwner;
@@ -47,6 +50,7 @@ class UserInfoCard extends StatelessWidget {
   final VoidCallback onFollow;
   final Live? live;
   final int? silence;
+  final ValueGetter<PageController> headerControllerBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -106,37 +110,6 @@ class UserInfoCard extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(
-    BuildContext context,
-    ColorScheme colorScheme,
-    bool isLight,
-    double width,
-  ) {
-    String imgUrl =
-        (isLight
-                ? images.imgUrl
-                : images.nightImgurl.isNullOrEmpty
-                ? images.imgUrl
-                : images.nightImgurl)
-            .http2https;
-    return GestureDetector(
-      onTap: () => PageUtils.imageView(imgList: [SourceModel(url: imgUrl)]),
-      child: fromHero(
-        tag: imgUrl,
-        child: CachedNetworkImage(
-          fit: .cover,
-          height: kHeaderHeight,
-          width: width,
-          memCacheWidth: width.cacheSize(context),
-          imageUrl: ImageUtils.thumbnailUrl(imgUrl),
-          placeholder: (_, _) => const SizedBox.shrink(),
-          color: isLight ? const Color(0x5DFFFFFF) : const Color(0x8D000000),
-          colorBlendMode: isLight ? BlendMode.lighten : BlendMode.darken,
         ),
       ),
     );
@@ -455,15 +428,16 @@ class UserInfoCard extends StatelessWidget {
     ],
   );
 
-  Widget get _buildAvatar => fromHero(
+  Widget _buildAvatar(bool hasPendant) => fromHero(
     tag: card.face ?? '',
     child: PendantAvatar(
       avatar: card.face,
-      size: kAvatarSize,
+      size: hasPendant ? kPendantAvatarSize : kAvatarSize,
+      isMemberAvatar: true,
       badgeSize: 20,
       officialType: card.officialVerify?.type,
       isVip: (card.vip?.status ?? -1) > 0,
-      garbPendantImage: card.pendant!.image!,
+      garbPendantImage: card.pendant?.image,
       roomId: live?.liveStatus == 1 ? live!.roomid : null,
       onTap: () => PageUtils.imageView(
         imgList: [SourceModel(url: card.face.http2https)],
@@ -473,25 +447,146 @@ class UserInfoCard extends StatelessWidget {
 
   Column _buildV(
     BuildContext context,
-    ColorScheme colorScheme,
+    ColorScheme scheme,
     bool isLight,
     double width,
-  ) => Column(
-    mainAxisSize: MainAxisSize.min,
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      HeaderLayoutWidget(
-        header: _buildHeader(context, colorScheme, isLight, width),
-        avatar: _buildAvatar,
-        actions: _buildRight(colorScheme),
+  ) {
+    final hasPendant = card.pendant?.image?.isNotEmpty ?? false;
+    final imgUrls = images.collectionTopSimple?.top?.imgUrls;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        HeaderLayoutWidget(
+          header: imgUrls != null
+              ? _buildCollectionHeader(context, scheme, isLight, imgUrls, width)
+              : _buildHeader(
+                  context,
+                  isLight,
+                  width,
+                  (isLight
+                          ? images.imgUrl
+                          : images.nightImgurl.isNullOrEmpty
+                          ? images.imgUrl
+                          : images.nightImgurl)
+                      .http2https,
+                ),
+          avatar: _buildAvatar(hasPendant),
+          actions: _buildRight(scheme),
+        ),
+        const SizedBox(height: 5),
+        ..._buildLeft(context, scheme, isLight),
+        if (card.prInfo?.content?.isNotEmpty == true)
+          buildPrInfo(context, scheme, isLight, card.prInfo!),
+        const SizedBox(height: 5),
+      ],
+    );
+  }
+
+  Widget _buildCollectionHeader(
+    BuildContext context,
+    ColorScheme scheme,
+    bool isLight,
+    List<TopImage> imgUrls,
+    double width,
+  ) {
+    if (imgUrls.length == 1) {
+      return _buildHeader(
+        context,
+        isLight,
+        width,
+        imgUrls.single.cover,
+        filter: false,
+      );
+    }
+    final controller = headerControllerBuilder();
+    final memCacheWidth = width.cacheSize(context);
+    return GestureDetector(
+      behavior: .opaque,
+      onTap: () => PageUtils.imageView(
+        initialPage: controller.page?.round() ?? 0,
+        imgList: imgUrls.map((e) => SourceModel(url: e.cover)).toList(),
+        onPageChanged: controller.jumpToPage,
       ),
-      const SizedBox(height: 5),
-      ..._buildLeft(context, colorScheme, isLight),
-      if (card.prInfo?.content?.isNotEmpty == true)
-        buildPrInfo(context, colorScheme, isLight, card.prInfo!),
-      const SizedBox(height: 5),
-    ],
-  );
+      child: Stack(
+        children: [
+          SizedBox(
+            width: .infinity,
+            height: kHeaderHeight,
+            child: PageView.builder(
+              controller: controller,
+              itemCount: imgUrls.length,
+              physics: clampingScrollPhysics,
+              itemBuilder: (context, index) {
+                final img = imgUrls[index];
+                return fromHero(
+                  tag: img.cover,
+                  child: CachedNetworkImage(
+                    fit: .cover,
+                    alignment: Alignment(0.0, img.dy),
+                    height: kHeaderHeight,
+                    width: width,
+                    memCacheWidth: memCacheWidth,
+                    imageUrl: ImageUtils.thumbnailUrl(img.cover),
+                    fadeInDuration: const Duration(milliseconds: 120),
+                    fadeOutDuration: const Duration(milliseconds: 120),
+                    placeholder: (_, _) =>
+                        const SizedBox(width: .infinity, height: kHeaderHeight),
+                  ),
+                );
+              },
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: HeaderIndicator(
+              length: imgUrls.length,
+              pageController: controller,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(
+    BuildContext context,
+    bool isLight,
+    double width,
+    String imgUrl, {
+    bool filter = true,
+  }) {
+    return GestureDetector(
+      behavior: .opaque,
+      onTap: () => PageUtils.imageView(imgList: [SourceModel(url: imgUrl)]),
+      child: fromHero(
+        tag: imgUrl,
+        child: CachedNetworkImage(
+          fit: .cover,
+          height: kHeaderHeight,
+          width: width,
+          memCacheWidth: width.cacheSize(context),
+          imageUrl: ImageUtils.thumbnailUrl(imgUrl),
+          placeholder: (_, _) =>
+              const SizedBox(width: .infinity, height: kHeaderHeight),
+          color: filter
+              ? isLight
+                    ? const Color(0x5DFFFFFF)
+                    : const Color(0x8D000000)
+              : null,
+          colorBlendMode: filter
+              ? isLight
+                    ? BlendMode.lighten
+                    : BlendMode.darken
+              : null,
+          fadeInDuration: const Duration(milliseconds: 120),
+          fadeOutDuration: const Duration(milliseconds: 120),
+        ),
+      ),
+    );
+  }
 
   Widget buildPrInfo(
     BuildContext context,
@@ -520,6 +615,8 @@ class UserInfoCard extends StatelessWidget {
               memCacheHeight: 20.cacheSize(context),
               imageUrl: ImageUtils.thumbnailUrl(icon),
               placeholder: (_, _) => const SizedBox.shrink(),
+              fadeInDuration: .zero,
+              fadeOutDuration: .zero,
             ),
             const SizedBox(width: 16),
           ],
@@ -554,7 +651,7 @@ class UserInfoCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // _buildHeader(context),
-          const SizedBox(height: 56),
+          const SizedBox(height: kToolbarHeight),
           Row(
             children: [
               const SizedBox(width: 20),
@@ -563,7 +660,7 @@ class UserInfoCard extends StatelessWidget {
                   top: 10,
                   bottom: card.prInfo?.content?.isNotEmpty == true ? 0 : 10,
                 ),
-                child: _buildAvatar,
+                child: _buildAvatar(card.pendant?.image?.isNotEmpty ?? false),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -629,6 +726,57 @@ class UserInfoCard extends StatelessWidget {
     return GestureDetector(
       onTap: () => FollowedPage.toFollowedPage(mid: card.mid, name: card.name),
       child: child,
+    );
+  }
+}
+
+class HeaderIndicator extends StatefulWidget {
+  const HeaderIndicator({
+    super.key,
+    required this.length,
+    required this.pageController,
+  });
+
+  final int length;
+  final PageController pageController;
+
+  @override
+  State<HeaderIndicator> createState() => _HeaderIndicatorState();
+}
+
+class _HeaderIndicatorState extends State<HeaderIndicator> {
+  late double _progress;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateProgress();
+    widget.pageController.addListener(_listener);
+  }
+
+  void _listener() {
+    _updateProgress();
+    setState(() {});
+  }
+
+  void _updateProgress() {
+    _progress = ((widget.pageController.page ?? 0) + 1) / widget.length;
+  }
+
+  @override
+  void dispose() {
+    widget.pageController.removeListener(_listener);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LinearProgressIndicator(
+      // ignore: deprecated_member_use
+      year2023: true,
+      minHeight: 3.5,
+      backgroundColor: const Color(0xA09E9E9E),
+      value: _progress,
     );
   }
 }

@@ -10,10 +10,12 @@ import 'package:flutter/material.dart' hide LayoutBuilder;
 // 视频卡片 - 垂直布局
 class LiveCardVApp extends StatelessWidget {
   final CardLiveItem item;
+  final bool showFirstFrame;
 
   const LiveCardVApp({
     super.key,
     required this.item,
+    this.showFirstFrame = false,
   });
 
   @override
@@ -40,7 +42,9 @@ class LiveCardVApp extends StatelessWidget {
                     clipBehavior: Clip.none,
                     children: [
                       NetworkImgLayer(
-                        src: item.cover!,
+                        src: showFirstFrame
+                            ? (item.systemCover ?? item.cover)
+                            : item.cover,
                         width: maxWidth,
                         height: maxHeight,
                         type: .emote,

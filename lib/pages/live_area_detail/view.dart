@@ -10,6 +10,7 @@ import 'package:PiliPlus/pages/live_area_detail/controller.dart';
 import 'package:PiliPlus/pages/live_search/view.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 class LiveAreaDetailPage extends StatefulWidget {
   const LiveAreaDetailPage({
@@ -73,71 +74,81 @@ class _LiveAreaDetailPageState extends State<LiveAreaDetailPage> {
       Loading() => const SizedBox.shrink(),
       Success(:final response) =>
         response != null && response.isNotEmpty
-            ? DefaultTabController(
-                initialIndex: _controller.initialIndex,
-                length: response.length,
-                child: Builder(
-                  builder: (context) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TabBar(
-                                dividerHeight: 0,
-                                dividerColor: Colors.transparent,
-                                isScrollable: true,
-                                tabAlignment: TabAlignment.start,
-                                tabs: response
-                                    .map((e) => Tab(text: e.name ?? ''))
-                                    .toList(),
-                                onTap: (index) {
-                                  try {
-                                    if (!DefaultTabController.of(
-                                      context,
-                                    ).indexIsChanging) {
-                                      final item = response[index];
-                                      Get.find<LiveAreaChildController>(
-                                        tag: '${item.id}${item.parentId}',
-                                      ).animateToTop();
-                                    }
-                                  } catch (_) {}
-                                },
-                              ),
-                            ),
-                            iconButton(
-                              icon: const Icon(Icons.menu),
-                              onPressed: () =>
-                                  _showTags(context, theme, bottom, response),
-                            ),
-                          ],
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TabBar(
+                          dividerHeight: 0,
+                          isScrollable: true,
+                          tabAlignment: TabAlignment.start,
+                          dividerColor: Colors.transparent,
+                          controller: _controller.tabController,
+                          tabs: response
+                              .map((e) => Tab(text: e.name ?? ''))
+                              .toList(),
+                          onTap: (index) {
+                            try {
+                              if (!_controller.tabController!.indexIsChanging) {
+                                final item = response[index];
+                                Get.find<LiveAreaChildController>(
+                                  tag: '${item.id}${item.parentId}',
+                                ).animateToTop();
+                              }
+                            } catch (_) {}
+                          },
                         ),
-                        const Divider(height: 1),
-                        Expanded(
-                          child: tabBarView(
-                            children: response
-                                .map(
-                                  (e) => LiveAreaChildPage(
-                                    areaId: e.id,
-                                    parentAreaId: e.parentId,
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
+                      ),
+                      iconButton(
+                        iconSize: 20,
+                        tooltip:
+                            '切换${_controller.showFirstFrame ? '封面' : '首帧'}',
+                        icon: _controller.showFirstFrame
+                            ? const Icon(MdiIcons.alphaFBox)
+                            : const Icon(MdiIcons.image),
+                        onPressed: () {
+                          _controller.showFirstFrame =
+                              !_controller.showFirstFrame;
+                          setState(() {});
+                        },
+                      ),
+                      iconButton(
+                        iconSize: 20,
+                        tooltip: '显示菜单',
+                        icon: const Icon(Icons.menu),
+                        onPressed: () =>
+                            _showTags(context, theme, bottom, response),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: tabBarView(
+                      controller: _controller.tabController,
+                      children: response
+                          .map(
+                            (e) => LiveAreaChildPage(
+                              areaId: e.id,
+                              parentAreaId: e.parentId,
+                              showFirstFrame: _controller.showFirstFrame,
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                ],
               )
             : LiveAreaChildPage(
                 areaId: widget.areaId,
                 parentAreaId: widget.parentAreaId,
+                showFirstFrame: _controller.showFirstFrame,
               ),
       Error() => LiveAreaChildPage(
         areaId: widget.areaId,
         parentAreaId: widget.parentAreaId,
+        showFirstFrame: _controller.showFirstFrame,
       ),
     };
   }
@@ -226,7 +237,7 @@ class _LiveAreaDetailPageState extends State<LiveAreaDetailPage> {
                         item: list[index],
                         onTap: () {
                           Get.back();
-                          DefaultTabController.of(context).index = index;
+                          _controller.tabController?.index = index;
                         },
                       );
                     },

@@ -41,12 +41,19 @@ TextSpan? richNode(
       // 动态页面 richTextNodes 层级可能与主页动态层级不同
       richTextNodes = summary?.richTextNodes;
       if (title != null && title.isNotEmpty) {
-        spanChildren.add(
-          TextSpan(
-            text: '$title\n',
+        if (richTextNodes == null || richTextNodes.isEmpty) {
+          return TextSpan(
+            text: title,
             style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-        );
+          );
+        } else {
+          spanChildren.add(
+            TextSpan(
+              text: '$title\n',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          );
+        }
       }
     }
 

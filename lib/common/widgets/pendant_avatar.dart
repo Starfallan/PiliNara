@@ -15,11 +15,13 @@ class PendantAvatar extends StatelessWidget {
   final String? garbPendantImage;
   final int? roomId;
   final VoidCallback? onTap;
+  final bool isMemberAvatar;
 
   const PendantAvatar({
     super.key,
     required this.avatar,
-    this.size = 80,
+    required this.size,
+    this.isMemberAvatar = false,
     double? badgeSize,
     bool isVip = false,
     int? officialType,
@@ -42,13 +44,12 @@ class PendantAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final isMemberAvatar = size == 80;
     Widget? pendant;
     if (showDynDecorate && !garbPendantImage.isNullOrEmpty) {
       final pendantSize = size * 1.75;
       pendant = Positioned(
         // -(size * 1.75 - size) / 2
-        top: -0.375 * size + (size == 80 ? 2 : 0),
+        top: -0.375 * size + (isMemberAvatar ? 2 : 0),
         child: IgnorePointer(
           child: NetworkImgLayer(
             type: .emote,

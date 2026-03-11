@@ -21,6 +21,7 @@ import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 class LivePage extends StatefulWidget {
   const LivePage({super.key});
@@ -130,6 +131,20 @@ class _LivePageState extends State<LivePage>
                     ),
                     iconButton(
                       size: 26,
+                      iconSize: 18,
+                      context: context,
+                      tooltip: '切换${controller.showFirstFrame ? '封面' : '首帧'}',
+                      icon: controller.showFirstFrame
+                          ? const Icon(MdiIcons.alphaFBox)
+                          : const Icon(MdiIcons.image),
+                      onPressed: () {
+                        controller.showFirstFrame = !controller.showFirstFrame;
+                        setState(() {});
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    iconButton(
+                      size: 26,
                       iconSize: 16,
                       context: context,
                       tooltip: '游戏赛事',
@@ -224,9 +239,13 @@ class _LivePageState extends State<LivePage>
                     if (item is LiveCardList) {
                       return LiveCardVApp(
                         item: item.cardData!.smallCardV1!,
+                        showFirstFrame: controller.showFirstFrame,
                       );
                     }
-                    return LiveCardVApp(item: item);
+                    return LiveCardVApp(
+                      item: item,
+                      showFirstFrame: controller.showFirstFrame,
+                    );
                   },
                   itemCount: response.length,
                 )
