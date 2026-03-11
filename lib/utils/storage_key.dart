@@ -201,7 +201,7 @@ abstract final class SettingBoxKey {
       mergeDanmakuSkipSubtitle = 'mergeDanmakuSkipSubtitle',
       mergeDanmakuSkipAdvanced = 'mergeDanmakuSkipAdvanced',
       mergeDanmakuSkipBottom = 'mergeDanmakuSkipBottom',
-      mergeDanmakuMarkAtTail = 'mergeDanmakuMarkAtTail',
+      mergeDanmakuMarkPosition = 'mergeDanmakuMarkPosition',
       mergeDanmakuMarkThreshold = 'mergeDanmakuMarkThreshold',
       danmakuEnlargeThreshold = 'danmakuEnlargeThreshold',
       danmakuEnlargeLogBase = 'danmakuEnlargeLogBase',

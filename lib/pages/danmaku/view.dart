@@ -135,11 +135,14 @@ class _PlDanmakuState extends State<PlDanmaku> {
           final displayCount = e.count > Pref.mergeDanmakuMarkThreshold
               ? e.count
               : null;
+          final preferredCountPosition = switch (Pref.mergeDanmakuMarkPosition) {
+            0 => DanmakuCountPosition.hidden,
+            2 => DanmakuCountPosition.tail,
+            _ => DanmakuCountPosition.head,
+          };
           final countPosition = displayCount == null
               ? DanmakuCountPosition.hidden
-              : Pref.mergeDanmakuMarkAtTail
-              ? DanmakuCountPosition.tail
-              : DanmakuCountPosition.head;
+              : preferredCountPosition;
           // Apply fontSize for merged danmaku (count > 1)
           // e.fontsize contains base * enlargeRate, multiply by user's scale
           double? itemFontSize;
