@@ -508,13 +508,17 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         return null;
       }
     }
-    plPlayerController = videoDetailController.plPlayerController;
+    final plPlayerController = this.plPlayerController =
+        videoDetailController.plPlayerController;
     videoDetailController.autoPlay = true;
-    plPlayerController!
+    plPlayerController
       ..addStatusLister(playerListener)
       ..addPositionListener(positionListener);
-    if (videoDetailController.plPlayerController.preInitPlayer) {
-      return plPlayerController!.play();
+    if (plPlayerController.preInitPlayer) {
+      if (plPlayerController.autoEnterFullScreen) {
+        plPlayerController.triggerFullScreen();
+      }
+      return plPlayerController.play();
     } else {
       return videoDetailController.playerInit(
         autoplay: true,
