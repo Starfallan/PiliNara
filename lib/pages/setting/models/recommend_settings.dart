@@ -9,7 +9,7 @@ import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 List<SettingsModel> get recommendSettings => [
   const SwitchModel(
@@ -108,7 +108,8 @@ List<SettingsModel> get recommendSettings => [
         : '仅对首页 app 端推荐生效，请先开启“首页使用app端推荐”',
     getTrailing: (_) => StreamBuilder<BoxEvent>(
       stream: GStorage.setting.watch().where(
-        (event) => event.key == SettingBoxKey.appRcmd ||
+        (event) =>
+            event.key == SettingBoxKey.appRcmd ||
             event.key == SettingBoxKey.removeBlockedRcmd,
       ),
       builder: (_, __) => Switch(

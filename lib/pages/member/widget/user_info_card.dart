@@ -429,7 +429,7 @@ class UserInfoCard extends StatelessWidget {
   );
 
   Widget _buildAvatar(bool hasPendant) => fromHero(
-    tag: card.face ?? '',
+    tag: '${card.face}$hashCode',
     child: PendantAvatar(
       avatar: card.face,
       size: hasPendant ? kPendantAvatarSize : kAvatarSize,
@@ -440,6 +440,7 @@ class UserInfoCard extends StatelessWidget {
       garbPendantImage: card.pendant?.image,
       roomId: live?.liveStatus == 1 ? live!.roomid : null,
       onTap: () => PageUtils.imageView(
+        tag: hashCode.toString(),
         imgList: [SourceModel(url: card.face.http2https)],
       ),
     ),

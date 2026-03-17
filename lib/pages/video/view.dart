@@ -5,12 +5,12 @@ import 'dart:ui';
 
 import 'package:PiliPlus/common/constants.dart';
 import 'package:PiliPlus/common/widgets/custom_icon.dart';
+import 'package:PiliPlus/common/widgets/flutter/pop_scope.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
-import 'package:PiliPlus/common/widgets/image_viewer/hero_dialog_route.dart';
 import 'package:PiliPlus/common/widgets/keep_alive_wrapper.dart';
+import 'package:PiliPlus/common/widgets/route_aware_mixin.dart';
 import 'package:PiliPlus/common/widgets/scroll_physics.dart';
 import 'package:PiliPlus/common/widgets/sliver/sliver_pinned_dynamic_header.dart';
-import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/main.dart';
 import 'package:PiliPlus/models/common/episode_panel_type.dart';
 import 'package:PiliPlus/models_new/pgc/pgc_info_model/result.dart';
@@ -46,12 +46,12 @@ import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
 import 'package:PiliPlus/plugin/pl_player/view/view.dart';
-import 'package:PiliPlus/services/service_locator.dart';
-import 'package:PiliPlus/services/shutdown_timer_service.dart'
-    show ShutdownTimerService, shutdownTimerService;
+import 'package:PiliPlus/services/live_pip_overlay_service.dart';
 import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/services/pip_overlay_service.dart';
-import 'package:PiliPlus/services/live_pip_overlay_service.dart';
+import 'package:PiliPlus/services/service_locator.dart';
+import 'package:PiliPlus/services/shutdown_timer_service.dart'
+    show shutdownTimerService;
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/extension/scroll_controller_ext.dart';
@@ -60,9 +60,9 @@ import 'package:PiliPlus/utils/image_utils.dart';
 import 'package:PiliPlus/utils/num_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
-import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:auto_orientation/auto_orientation.dart';
 import 'package:extended_nested_scroll_view/extended_nested_scroll_view.dart';
 import 'package:floating/floating.dart';
@@ -82,7 +82,11 @@ class VideoDetailPageV extends StatefulWidget {
 }
 
 class _VideoDetailPageVState extends State<VideoDetailPageV>
-    with TickerProviderStateMixin, RouteAware, WidgetsBindingObserver {
+    with
+        TickerProviderStateMixin,
+        RouteAware,
+        RouteAwareMixin,
+        WidgetsBindingObserver {
   final heroTag = Get.arguments['heroTag'];
 
   late final VideoDetailController videoDetailController;
@@ -91,7 +95,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
   // 标志位：是否正在进入 PiP 模式（用于防止 dispose/didPushNext 时清理播放器状态）
   bool _isEnteringPipMode = false;
-  
+
   // 标志位：是否刚从 PiP 返回（用于触发 UI 重建）
   bool _justReturnedFromPip = false;
 
@@ -152,35 +156,39 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     final String? targetContextKey = PipOverlayService.contextKeyFromArgs(
       Get.arguments is Map ? Get.arguments as Map : null,
     );
-    
+
     // 如果有直播间 PiP 在运行，关闭它（采用非销毁式，避免干扰视频播放器单例）
     if (LivePipOverlayService.isInPipMode && !fromPip) {
       LivePipOverlayService.stopLivePip(callOnClose: false);
     }
-    
+
     PlPlayerController.setPlayCallBack(playCallBack);
-    
+
     // 如果从 PiP 返回，尝试恢复保存的控制器
     if (fromPip && PipOverlayService.isInPipMode) {
-      final savedController = PipOverlayService.getSavedController<VideoDetailController>();
+      final savedController =
+          PipOverlayService.getSavedController<VideoDetailController>();
       if (savedController != null) {
         // 直接使用保存的控制器
         videoDetailController = savedController;
         videoDetailController.isEnteringPip = false; // 重置标志
         Get.put(savedController, tag: heroTag);
-        
+
         // 强制重置一些可能在 dispose 时被清理但我们需要的东西
-        if (videoDetailController.tabCtr.index < 0) { // 检查是否已销毁
-           // 这里很难检测 TabController 是否已销毁，但可以通过 length 触发重新创建
+        if (videoDetailController.tabCtr.index < 0) {
+          // 检查是否已销毁
+          // 这里很难检测 TabController 是否已销毁，但可以通过 length 触发重新创建
         }
-        
+
         PipOverlayService.stopPip(
           callOnClose: false,
           immediate: true,
           targetContextKey: targetContextKey,
         );
-        _logSponsorBlock('Restored controller from PiP, hashCode: ${savedController.hashCode}, segmentList.length: ${savedController.segmentList.length}');
-        
+        _logSponsorBlock(
+          'Restored controller from PiP, hashCode: ${savedController.hashCode}, segmentList.length: ${savedController.segmentList.length}',
+        );
+
         // 强制刷新 UI 状态
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
@@ -208,7 +216,11 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
     if (videoDetailController.showReply) {
       // 尝试从 PiP 恢复 ReplyController
-      final savedReplyController = fromPip ? PipOverlayService.getAdditionalController<VideoReplyController>('reply') : null;
+      final savedReplyController = fromPip
+          ? PipOverlayService.getAdditionalController<VideoReplyController>(
+              'reply',
+            )
+          : null;
       if (savedReplyController != null) {
         _videoReplyController = savedReplyController;
         _videoReplyController.isEnteringPip = false; // 重置标志
@@ -227,10 +239,13 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     }
 
     // 尝试从 PiP 恢复 IntroController
-    final savedIntroController = fromPip ? PipOverlayService.getAdditionalController('intro') : null;
-    
+    final savedIntroController = fromPip
+        ? PipOverlayService.getAdditionalController('intro')
+        : null;
+
     if (videoDetailController.isFileSource) {
-      if (savedIntroController != null && savedIntroController is LocalIntroController) {
+      if (savedIntroController != null &&
+          savedIntroController is LocalIntroController) {
         localIntroController = savedIntroController;
         localIntroController.isEnteringPip = false; // 重置标志
         Get.put(localIntroController, tag: heroTag);
@@ -239,16 +254,20 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         localIntroController = Get.put(LocalIntroController(), tag: heroTag);
       }
     } else if (videoDetailController.isUgc) {
-      if (savedIntroController != null && savedIntroController is UgcIntroController) {
+      if (savedIntroController != null &&
+          savedIntroController is UgcIntroController) {
         ugcIntroController = savedIntroController;
         ugcIntroController.isEnteringPip = false; // 重置标志
         Get.put(ugcIntroController, tag: heroTag);
-        _logSponsorBlock('Restored UgcIntroController from PiP, videoDetail.bvid: ${ugcIntroController.videoDetail.value.bvid}');
+        _logSponsorBlock(
+          'Restored UgcIntroController from PiP, videoDetail.bvid: ${ugcIntroController.videoDetail.value.bvid}',
+        );
       } else {
         ugcIntroController = Get.put(UgcIntroController(), tag: heroTag);
       }
     } else {
-      if (savedIntroController != null && savedIntroController is PgcIntroController) {
+      if (savedIntroController != null &&
+          savedIntroController is PgcIntroController) {
         pgcIntroController = savedIntroController;
         pgcIntroController.isEnteringPip = false; // 重置标志
         Get.put(pgcIntroController, tag: heroTag);
@@ -260,9 +279,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
     if (fromPip) {
       _justReturnedFromPip = true;
-      
+
       plPlayerController = videoDetailController.plPlayerController;
-      
+
       // 重新创建 TabController，因为旧的 vsync (State) 已经失效
       final List<String> initialTabs = [
         videoDetailController.isFileSource ? '离线视频' : '简介',
@@ -271,9 +290,12 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       videoDetailController.tabCtr = TabController(
         vsync: this,
         length: initialTabs.length,
-        initialIndex: videoDetailController.tabCtr.index.clamp(0, initialTabs.length - 1),
+        initialIndex: videoDetailController.tabCtr.index.clamp(
+          0,
+          initialTabs.length - 1,
+        ),
       );
-      
+
       plPlayerController!
         ..addStatusLister(playerListener)
         ..addPositionListener(positionListener);
@@ -286,8 +308,12 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       }
       plPlayerController!.controls = true;
 
-      _logSponsorBlock('Returning from PiP, segmentList.length: ${videoDetailController.segmentList.length}');
-      _logSponsorBlock('videoDetailController status: videoState=${videoDetailController.videoState.value}, isClosed=${videoDetailController.isClosed}');
+      _logSponsorBlock(
+        'Returning from PiP, segmentList.length: ${videoDetailController.segmentList.length}',
+      );
+      _logSponsorBlock(
+        'videoDetailController status: videoState=${videoDetailController.videoState.value}, isClosed=${videoDetailController.isClosed}',
+      );
 
       // 立即调用 setState 触发 build
       if (mounted) {
@@ -295,60 +321,72 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
           _justReturnedFromPip = false;
         });
       }
-      
+
       // 然后在下一帧刷新所有 observable
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        
+
         _logSponsorBlock('First postFrameCallback executing');
-        
+
         videoDetailController.videoState.refresh();
         videoDetailController.cid.refresh();
         videoDetailController.cover.refresh();
-        
+
         // 确保 IntroController 的数据被 UI 识别
-        if (videoDetailController.isUgc && savedIntroController is UgcIntroController) {
-          _logSponsorBlock('UgcIntroController status: ${savedIntroController.status.value}, videoDetail items: ${savedIntroController.videoDetail.value.pages?.length}');
+        if (videoDetailController.isUgc &&
+            savedIntroController is UgcIntroController) {
+          _logSponsorBlock(
+            'UgcIntroController status: ${savedIntroController.status.value}, videoDetail items: ${savedIntroController.videoDetail.value.pages?.length}',
+          );
           savedIntroController.videoDetail.refresh();
           savedIntroController.status.refresh();
           savedIntroController.update();
-        } else if (!videoDetailController.isUgc && !videoDetailController.isFileSource && savedIntroController is PgcIntroController) {
+        } else if (!videoDetailController.isUgc &&
+            !videoDetailController.isFileSource &&
+            savedIntroController is PgcIntroController) {
           savedIntroController.videoDetail.refresh();
           savedIntroController.update();
-        } else if (videoDetailController.isFileSource && savedIntroController is LocalIntroController) {
+        } else if (videoDetailController.isFileSource &&
+            savedIntroController is LocalIntroController) {
           savedIntroController.videoDetail.refresh();
           savedIntroController.update();
         }
-        
+
         // 同样刷新 ReplyController
         if (videoDetailController.showReply) {
           try {
-            final replyController = Get.find<VideoReplyController>(tag: heroTag);
+            final replyController = Get.find<VideoReplyController>(
+              tag: heroTag,
+            );
             replyController.update();
             _logSponsorBlock('Forced UI refresh for VideoReplyController');
           } catch (e) {
             _logSponsorBlock('Failed to refresh VideoReplyController: $e');
           }
         }
-        
+
         // 强制 VideoDetailController 也更新
         videoDetailController.update();
-        
+
         // 再次触发 setState 确保本组件重绘
         if (mounted) setState(() {});
-        
+
         _logSponsorBlock('Completed postFrameCallback UI refresh');
       });
-      
+
       // 确保 SponsorBlock 监听器正常工作
       // 从 PiP 返回时，必须重新创建 positionSubscription，因为是新页面实例
-      if (videoDetailController.plPlayerController.enableSponsorBlock && 
+      if (videoDetailController.plPlayerController.enableSponsorBlock &&
           videoDetailController.segmentList.isNotEmpty) {
-        _logSponsorBlock('Re-creating position subscription for new page instance');
+        _logSponsorBlock(
+          'Re-creating position subscription for new page instance',
+        );
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             videoDetailController.initSkip();
-            _logSponsorBlock('Re-initialized SponsorBlock after PiP return, segmentList.length: ${videoDetailController.segmentList.length}');
+            _logSponsorBlock(
+              'Re-initialized SponsorBlock after PiP return, segmentList.length: ${videoDetailController.segmentList.length}',
+            );
           }
         });
       }
@@ -548,7 +586,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       PlPlayerController.setPlayCallBack(null);
     }
 
-    if (!videoDetailController.isFileSource && !isInAppPip && !_isEnteringPipMode) {
+    if (!videoDetailController.isFileSource &&
+        !isInAppPip &&
+        !_isEnteringPipMode) {
       if (videoDetailController.isUgc) {
         ugcIntroController
           ..cancelTimer()
@@ -573,7 +613,6 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         }
       }
     }
-    PageUtils.routeObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     if (PlatformUtils.isMobile) {
       showStatusBar();
@@ -584,10 +623,8 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   @override
   // 离开当前页面时
   void didPushNext() {
-    if (Get.routing.route is HeroDialogRoute) {
-      videoDetailController.imageview = true;
-      return;
-    }
+    super.didPushNext();
+    isShowing = false;
 
     WidgetsBinding.instance.removeObserver(this);
 
@@ -595,61 +632,58 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       ScreenBrightnessPlatform.instance.resetApplicationScreenBrightness();
     }
 
-    // 判断是否即将开启应用内小窗
+    // 2. 计算小窗触发状态（PiliNara 核心逻辑）
     final bool willStartPip =
         plPlayerController != null &&
         plPlayerController!.playerStatus.isPlaying &&
         !plPlayerController!.isFullScreen.value &&
         _shouldStartInAppPip();
 
-    // 只在非 PiP 模式且即将不开启小窗时取消 blockListener
-    if (!_isEnteringPipMode && !PipOverlayService.isInPipMode && !willStartPip) {
-      _logSponsorBlock(
-        'didPushNext() cancelling blockListener (not entering PiP)',
-      );
-      videoDetailController.cancelBlockListener();
-    } else {
-      _logSponsorBlock(
-        'didPushNext() preserving blockListener (entering PiP or in PiP mode)',
-      );
-    }
+    // 确定是否需要释放/暂停资源
+    final bool shouldKeepAlive =
+        _isEnteringPipMode || PipOverlayService.isInPipMode || willStartPip;
 
     introController.cancelTimer();
 
+    // 3. 合并上游级联赋值，同时条件拦截 cancelBlockListener
     videoDetailController
+      ..videoState.value =
+          false // 上游新增：标记视频状态
       ..playerStatus = plPlayerController?.playerStatus.value
       ..brightness = plPlayerController?.brightness.value;
+
+    // PiliNara 逻辑：非小窗状态才取消拦截器
+    if (!shouldKeepAlive) {
+      _logSponsorBlock('didPushNext() cancelling blockListener');
+      videoDetailController.cancelBlockListener();
+    }
+
+    // 4. 处理播放器实例
     if (plPlayerController != null) {
       videoDetailController.makeHeartBeat();
       plPlayerController!
         ..removeStatusLister(playerListener)
         ..removePositionListener(positionListener);
 
-      // 如果满足开启小窗条件
       if (willStartPip) {
         _startInAppPipIfNeeded();
-      } else {
-        // 只在非 PiP 模式时暂停
-        if (!_isEnteringPipMode && !PipOverlayService.isInPipMode && !willStartPip) {
-          plPlayerController!.pause();
-        }
+      } else if (!shouldKeepAlive) {
+        // 只有在确定不进入小窗时才暂停播放
+        plPlayerController!.pause();
       }
     }
-    isShowing = false;
-    super.didPushNext();
   }
 
   @override
   // 返回当前页面时
   void didPopNext() {
-    if (videoDetailController.imageview) {
-      videoDetailController.imageview = false;
+    super.didPopNext();
+
+    if (plPlayerController?.isCloseAll ?? false) {
       return;
     }
 
-    if (plPlayerController?.isCloseAll == true) {
-      return;
-    }
+    isShowing = true;
 
     WidgetsBinding.instance.addObserver(this);
 
@@ -698,13 +732,12 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       videoDetailController.plPlayerController.pause();
     }
 
-    isShowing = true;
     PlPlayerController.setPlayCallBack(playCallBack);
 
     introController.startTimer();
 
     // 重新恢复 SponsorBlock (针对常规导航返回)
-    if (videoDetailController.plPlayerController.enableSponsorBlock && 
+    if (videoDetailController.plPlayerController.enableSponsorBlock &&
         videoDetailController.segmentList.isNotEmpty) {
       videoDetailController.initSkip();
     }
@@ -736,21 +769,14 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       );
     } else if (videoDetailController.plPlayerController.preInitPlayer &&
         !videoDetailController.isQuerying &&
-        videoDetailController.videoState.value is! Error) {
+        videoDetailController.videoUrl != null) {
       videoDetailController.playerInit();
     }
-
-    super.didPopNext();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    PageUtils.routeObserver.subscribe(
-      this,
-      ModalRoute.of(context)! as PageRoute,
-    );
-
     padding = MediaQuery.viewPaddingOf(context);
 
     final size = MediaQuery.sizeOf(context);
@@ -814,9 +840,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       ..addListener(animListener);
     if (PlatformUtils.isMobile && mounted && isShowing && !isFullScreen) {
       if (isPortrait) {
-        if (!videoDetailController.imageview) {
-          showStatusBar();
-        }
+        showStatusBar();
       } else if (!videoDetailController.horizontalScreen) {
         hideStatusBar();
       }
@@ -1361,7 +1385,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                           localIntroPanel()
                         else if (showIntro)
                           KeepAliveWrapper(
-                            builder: (context) => CustomScrollView(
+                            child: CustomScrollView(
                               key: const PageStorageKey(CommonIntroController),
                               controller:
                                   videoDetailController.effectiveIntroScrollCtr,
@@ -1618,7 +1642,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     required double width,
     required double height,
     bool isPipMode = false,
-  }) => PopScope(
+  }) => popScope(
     key: videoDetailController.videoPlayerKey,
     canPop:
         !isFullScreen &&
@@ -1627,7 +1651,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     onPopInvokedWithResult: _onPopInvokedWithResult,
     child: Obx(
       () =>
-          videoDetailController.videoState.value is! Success ||
+          !videoDetailController.videoState.value ||
               !videoDetailController.autoPlay ||
               plPlayerController?.videoController == null
           ? const SizedBox.shrink()
@@ -1866,7 +1890,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       children: [
         const Positioned.fill(child: ColoredBox(color: Colors.black)),
 
-        if (isShowing) plPlayer(width: width, height: height),
+        plPlayer(width: width, height: height),
 
         Obx(() {
           if (!videoDetailController.autoPlay) {
@@ -2050,75 +2074,76 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     if (videoDetailController.isFileSource) {
       return localIntroPanel(needCtr: needCtr);
     }
-    Widget introPanel() => KeepAliveWrapper(
-      builder: (context) {
-        final child = CustomScrollView(
-          key: const PageStorageKey(CommonIntroController),
-          controller: needCtr
-              ? videoDetailController.effectiveIntroScrollCtr
-              : null,
-          physics: !needCtr
-              ? const AlwaysScrollableScrollPhysics(
-                  parent: ClampingScrollPhysics(),
-                )
-              : null,
-          slivers: [
-            if (videoDetailController.isUgc) ...[
-              UgcIntroPanel(
-                key: videoIntroKey,
-                heroTag: heroTag,
-                showAiBottomSheet: showAiBottomSheet,
-                showEpisodes: showEpisodes,
-                onShowMemberPage: onShowMemberPage,
-                isPortrait: isPortrait,
-                isHorizontal: isHorizontal ?? width! / height! >= kScreenRatio,
-              ),
-              if (needRelated && videoDetailController.showRelatedVideo) ...[
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: StyleString.safeSpace),
-                    child: Divider(
-                      height: 1,
-                      indent: 12,
-                      endIndent: 12,
-                      color: themeData.colorScheme.outline.withValues(
-                        alpha: 0.08,
-                      ),
+    Widget introPanel() {
+      Widget child = CustomScrollView(
+        key: const PageStorageKey(CommonIntroController),
+        controller: needCtr
+            ? videoDetailController.effectiveIntroScrollCtr
+            : null,
+        physics: !needCtr
+            ? const AlwaysScrollableScrollPhysics(
+                parent: ClampingScrollPhysics(),
+              )
+            : null,
+        slivers: [
+          if (videoDetailController.isUgc) ...[
+            UgcIntroPanel(
+              key: videoIntroKey,
+              heroTag: heroTag,
+              showAiBottomSheet: showAiBottomSheet,
+              showEpisodes: showEpisodes,
+              onShowMemberPage: onShowMemberPage,
+              isPortrait: isPortrait,
+              isHorizontal: isHorizontal ?? width! / height! >= kScreenRatio,
+            ),
+            if (needRelated && videoDetailController.showRelatedVideo) ...[
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(
+                    top: StyleString.safeSpace,
+                  ),
+                  child: Divider(
+                    height: 1,
+                    indent: 12,
+                    endIndent: 12,
+                    color: themeData.colorScheme.outline.withValues(
+                      alpha: 0.08,
                     ),
                   ),
                 ),
-                RelatedVideoPanel(key: videoRelatedKey, heroTag: heroTag),
-              ],
-            ] else
-              PgcIntroPage(
-                key: videoIntroKey,
-                heroTag: heroTag,
-                cid: videoDetailController.cid.value,
-                showEpisodes: showEpisodes,
-                showIntroDetail: showIntroDetail,
-                maxWidth: width ?? maxWidth,
-                isLandscape: !isPortrait,
               ),
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height:
-                    (videoDetailController.isPlayAll && !isPortrait
-                        ? 80
-                        : StyleString.safeSpace) +
-                    padding.bottom,
-              ),
+              RelatedVideoPanel(key: videoRelatedKey, heroTag: heroTag),
+            ],
+          ] else
+            PgcIntroPage(
+              key: videoIntroKey,
+              heroTag: heroTag,
+              cid: videoDetailController.cid.value,
+              showEpisodes: showEpisodes,
+              showIntroDetail: showIntroDetail,
+              maxWidth: width ?? maxWidth,
+              isLandscape: !isPortrait,
             ),
-          ],
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height:
+                  (videoDetailController.isPlayAll && !isPortrait
+                      ? 80
+                      : StyleString.safeSpace) +
+                  padding.bottom,
+            ),
+          ),
+        ],
+      );
+      if (isNested) {
+        child = ExtendedVisibilityDetector(
+          uniqueKey: const Key('intro-panel'),
+          child: child,
         );
-        if (isNested) {
-          return ExtendedVisibilityDetector(
-            uniqueKey: const Key('intro-panel'),
-            child: child,
-          );
-        }
-        return child;
-      },
-    );
+      }
+      return KeepAliveWrapper(child: child);
+    }
+
     if (videoDetailController.isPlayAll) {
       return Stack(
         clipBehavior: Clip.none,
@@ -2171,7 +2196,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   Widget get seasonPanel {
     final videoDetail = ugcIntroController.videoDetail.value;
     return KeepAliveWrapper(
-      builder: (context) => Column(
+      child: Column(
         children: [
           if ((videoDetail.pages?.length ?? 0) > 1)
             if (videoDetail.ugcSeason != null)
@@ -2478,7 +2503,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   }
 
   bool _shouldStartInAppPip() {
-    _logSponsorBlock('Checking PiP: count=${VideoStackManager.getCount()}, previousRoute=${Get.previousRoute}');
+    _logSponsorBlock(
+      'Checking PiP: count=${VideoStackManager.getCount()}, previousRoute=${Get.previousRoute}',
+    );
     if (!Pref.enableInAppPip) {
       _logSponsorBlock('Reject PiP: in-app PiP is disabled in settings');
       return false;
@@ -2494,7 +2521,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       return false;
     }
     if (controller.isDesktopPip || controller.isPipMode) {
-      _logSponsorBlock('Reject PiP: isDesktopPip=${controller.isDesktopPip}, isPipMode=${controller.isPipMode}');
+      _logSponsorBlock(
+        'Reject PiP: isDesktopPip=${controller.isDesktopPip}, isPipMode=${controller.isPipMode}',
+      );
       return false;
     }
     if (!videoDetailController.autoPlay) {
@@ -2511,10 +2540,15 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     final prevRoute = Get.previousRoute;
     if (VideoStackManager.isReturningToVideo()) {
       // 如果返回的页面不是视频或直播详情页，允许开启小窗
-      if (!prevRoute.startsWith('/video') && !prevRoute.startsWith('/liveRoom')) {
-        _logSponsorBlock('Allowing PiP: Returning to non-video page ($prevRoute)');
+      if (!prevRoute.startsWith('/video') &&
+          !prevRoute.startsWith('/liveRoom')) {
+        _logSponsorBlock(
+          'Allowing PiP: Returning to non-video page ($prevRoute)',
+        );
       } else {
-        _logSponsorBlock('Reject PiP: isReturningToVideo is true (Stack Count = ${VideoStackManager.getCount()}, Previous = $prevRoute)');
+        _logSponsorBlock(
+          'Reject PiP: isReturningToVideo is true (Stack Count = ${VideoStackManager.getCount()}, Previous = $prevRoute)',
+        );
         return false;
       }
     }
@@ -2528,7 +2562,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
     // 设置标志，防止 didPushNext 清理 SponsorBlock 数据
     _isEnteringPipMode = true;
-    _logSponsorBlock('Starting PiP mode, segmentList.length: ${videoDetailController.segmentList.length}');
+    _logSponsorBlock(
+      'Starting PiP mode, segmentList.length: ${videoDetailController.segmentList.length}',
+    );
 
     // 设置控制器标志，防止 onClose 清理资源
     videoDetailController.isEnteringPip = true;
@@ -2561,7 +2597,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         additionalControllers['intro'] = intro;
       } catch (_) {}
     }
-    _logSponsorBlock('Saved ${additionalControllers.length} additional controllers');
+    _logSponsorBlock(
+      'Saved ${additionalControllers.length} additional controllers',
+    );
 
     PipOverlayService.startPip(
       plPlayerController: plPlayerController!,
@@ -2580,7 +2618,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       },
       onTapToReturn: () {
         // 不取消 position subscription，让它在新页面继续工作
-        _logSponsorBlock('Returning from PiP, positionSubscription will be preserved');
+        _logSponsorBlock(
+          'Returning from PiP, positionSubscription will be preserved',
+        );
         final currentPosition = plPlayerController?.position;
         final args = Map<String, dynamic>.from(videoDetailController.args);
         final progress =
@@ -2590,11 +2630,13 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
           args['progress'] = progress;
         }
         args['fromPip'] = true;
-        
+
         // 重置标志
         _isEnteringPipMode = false;
-        _logSponsorBlock('Tap to return from PiP, args contains: bvid=${args['bvid']}, cid=${args['cid']}, heroTag=${args['heroTag']}, title=${args['title']}, segmentList.length: ${videoDetailController.segmentList.length}');
-        
+        _logSponsorBlock(
+          'Tap to return from PiP, args contains: bvid=${args['bvid']}, cid=${args['cid']}, heroTag=${args['heroTag']}, title=${args['title']}, segmentList.length: ${videoDetailController.segmentList.length}',
+        );
+
         Get.toNamed('/videoV', arguments: args);
       },
     );
