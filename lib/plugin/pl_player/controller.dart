@@ -965,8 +965,6 @@ class PlPlayerController with BlockConfigMixin {
         androidAttachSurfaceAfterVideoParameters: false,
         vo: vo,
         hwdec: enableHA ? hwdec : null,
-        usePlatformView: platformView,
-        useHCPP: platformViewHCPP,
       ),
     );
 
