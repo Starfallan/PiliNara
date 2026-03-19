@@ -709,18 +709,25 @@ class ReplyItemGrpc extends StatelessWidget {
           matchStr = matchStr.replaceAll('：', ':');
           bool isValid = false;
           final heroTag = getTag?.call() ?? Get.arguments?['heroTag'];
+          if (kDebugMode) {
+            debugPrint('Validating timestamp: $matchStr with tag: $heroTag');
+          }
           try {
             final ctr = Get.find<VideoDetailController>(tag: heroTag);
             isValid =
                 DurationUtils.parseDuration(matchStr) * 1000 <=
                 ctr.data.timeLength!;
+            if (kDebugMode) debugPrint('Found VideoDetailController, isValid: $isValid');
           } catch (_) {
             try {
               final ctr = Get.find<AudioController>(tag: heroTag);
               isValid =
                   DurationUtils.parseDuration(matchStr) * 1000 <=
                   ctr.duration.value.inMilliseconds;
-            } catch (_) {}
+              if (kDebugMode) debugPrint('Found AudioController, isValid: $isValid');
+            } catch (e) {
+              if (kDebugMode) debugPrint('No controller found for tag: $heroTag, error: $e');
+            }
           }
           spanChildren.add(
             TextSpan(
@@ -733,28 +740,33 @@ class ReplyItemGrpc extends StatelessWidget {
                       ..onTap = () {
                         // 跳转到指定位置
                         try {
+                          final heroTag =
+                              getTag?.call() ?? Get.arguments?['heroTag'];
+                          final duration = Duration(
+                            seconds: DurationUtils.parseDuration(matchStr),
+                          );
                           SmartDialog.showToast('跳转至：$matchStr');
-                          final heroTag = Get.arguments?['heroTag'];
+                          if (kDebugMode) {
+                            debugPrint('Seeking to $duration with tag: $heroTag');
+                          }
                           try {
-                            Get.find<VideoDetailController>(tag: heroTag)
-                                .plPlayerController
-                                .seekTo(
-                                  Duration(
-                                    seconds:
-                                        DurationUtils.parseDuration(matchStr),
-                                  ),
-                                  isSeek: false,
-                                );
+                            final ctr = Get.find<VideoDetailController>(tag: heroTag);
+                            if (kDebugMode) debugPrint('Seeking VideoDetailController');
+                            ctr.plPlayerController.seekTo(
+                              duration,
+                              isSeek: false,
+                            );
                           } catch (_) {
-                            Get.find<AudioController>(tag: heroTag).seekTo(
-                              Duration(
-                                seconds: DurationUtils.parseDuration(matchStr),
-                              ),
+                            final ctr = Get.find<AudioController>(tag: heroTag);
+                            if (kDebugMode) debugPrint('Seeking AudioController');
+                            ctr.seekTo(
+                              duration,
                               isSeek: false,
                             );
                           }
                         } catch (e) {
                           SmartDialog.showToast('跳转失败: $e');
+                          if (kDebugMode) debugPrint('Seek error: $e');
                         }
                       })
                   : null,
