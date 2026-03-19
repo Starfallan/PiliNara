@@ -48,6 +48,10 @@ class VideoReplyReplyPanel extends CommonSlidePage {
   @override
   State<VideoReplyReplyPanel> createState() => _VideoReplyReplyPanelState();
 
+  static Future<void>? toReply({
+    required int oid,
+    required int rootId,
+    String? rpIdStr,
     required int type,
     String? heroTag,
     Uri? uri,
