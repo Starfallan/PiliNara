@@ -16,6 +16,7 @@ import 'package:PiliPlus/models/common/badge_type.dart';
 import 'package:PiliPlus/models/common/image_type.dart';
 import 'package:PiliPlus/pages/dynamics/widgets/vote.dart';
 import 'package:PiliPlus/pages/save_panel/view.dart';
+import 'package:PiliPlus/pages/audio/controller.dart';
 import 'package:PiliPlus/pages/video/controller.dart';
 import 'package:PiliPlus/pages/video/reply/widgets/zan_grpc.dart';
 import 'package:PiliPlus/utils/accounts.dart';
@@ -707,15 +708,19 @@ class ReplyItemGrpc extends StatelessWidget {
         } else if (_timeRegExp.hasMatch(matchStr)) {
           matchStr = matchStr.replaceAll('：', ':');
           bool isValid = false;
+          final heroTag = getTag?.call() ?? Get.arguments?['heroTag'];
           try {
-            final ctr = Get.find<VideoDetailController>(
-              tag: getTag?.call() ?? Get.arguments['heroTag'],
-            );
+            final ctr = Get.find<VideoDetailController>(tag: heroTag);
             isValid =
                 DurationUtils.parseDuration(matchStr) * 1000 <=
                 ctr.data.timeLength!;
-          } catch (e) {
-            if (kDebugMode) debugPrint('failed to validate: $e');
+          } catch (_) {
+            try {
+              final ctr = Get.find<AudioController>(tag: heroTag);
+              isValid =
+                  DurationUtils.parseDuration(matchStr) * 1000 <=
+                  ctr.duration.value.inMilliseconds;
+            } catch (_) {}
           }
           spanChildren.add(
             TextSpan(
@@ -729,14 +734,25 @@ class ReplyItemGrpc extends StatelessWidget {
                         // 跳转到指定位置
                         try {
                           SmartDialog.showToast('跳转至：$matchStr');
-                          Get.find<VideoDetailController>(
-                            tag: Get.arguments['heroTag'],
-                          ).plPlayerController.seekTo(
-                            Duration(
-                              seconds: DurationUtils.parseDuration(matchStr),
-                            ),
-                            isSeek: false,
-                          );
+                          final heroTag = Get.arguments?['heroTag'];
+                          try {
+                            Get.find<VideoDetailController>(tag: heroTag)
+                                .plPlayerController
+                                .seekTo(
+                                  Duration(
+                                    seconds:
+                                        DurationUtils.parseDuration(matchStr),
+                                  ),
+                                  isSeek: false,
+                                );
+                          } catch (_) {
+                            Get.find<AudioController>(tag: heroTag).seekTo(
+                              Duration(
+                                seconds: DurationUtils.parseDuration(matchStr),
+                              ),
+                              isSeek: false,
+                            );
+                          }
                         } catch (e) {
                           SmartDialog.showToast('跳转失败: $e');
                         }
