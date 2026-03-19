@@ -713,18 +713,18 @@ class ReplyItemGrpc extends StatelessWidget {
             debugPrint('Validating timestamp: $matchStr with tag: $heroTag');
           }
           try {
-            final ctr = Get.find<VideoDetailController>(tag: heroTag);
+            final ctr = Get.find<AudioController>(tag: heroTag);
             isValid =
                 DurationUtils.parseDuration(matchStr) * 1000 <=
-                ctr.data.timeLength!;
-            if (kDebugMode) debugPrint('Found VideoDetailController, isValid: $isValid');
+                ctr.duration.value.inMilliseconds;
+            if (kDebugMode) debugPrint('Found AudioController, isValid: $isValid');
           } catch (_) {
             try {
-              final ctr = Get.find<AudioController>(tag: heroTag);
+              final ctr = Get.find<VideoDetailController>(tag: heroTag);
               isValid =
                   DurationUtils.parseDuration(matchStr) * 1000 <=
-                  ctr.duration.value.inMilliseconds;
-              if (kDebugMode) debugPrint('Found AudioController, isValid: $isValid');
+                  ctr.data.timeLength!;
+              if (kDebugMode) debugPrint('Found VideoDetailController, isValid: $isValid');
             } catch (e) {
               if (kDebugMode) debugPrint('No controller found for tag: $heroTag, error: $e');
             }
@@ -750,16 +750,16 @@ class ReplyItemGrpc extends StatelessWidget {
                             debugPrint('Seeking to $duration with tag: $heroTag');
                           }
                           try {
-                            final ctr = Get.find<VideoDetailController>(tag: heroTag);
-                            if (kDebugMode) debugPrint('Seeking VideoDetailController');
-                            ctr.plPlayerController.seekTo(
+                            final ctr = Get.find<AudioController>(tag: heroTag);
+                            if (kDebugMode) debugPrint('Seeking AudioController');
+                            ctr.seekTo(
                               duration,
                               isSeek: false,
                             );
                           } catch (_) {
-                            final ctr = Get.find<AudioController>(tag: heroTag);
-                            if (kDebugMode) debugPrint('Seeking AudioController');
-                            ctr.seekTo(
+                            final ctr = Get.find<VideoDetailController>(tag: heroTag);
+                            if (kDebugMode) debugPrint('Seeking VideoDetailController');
+                            ctr.plPlayerController.seekTo(
                               duration,
                               isSeek: false,
                             );
