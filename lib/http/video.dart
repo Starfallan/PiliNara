@@ -183,19 +183,33 @@ abstract final class VideoHttp {
     );
     if (res.data['code'] == 0) {
       List<HotVideoItemModel> list = <HotVideoItemModel>[];
+      final applyFullFilter = RecommendFilter.applyFilterToHotVideos;
       for (final i in res.data['data']['list']) {
-        if (!GlobalData().blackMids.contains(i['owner']['mid']) &&
-            !RecommendFilter.filterTitle(i['title']) &&
-            !RecommendFilter.filterLikeRatio(
-              i['stat']['like'],
-              i['stat']['view'],
-            )) {
-          if (enableFilter &&
-              i['tname'] != null &&
-              zoneRegExp.hasMatch(i['tname'])) {
-            continue;
+        // 分区关键词过滤（始终生效）
+        if (enableFilter &&
+            i['tname'] != null &&
+            zoneRegExp.hasMatch(i['tname'])) {
+          continue;
+        }
+        // 全局黑名单（始终生效）
+        if (GlobalData().blackMids.contains(i['owner']['mid'])) {
+          continue;
+        }
+        if (applyFullFilter) {
+          // 完整过滤：时长、播放量、点赞率、标题关键词、推荐屏蔽用户
+          final item = HotVideoItemModel.fromJson(i);
+          if (!RecommendFilter.filterAll(item)) {
+            list.add(item);
           }
-          list.add(HotVideoItemModel.fromJson(i));
+        } else {
+          // 原有过滤：仅标题关键词 + 点赞率
+          if (!RecommendFilter.filterTitle(i['title']) &&
+              !RecommendFilter.filterLikeRatio(
+                i['stat']['like'],
+                i['stat']['view'],
+              )) {
+            list.add(HotVideoItemModel.fromJson(i));
+          }
         }
       }
       return Success(list);
@@ -203,6 +217,7 @@ abstract final class VideoHttp {
       return Error(res.data['message']);
     }
   }
+
 
   // 视频流
   @pragma('vm:notify-debugger-on-exception')

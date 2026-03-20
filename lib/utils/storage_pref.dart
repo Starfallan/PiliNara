@@ -3,7 +3,6 @@ import 'dart:math' show pow, sqrt;
 
 import 'package:PiliPlus/common/widgets/pair.dart';
 import 'package:PiliPlus/http/constants.dart';
-import 'package:PiliPlus/http/constants.dart';
 import 'package:PiliPlus/models/common/bar_hide_type.dart';
 import 'package:PiliPlus/models/common/danmaku/danmaku_font_sync_mode.dart';
 import 'package:PiliPlus/models/common/dynamic/dynamic_badge_mode.dart';
@@ -728,7 +727,10 @@ abstract final class Pref {
   }
 
   static String? get customDanmakuFontName {
-    final value = _setting.get(SettingBoxKey.customDanmakuFontName, defaultValue: '');
+    final value = _setting.get(
+      SettingBoxKey.customDanmakuFontName,
+      defaultValue: '',
+    );
     return value is String && value.isNotEmpty ? value : null;
   }
 
@@ -865,6 +867,11 @@ abstract final class Pref {
   static bool get applyFilterToRelatedVideos => _setting.get(
     SettingBoxKey.applyFilterToRelatedVideos,
     defaultValue: true,
+  );
+
+  static bool get applyFilterToHotVideos => _setting.get(
+    SettingBoxKey.applyFilterToHotVideos,
+    defaultValue: false,
   );
 
   static bool get enableBackgroundPlay =>

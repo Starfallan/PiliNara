@@ -148,4 +148,12 @@ List<SettingsModel> get recommendSettings => [
     defaultVal: true,
     onChanged: (value) => RecommendFilter.applyFilterToRelatedVideos = value,
   ),
+  SwitchModel(
+    title: '过滤器也应用于热门视频',
+    subtitle: '热门视频进行完整过滤（时长、播放量、点赞率、标题关键词、屏蔽用户）',
+    leading: const Icon(Icons.local_fire_department_outlined),
+    setKey: SettingBoxKey.applyFilterToHotVideos,
+    defaultVal: false,
+    onChanged: (value) => RecommendFilter.applyFilterToHotVideos = value,
+  ),
 ];
