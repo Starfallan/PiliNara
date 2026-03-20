@@ -2570,6 +2570,10 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       );
       return false;
     }
+    if (controller.playerStatus.value != PlayerStatus.playing) {
+      _logSponsorBlock('Reject PiP: video is paused');
+      return false;
+    }
     if (!videoDetailController.autoPlay) {
       _logSponsorBlock('Reject PiP: autoPlay is false');
       return false;
