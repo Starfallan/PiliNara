@@ -7,6 +7,9 @@ abstract final class RecommendFilter {
   static int minLikeRatioForRecommend = Pref.minLikeRatioForRecommend;
   static bool exemptFilterForFollowed = Pref.exemptFilterForFollowed;
   static bool applyFilterToRelatedVideos = Pref.applyFilterToRelatedVideos;
+  static bool applyFilterToHotVideos = Pref.applyFilterToHotVideos;
+  static bool applyFilterToRankVideos = Pref.applyFilterToRankVideos;
+
   static RegExp rcmdRegExp = RegExp(
     Pref.parseBanWordToRegex(Pref.banWordForRecommend),
     caseSensitive: false,

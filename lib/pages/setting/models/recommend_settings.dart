@@ -148,4 +148,20 @@ List<SettingsModel> get recommendSettings => [
     defaultVal: true,
     onChanged: (value) => RecommendFilter.applyFilterToRelatedVideos = value,
   ),
+  SwitchModel(
+    title: '过滤器也应用于热门视频',
+    subtitle: '开启后对热门视频应用完整过滤（标题关键词、时长、播放量、点赞率、屏蔽用户）',
+    leading: const Icon(Icons.local_fire_department_outlined),
+    setKey: SettingBoxKey.applyFilterToHotVideos,
+    defaultVal: false,
+    onChanged: (value) => RecommendFilter.applyFilterToHotVideos = value,
+  ),
+  SwitchModel(
+    title: '过滤器也应用于分区视频',
+    subtitle: '开启后对 UGC 分区视频应用完整过滤；番剧等 PGC 内容仅过滤标题关键词',
+    leading: const Icon(Icons.leaderboard_outlined),
+    setKey: SettingBoxKey.applyFilterToRankVideos,
+    defaultVal: false,
+    onChanged: (value) => RecommendFilter.applyFilterToRankVideos = value,
+  ),
 ];
