@@ -23,7 +23,7 @@ import 'package:PiliPlus/pages/video/widgets/header_control.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/data_source.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/danmaku_options.dart';
-import 'package:PiliPlus/services/live_pip_overlay_service.dart';
+import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/tcp/live.dart';
 import 'package:PiliPlus/utils/accounts.dart';
@@ -38,11 +38,73 @@ import 'package:PiliPlus/utils/utils.dart';
 import 'package:PiliPlus/utils/video_utils.dart';
 import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:easy_debounce/easy_throttle.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 
 class LiveRoomController extends GetxController {
+  static const String _debugDumpFilename = 'live_room_debug.jsonl';
+  static const JsonEncoder _debugJsonEncoder = JsonEncoder.withIndent('  ');
+  static final RegExp _bracketEmoteRegExp = RegExp(r'\[[^\[\]]+\]');
+
+  static void _log(String msg) {
+    if (!kDebugMode) return;
+    logger.i('[LiveRoomController] $msg');
+  }
+
+  static void _dumpPayload({
+    required String source,
+    Object? roomId,
+    Map<String, dynamic>? extra,
+    required dynamic payload,
+  }) {
+    if (!kDebugMode) return;
+    DebugDumpUtils.appendJsonLine(
+      filename: _debugDumpFilename,
+      data: {
+        'time': DateTime.now().toIso8601String(),
+        'source': source,
+        if (roomId case final value?) 'roomId': value,
+        ...?extra,
+        'payload': payload,
+      },
+    );
+  }
+
+  static bool _containsBracketEmote(String? text) =>
+      text != null && _bracketEmoteRegExp.hasMatch(text);
+
+  static bool _shouldLogDanmakuPayload({
+    String? text,
+    dynamic emots,
+    dynamic uemote,
+  }) {
+    return _containsBracketEmote(text) ||
+        (emots is Map && emots.isNotEmpty) ||
+        (uemote is Map && uemote.isNotEmpty);
+  }
+
+  static void _logDanmakuPayload(
+    dynamic payload, {
+    required String source,
+    String? text,
+    dynamic emots,
+    dynamic uemote,
+  }) {
+    if (!_shouldLogDanmakuPayload(text: text, emots: emots, uemote: uemote)) {
+      return;
+    }
+    try {
+      _log(
+        '$source danmaku payload:\n'
+        '${_debugJsonEncoder.convert(payload)}',
+      );
+    } catch (_) {
+      _log('$source danmaku payload: $payload');
+    }
+  }
+
   LiveRoomController(this.heroTag, {this.fromPip = false});
   final String heroTag;
   final bool fromPip;
@@ -511,8 +573,24 @@ class LiveRoomController extends GetxController {
           final uid = user['uid'];
           final name = user['base']['name'];
           final msg = info[1];
+          final rawUemote = first[13];
+          _dumpPayload(
+            source: 'ws.DANMU_MSG',
+            roomId: roomId,
+            extra: {
+              'cmd': obj['cmd'],
+            },
+            payload: obj,
+          );
+          _logDanmakuPayload(
+            obj,
+            source: 'Realtime',
+            text: msg,
+            emots: extra['emots'],
+            uemote: rawUemote,
+          );
           BaseEmote? uemote;
-          if (first[13] case Map<String, dynamic> map) {
+          if (rawUemote case Map<String, dynamic> map) {
             uemote = BaseEmote.fromJson(map);
           }
           final checkInfo = info[9];

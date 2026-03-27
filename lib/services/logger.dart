@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:PiliPlus/utils/json_file_handler.dart';
@@ -73,5 +74,57 @@ abstract final class LoggerUtils {
       return false;
     }
     return true;
+  }
+}
+
+abstract final class DebugDumpUtils {
+  static const String _dirName = 'debug_dumps';
+  static final Map<String, File> _dumpFiles = {};
+  static final Map<String, Future<void>> _queues = {};
+  static final Set<String> _reportedFiles = <String>{};
+
+  static Future<File> getDumpFile(String filename) async {
+    if (_dumpFiles[filename] case final file?) {
+      return file;
+    }
+
+    final dir = await getApplicationSupportDirectory();
+    final dumpDir = Directory(p.join(dir.path, _dirName));
+    if (!dumpDir.existsSync()) {
+      await dumpDir.create(recursive: true);
+    }
+    final file = File(p.join(dumpDir.path, filename));
+    if (!file.existsSync()) {
+      await file.create(recursive: true);
+    }
+    _dumpFiles[filename] = file;
+    if (_reportedFiles.add(filename)) {
+      logger.i('[DebugDumpUtils] $filename => ${file.path}');
+    }
+    return file;
+  }
+
+  static Future<void> appendJsonLine({
+    required String filename,
+    required Map<String, dynamic> data,
+  }) {
+    if (!kDebugMode) {
+      return Future.value();
+    }
+    final line = '${jsonEncode(data)}\n';
+    final previous = _queues[filename] ?? Future<void>.value();
+    return _queues[filename] = previous.then((_) async {
+      final file = await getDumpFile(filename);
+      await file.writeAsString(
+        line,
+        mode: FileMode.writeOnlyAppend,
+        flush: true,
+      );
+    });
+  }
+
+  static Future<void> clearDump(String filename) async {
+    final file = await getDumpFile(filename);
+    await file.writeAsBytes(const [], flush: true);
   }
 }

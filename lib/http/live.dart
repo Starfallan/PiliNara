@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:PiliPlus/common/constants.dart';
 import 'package:PiliPlus/http/api.dart';
 import 'package:PiliPlus/http/browser_ua.dart';
@@ -24,13 +26,64 @@ import 'package:PiliPlus/models_new/live/live_room_play_info/data.dart';
 import 'package:PiliPlus/models_new/live/live_search/data.dart';
 import 'package:PiliPlus/models_new/live/live_second_list/data.dart';
 import 'package:PiliPlus/models_new/live/live_superchat/data.dart';
+import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/accounts/account.dart';
 import 'package:PiliPlus/utils/app_sign.dart';
 import 'package:PiliPlus/utils/wbi_sign.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 
 abstract final class LiveHttp {
+  static const String _debugDumpFilename = 'live_room_debug.jsonl';
+  static const JsonEncoder _debugJsonEncoder = JsonEncoder.withIndent('  ');
+  static final RegExp _bracketEmoteRegExp = RegExp(r'\[[^\[\]]+\]');
+
+  static void _log(String msg) {
+    if (!kDebugMode) return;
+    logger.i('[LiveHttp] $msg');
+  }
+
+  static void _dumpPayload({
+    required String source,
+    Object? roomId,
+    Map<String, dynamic>? extra,
+    required dynamic payload,
+  }) {
+    if (!kDebugMode) return;
+    DebugDumpUtils.appendJsonLine(
+      filename: _debugDumpFilename,
+      data: {
+        'time': DateTime.now().toIso8601String(),
+        'source': source,
+        if (roomId case final value?) 'roomId': value,
+        ...?extra,
+        'payload': payload,
+      },
+    );
+  }
+
+  static bool _containsBracketEmote(String? text) =>
+      text != null && _bracketEmoteRegExp.hasMatch(text);
+
+  static bool _shouldLogPrefetchDanmaku(dynamic item) {
+    if (item is! Map) return false;
+    final emoticon = item['emoticon'];
+    final emots = item['emots'];
+    return (emoticon is Map && emoticon.isNotEmpty) ||
+        (emots is Map && emots.isNotEmpty) ||
+        _containsBracketEmote(item['text'] as String?);
+  }
+
+  static void _logPrefetchDanmaku(dynamic item) {
+    if (!_shouldLogPrefetchDanmaku(item)) return;
+    try {
+      _log('Prefetch danmaku payload:\n${_debugJsonEncoder.convert(item)}');
+    } catch (_) {
+      _log('Prefetch danmaku payload: $item');
+    }
+  }
+
   static Account get recommend => Accounts.get(AccountType.recommend);
 
   static Future<LoadingState<void>> sendLiveMsg({
@@ -136,12 +189,25 @@ abstract final class LiveHttp {
         },
       ),
     );
+    _dumpPayload(
+      source: 'http.liveRoomDmPrefetch',
+      roomId: roomId,
+      extra: {
+        'endpoint': Api.liveRoomDmPrefetch,
+        'query': {'roomid': roomId},
+      },
+      payload: res.data,
+    );
     if (res.data['code'] == 0) {
       try {
+        final roomList = res.data['data']?['room'] as List?;
+        if (roomList != null) {
+          for (final item in roomList) {
+            _logPrefetchDanmaku(item);
+          }
+        }
         return Success(
-          (res.data['data']?['room'] as List?)
-              ?.map((e) => DanmakuMsg.fromPrefetch(e))
-              .toList(),
+          roomList?.map((e) => DanmakuMsg.fromPrefetch(e)).toList(),
         );
       } catch (e) {
         return Error(e.toString());
@@ -154,12 +220,22 @@ abstract final class LiveHttp {
   static Future<LoadingState<LiveDmInfoData>> liveRoomGetDanmakuToken({
     required Object roomId,
   }) async {
+    final query = await WbiSign.makSign({
+      'id': roomId,
+      'web_location': 444.8,
+    });
     final res = await Request().get(
       Api.liveRoomDmToken,
-      queryParameters: await WbiSign.makSign({
-        'id': roomId,
-        'web_location': 444.8,
-      }),
+      queryParameters: query,
+    );
+    _dumpPayload(
+      source: 'http.liveRoomGetDanmakuToken',
+      roomId: roomId,
+      extra: {
+        'endpoint': Api.liveRoomDmToken,
+        'query': query,
+      },
+      payload: res.data,
     );
     if (res.data['code'] == 0) {
       return Success(LiveDmInfoData.fromJson(res.data['data']));
@@ -171,12 +247,25 @@ abstract final class LiveHttp {
   static Future<LoadingState<List<LiveEmoteDatum>?>> getLiveEmoticons({
     required int roomId,
   }) async {
+    const queryPlatform = 'pc';
     final res = await Request().get(
       Api.getLiveEmoticons,
       queryParameters: {
-        'platform': 'pc',
+        'platform': queryPlatform,
         'room_id': roomId,
       },
+    );
+    _dumpPayload(
+      source: 'http.getLiveEmoticons',
+      roomId: roomId,
+      extra: {
+        'endpoint': Api.getLiveEmoticons,
+        'query': {
+          'platform': queryPlatform,
+          'room_id': roomId,
+        },
+      },
+      payload: res.data,
     );
     if (res.data['code'] == 0) {
       return Success(LiveEmoteData.fromJson(res.data['data']).data);
