@@ -1,5 +1,4 @@
 import 'package:PiliPlus/common/widgets/button/icon_button.dart';
-import 'package:PiliPlus/models/user/danmaku_rule.dart';
 import 'package:PiliPlus/pages/video/introduction/ugc/widgets/menu_row.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/danmaku_options.dart';
@@ -180,18 +179,12 @@ mixin HeaderMixin<T extends StatefulWidget> on State<T> {
                             minimumSize: Size.zero,
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
-                          onPressed: () {
-                            RuleFilter.logDebug(
-                              'HeaderMixin.openDanmakuBlock currentPlayerFilters\n'
-                              '${plPlayerController.filters.debugSummary('headerOpenPlayerFilters')}',
-                            );
-                            Get
-                              ..back()
-                              ..toNamed(
-                                '/danmakuBlock',
-                                arguments: plPlayerController,
-                              );
-                          },
+                          onPressed: () => Get
+                            ..back()
+                            ..toNamed(
+                              '/danmakuBlock',
+                              arguments: plPlayerController,
+                            ),
                           child: Text(
                             "屏蔽管理(${plPlayerController.filters.count})",
                           ),

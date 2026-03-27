@@ -536,9 +536,6 @@ class PlPlayerController with BlockConfigMixin {
 
   // 添加一个私有构造函数
   PlPlayerController._() {
-    RuleFilter.logDebug(
-      'PlPlayerController._ created\n${filters.debugSummary('playerConstructorFilters')}',
-    );
     if (!Accounts.heartbeat.isLogin || Pref.historyPause) {
       enableHeart = false;
     }
@@ -563,7 +560,7 @@ class PlPlayerController with BlockConfigMixin {
             }
           } else if (call.method == 'onPipChanged') {
             final bool isInPip = call.arguments as bool;
-
+            
             // 立即更新状态，避免由于状态更新滞后同步导致界面在恢复全屏过程中产生的“缩小在角落”或“渲染异常”
             isNativePip.value = isInPip;
             PipOverlayService.isNativePip = isInPip;
@@ -581,14 +578,9 @@ class PlPlayerController with BlockConfigMixin {
   // 获取实例 传参
   static PlPlayerController getInstance({bool isLive = false}) {
     // 如果实例尚未创建，则创建一个新实例
-    final controller = (_instance ??= PlPlayerController._())
+    return (_instance ??= PlPlayerController._())
       ..isLive = isLive
       .._playerCount += 1;
-    RuleFilter.logDebug(
-      'PlPlayerController.getInstance isLive=$isLive, '
-      'playerCount=${controller._playerCount}, instanceHash=${controller.hashCode}',
-    );
-    return controller;
   }
 
   bool _processing = false;
@@ -645,12 +637,6 @@ class PlPlayerController with BlockConfigMixin {
       _epid = epid;
       _seasonId = seasonId;
       _pgcType = pgcType;
-      RuleFilter.logDebug(
-        'PlPlayerController.setDataSource '
-        'isLive=$isLive, aid=$aid, bvid=$bvid, cid=$cid, roomId=$roomId, '
-        'dataSource=${dataSource.runtimeType}\n'
-        '${filters.debugSummary('playerSetDataSourceFilters')}',
-      );
 
       if (showSeekPreview) {
         _clearPreview();
