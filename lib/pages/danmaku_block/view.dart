@@ -30,13 +30,40 @@ class _DanmakuBlockPageState extends State<DanmakuBlockPage> {
   void initState() {
     super.initState();
     plPlayerController = Get.arguments as PlPlayerController;
+    RuleFilter.logDebug(
+      'DanmakuBlockPage.initState playerFilterSnapshot\n'
+      '${plPlayerController.filters.debugSummary('playerFiltersBeforeOpen')}',
+    );
   }
 
   @override
   void dispose() {
-    final ruleFilter = RuleFilter.fromRuleTypeEntries(_controller.rules);
-    plPlayerController.filters = ruleFilter;
-    GStorage.localCache.put(LocalCacheKey.danmakuFilterRules, ruleFilter);
+    final pageRules = _controller.rules
+        .map((entry) => entry.toList(growable: false))
+        .toList(growable: false);
+    RuleFilter.logDebug(
+      'DanmakuBlockPage.dispose start\n'
+      '${RuleFilter.formatRulesSnapshot('pageRules', pageRules)}',
+    );
+    try {
+      final ruleFilter = RuleFilter.fromRuleTypeEntries(pageRules);
+      RuleFilter.logDebug(
+        'DanmakuBlockPage.dispose built RuleFilter\n'
+        '${ruleFilter.debugSummary('pageDisposeBuilt')}',
+      );
+      plPlayerController.filters = ruleFilter;
+      GStorage.localCache.put(LocalCacheKey.danmakuFilterRules, ruleFilter);
+      RuleFilter.logDebug(
+        'DanmakuBlockPage.dispose persisted RuleFilter\n'
+        '${plPlayerController.filters.debugSummary('playerFiltersAfterDispose')}',
+      );
+    } catch (error, stackTrace) {
+      RuleFilter.logError(
+        'DanmakuBlockPage.dispose failed while building/persisting RuleFilter',
+        error,
+        stackTrace,
+      );
+    }
     super.dispose();
   }
 
