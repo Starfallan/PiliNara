@@ -158,7 +158,8 @@ abstract final class SettingBoxKey {
       enableImgMenu = 'enableImgMenu',
       showDynDispute = 'showDynDispute',
       touchSlopH = 'touchSlopH',
-      floatingNavBar = 'floatingNavBar';
+      floatingNavBar = 'floatingNavBar',
+      mixWithOthers = 'mixWithOthers';
 
   static const String minimizeOnExit = 'minimizeOnExit',
       windowSize = 'windowSize',

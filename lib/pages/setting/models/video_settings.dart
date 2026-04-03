@@ -10,6 +10,7 @@ import 'package:PiliPlus/pages/setting/widgets/ordered_multi_select_dialog.dart'
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
 import 'package:PiliPlus/plugin/pl_player/models/audio_output_type.dart';
 import 'package:PiliPlus/plugin/pl_player/models/hwdec_type.dart';
+import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
@@ -144,6 +145,17 @@ List<SettingsModel> get videoSettings => [
       getSubtitle: () => '当前：${Pref.audioOutput}',
       onTap: _showAudioOutputDialog,
     ),
+  SwitchModel(
+    title: '允许与其他应用同时播放',
+    subtitle: '开启后本应用将不请求音频焦点，与其他应用的音频混合播放。'
+        '${Platform.isIOS ? '\n开启后锁屏/通知栏/控制中心/车载不会显示正在播放的歌曲且不支持线控和Siri切歌（测试功能）' : ''}',
+    leading: const Icon(Icons.compare_arrows_outlined),
+    setKey: SettingBoxKey.mixWithOthers,
+    defaultVal: false,
+    onChanged: (value) {
+      audioSessionHandler?.reconfigure();
+    },
+  ),
   const SwitchModel(
     title: '扩大缓冲区',
     leading: Icon(Icons.storage_outlined),

@@ -579,6 +579,9 @@ abstract final class Pref {
   static bool get showHotRcmd =>
       _setting.get(SettingBoxKey.showHotRcmd, defaultValue: false);
 
+  static bool get mixWithOthers =>
+      _setting.get(SettingBoxKey.mixWithOthers, defaultValue: false);
+
   static String get audioNormalization =>
       _setting.get(SettingBoxKey.audioNormalization, defaultValue: '0');
 
