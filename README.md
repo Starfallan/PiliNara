@@ -34,7 +34,8 @@
 
 ## 改动说明(未来计划？)
 - 应用名称由PiliPlus更改为PiliNara，做了各平台相应替换以实现共存
-ork特性：
+
+Fork特性：
 - [x] 修复Flutter在澎湃小窗下无法正常显示的问题，参考Flutter官方issue [#161086](https://github.com/flutter/flutter/issues/161086)，该问题似乎在HyperOS3上被修复。
    修复方案参考了[venera/pull/467](https://github.com/venera-app/venera/pull/467)
 - [x] 增强合并弹幕功能，添加类[Pakku.js](https://github.com/xmcp/pakku.js)实现，重复弹幕字体随数量而增大,可设置放大阈值和放大速度
@@ -50,8 +51,12 @@ ork特性：
   - [x] 实现了从应用内小窗返回桌面自动进入系统小窗的功能(有待优化)
 
   演示图片:![应用内小窗演示](https://r2.170529.xyz/PicList/2026/02/IMG_20260222_194923.avif)
-- [x] 在听视频界面添加了定时关闭按钮
+- [x] 在听视频界面的评论中也实现了根据评论时间戳快速跳转的功能
 - [x] 在保存字幕的功能中添加了选择保存为原始WEBVTT格式和SRT格式的选项,转换逻辑参考了BiliRoamingx项目中的实现
+- [x] 实现了可以和其他应用同时播放音频的功能(仅Android)
+- [x] 支持自定义修改应用字体和弹幕字体，可以手动选择本地字体文件
+- [x] 修复了动态无法正确显示其中的网页链接的问题
+- [x] 优化了部分界面UI
 
 
 ## 适配平台
