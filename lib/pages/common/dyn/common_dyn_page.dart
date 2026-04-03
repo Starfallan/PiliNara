@@ -189,6 +189,7 @@ abstract class CommonDynPageState<T extends StatefulWidget> extends State<T>
             replyType: controller.replyType,
             firstFloor: replyItem,
             heroTag: arguments?['heroTag'],
+            upMid: controller.upMid,
           ),
         );
         if (showBackBtn) {

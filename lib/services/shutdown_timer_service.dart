@@ -13,7 +13,7 @@ import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 
 enum _ShutdownType with EnumWithLabel {
   pause('暂停视频'),
-  exit('退出APP')
+  exit('退出APP'),
   ;
 
   @override

@@ -26,7 +26,7 @@ enum SourceType {
     extraId: 4,
     playlistSource: PlaylistSource.MEDIA_LIST,
   ),
-  file
+  file,
   ;
 
   final int? mediaType;

@@ -31,7 +31,7 @@ enum HwDecType {
   amf('amf', 'AMF (AMD独占)'),
   amfCopy('amf-copy', 'AMF (AMD独占) (非直通)'),
   qsv('qsv', 'Quick Sync Video (Intel独占)'),
-  qsvCopy('qsv-copy', 'Quick Sync Video (Intel独占) (非直通)')
+  qsvCopy('qsv-copy', 'Quick Sync Video (Intel独占) (非直通)'),
   ;
 
   final String hwdec;

@@ -242,6 +242,7 @@ class _MainReplyPageState extends State<MainReplyPage>
               replyType: _controller.replyType,
               firstFloor: replyItem,
               heroTag: _controller.heroTag,
+              upMid: _controller.upMid,
             ),
           ).constraintWidth(),
         ),

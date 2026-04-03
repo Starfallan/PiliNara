@@ -8,7 +8,7 @@ enum PlaySpeed {
   onePointSevenFive(1.75),
 
   two(2.0),
-  three(3.0)
+  three(3.0),
   ;
 
   final double value;

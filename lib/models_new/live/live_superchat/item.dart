@@ -53,7 +53,7 @@ class SuperChatItem {
     'ts': 0,
     'uinfo': {
       'medal': {
-        "name": "MedalName",
+        "name": "Medal",
         "level": Utils.random.nextInt(40),
         "id": 123,
         "ruid": 456,

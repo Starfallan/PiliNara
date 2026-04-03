@@ -153,11 +153,11 @@ class _SuperChatCardState extends State<SuperChatCard> {
         name = Row(
           spacing: 5,
           children: [
-            Flexible(child: name),
             MedalWidget.fromMedalInfo(
               medal: medal,
               padding: MedalWidget.mediumPadding,
             ),
+            Flexible(child: name),
           ],
         );
       } catch (e, s) {

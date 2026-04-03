@@ -5,6 +5,7 @@ import 'package:PiliPlus/common/constants.dart';
 import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/badge.dart';
 import 'package:PiliPlus/common/widgets/dialog/report.dart';
+import 'package:PiliPlus/common/widgets/extra_hit_test_widget.dart';
 import 'package:PiliPlus/common/widgets/flutter/text/text.dart' as custom_text;
 import 'package:PiliPlus/common/widgets/gesture/tap_gesture_recognizer.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
@@ -140,100 +141,108 @@ class ReplyItemGrpc extends StatelessWidget {
         feedBack();
         Get.toNamed('/member?mid=${replyItem.mid}');
       },
-      child: Row(
-        crossAxisAlignment: .center,
-        spacing: 12,
-        children: [
-          PendantAvatar(
-            member.face,
-            size: 34,
-            badgeSize: 14,
-            vipStatus: member.vipStatus.toInt(),
-            officialType: member.officialVerifyType.toInt(),
-            pendantImage: member.hasGarbPendantImage()
-                ? member.garbPendantImage
-                : null,
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  spacing: 6,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        member.name,
-                        maxLines: 1,
-                        overflow: .ellipsis,
-                        style: TextStyle(
-                          color: (member.vipStatus > 0 && member.vipType == 2)
-                              ? theme.colorScheme.vipColor
-                              : theme.colorScheme.outline,
-                          fontSize: 13,
+      child: ExtraHitTestWidget(
+        width: 46,
+        child: Row(
+          crossAxisAlignment: .center,
+          spacing: 12,
+          children: [
+            PendantAvatar(
+              member.face,
+              size: 34,
+              badgeSize: 14,
+              vipStatus: member.vipStatus.toInt(),
+              officialType: member.officialVerifyType.toInt(),
+              pendantImage: member.hasGarbPendantImage()
+                  ? member.garbPendantImage
+                  : null,
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    spacing: 6,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          member.name,
+                          maxLines: 1,
+                          overflow: .ellipsis,
+                          style: TextStyle(
+                            color: (member.vipStatus > 0 && member.vipType == 2)
+                                ? theme.colorScheme.vipColor
+                                : theme.colorScheme.outline,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
-                    ),
-                    Image.asset(
-                      Utils.levelName(
-                        member.level,
-                        isSeniorMember: member.isSeniorMember == 1,
-                      ),
-                      height: 11,
-                      cacheHeight: 11.cacheSize(context),
-                    ),
-                    if (replyItem.mid == upMid)
-                      const PBadge(
-                        text: 'UP',
-                        size: PBadgeSize.small,
-                        isStack: false,
-                        fontSize: 9,
-                      )
-                    else if (GlobalData().showMedal &&
-                        member.hasFansMedalLevel())
-                      MedalWidget(
-                        medalName: member.fansMedalName,
-                        level: member.fansMedalLevel.toInt(),
-                        backgroundColor: DmUtils.decimalToColor(
-                          member.fansMedalColor.toInt(),
+                      Image.asset(
+                        Utils.levelName(
+                          member.level,
+                          isSeniorMember: member.isSeniorMember == 1,
                         ),
-                        nameColor: DmUtils.decimalToColor(
-                          member.fansMedalColorName.toInt(),
+                        height: 11,
+                        cacheHeight: 11.cacheSize(context),
+                      ),
+                      if (replyItem.mid == upMid)
+                        const PBadge(
+                          text: 'UP',
+                          size: PBadgeSize.small,
+                          isStack: false,
+                          fontSize: 9,
+                        )
+                      else if (GlobalData().showMedal &&
+                          member.hasFansMedalLevel())
+                        MedalWidget(
+                          medalName: member.fansMedalName,
+                          level: member.fansMedalLevel.toInt(),
+                          backgroundColor: DmUtils.decimalToColor(
+                            member.fansMedalColor.toInt(),
+                          ),
+                          nameColor: DmUtils.decimalToColor(
+                            member.fansMedalColorName.toInt(),
+                          ),
+                          padding: const .symmetric(
+                            horizontal: 6,
+                            vertical: 1.5,
+                          ),
                         ),
-                        padding: const .symmetric(horizontal: 6, vertical: 1.5),
-                      ),
-                  ],
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      replyLevel == 0
-                          ? DateFormatUtils.format(
-                              replyItem.ctime.toInt(),
-                              format: DateFormatUtils.longFormatDs,
-                            )
-                          : DateFormatUtils.dateFormat(replyItem.ctime.toInt()),
-                      style: TextStyle(
-                        fontSize: theme.textTheme.labelSmall!.fontSize,
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
-                    if (replyItem.replyControl.hasLocation())
+                    ],
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       Text(
-                        ' • ${replyItem.replyControl.location}',
+                        replyLevel == 0
+                            ? DateFormatUtils.format(
+                                replyItem.ctime.toInt(),
+                                format: DateFormatUtils.longFormatDs,
+                              )
+                            : DateFormatUtils.dateFormat(
+                                replyItem.ctime.toInt(),
+                              ),
                         style: TextStyle(
                           fontSize: theme.textTheme.labelSmall!.fontSize,
                           color: theme.colorScheme.outline,
                         ),
                       ),
-                  ],
-                ),
-              ],
+                      if (replyItem.replyControl.hasLocation())
+                        Text(
+                          ' • ${replyItem.replyControl.location}',
+                          style: TextStyle(
+                            fontSize: theme.textTheme.labelSmall!.fontSize,
+                            color: theme.colorScheme.outline,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
     if (PendantAvatar.showDecorate) {

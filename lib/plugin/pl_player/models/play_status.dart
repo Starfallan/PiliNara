@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 enum PlayerStatus {
   completed,
   playing,
-  paused
+  paused,
   ;
 
   bool get isCompleted => this == PlayerStatus.completed;

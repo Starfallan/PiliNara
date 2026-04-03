@@ -8,8 +8,7 @@ import 'package:PiliPlus/grpc/dm.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/data_source.dart';
-import 'package:PiliPlus/plugin/pl_player/utils/danmaku_options.dart'
-    show DanmakuOptions;
+import 'package:PiliPlus/plugin/pl_player/utils/danmaku_options.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/danmaku_merge/models.dart';
 import 'package:PiliPlus/utils/danmaku_merge/worker_client.dart';
@@ -235,6 +234,7 @@ class PlDanmakuController {
     // final baseFontSizes = HashMap<String, int>();
 
     final filters = _plPlayerController.filters;
+    final danmakuWeight = DanmakuOptions.danmakuWeight;
     final shouldFilter = filters.count != 0;
     for (final element in elems) {
       if (_isLogin) {

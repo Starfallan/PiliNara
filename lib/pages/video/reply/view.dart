@@ -251,6 +251,7 @@ class _VideoReplyPanelState extends State<VideoReplyPanel>
           isVideoDetail: true,
           isNested: widget.isNested,
           heroTag: heroTag,
+          upMid: _videoReplyController.upMid,
         ),
       );
     });

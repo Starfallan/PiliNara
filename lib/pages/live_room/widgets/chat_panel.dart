@@ -2,7 +2,6 @@ import 'package:PiliPlus/common/widgets/flutter/popup_menu.dart';
 import 'package:PiliPlus/common/widgets/gesture/tap_gesture_recognizer.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/http/live.dart';
-import 'package:PiliPlus/models/common/image_type.dart';
 import 'package:PiliPlus/models_new/live/live_danmaku/danmaku_msg.dart';
 import 'package:PiliPlus/models_new/live/live_superchat/item.dart';
 import 'package:PiliPlus/pages/live_room/controller.dart';
@@ -258,7 +257,7 @@ class LiveRoomChatPanel extends StatelessWidget {
       return WidgetSpan(
         child: NetworkImgLayer(
           src: uemote.url,
-          type: ImageType.emote,
+          type: .emote,
           width: width,
           height: height,
         ),
@@ -277,7 +276,7 @@ class LiveRoomChatPanel extends StatelessWidget {
             WidgetSpan(
               child: NetworkImgLayer(
                 src: emote.url,
-                type: ImageType.emote,
+                type: .emote,
                 width: emote.width,
                 height: emote.height,
               ),

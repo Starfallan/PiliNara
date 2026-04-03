@@ -57,7 +57,7 @@ class PendantAvatar extends StatelessWidget {
       final pendantSize = size * 1.75;
       pendant = Positioned(
         // -(size * 1.75 - size) / 2
-        top: -0.375 * size + pendentOffset,
+        top: -0.375 * size + pendentOffset / 2,
         child: IgnorePointer(
           child: NetworkImgLayer(
             type: .emote,

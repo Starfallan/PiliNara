@@ -3,7 +3,7 @@ enum UpPanelPosition {
   leftFixed('左侧常驻'),
   rightFixed('右侧常驻'),
   leftDrawer('左侧抽屉'),
-  rightDrawer('右侧抽屉')
+  rightDrawer('右侧抽屉'),
   ;
 
   final String label;

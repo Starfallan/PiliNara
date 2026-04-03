@@ -5,7 +5,7 @@ enum PlayRepeat implements EnumWithLabel {
   listOrder('顺序播放'),
   singleCycle('单个循环'),
   listCycle('列表循环'),
-  autoPlayRelated('自动连播')
+  autoPlayRelated('自动连播'),
   ;
 
   @override

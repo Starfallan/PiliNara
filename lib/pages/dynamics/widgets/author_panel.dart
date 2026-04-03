@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:PiliPlus/common/assets.dart';
 import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/dialog/report.dart';
+import 'package:PiliPlus/common/widgets/extra_hit_test_widget.dart';
 import 'package:PiliPlus/common/widgets/pendant_avatar.dart';
 import 'package:PiliPlus/http/constants.dart';
 import 'package:PiliPlus/http/loading_state.dart';
@@ -100,37 +101,40 @@ class AuthorPanel extends StatelessWidget {
               Get.toNamed('/member?mid=${moduleAuthor.mid}');
             }
           : null,
-      child: Row(
-        spacing: 10,
-        children: [
-          PendantAvatar(
-            size: 40,
-            moduleAuthor.face,
-            pendantImage: moduleAuthor.pendant?.image,
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  moduleAuthor.name!,
-                  maxLines: 1,
-                  overflow: .ellipsis,
-                  style: TextStyle(
-                    color:
-                        moduleAuthor.vip != null &&
-                            moduleAuthor.vip!.status > 0 &&
-                            moduleAuthor.vip!.type == 2
-                        ? theme.colorScheme.vipColor
-                        : theme.colorScheme.onSurface,
-                    fontSize: theme.textTheme.titleSmall!.fontSize,
-                  ),
-                ),
-                ?pubTs,
-              ],
+      child: ExtraHitTestWidget(
+        width: 50,
+        child: Row(
+          spacing: 10,
+          children: [
+            PendantAvatar(
+              size: 40,
+              moduleAuthor.face,
+              pendantImage: moduleAuthor.pendant?.image,
             ),
-          ),
-        ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    moduleAuthor.name!,
+                    maxLines: 1,
+                    overflow: .ellipsis,
+                    style: TextStyle(
+                      color:
+                          moduleAuthor.vip != null &&
+                              moduleAuthor.vip!.status > 0 &&
+                              moduleAuthor.vip!.type == 2
+                          ? theme.colorScheme.vipColor
+                          : theme.colorScheme.onSurface,
+                      fontSize: theme.textTheme.titleSmall!.fontSize,
+                    ),
+                  ),
+                  ?pubTs,
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
     Widget? moreBtn = isSave
@@ -179,21 +183,23 @@ class AuthorPanel extends StatelessWidget {
           Positioned(
             top: 0,
             right: 0,
-            height: height,
-            child: CachedNetworkImage(
-              height: height,
-              memCacheHeight: height.cacheSize(context),
-              imageUrl: ImageUtils.safeThumbnailUrl(
-                moduleAuthor.decorate!.cardUrl,
+            bottom: 0,
+            child: Center(
+              child: CachedNetworkImage(
+                height: height,
+                memCacheHeight: height.cacheSize(context),
+                imageUrl: ImageUtils.safeThumbnailUrl(
+                  moduleAuthor.decorate!.cardUrl,
+                ),
+                placeholder: (_, _) => const SizedBox.shrink(),
               ),
-              placeholder: (_, _) => const SizedBox.shrink(),
             ),
           ),
           if (moduleAuthor.decorate!.fan?.numStr?.isNotEmpty == true)
             Positioned(
               top: 0,
+              bottom: 0,
               right: height,
-              height: height,
               child: Center(
                 child: Text(
                   moduleAuthor.decorate!.fan!.numStr!.toString(),

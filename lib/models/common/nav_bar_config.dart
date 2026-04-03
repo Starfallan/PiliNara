@@ -7,8 +7,8 @@ import 'package:flutter/material.dart';
 enum NavigationBarType implements EnumWithLabel {
   home(
     '首页',
-    Icon(Icons.home_outlined, size: 23),
-    Icon(Icons.home, size: 21),
+    Icon(Icons.home_outlined, size: 24),
+    Icon(Icons.home, size: 24),
     HomePage(),
   ),
   dynamics(
@@ -19,10 +19,10 @@ enum NavigationBarType implements EnumWithLabel {
   ),
   mine(
     '我的',
-    Icon(Icons.person_outline, size: 21),
-    Icon(Icons.person, size: 21),
+    Icon(Icons.person_outline, size: 24),
+    Icon(Icons.person, size: 24),
     MinePage(),
-  )
+  ),
   ;
 
   @override

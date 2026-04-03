@@ -6,7 +6,7 @@ enum ContributeType {
   season(Api.spaceSeason),
   series(Api.spaceSeries),
   bangumi(Api.spaceBangumi),
-  comic(Api.spaceComic)
+  comic(Api.spaceComic),
   ;
 
   final String api;
