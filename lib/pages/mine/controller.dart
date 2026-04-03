@@ -1,5 +1,8 @@
 import 'package:PiliPlus/http/fav.dart';
 import 'package:PiliPlus/http/loading_state.dart';
+import 'package:PiliPlus/models_new/history/data.dart';
+import 'package:PiliPlus/models_new/history/list.dart';
+import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/http/user.dart';
 import 'package:PiliPlus/models/common/account_type.dart';
 import 'package:PiliPlus/models/common/theme/theme_type.dart';
@@ -26,6 +29,10 @@ class MineController extends CommonDataController<FavFolderData, FavFolderData>
   AccountService accountService = Get.find<AccountService>();
 
   int? favFolderCount;
+
+  // 历史记录预览（我的页面快捷卡片）
+  final Rx<LoadingState<List<HistoryItemModel>?>> historyLoadingState =
+      LoadingState<List<HistoryItemModel>?>.loading().obs;
 
   // 用户信息 头像、昵称、lv
   final Rx<UserInfoData> userInfo = UserInfoData().obs;
@@ -88,6 +95,20 @@ class MineController extends CommonDataController<FavFolderData, FavFolderData>
       userInfo.value = userInfoCache;
       queryData();
       queryUserInfo();
+      queryHistory();
+    }
+  }
+
+  Future<void> queryHistory() async {
+    final res = await UserHttp.historyList(
+      type: 'all',
+      account: Accounts.history,
+    );
+    if (res case Success(:final response)) {
+      historyLoadingState.value =
+          Success(response.list?.take(20).toList());
+    } else if (res case Error(:final errMsg, :final code)) {
+      historyLoadingState.value = Error(errMsg, code: code);
     }
   }
 
@@ -290,6 +311,7 @@ class MineController extends CommonDataController<FavFolderData, FavFolderData>
       return Future.syncValue(null);
     }
     queryUserInfo();
+    queryHistory();
     return super.onRefresh().whenComplete(() {
       if (isManual) {
         scrollController.jumpToTop();
@@ -305,6 +327,7 @@ class MineController extends CommonDataController<FavFolderData, FavFolderData>
       userInfo.value = UserInfoData();
       userStat.value = const UserStat();
       loadingState.value = LoadingState.loading();
+      historyLoadingState.value = LoadingState.loading();
     }
   }
 }
