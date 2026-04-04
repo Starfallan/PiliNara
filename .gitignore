@@ -152,3 +152,5 @@ docs/*
 !docs/danmaku_font_scaling.md
 !docs/inapp_pip_implementation.md
 test*.dart
+
+AGENTS.md

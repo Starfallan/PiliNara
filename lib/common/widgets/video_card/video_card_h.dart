@@ -18,9 +18,12 @@ import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:flutter/material.dart' hide LayoutBuilder;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
+import 'package:get/get.dart';
 
 // 视频卡片 - 水平布局
 class VideoCardH extends StatelessWidget {
+  static final RxSet<String> clickedBvids = <String>{}.obs;
+
   const VideoCardH({
     super.key,
     required this.videoItem,
@@ -113,6 +116,10 @@ class VideoCardH extends StatelessWidget {
                         cover: videoItem.cover,
                         title: videoItem.title,
                       );
+                      final String? key = videoItem.bvid ?? videoItem.aid?.toString();
+                      if (key != null && key.isNotEmpty) {
+                        VideoCardH.clickedBvids.add(key);
+                      }
                     }
                   } catch (err) {
                     SmartDialog.showToast(err.toString());
@@ -224,41 +231,52 @@ class VideoCardH extends StatelessWidget {
           if (videoItem case final SearchVideoItemModel item) ...[
             if (item.titleList?.isNotEmpty == true)
               Expanded(
-                child: Text.rich(
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 2,
-                  TextSpan(
-                    children: item.titleList!
-                        .map(
-                          (e) => TextSpan(
-                            text: e.text,
-                            style: TextStyle(
-                              fontSize: theme.textTheme.bodyMedium!.fontSize,
-                              height: 1.42,
-                              letterSpacing: 0.3,
-                              color: e.isEm
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.onSurface,
+                child: Obx(() {
+                  final key = videoItem.bvid ?? videoItem.aid?.toString();
+                  final isClicked = key != null && VideoCardH.clickedBvids.contains(key);
+                  return Text.rich(
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                    TextSpan(
+                      children: item.titleList!
+                          .map(
+                            (e) => TextSpan(
+                              text: e.text,
+                              style: TextStyle(
+                                fontSize: theme.textTheme.bodyMedium!.fontSize,
+                                height: 1.42,
+                                letterSpacing: 0.3,
+                                color: isClicked
+                                    ? theme.colorScheme.outline
+                                    : e.isEm
+                                        ? theme.colorScheme.primary
+                                        : theme.colorScheme.onSurface,
+                              ),
                             ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                ),
+                          )
+                          .toList(),
+                    ),
+                  );
+                }),
               ),
           ] else
             Expanded(
-              child: Text(
-                videoItem.title,
-                textAlign: TextAlign.start,
-                style: TextStyle(
-                  fontSize: theme.textTheme.bodyMedium!.fontSize,
-                  height: 1.42,
-                  letterSpacing: 0.3,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
+              child: Obx(() {
+                final key = videoItem.bvid ?? videoItem.aid?.toString();
+                final isClicked = key != null && VideoCardH.clickedBvids.contains(key);
+                return Text(
+                  videoItem.title,
+                  textAlign: TextAlign.start,
+                  style: TextStyle(
+                    fontSize: theme.textTheme.bodyMedium!.fontSize,
+                    height: 1.42,
+                    letterSpacing: 0.3,
+                    color: isClicked ? theme.colorScheme.outline : null,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                );
+              }),
             ),
           Text(
             "$pubdate${videoItem.owner.name}",
