@@ -384,7 +384,7 @@ class ViewPointDividerBar extends LeafRenderObjectWidget {
   const ViewPointDividerBar({
     super.key,
     required this.segments,
-    this.dotRadius = 2.5,
+    this.dotRadius = 1.75,
   });
 
   final List<ViewPointSegment> segments;
@@ -446,12 +446,18 @@ class _RenderViewPointDividerBar extends RenderBox {
       ..style = PaintingStyle.fill;
 
     final centerY = offset.dy + size.height / 2;
+    // ViewPointSegmentProgressBar uses a divider width of 2.0 starting at segment.end
+    const double dividerWidth = 2.0;
+
     // Skip the last segment (its end = 1.0, which is the end of the bar)
     final count = _segments.length;
     for (int i = 0; i < count - 1; i++) {
       final segment = _segments[i];
-      final x = offset.dx + segment.end * size.width;
+      final segmentEnd = offset.dx + segment.end * size.width;
+      // Align the center of the dot to the center of the divider line
+      final x = segmentEnd + dividerWidth / 2;
       canvas.drawCircle(Offset(x, centerY), _dotRadius, paint);
     }
   }
 }
+

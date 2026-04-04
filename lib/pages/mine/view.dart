@@ -514,7 +514,7 @@ class _MediaPageState extends CommonPageState<MinePage>
             return const SizedBox.shrink();
           }
           return SizedBox(
-            height: 170,
+            height: 172,
             child: ListView.separated(
               padding: const EdgeInsets.only(left: 20, top: 10, right: 20),
               itemCount: list.length + 1,

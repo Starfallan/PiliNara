@@ -511,7 +511,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
             }
             if (currentTitle != null && currentTitle.isNotEmpty) {
               final maxW =
-                  isLandscape && isFullScreen ? 160.0 : 120.0;
+                  isLandscape && isFullScreen ? 160.0 : 132.0;
               return GestureDetector(
                 onTap: widget.showViewPoints,
                 behavior: HitTestBehavior.opaque,
@@ -534,8 +534,9 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                             ),
                           ),
                         ),
+                        const SizedBox(width: 4),
                         const Text(
-                          ' >',
+                          '>',
                           style: TextStyle(
                             color: Colors.white70,
                             fontSize: 12,
@@ -1833,7 +1834,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                         Positioned(
                           left: 0,
                           right: 0,
-                          bottom: 0,
+                          bottom: 0.75,
                           child: ViewPointDividerBar(
                             segments: videoDetailController.viewPointList,
                           ),

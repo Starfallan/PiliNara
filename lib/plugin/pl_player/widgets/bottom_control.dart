@@ -110,7 +110,7 @@ class BottomControl extends StatelessWidget {
                       Positioned(
                         left: 0,
                         right: 0,
-                        bottom: 4.5,
+                        bottom: 5.25,
                         child: ViewPointDividerBar(
                           segments: videoDetailController.viewPointList,
                         ),
