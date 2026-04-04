@@ -496,8 +496,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
         () {
           if (videoDetailController.viewPointList.isNotEmpty) {
             final viewPoints = videoDetailController.viewPointList;
-            final positionSec =
-                plPlayerController.positionSeconds.value;
+            final positionSec = plPlayerController.positionSeconds.value;
             // Find current segment
             String? currentTitle;
             for (final seg in viewPoints) {
@@ -510,28 +509,49 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
               }
             }
             if (currentTitle != null && currentTitle.isNotEmpty) {
-              final maxW =
-                  isLandscape && isFullScreen ? 160.0 : 132.0;
+              final maxW = isLandscape && isFullScreen ? 160.0 : 135.0;
+
+              // Use TextPainter to manually truncate the string to ensure the Text widget
+              // tight-wraps the text, avoiding the layout padding caused by TextOverflow.ellipsis
+              final textStyle = const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+              );
+              String displayTitle = currentTitle;
+              // Padding(6x2) + gap(4) + chevron(~10) = 26
+              final maxTextW = maxW - 26.0;
+
+              final tp = TextPainter(
+                text: TextSpan(text: displayTitle, style: textStyle),
+                textDirection: ui.TextDirection.ltr,
+                maxLines: 1,
+              )..layout(maxWidth: maxTextW);
+
+              if (tp.didExceedMaxLines) {
+                // '...' is roughly 14px wide
+                final pos = tp.getPositionForOffset(Offset(maxTextW - 14.0, 0));
+                if (pos.offset > 0 && pos.offset < displayTitle.length) {
+                  displayTitle = '${displayTitle.substring(0, pos.offset)}...';
+                }
+              }
+
               return GestureDetector(
                 onTap: widget.showViewPoints,
                 behavior: HitTestBehavior.opaque,
                 child: ConstrainedBox(
                   constraints: BoxConstraints(maxWidth: maxW),
                   child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Flexible(
                           child: Text(
-                            currentTitle,
+                            displayTitle,
                             maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                            ),
+                            softWrap: false,
+                            overflow: TextOverflow.fade,
+                            style: textStyle,
                           ),
                         ),
                         const SizedBox(width: 4),
@@ -567,7 +587,6 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
           return const SizedBox.shrink();
         },
       ),
-
 
       /// 选集
       BottomControlType.episode => ComBtn(
@@ -2098,8 +2117,9 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
       builder: (context, constraints) {
         // 如果是在小窗模式下，或者当前容器具有有效的有限约束，则优先使用约束尺寸，
         // 从而解决从系统 PiP 恢复到应用时渲染容器未及时由于 layout 变化而导致渲染异常的问题。
-        final bool useConstraints = (widget.isPipMode ||
-                (constraints.maxWidth > 0 && constraints.maxWidth.isFinite));
+        final bool useConstraints =
+            (widget.isPipMode ||
+            (constraints.maxWidth > 0 && constraints.maxWidth.isFinite));
 
         final double currentWidth = useConstraints
             ? constraints.maxWidth.clamp(0.0, double.infinity)
@@ -2107,10 +2127,14 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
         final double currentHeight = useConstraints
             ? constraints.maxHeight.clamp(0.0, double.infinity)
             : maxHeight;
-            
+
         // 确保容器至少有一个最小有效的尺寸，避免播放引擎初始化失败
-        final double finalWidth = currentWidth > 0 ? currentWidth : (maxWidth > 0 ? maxWidth : 16.0);
-        final double finalHeight = currentHeight > 0 ? currentHeight : (maxHeight > 0 ? maxHeight : 9.0);
+        final double finalWidth = currentWidth > 0
+            ? currentWidth
+            : (maxWidth > 0 ? maxWidth : 16.0);
+        final double finalHeight = currentHeight > 0
+            ? currentHeight
+            : (maxHeight > 0 ? maxHeight : 9.0);
 
         return Container(
           clipBehavior: Clip.none,
