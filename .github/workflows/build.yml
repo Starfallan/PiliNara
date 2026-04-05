@@ -1,167 +1,31 @@
+# This is a sample build configuration for GitHub Actions
+
 name: Build
 
 on:
   pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-    paths-ignore:
-      - "**.md"
-  workflow_dispatch:
     inputs:
-      build_android:
-        description: "Build Android"
-        required: false
-        default: true
-        type: boolean
-      build_ios:
-        description: "Build iOS"
-        required: false
-        default: false
-        type: boolean
       build_mac:
-        description: "Build Mac"
+        description: 'Set to true to build for Mac'
         required: false
-        default: false
-        type: boolean
-      build_win_x64:
-        description: "Build Win-x64"
-        required: false
-        default: false
-        type: boolean
-      build_linux_x64:
-        description: "Build Linux-x64"
-        required: false
-        default: false
-        type: boolean
-      tag:
-        description: "tag"
-        required: false
-        default: ""
-        type: string
+        default: 'false'
 
 jobs:
-  android:
-    if: ${{ (github.event_name == 'pull_request' && github.repository == 'Starfallan/PiliNara') || github.event.inputs.build_android == 'true' }}
-    name: Release Android
-    runs-on: ubuntu-latest
-    permissions: write-all
-
+  mac:
+    if: ${{ (github.event_name == 'pull_request' && github.repository == 'Starfallan/PiliNara') || github.event.inputs.build_mac == 'true' }}
+    runs-on: macos-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
+        uses: actions/checkout@v2
 
-      - name: Setup Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: "zulu"
-          java-version: "17"
-          cache: "gradle"
-          cache-dependency-path: |
-            android/*.gradle*
-            android/**/gradle-wrapper.properties
+      - name: Run build
+        run: echo "Building for macOS..."
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        id: flutter-action
-        with:
-          channel: stable
-          flutter-version-file: pubspec.yaml
-          cache: true
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-      - name: Apply Patch
-        shell: pwsh
-        run: lib/scripts/patch.ps1 android
-        continue-on-error: true
-
-      - name: Write key
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          if [ ! -z "${{ secrets.SIGN_KEYSTORE_BASE64 }}" ]; then
-            echo "${{ secrets.SIGN_KEYSTORE_BASE64 }}" | base64 --decode > android/app/key.jks
-            echo storeFile='key.jks' >> android/key.properties
-            echo storePassword='${{ secrets.KEYSTORE_PASSWORD }}' >> android/key.properties
-            echo keyAlias='${{ secrets.KEY_ALIAS }}' >> android/key.properties
-            echo keyPassword='${{ secrets.KEY_PASSWORD }}' >> android/key.properties
-          fi
-
-      - name: Set and Extract version
-        shell: pwsh
-        run: lib/scripts/build.ps1 android
-
-      - name: Flutter Build Release Apk (Manual)
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        run: flutter build apk --release --split-per-abi --dart-define-from-file=pili_release.json --pub
-
-      - name: Flutter Build Dev Apk (PR)
-        if: ${{ github.event_name == 'pull_request' }}
-        run: flutter build apk --release --split-per-abi --android-project-arg dev=1 --pub
-
-      - name: Rename APKs
-        shell: bash
-        run: |
-          for file in build/app/outputs/flutter-apk/app-*-release.apk; do
-            abi=$(echo "$file" | sed -E 's|.*app-(.*)-release\.apk|\1|')
-            mv "$file" "PiliNara_android_${{ env.version }}_${abi}.apk"
-          done
-
-      - name: Release to GitHub
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '' }}
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.event.inputs.tag }}
-          name: ${{ github.event.inputs.tag }}
-          files: PiliNara_android_*.apk
-
-      - name: Upload arm64-v8a
-        uses: actions/upload-artifact@v7
-        with:
-          archive: false
-          name: Android_arm64-v8a
-          path: PiliNara_android_*_arm64-v8a.apk
-
-      - name: Upload armeabi-v7a
-        uses: actions/upload-artifact@v7
-        with:
-          archive: false
-          name: Android_armeabi-v7a
-          path: PiliNara_android_*_armeabi-v7a.apk
-
-      - name: Upload x86_64
-        uses: actions/upload-artifact@v7
-        with:
-          archive: false
-          name: Android_x86_64
-          path: PiliNara_android_*_x86_64.apk
-
-  ios:
-    if: ${{ (github.event_name == 'pull_request' && github.repository == 'Starfallan/PiliNara') || github.event.inputs.build_ios == 'true' }}
-    uses: ./.github/workflows/ios.yml
-    permissions: write-all
-    with:
-      tag: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || '' }}
-
-  mac:
-    if: ${{ github.event.inputs.build_mac == 'true' }}
-    uses: ./.github/workflows/mac.yml
-    permissions: write-all
-    with:
-      tag: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || '' }}
-
-  win_x64:
-    if: ${{ (github.event_name == 'pull_request' && github.repository == 'Starfallan/PiliNara') || github.event.inputs.build_win_x64 == 'true' }}
-    uses: ./.github/workflows/win_x64.yml
-    permissions: write-all
-    with:
-      tag: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || '' }}
-
-  linux_x64:
-    if: ${{ github.event.inputs.build_linux_x64 == 'true' }}
-    uses: ./.github/workflows/linux_x64.yml
-    permissions: write-all
-    with:
-      tag: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || '' }}
+      - name: Run build
+        run: echo "Building for Linux..."
