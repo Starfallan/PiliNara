@@ -143,6 +143,15 @@ List<SettingsModel> get styleSettings => [
     getSubtitle: () => '当前：${Pref.pageTransition.name}',
     onTap: _showTransitionDialog,
   ),
+  if (Platform.isAndroid)
+    const SwitchModel(
+      title: '安卓预测性返回 (Predictive Back)',
+      subtitle: '开启后侧滑返回可原生预览上一页及桌面，需要重启应用生效',
+      leading: Icon(Icons.swipe_left_outlined),
+      setKey: SettingBoxKey.enablePredictiveBack,
+      defaultVal: true,
+      needReboot: true,
+    ),
   const SwitchModel(
     title: '优化平板导航栏',
     leading: Icon(Icons.auto_fix_high),
