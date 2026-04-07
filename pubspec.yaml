@@ -43,10 +43,10 @@ dependencies:
   # get: ^4.7.2
   get:
     git:
-      url: https://github.com/bggRGjQaUbCoE/getx.git
+      url: https://github.com/Starfallan/getx.git
       ref: version_4.7.2
 
-  # 网络
+  # 网络 
   dio: ^5.9.1
   cookie_jar: ^4.0.8
   connectivity_plus: ^7.0.0

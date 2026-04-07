@@ -802,8 +802,8 @@ packages:
     description:
       path: "."
       ref: "version_4.7.2"
-      resolved-ref: "81b8a71982f89b46fa868b315cd71ff6a6ddf895"
-      url: "https://github.com/bggRGjQaUbCoE/getx.git"
+      resolved-ref: "035618ad283b6df47305fc04795d05fde08f53ed"
+      url: "https://github.com/Starfallan/getx.git"
     source: git
     version: "4.7.2"
   glob:

@@ -811,8 +811,8 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     plPlayerController
       ?..addStatusLister(playerListener)
       ..addPositionListener(positionListener);
-    
-    if (!videoDetailController.autoPlay && 
+
+    if (!videoDetailController.autoPlay &&
         videoDetailController.plPlayerController.preInitPlayer &&
         !videoDetailController.isQuerying &&
         videoDetailController.videoUrl != null) {
@@ -919,7 +919,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       () {
         final isFullScreen = this.isFullScreen;
         return Scaffold(
-          backgroundColor: Colors.black,
+          backgroundColor: themeData.scaffoldBackgroundColor,
           resizeToAvoidBottomInset: false,
           appBar: PreferredSize(
             preferredSize: const Size.fromHeight(0),
@@ -1012,9 +1012,12 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                       SizedBox(
                         width: maxWidth,
                         height: height,
-                        child: videoPlayer(
-                          width: maxWidth,
-                          height: height,
+                        child: DecoratedBox(
+                          decoration: const BoxDecoration(color: Colors.black),
+                          child: videoPlayer(
+                            width: maxWidth,
+                            height: height,
+                          ),
                         ),
                       ),
                       Obx(
@@ -1238,7 +1241,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     () {
       final isFullScreen = this.isFullScreen;
       return Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: themeData.scaffoldBackgroundColor,
         resizeToAvoidBottomInset: false,
         appBar: AppBar(backgroundColor: Colors.black, toolbarHeight: 0),
         body: Padding(
@@ -1465,7 +1468,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   Widget get childWhenDisabledAlmostSquare => Obx(() {
     final isFullScreen = this.isFullScreen;
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: themeData.scaffoldBackgroundColor,
       resizeToAvoidBottomInset: false,
       appBar: AppBar(backgroundColor: Colors.black, toolbarHeight: 0),
       body: Padding(
