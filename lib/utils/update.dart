@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 
+import 'package:PiliPlus/utils/extension/iterable_ext.dart';
 import 'package:PiliPlus/build_config.dart';
 import 'package:PiliPlus/common/constants.dart';
 import 'package:PiliPlus/http/api.dart';
@@ -42,79 +43,90 @@ abstract final class Update {
           SmartDialog.showToast('已是最新版本');
         }
       } else {
-        SmartDialog.show(
-          animationType: SmartAnimationType.centerFade_otherSlide,
-          builder: (context) {
-            final ThemeData theme = Theme.of(context);
-            Widget downloadBtn(String text, {String? ext}) => TextButton(
-              onPressed: () => onDownload(data, ext: ext),
-              child: Text(text),
-            );
-            return AlertDialog(
-              title: const Text('🎉 发现新版本 '),
-              content: SizedBox(
-                height: 280,
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${data['tag_name']}',
-                        style: const TextStyle(fontSize: 20),
+      Map<String, dynamic>? bestAsset;
+      if (Platform.isAndroid) {
+        bestAsset = await _findBestAsset(data);
+      }
+      SmartDialog.show(
+        animationType: SmartAnimationType.centerFade_otherSlide,
+        builder: (context) {
+          final ThemeData theme = Theme.of(context);
+          Widget downloadBtn(String text, {String? ext, String? url}) =>
+              TextButton(
+                onPressed: () => onDownload(data, ext: ext, url: url),
+                child: Text(text),
+              );
+          return AlertDialog(
+            title: const Text('🎉 发现新版本 '),
+            content: SizedBox(
+              height: 280,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${data['tag_name']}',
+                      style: const TextStyle(fontSize: 20),
+                    ),
+                    const SizedBox(height: 8),
+                    Text('${data['body']}'),
+                    TextButton(
+                      onPressed: () => PageUtils.launchURL(
+                        '${Constants.sourceCodeUrl}/commits/main',
                       ),
-                      const SizedBox(height: 8),
-                      Text('${data['body']}'),
-                      TextButton(
-                        onPressed: () => PageUtils.launchURL(
-                          '${Constants.sourceCodeUrl}/commits/main',
+                      child: Text(
+                        "点此查看完整更新(即commit)内容",
+                        style: TextStyle(
+                          color: theme.colorScheme.primary,
                         ),
-                        child: Text(
-                          "点此查看完整更新(即commit)内容",
-                          style: TextStyle(
-                            color: theme.colorScheme.primary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                if (isAuto)
-                  TextButton(
-                    onPressed: () {
-                      SmartDialog.dismiss();
-                      GStorage.setting.put(SettingBoxKey.autoUpdate, false);
-                    },
-                    child: Text(
-                      '不再提醒',
-                      style: TextStyle(
-                        color: theme.colorScheme.outline,
                       ),
                     ),
-                  ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              if (isAuto)
                 TextButton(
-                  onPressed: SmartDialog.dismiss,
+                  onPressed: () {
+                    SmartDialog.dismiss();
+                    GStorage.setting.put(SettingBoxKey.autoUpdate, false);
+                  },
                   child: Text(
-                    '取消',
+                    '不再提醒',
                     style: TextStyle(
                       color: theme.colorScheme.outline,
                     ),
                   ),
                 ),
-                if (Platform.isWindows) ...[
-                  downloadBtn('zip', ext: 'zip'),
-                  downloadBtn('exe', ext: 'exe'),
-                ] else if (Platform.isLinux) ...[
-                  downloadBtn('rpm', ext: 'rpm'),
-                  downloadBtn('deb', ext: 'deb'),
-                  downloadBtn('targz', ext: 'tar.gz'),
-                ] else
+              TextButton(
+                onPressed: SmartDialog.dismiss,
+                child: Text(
+                  '取消',
+                  style: TextStyle(
+                    color: theme.colorScheme.outline,
+                  ),
+                ),
+              ),
+              if (Platform.isWindows) ...[
+                downloadBtn('zip', ext: 'zip'),
+                downloadBtn('exe', ext: 'exe'),
+              ] else if (Platform.isLinux) ...[
+                downloadBtn('rpm', ext: 'rpm'),
+                downloadBtn('deb', ext: 'deb'),
+                downloadBtn('targz', ext: 'tar.gz'),
+              ] else if (Platform.isAndroid) ...[
+                if (bestAsset != null)
+                  downloadBtn('下载 APK (${bestAsset['name']})',
+                      url: bestAsset['browser_download_url'])
+                else
                   downloadBtn('Github'),
-              ],
-            );
-          },
-        );
+              ] else
+                downloadBtn('Github'),
+            ],
+          );
+        },
+      );
       }
     } catch (e) {
       if (kDebugMode) debugPrint('failed to check update: $e');
@@ -122,8 +134,13 @@ abstract final class Update {
   }
 
   // 下载适用于当前系统的安装包
-  static Future<void> onDownload(Map data, {String? ext}) async {
+  static Future<void> onDownload(Map data,
+      {String? ext, String? url}) async {
     SmartDialog.dismiss();
+    if (url != null) {
+      PageUtils.launchURL(url);
+      return;
+    }
     try {
       void download(String plat) {
         if (data['assets'].isNotEmpty) {
@@ -151,5 +168,27 @@ abstract final class Update {
       if (kDebugMode) debugPrint('download error: $e');
       PageUtils.launchURL('${Constants.sourceCodeUrl}/releases/latest');
     }
+  }
+
+  static Future<Map<String, dynamic>?> _findBestAsset(Map data) async {
+    final List assets = data['assets'] ?? [];
+    if (assets.isEmpty) return null;
+
+    if (Platform.isAndroid) {
+      final AndroidDeviceInfo androidInfo =
+          await DeviceInfoPlugin().androidInfo;
+      final List<String> abis = androidInfo.supportedAbis;
+      for (final String abi in abis) {
+        final asset = assets.firstWhereOrNull(
+          (e) => e['name'].toString().toLowerCase().contains(abi.toLowerCase()),
+        );
+        if (asset != null) return asset;
+      }
+      // fallback to universal if available
+      return assets.firstWhereOrNull(
+        (e) => e['name'].toString().toLowerCase().contains('universal'),
+      );
+    }
+    return null;
   }
 }
