@@ -476,9 +476,10 @@ abstract final class LiveHttp {
       'type': type.name,
     };
     AppSign.appSign(params);
+    // 绕过 Dio 的 queryParameters 编码（会把空格变成 +）
+    // 复用 AppSign.makeQuery 保证排序、编码与签名计算完全一致（空格→%20）
     final res = await Request().get(
-      Api.liveSearch,
-      queryParameters: params,
+      '${Api.liveSearch}?${AppSign.makeQuery(params)}',
     );
     if (res.data['code'] == 0) {
       return Success(LiveSearchData.fromJson(res.data['data']));
