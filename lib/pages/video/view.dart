@@ -741,6 +741,15 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         videoDetailController.initSkip();
       }
 
+      // didPushNext 时 videoState 被置为 false，需要在这里恢复
+      // 场景：fromPip 页面（如听视频）返回时，播放器已在运行但 videoState 未恢复
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        videoDetailController.videoState.value = true;
+        videoDetailController.videoState.refresh();
+        setState(() {});
+      });
+
       super.didPopNext();
       return;
     }
