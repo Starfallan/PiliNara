@@ -1,15 +1,19 @@
 import 'package:PiliPlus/models_new/download/bili_download_entry_info.dart';
+import 'package:PiliPlus/pages/common/multi_select/base.dart'
+    show MultiSelectData;
 
-class DownloadFolder {
+class DownloadFolder with MultiSelectData {
   final String id;
   String title;
   final int createdAt;
+  final String? sourceKey;
   final List<int> videoCids;
 
   DownloadFolder({
     required this.id,
     required this.title,
     required this.createdAt,
+    this.sourceKey,
     required this.videoCids,
   });
 
@@ -17,6 +21,7 @@ class DownloadFolder {
     id: json['id'] as String,
     title: json['title'] as String? ?? '',
     createdAt: json['createdAt'] as int? ?? 0,
+    sourceKey: json['sourceKey'] as String?,
     videoCids: (json['videoCids'] as List? ?? const <dynamic>[])
         .whereType<int>()
         .toList(),
@@ -26,6 +31,7 @@ class DownloadFolder {
     'id': id,
     'title': title,
     'createdAt': createdAt,
+    'sourceKey': sourceKey,
     'videoCids': videoCids,
   };
 }

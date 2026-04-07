@@ -79,3 +79,34 @@ class DownloadPageController extends GetxController
     );
   }
 }
+
+class DownloadFolderSelectController extends GetxController
+    with BaseMultiSelectMixin<DownloadFolder> {
+  DownloadFolderSelectController(this.pageController);
+
+  final DownloadPageController pageController;
+
+  @override
+  List<DownloadFolder> get list => pageController.folders;
+
+  @override
+  RxList<DownloadFolder> get state => pageController.folders;
+
+  @override
+  void onRemove() {
+    showConfirmDialog(
+      context: Get.context!,
+      title: const Text('确定删除选中文件夹？'),
+      content: const Text('只会删除文件夹关联，不会删除本地缓存文件。'),
+      onConfirm: () async {
+        SmartDialog.showLoading();
+        final selected = allChecked.toSet();
+        for (final folder in selected) {
+          await pageController.collectionService.deleteFolder(folder.id);
+        }
+        handleSelect();
+        SmartDialog.dismiss();
+      },
+    );
+  }
+}

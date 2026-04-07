@@ -105,6 +105,9 @@ class DownloadCollectionService extends GetxService {
   DownloadFolder? getFolder(String folderId) =>
       _folders.firstWhereOrNull((item) => item.id == folderId);
 
+  DownloadFolder? getFolderBySourceKey(String sourceKey) =>
+      _folders.firstWhereOrNull((item) => item.sourceKey == sourceKey);
+
   List<BiliDownloadEntryInfo> resolveAllEntries([
     List<BiliDownloadEntryInfo>? entries,
   ]) {
@@ -145,11 +148,42 @@ class DownloadCollectionService extends GetxService {
     return '$base $index';
   }
 
-  Future<DownloadFolder> createFolder(String title) async {
+  Future<DownloadFolder> createFolder(String title) {
+    return _createFolder(
+      title: title,
+      sourceKey: null,
+    );
+  }
+
+  Future<DownloadFolder> ensureAutoFolder({
+    required String title,
+    required String sourceKey,
+  }) async {
+    await waitForInitialization;
+    final existed = getFolderBySourceKey(sourceKey);
+    if (existed != null) {
+      if (existed.title != title) {
+        existed.title = title;
+        await _save();
+        flagNotifier.refresh();
+      }
+      return existed;
+    }
+    return _createFolder(
+      title: title,
+      sourceKey: sourceKey,
+    );
+  }
+
+  Future<DownloadFolder> _createFolder({
+    required String title,
+    required String? sourceKey,
+  }) async {
     final folder = DownloadFolder(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       title: title,
       createdAt: DateTime.now().millisecondsSinceEpoch,
+      sourceKey: sourceKey,
       videoCids: <int>[],
     );
     _folders.add(folder);

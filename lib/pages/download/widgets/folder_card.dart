@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/flutter/layout_builder.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
+import 'package:PiliPlus/common/widgets/select_mask.dart';
 import 'package:PiliPlus/models_new/download/bili_download_entry_info.dart';
 import 'package:PiliPlus/utils/path_utils.dart';
 import 'package:flutter/material.dart' hide LayoutBuilder;
@@ -17,6 +18,7 @@ class DownloadFolderCard extends StatelessWidget {
     this.onTap,
     this.onLongPress,
     this.trailing,
+    this.checked = false,
   });
 
   final String title;
@@ -25,6 +27,7 @@ class DownloadFolderCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
   final Widget? trailing;
+  final bool checked;
 
   @override
   Widget build(BuildContext context) {
@@ -43,10 +46,16 @@ class DownloadFolderCard extends StatelessWidget {
                 child: LayoutBuilder(
                   builder: (context, boxConstraints) => ClipRRect(
                     borderRadius: Style.mdRadius,
-                    child: _buildCover(
-                      context,
-                      boxConstraints.maxWidth,
-                      boxConstraints.maxHeight,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        _buildCover(
+                          context,
+                          boxConstraints.maxWidth,
+                          boxConstraints.maxHeight,
+                        ),
+                        selectMask(Theme.of(context), checked),
+                      ],
                     ),
                   ),
                 ),

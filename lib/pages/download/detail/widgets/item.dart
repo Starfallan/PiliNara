@@ -9,6 +9,7 @@ import 'package:PiliPlus/common/widgets/progress_bar/video_progress_indicator.da
 import 'package:PiliPlus/common/widgets/select_mask.dart';
 import 'package:PiliPlus/models/common/badge_type.dart';
 import 'package:PiliPlus/models/common/video/source_type.dart';
+import 'package:PiliPlus/models/common/video/video_type.dart';
 import 'package:PiliPlus/models/common/video/video_quality.dart';
 import 'package:PiliPlus/models_new/download/bili_download_entry_info.dart';
 import 'package:PiliPlus/models_new/download/download_collection.dart';
@@ -39,6 +40,8 @@ class DetailItem extends StatelessWidget {
     this.playContext,
     this.deleteLabel = '删除',
     this.deleteConfirmText,
+    this.customOnLongPress,
+    this.extraMoreItemsBuilder,
     //
     required this.controller,
     this.checked,
@@ -54,6 +57,9 @@ class DetailItem extends StatelessWidget {
   final DownloadVideoPlayContext? playContext;
   final String deleteLabel;
   final String? deleteConfirmText;
+  final VoidCallback? customOnLongPress;
+  final List<PopupMenuEntry<void>> Function(BuildContext context)?
+  extraMoreItemsBuilder;
   //
   final MultiSelectBase controller;
   final bool? checked;
@@ -66,54 +72,12 @@ class DetailItem extends StatelessWidget {
     final cid = entry.source?.cid ?? entry.pageData?.cid;
     final canDel = onDelete != null;
     final enableMultiSelect = controller.enableMultiSelect.value;
-    void onLongPress() => canDel && !enableMultiSelect
-        ? showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              clipBehavior: Clip.hardEdge,
-              contentPadding: const EdgeInsets.symmetric(vertical: 12),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ListTile(
-                    onTap: () {
-                      Get.back();
-                      showConfirmDialog(
-                        context: context,
-                        title: Text(deleteConfirmText ?? '确定删除该视频？'),
-                        onConfirm: onDelete,
-                      );
-                    },
-                    dense: true,
-                    title: Text(
-                      deleteLabel,
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                  ),
-                  ListTile(
-                    onTap: () async {
-                      Get.back();
-                      final res = await downloadService.downloadDanmaku(
-                        entry: entry,
-                        isUpdate: true,
-                      );
-                      if (res) {
-                        SmartDialog.showToast('更新成功');
-                      } else {
-                        SmartDialog.showToast('更新失败');
-                      }
-                    },
-                    dense: true,
-                    title: const Text(
-                      '更新弹幕',
-                      style: TextStyle(fontSize: 14),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          )
-        : null;
+    void onLongPress() {
+      if (enableMultiSelect) {
+        return;
+      }
+      customOnLongPress?.call();
+    }
 
     return Material(
       type: MaterialType.transparency,
@@ -162,8 +126,9 @@ class DetailItem extends StatelessWidget {
             }
           }
         },
-        onLongPress: onLongPress,
-        onSecondaryTap: PlatformUtils.isMobile ? null : onLongPress,
+        onLongPress: customOnLongPress != null ? onLongPress : null,
+        onSecondaryTap:
+            PlatformUtils.isMobile || customOnLongPress == null ? null : onLongPress,
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: Style.safeSpace,
@@ -350,7 +315,7 @@ class DetailItem extends StatelessWidget {
                       Positioned(
                         right: 0,
                         bottom: 0,
-                        child: entry.moreBtn(theme),
+                        child: _buildMoreBtn(context, theme),
                       ),
                     ] else
                       Positioned(
@@ -457,6 +422,116 @@ class DetailItem extends StatelessWidget {
           value: progress,
         ),
       ],
+    );
+  }
+
+  Widget _buildMoreBtn(BuildContext context, ThemeData theme) {
+    final canDel = onDelete != null;
+    return SizedBox(
+      width: 29,
+      height: 29,
+      child: PopupMenuButton<void>(
+        padding: EdgeInsets.zero,
+        position: PopupMenuPosition.under,
+        icon: Icon(
+          Icons.more_vert_outlined,
+          color: theme.colorScheme.outline,
+          size: 18,
+        ),
+        itemBuilder: (menuContext) {
+          final items = <PopupMenuEntry<void>>[
+            PopupMenuItem(
+              height: 38,
+              child: const Text('查看详情页', style: TextStyle(fontSize: 13)),
+              onTap: () {
+                if (entry.ep case final ep?) {
+                  if (ep.from == VideoType.pugv.name) {
+                    PageUtils.viewPugv(
+                      seasonId: entry.seasonId,
+                      epId: ep.episodeId,
+                    );
+                  } else {
+                    PageUtils.viewPgc(
+                      seasonId: entry.seasonId,
+                      epId: ep.episodeId,
+                    );
+                  }
+                  return;
+                }
+                PageUtils.toVideoPage(
+                  aid: entry.avid,
+                  bvid: entry.bvid,
+                  cid: entry.cid,
+                  epId: entry.ep?.episodeId,
+                  title: entry.title,
+                  cover: entry.cover,
+                );
+              },
+            ),
+            if (PlatformUtils.isDesktop)
+              PopupMenuItem(
+                height: 38,
+                child: const Text('打开本地文件夹', style: TextStyle(fontSize: 13)),
+                onTap: () async {
+                  try {
+                    final String executable;
+                    if (Platform.isWindows) {
+                      executable = 'explorer';
+                    } else if (Platform.isMacOS) {
+                      executable = 'open';
+                    } else if (Platform.isLinux) {
+                      executable = 'xdg-open';
+                    } else {
+                      throw UnimplementedError();
+                    }
+                    await Process.run(executable, [entry.entryDirPath]);
+                  } catch (e) {
+                    SmartDialog.showToast(e.toString());
+                  }
+                },
+              ),
+            if (entry.ownerId case final mid?)
+              PopupMenuItem(
+                height: 38,
+                child: Text(
+                  '访问${entry.ownerName != null ? '：${entry.ownerName}' : '用户主页'}',
+                  style: const TextStyle(fontSize: 13),
+                ),
+                onTap: () => Get.toNamed('/member?mid=$mid'),
+              ),
+            ...?extraMoreItemsBuilder?.call(menuContext),
+            if (canDel) const PopupMenuDivider(height: 8),
+            if (canDel)
+              PopupMenuItem(
+                height: 38,
+                child: Text(
+                  deleteLabel,
+                  style: const TextStyle(fontSize: 13),
+                ),
+                onTap: () {
+                  showConfirmDialog(
+                    context: menuContext,
+                    title: Text(deleteConfirmText ?? '确定删除该视频？'),
+                    onConfirm: onDelete,
+                  );
+                },
+              ),
+            if (canDel)
+              PopupMenuItem(
+                height: 38,
+                child: const Text('更新弹幕', style: TextStyle(fontSize: 13)),
+                onTap: () async {
+                  final res = await downloadService.downloadDanmaku(
+                    entry: entry,
+                    isUpdate: true,
+                  );
+                  SmartDialog.showToast(res ? '更新成功' : '更新失败');
+                },
+              ),
+          ];
+          return items;
+        },
+      ),
     );
   }
 }

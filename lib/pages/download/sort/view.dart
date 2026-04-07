@@ -57,6 +57,7 @@ class _DownloadVideoSortPageState extends State<DownloadVideoSortPage> {
         ],
       ),
       body: ReorderableListView.builder(
+        buildDefaultDragHandles: false,
         itemCount: _sortList.length,
         onReorder: _onReorder,
         physics: const AlwaysScrollableScrollPhysics(),
@@ -65,16 +66,19 @@ class _DownloadVideoSortPageState extends State<DownloadVideoSortPage> {
             const EdgeInsets.only(bottom: 100),
         itemBuilder: (context, index) {
           final entry = _sortList[index];
-          return SizedBox(
+          return ReorderableDelayedDragStartListener(
             key: Key(entry.cid.toString()),
-            height: 100,
-            child: IgnorePointer(
-              child: DetailItem(
-                entry: entry,
-                downloadService: _downloadService,
-                showTitle: true,
-                onDelete: () {},
-                controller: _controller,
+            index: index,
+            child: SizedBox(
+              height: 100,
+              child: IgnorePointer(
+                child: DetailItem(
+                  entry: entry,
+                  downloadService: _downloadService,
+                  showTitle: true,
+                  onDelete: () {},
+                  controller: _controller,
+                ),
               ),
             ),
           );

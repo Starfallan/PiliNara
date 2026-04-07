@@ -2,7 +2,9 @@ import 'package:PiliPlus/common/widgets/appbar/appbar.dart';
 import 'package:PiliPlus/common/widgets/dialog/dialog.dart';
 import 'package:PiliPlus/common/widgets/flutter/pop_scope.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
+import 'package:PiliPlus/models_new/download/bili_download_entry_info.dart';
 import 'package:PiliPlus/models_new/download/download_collection.dart';
+import 'package:PiliPlus/pages/common/multi_select/base.dart';
 import 'package:PiliPlus/pages/download/controller.dart';
 import 'package:PiliPlus/pages/download/detail/widgets/item.dart';
 import 'package:PiliPlus/pages/download/folder/view.dart';
@@ -46,6 +48,9 @@ class _DownloadPageState extends State<DownloadPage>
   final _downloadService = Get.find<DownloadService>();
   final _collectionService = Get.find<DownloadCollectionService>();
   final _controller = Get.put(DownloadPageController());
+  late final _folderSelectController = Get.put(
+    DownloadFolderSelectController(_controller),
+  );
   final _progress = ChangeNotifier();
 
   late final TabController _tabController;
@@ -65,6 +70,10 @@ class _DownloadPageState extends State<DownloadPage>
     _tabIndex.value = _tabController.index;
     if (_tabController.index != 0 && _controller.enableMultiSelect.value) {
       _controller.handleSelect();
+    }
+    if (_tabController.index != 1 &&
+        _folderSelectController.enableMultiSelect.value) {
+      _folderSelectController.handleSelect();
     }
   }
 
@@ -114,46 +123,6 @@ class _DownloadPageState extends State<DownloadPage>
     );
   }
 
-  Future<void> _showFolderActions(DownloadFolder folder) async {
-    if (!mounted) {
-      return;
-    }
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        clipBehavior: Clip.hardEdge,
-        contentPadding: const EdgeInsets.symmetric(vertical: 12),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              dense: true,
-              onTap: () {
-                Get.back();
-                _renameFolder(folder);
-              },
-              title: const Text('重命名', style: TextStyle(fontSize: 14)),
-            ),
-            ListTile(
-              dense: true,
-              onTap: () {
-                Get.back();
-                _deleteFolder(folder);
-              },
-              title: Text(
-                '删除',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Theme.of(dialogContext).colorScheme.error,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Future<void> _addSelectedToFolders() async {
     final folderIds = await showDownloadFolderPickerDialog(
       context: context,
@@ -195,59 +164,165 @@ class _DownloadPageState extends State<DownloadPage>
     );
   }
 
+  List<PopupMenuEntry<void>> _buildFolderQuickMenuItems(
+    BuildContext context,
+    BiliDownloadEntryInfo entry,
+  ) {
+    final folders = _controller.folders;
+    if (folders.isEmpty) {
+      return [
+        PopupMenuItem(
+          height: 38,
+          child: const Text('添加到文件夹', style: TextStyle(fontSize: 13)),
+          onTap: () async {
+            final selectedIds = await showDownloadFolderPickerDialog(
+              context: context,
+              collectionService: _collectionService,
+              title: '添加到文件夹',
+            );
+            if (selectedIds == null || selectedIds.isEmpty) {
+              return;
+            }
+            await _collectionService.addVideosToFolders(
+              [entry.cid],
+              selectedIds,
+            );
+            SmartDialog.showToast('已添加到文件夹');
+          },
+        ),
+      ];
+    }
+    return [
+      const PopupMenuDivider(height: 8),
+      ...folders.map(
+        (folder) => PopupMenuItem(
+          height: 38,
+          child: Text(
+            '添加到「${folder.title}」',
+            style: const TextStyle(fontSize: 13),
+          ),
+          onTap: () async {
+            await _collectionService.addVideosToFolders(
+              [entry.cid],
+              [folder.id],
+            );
+            SmartDialog.showToast('已添加到「${folder.title}」');
+          },
+        ),
+      ),
+      PopupMenuItem(
+        height: 38,
+        child: const Text('添加到其他文件夹', style: TextStyle(fontSize: 13)),
+        onTap: () async {
+          final selectedIds = await showDownloadFolderPickerDialog(
+            context: context,
+            collectionService: _collectionService,
+            title: '添加到文件夹',
+          );
+          if (selectedIds == null || selectedIds.isEmpty) {
+            return;
+          }
+          await _collectionService.addVideosToFolders(
+            [entry.cid],
+            selectedIds,
+          );
+          SmartDialog.showToast('已添加到文件夹');
+        },
+      ),
+    ];
+  }
+
+  Widget _buildFolderMoreBtn(DownloadFolder folder) {
+    return PopupMenuButton<void>(
+      padding: EdgeInsets.zero,
+      icon: Icon(
+        Icons.more_vert_outlined,
+        color: Theme.of(context).colorScheme.outline,
+        size: 18,
+      ),
+      itemBuilder: (menuContext) => [
+        PopupMenuItem(
+          height: 38,
+          child: const Text('重命名', style: TextStyle(fontSize: 13)),
+          onTap: () => _renameFolder(folder),
+        ),
+        PopupMenuItem(
+          height: 38,
+          child: Text(
+            '删除',
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(menuContext).colorScheme.error,
+            ),
+          ),
+          onTap: () => _deleteFolder(folder),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Obx(() {
       final currentTab = _DownloadTab.values[_tabIndex.value];
       final isVideoTab = currentTab == _DownloadTab.videos;
-      final enableMultiSelect =
-          isVideoTab && _controller.enableMultiSelect.value;
+      final MultiSelectBase activeMultiSelectCtr = isVideoTab
+          ? _controller
+          : _folderSelectController;
+      final enableMultiSelect = isVideoTab
+          ? _controller.enableMultiSelect.value
+          : _folderSelectController.enableMultiSelect.value;
       return popScope(
         canPop: !enableMultiSelect,
         onPopInvokedWithResult: (didPop, result) {
           if (enableMultiSelect) {
-            _controller.handleSelect();
+            activeMultiSelectCtr.handleSelect();
           }
         },
         child: Scaffold(
           resizeToAvoidBottomInset: false,
           appBar: MultiSelectAppBarWidget(
-            ctr: _controller,
+            ctr: activeMultiSelectCtr,
             visible: enableMultiSelect,
-            actions: [
-              TextButton(
-                style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                ),
-                onPressed: () async {
-                  final allChecked = _controller.allChecked.toSet();
-                  _controller.handleSelect();
-                  final res = await Future.wait(
-                    allChecked.map(
-                      (entry) => _downloadService.downloadDanmaku(
-                        entry: entry,
-                        isUpdate: true,
+            actions: isVideoTab
+                ? [
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      onPressed: () async {
+                        final allChecked = _controller.allChecked.toSet();
+                        _controller.handleSelect();
+                        final res = await Future.wait(
+                          allChecked.map(
+                            (entry) => _downloadService.downloadDanmaku(
+                              entry: entry,
+                              isUpdate: true,
+                            ),
+                          ),
+                        );
+                        SmartDialog.showToast(
+                          res.every((item) => item) ? '更新成功' : '更新失败',
+                        );
+                      },
+                      child: Text(
+                        '更新',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
                       ),
                     ),
-                  );
-                  SmartDialog.showToast(
-                    res.every((item) => item) ? '更新成功' : '更新失败',
-                  );
-                },
-                child: Text(
-                  '更新',
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                ),
-              ),
-              TextButton(
-                style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                ),
-                onPressed:
-                    _controller.checkedCount == 0 ? null : _addSelectedToFolders,
-                child: const Text('添加到'),
-              ),
-            ],
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      onPressed: _controller.checkedCount == 0
+                          ? null
+                          : _addSelectedToFolders,
+                      child: const Text('添加到'),
+                    ),
+                  ]
+                : null,
             child: AppBar(
               title: const Text('离线缓存'),
               actions: [
@@ -302,6 +377,17 @@ class _DownloadPageState extends State<DownloadPage>
                     icon: const Icon(Icons.create_new_folder_outlined),
                   ),
                   IconButton(
+                    tooltip: '多选',
+                    onPressed: () {
+                      if (_folderSelectController.enableMultiSelect.value) {
+                        _folderSelectController.handleSelect();
+                      } else {
+                        _folderSelectController.enableMultiSelect.value = true;
+                      }
+                    },
+                    icon: const Icon(Icons.edit_note),
+                  ),
+                  IconButton(
                     tooltip: '编辑文件夹',
                     onPressed: _openFolderManagePage,
                     icon: const Icon(Icons.sort),
@@ -311,11 +397,10 @@ class _DownloadPageState extends State<DownloadPage>
               ],
               bottom: TabBar(
                 controller: _tabController,
-                isScrollable: true,
-                tabAlignment: TabAlignment.start,
-                tabs: _DownloadTab.values
-                    .map((item) => Tab(text: item.label))
-                    .toList(),
+                tabs: [
+                  Tab(text: '全部视频(${_controller.allVideos.length})'),
+                  Tab(text: '文件夹(${_controller.folders.length})'),
+                ],
               ),
             ),
           ),
@@ -384,16 +469,8 @@ class _DownloadPageState extends State<DownloadPage>
             }
             return SliverMainAxisGroup(
               slivers: [
-                SliverPadding(
-                  padding: EdgeInsets.only(
-                    left: 12,
-                    bottom: 7,
-                    top: _downloadService.waitDownloadQueue.isEmpty ? 0 : 7,
-                  ),
-                  sliver: SliverToBoxAdapter(
-                    child: Text('全部视频 (${_controller.allVideos.length})'),
-                  ),
-                ),
+                if (_downloadService.waitDownloadQueue.isNotEmpty)
+                  const SliverToBoxAdapter(child: SizedBox(height: 7)),
                 SliverGrid.builder(
                   gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
                     mainAxisSpacing: 2,
@@ -417,6 +494,11 @@ class _DownloadPageState extends State<DownloadPage>
                       },
                       controller: _controller,
                       playContext: const DownloadVideoPlayContext.all(),
+                      customOnLongPress: () => _controller
+                        ..enableMultiSelect.value = true
+                        ..onSelect(entry),
+                      extraMoreItemsBuilder: (menuContext) =>
+                          _buildFolderQuickMenuItems(menuContext, entry),
                     );
                   },
                 ),
@@ -473,10 +555,18 @@ class _DownloadPageState extends State<DownloadPage>
                     title: folder.title,
                     count: entries.length,
                     entry: entries.firstOrNull,
-                    onTap: () => Get.to(
-                      DownloadFolderPage(folderId: folder.id),
-                    ),
-                    onLongPress: () => _showFolderActions(folder),
+                    checked: folder.checked,
+                    onTap: _folderSelectController.enableMultiSelect.value
+                        ? () => _folderSelectController.onSelect(folder)
+                        : () => Get.to(
+                            DownloadFolderPage(folderId: folder.id),
+                          ),
+                    onLongPress: () => _folderSelectController
+                      ..enableMultiSelect.value = true
+                      ..onSelect(folder),
+                    trailing: _folderSelectController.enableMultiSelect.value
+                        ? null
+                        : _buildFolderMoreBtn(folder),
                   );
                 },
               ),

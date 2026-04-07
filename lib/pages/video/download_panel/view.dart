@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:PiliPlus/common/assets.dart';
 import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/badge.dart';
@@ -16,6 +18,7 @@ import 'package:PiliPlus/pages/download/view.dart';
 import 'package:PiliPlus/pages/video/controller.dart';
 import 'package:PiliPlus/pages/video/introduction/ugc/controller.dart';
 import 'package:PiliPlus/pages/video/introduction/ugc/widgets/page.dart';
+import 'package:PiliPlus/services/download/download_collection_service.dart';
 import 'package:PiliPlus/services/download/download_service.dart';
 import 'package:PiliPlus/utils/date_utils.dart';
 import 'package:PiliPlus/utils/duration_utils.dart';
@@ -62,10 +65,34 @@ class DownloadPanel extends StatefulWidget {
 
 class _DownloadPanelState extends State<DownloadPanel> {
   final DownloadService _downloadService = Get.find<DownloadService>();
+  final DownloadCollectionService _collectionService =
+      Get.find<DownloadCollectionService>();
   final ListController _listController = ListController();
 
   late final cidSet = widget.cidSet;
   VideoQuality _quality = VideoQuality.fromCode(Pref.defaultVideoQa);
+
+  void _bindToUgcSeasonFolder(int cid) {
+    final ugcSeason = widget.videoDetail?.ugcSeason;
+    final title = ugcSeason?.title?.trim();
+    final seasonId = ugcSeason?.id;
+    if (title == null || title.isEmpty || seasonId == null) {
+      return;
+    }
+    unawaited(
+      _collectionService
+          .ensureAutoFolder(
+            title: title,
+            sourceKey: 'ugc-season:$seasonId',
+          )
+          .then(
+            (folder) => _collectionService.addVideosToFolders(
+              [cid],
+              [folder.id],
+            ),
+          ),
+    );
+  }
 
   @override
   void initState() {
@@ -311,6 +338,7 @@ class _DownloadPanelState extends State<DownloadPanel> {
           break;
       }
       cidSet.add(cid);
+      _bindToUgcSeasonFolder(cid);
       return true;
     } catch (e, s) {
       Utils.reportError(e, s);

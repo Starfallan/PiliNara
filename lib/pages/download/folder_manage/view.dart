@@ -89,6 +89,7 @@ class _DownloadFolderManagePageState extends State<DownloadFolderManagePage> {
         ],
       ),
       body: ReorderableListView.builder(
+        buildDefaultDragHandles: false,
         itemCount: _folders.length,
         onReorder: _onReorder,
         physics: const AlwaysScrollableScrollPhysics(),
@@ -98,27 +99,30 @@ class _DownloadFolderManagePageState extends State<DownloadFolderManagePage> {
         itemBuilder: (context, index) {
           final folder = _folders[index];
           final entries = _entriesOf(folder.id);
-          return SizedBox(
+          return ReorderableDelayedDragStartListener(
             key: Key(folder.id),
-            height: 100,
-            child: DownloadFolderCard(
-              title: folder.title,
-              count: entries.length,
-              entry: entries.firstOrNull,
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    tooltip: '重命名',
-                    onPressed: () => _renameFolder(folder),
-                    icon: const Icon(Icons.drive_file_rename_outline),
-                  ),
-                  IconButton(
-                    tooltip: '删除',
-                    onPressed: () => _deleteFolder(folder),
-                    icon: const Icon(Icons.delete_outline),
-                  ),
-                ],
+            index: index,
+            child: SizedBox(
+              height: 100,
+              child: DownloadFolderCard(
+                title: folder.title,
+                count: entries.length,
+                entry: entries.firstOrNull,
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: '重命名',
+                      onPressed: () => _renameFolder(folder),
+                      icon: const Icon(Icons.drive_file_rename_outline),
+                    ),
+                    IconButton(
+                      tooltip: '删除',
+                      onPressed: () => _deleteFolder(folder),
+                      icon: const Icon(Icons.delete_outline),
+                    ),
+                  ],
+                ),
               ),
             ),
           );
