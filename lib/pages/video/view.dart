@@ -101,6 +101,10 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   // 标志位：是否刚从 PiP 返回（用于触发 UI 重建）
   bool _justReturnedFromPip = false;
 
+  // 从 PiP 恢复时提前取出的 additional controllers（在 stopPip 清空前保存）
+  dynamic _savedIntroControllerFromPip;
+  VideoReplyController? _savedReplyControllerFromPip;
+
   // intro ctr
   late final CommonIntroController introController =
       videoDetailController.isFileSource
@@ -171,22 +175,27 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       final savedController =
           PipOverlayService.getSavedController<VideoDetailController>();
       if (savedController != null) {
+        // 必须在 stopPip 之前取出所有 additional controllers，
+        // 因为 stopPip 会调用 _savedControllers.clear() 清空缓存
+        final savedReplyControllerFromPip = PipOverlayService
+            .getAdditionalController<VideoReplyController>('reply');
+        final savedIntroControllerFromPip =
+            PipOverlayService.getAdditionalController('intro');
+
         // 直接使用保存的控制器
         videoDetailController = savedController;
         videoDetailController.isEnteringPip = false; // 重置标志
         Get.put(savedController, tag: heroTag);
-
-        // 强制重置一些可能在 dispose 时被清理但我们需要的东西
-        if (videoDetailController.tabCtr.index < 0) {
-          // 检查是否已销毁
-          // 这里很难检测 TabController 是否已销毁，但可以通过 length 触发重新创建
-        }
 
         PipOverlayService.stopPip(
           callOnClose: false,
           immediate: true,
           targetContextKey: targetContextKey,
         );
+
+        // 将提前取出的 additional controllers 存回局部变量供后续使用
+        _savedReplyControllerFromPip = savedReplyControllerFromPip;
+        _savedIntroControllerFromPip = savedIntroControllerFromPip;
         _logSponsorBlock(
           'Restored controller from PiP, hashCode: ${savedController.hashCode}, segmentList.length: ${savedController.segmentList.length}',
         );
@@ -218,11 +227,14 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
     if (videoDetailController.showReply) {
       // 尝试从 PiP 恢复 ReplyController
-      final savedReplyController = fromPip
-          ? PipOverlayService.getAdditionalController<VideoReplyController>(
-              'reply',
-            )
-          : null;
+      // 注意：_savedReplyControllerFromPip 在 stopPip 之前已提前取出
+      final savedReplyController =
+          _savedReplyControllerFromPip ??
+          (fromPip
+              ? PipOverlayService.getAdditionalController<VideoReplyController>(
+                  'reply',
+                )
+              : null);
       if (savedReplyController != null) {
         _videoReplyController = savedReplyController;
         _videoReplyController.isEnteringPip = false; // 重置标志
@@ -241,9 +253,10 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     }
 
     // 尝试从 PiP 恢复 IntroController
-    final savedIntroController = fromPip
-        ? PipOverlayService.getAdditionalController('intro')
-        : null;
+    // 注意：_savedIntroControllerFromPip 在 stopPip 之前已提前取出
+    final savedIntroController =
+        _savedIntroControllerFromPip ??
+        (fromPip ? PipOverlayService.getAdditionalController('intro') : null);
 
     if (videoDetailController.isFileSource) {
       if (savedIntroController != null &&

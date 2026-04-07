@@ -154,3 +154,7 @@ docs/*
 test*.dart
 
 AGENTS.md
+
+CLAUDE.md
+
+.claude
