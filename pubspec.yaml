@@ -49,7 +49,7 @@ dependencies:
   # 网络 
   dio: ^5.9.1
   cookie_jar: ^4.0.8
-  connectivity_plus: ^7.0.0
+  connectivity_plus: 7.0.0
   dio_http2_adapter: ^2.5.3
 
   # 图片
