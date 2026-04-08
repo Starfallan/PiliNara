@@ -114,6 +114,10 @@ class BottomControl extends StatelessWidget {
                         bottom: 5.25,
                         child: ViewPointDividerBar(
                           segments: videoDetailController.viewPointList,
+                          progress: controller.duration.value.inSeconds > 0
+                              ? controller.sliderPositionSeconds.value /
+                                  controller.duration.value.inSeconds
+                              : 0.0,
                         ),
                       ),
                     if (!isPipMode &&

@@ -959,11 +959,11 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
     final flag =
         isFullScreen || plPlayerController.isDesktopPip || maxWidth >= 500;
     List<BottomControlType> userSpecifyItemRight = [
+      if (isNotFileSource && plPlayerController.showViewPoints)
+        BottomControlType.viewPoints,
       if (isNotFileSource && plPlayerController.showDmChart)
         BottomControlType.dmChart,
       if (plPlayerController.isAnim) BottomControlType.superResolution,
-      if (isNotFileSource && plPlayerController.showViewPoints)
-        BottomControlType.viewPoints,
       if (isNotFileSource && anySeason) BottomControlType.episode,
       if (flag) BottomControlType.fit,
       if (isNotFileSource) BottomControlType.aiTranslate,
@@ -1857,6 +1857,13 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                           bottom: 0.75,
                           child: ViewPointDividerBar(
                             segments: videoDetailController.viewPointList,
+                            progress: plPlayerController
+                                        .duration.value.inSeconds >
+                                    0
+                                ? plPlayerController
+                                        .sliderPositionSeconds.value /
+                                    plPlayerController.duration.value.inSeconds
+                                : 0.0,
                           ),
                         ),
                       if (!widget.isPipMode &&
