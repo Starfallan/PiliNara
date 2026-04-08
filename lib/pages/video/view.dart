@@ -916,10 +916,14 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         hideStatusBar();
       }
     }
-    if (PlatformUtils.isMobile) {
+    if (PlatformUtils.isMobile && plPlayerController != null) {
+      if (isPortrait && plPlayerController!.suppressAutoRotateFullscreen) {
+        plPlayerController!.clearAutoRotateFullscreenSuppression();
+      }
       if (!isPortrait &&
           !isFullScreen &&
-          plPlayerController != null &&
+          !plPlayerController!.fsProcessing &&
+          !plPlayerController!.suppressAutoRotateFullscreen &&
           videoDetailController.autoPlay) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           plPlayerController!.triggerFullScreen(
@@ -930,10 +934,14 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         });
       } else if (isPortrait &&
           isFullScreen &&
-          plPlayerController?.isManualFS == false &&
-          plPlayerController?.controlsLock.value == false) {
+          !plPlayerController!.fsProcessing &&
+          plPlayerController!.isManualFS == false &&
+          plPlayerController!.controlsLock.value == false) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          plPlayerController!.triggerFullScreen(status: false);
+          plPlayerController!.triggerFullScreen(
+            status: false,
+            isManualFS: false,
+          );
         });
       }
     }

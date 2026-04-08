@@ -1405,6 +1405,13 @@ class PlPlayerController with BlockConfigMixin {
   late bool isManualFS = true;
   late final FullScreenMode mode = Pref.fullScreenMode;
   late final horizontalScreen = Pref.horizontalScreen;
+  // 手动退出全屏后，等设备回到竖屏前不要被横屏检测再次拉回全屏。
+  bool _suppressAutoRotateFullscreen = false;
+  bool get suppressAutoRotateFullscreen => _suppressAutoRotateFullscreen;
+
+  void clearAutoRotateFullscreenSuppression() {
+    _suppressAutoRotateFullscreen = false;
+  }
 
   // 全屏
   bool fsProcessing = false;
@@ -1419,6 +1426,11 @@ class PlPlayerController with BlockConfigMixin {
 
     if (fsProcessing) {
       return;
+    }
+    if (!status && isManualFS) {
+      _suppressAutoRotateFullscreen = true;
+    } else if (status) {
+      _suppressAutoRotateFullscreen = false;
     }
     fsProcessing = true;
     toggleFullScreen(status);
