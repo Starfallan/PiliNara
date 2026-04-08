@@ -2529,7 +2529,6 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     videoDetailController.plPlayerController.onPopInvokedWithResult(
       didPop,
       result,
-      isPortrait,
     );
     if (didPop) {
       _startInAppPipIfNeeded();
