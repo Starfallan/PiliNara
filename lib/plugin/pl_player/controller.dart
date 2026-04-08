@@ -650,6 +650,9 @@ class PlPlayerController with BlockConfigMixin {
     playRepeat = Pref.playRepeat;
     cacheVideoQa = PlatformUtils.isMobile ? null : Pref.defaultVideoQa;
     cacheAudioQa = Pref.defaultAudioQa;
+    if (_playbackSpeed.value != playSpeedDefault) {
+      unawaited(setPlaybackSpeed(playSpeedDefault));
+    }
 
     final defaultSuperResolutionType = _isAnimPgcType(nextPgcType)
         ? Pref.superResolutionType
