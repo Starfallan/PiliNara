@@ -33,6 +33,8 @@ class MemberGuardController
       tops = list.take(3).toList();
       if (list.length > 3) {
         list.removeRange(0, 3);
+      } else {
+        list.clear();
       }
     }
     return false;

@@ -16,8 +16,7 @@
     </queries>
     <queries>
         <intent>
-            <action android:name=
-                "android.support.customtabs.action.CustomTabsService" />
+            <action android:name="android.support.customtabs.action.CustomTabsService" />
         </intent>
     </queries>
 
@@ -35,56 +34,62 @@
         </intent>
     </queries>
 
-    <application
-        android:label="@string/app_name"
+    <application xmlns:tools="http://schemas.android.com/tools"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher"
-        xmlns:tools="http://schemas.android.com/tools"
-        android:enableOnBackInvokedCallback="true"
         android:allowBackup="false"
+        android:enableOnBackInvokedCallback="false"
         android:fullBackupContent="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
         tools:replace="android:allowBackup">
         <meta-data
             android:name="io.flutter.embedding.android.EnableImpeller"
             android:value="false" />
         <activity
             android:name=".MainActivity"
-            android:exported="true"
-            android:launchMode="singleTask"
-            android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:exported="true"
             android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustResize"
-            android:supportsPictureInPicture="true"
+            android:launchMode="singleTask"
             android:resizeableActivity="true"
-            >
+            android:supportsPictureInPicture="true"
+            android:theme="@style/LaunchTheme"
+            android:windowSoftInputMode="adjustResize">
 
-            <meta-data android:name="flutter_deeplinking_enabled" android:value="false" />
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+
+            <meta-data
+                android:name="flutter_deeplinking_enabled"
+                android:value="false" />
 
             <!-- Specifies an Android theme to apply to this Activity as soon as
                  the Android process has started. This theme is visible to the user
                  while the Flutter UI initializes. After that, this theme continues
                  to determine the Window background behind the Flutter UI. -->
             <meta-data
-              android:name="io.flutter.embedding.android.NormalTheme"
-              android:resource="@style/NormalTheme"
-              />
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
+
             <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
             <intent-filter android:label="PiliNara">
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="http"/>
-                <data android:scheme="https"/>
-                <data android:host="*.bilibili.com"/>
-                <data android:host="*.bilibili.cn"/>
-                <data android:host="*.bilibili.tv"/>
-                <data android:host="bilibili.com"/>
-                <data android:host="bilibili.cn"/>
-                <data android:host="bilibili.tv"/>
+
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:host="*.bilibili.com" />
+                <data android:host="*.bilibili.cn" />
+                <data android:host="*.bilibili.tv" />
+                <data android:host="bilibili.com" />
+                <data android:host="bilibili.cn" />
+                <data android:host="bilibili.tv" />
                 <data android:host="b23.tv" />
                 <!--<data android:host="live.bilibili.com"/>-->
                 <!--<data android:host="www.bilibili.com"/>-->
@@ -100,36 +105,56 @@
             <intent-filter android:label="PiliNara">
                 <action android:name="android.intent.action.VIEW" />
                 <action android:name="android.intent.action.SEARCH" />
+                <action android:name="com.example.piliplus.SHORTCUT" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="bilibili"/>
+
+                <data android:scheme="bilibili" />
+                <data android:host="download" />
                 <data android:host="forward" />
-                <data android:host="comment"
+                <data
+                    android:host="comment"
                     android:pathPattern="/detail/.*/.*/.*" />
                 <data android:host="uper" />
-                <data android:host="article"
+                <data
+                    android:host="article"
                     android:pathPattern="/readlist" />
                 <data android:host="opus" />
-                <data android:host="advertise" android:path="/home" />
+                <data
+                    android:host="advertise"
+                    android:path="/home" />
                 <data android:host="clip" />
-                <data android:host="search" android:pathPattern=".*" />
+                <data
+                    android:host="search"
+                    android:pathPattern=".*" />
                 <data android:host="stardust-search" />
                 <data android:host="music" />
                 <data android:host="cheese" />
-                <data android:host="bangumi"
+                <data
+                    android:host="bangumi"
                     android:pathPattern="/season.*" />
-                <data android:host="bangumi" android:pathPattern="/.*" />
-                <data android:host="pictureshow"
+                <data
+                    android:host="bangumi"
+                    android:pathPattern="/.*" />
+                <data
+                    android:host="pictureshow"
                     android:pathPrefix="/creative_center" />
                 <data android:host="cliparea" />
                 <data android:host="im" />
-                <data android:host="im" android:path="/notifications" />
+                <data
+                    android:host="im"
+                    android:path="/notifications" />
                 <data android:host="following" />
-                <data android:host="following"
+                <data
+                    android:host="following"
                     android:pathPattern="/detail/.*" />
-                <data android:host="following"
+                <data
+                    android:host="following"
                     android:path="/publishInfo/" />
-                <data android:host="laser" android:pathPattern="/.*" />
+                <data
+                    android:host="laser"
+                    android:pathPattern="/.*" />
                 <data android:host="livearea" />
                 <data android:host="live" />
                 <data android:host="catalog" />
@@ -147,28 +172,44 @@
                 <data android:host="video" />
                 <data android:host="story" />
                 <data android:host="podcast" />
-                <data android:host="main" android:path="/favorite" />
-                <data android:host="pgc" android:path="/theater/match" />
-                <data android:host="pgc" android:path="/theater/square" />
-                <data android:host="m.bilibili.com"
+                <data
+                    android:host="main"
+                    android:path="/favorite" />
+                <data
+                    android:host="pgc"
+                    android:path="/theater/match" />
+                <data
+                    android:host="pgc"
+                    android:path="/theater/square" />
+                <data
+                    android:host="m.bilibili.com"
                     android:path="/topic-detail" />
                 <data android:host="article" />
-                <data android:host="pegasus"
+                <data
+                    android:host="pegasus"
                     android:pathPattern="/channel/v2/.*" />
-                <data android:host="feed" android:pathPattern="/channel" />
+                <data
+                    android:host="feed"
+                    android:pathPattern="/channel" />
                 <data android:host="vip" />
-                <data android:host="user_center" android:path="/vip" />
+                <data
+                    android:host="user_center"
+                    android:path="/vip" />
                 <data android:host="history" />
-                <data android:host="charge" android:path="/rank" />
+                <data
+                    android:host="charge"
+                    android:path="/rank" />
                 <data android:host="assistant" />
                 <data android:host="feedback" />
-                <data android:host="auth" android:path="/launch" />
+                <data
+                    android:host="auth"
+                    android:path="/launch" />
             </intent-filter>
         </activity>
-        <service 
+        <service
             android:name="com.ryanheise.audioservice.AudioService"
+            android:exported="true"
             android:foregroundServiceType="mediaPlayback"
-            android:exported="true" 
             tools:ignore="Instantiatable">
             <intent-filter>
                 <action android:name="android.media.browse.MediaBrowserService" />
@@ -177,32 +218,37 @@
 
         <activity
             android:name="com.yalantis.ucrop.UCropActivity"
-            android:theme="@style/Ucrop.CropTheme"/>
+            android:theme="@style/Ucrop.CropTheme" />
 
-        <receiver 
+        <receiver
             android:name="com.ryanheise.audioservice.MediaButtonReceiver"
-            android:exported="true" 
+            android:exported="true"
             tools:ignore="Instantiatable">
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
-        </receiver> 
+        </receiver>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
+
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28"/>
-    <uses-permission android:name="android.permission.WAKE_LOCK"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!--
       Media access permissions.
       Android 13 or higher.
@@ -210,5 +256,5 @@
       -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-    <uses-permission android:name="android.permission.WRITE_SETTINGS"/>
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
 </manifest>

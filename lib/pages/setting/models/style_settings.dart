@@ -38,7 +38,6 @@ import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
-import 'package:auto_orientation/auto_orientation.dart';
 import 'package:flutter/material.dart' hide StatefulBuilder;
 import 'package:flutter/services.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
@@ -72,9 +71,9 @@ List<SettingsModel> get styleSettings => [
     defaultVal: Pref.horizontalScreen,
     onChanged: (value) {
       if (value) {
-        autoScreen();
+        fullMode();
       } else {
-        AutoOrientation.portraitUpMode();
+        portraitUpMode();
       }
     },
   ),

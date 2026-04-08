@@ -880,11 +880,17 @@ class UserInfoCard extends StatelessWidget {
         ),
     ];
     if (children.isNotEmpty) {
+      Widget child;
+      if (children.length == 1) {
+        child = children.first;
+      } else {
+        child = isPortrait
+            ? Row(mainAxisAlignment: .spaceBetween, children: children)
+            : Wrap(spacing: 10, runSpacing: 6, children: children);
+      }
       return Padding(
         padding: const .only(left: 20, right: 20, top: 6),
-        child: isPortrait
-            ? Row(mainAxisAlignment: .spaceBetween, children: children)
-            : Wrap(spacing: 10, runSpacing: 6, children: children),
+        child: child,
       );
     }
     return null;

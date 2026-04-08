@@ -78,12 +78,12 @@ abstract final class ImageUtils {
     }
   }
 
-  static Future<bool> checkPermissionDependOnSdkInt() async {
+  static Future<bool> checkPermissionDependOnSdkInt() {
     if (Platform.isAndroid) {
-      if (await Utils.sdkInt < 29) {
+      if (Utils.sdkInt < 29) {
         return requestPer();
       } else {
-        return true;
+        return Future.syncValue(true);
       }
     }
     return requestPer();

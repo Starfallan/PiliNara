@@ -397,6 +397,9 @@ abstract final class PiliScheme {
               }
             }
             return false;
+          case 'download':
+            Get.toNamed('/download');
+            return true;
           default:
             if (!selfHandle) {
               // if (kDebugMode) debugPrint('$uri');

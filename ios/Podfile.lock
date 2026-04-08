@@ -6,8 +6,6 @@ PODS:
     - FlutterMacOS
   - audio_session (0.0.1):
     - Flutter
-  - auto_orientation (0.0.1):
-    - Flutter
   - battery_plus (1.0.0):
     - Flutter
   - chat_bottom_container (0.0.1):
@@ -83,6 +81,8 @@ PODS:
     - Flutter
   - media_kit_video (0.0.1):
     - Flutter
+  - native_device_orientation (0.0.1):
+    - Flutter
   - OrderedSet (6.0.3)
   - package_info_plus (0.4.5):
     - Flutter
@@ -114,7 +114,6 @@ DEPENDENCIES:
   - app_links (from `.symlinks/plugins/app_links/ios`)
   - audio_service (from `.symlinks/plugins/audio_service/darwin`)
   - audio_session (from `.symlinks/plugins/audio_session/ios`)
-  - auto_orientation (from `.symlinks/plugins/auto_orientation/ios`)
   - battery_plus (from `.symlinks/plugins/battery_plus/ios`)
   - chat_bottom_container (from `.symlinks/plugins/chat_bottom_container/ios`)
   - connectivity_plus (from `.symlinks/plugins/connectivity_plus/ios`)
@@ -133,6 +132,7 @@ DEPENDENCIES:
   - media_kit_libs_ios_video (from `.symlinks/plugins/media_kit_libs_ios_video/ios`)
   - media_kit_native_event_loop (from `.symlinks/plugins/media_kit_native_event_loop/ios`)
   - media_kit_video (from `.symlinks/plugins/media_kit_video/ios`)
+  - native_device_orientation (from `.symlinks/plugins/native_device_orientation/ios`)
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
   - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
   - saver_gallery (from `.symlinks/plugins/saver_gallery/ios`)
@@ -160,8 +160,6 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/audio_service/darwin"
   audio_session:
     :path: ".symlinks/plugins/audio_session/ios"
-  auto_orientation:
-    :path: ".symlinks/plugins/auto_orientation/ios"
   battery_plus:
     :path: ".symlinks/plugins/battery_plus/ios"
   chat_bottom_container:
@@ -198,6 +196,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/media_kit_native_event_loop/ios"
   media_kit_video:
     :path: ".symlinks/plugins/media_kit_video/ios"
+  native_device_orientation:
+    :path: ".symlinks/plugins/native_device_orientation/ios"
   package_info_plus:
     :path: ".symlinks/plugins/package_info_plus/ios"
   permission_handler_apple:
@@ -221,7 +221,6 @@ SPEC CHECKSUMS:
   app_links: a754cbec3c255bd4bbb4d236ecc06f28cd9a7ce8
   audio_service: aa99a6ba2ae7565996015322b0bb024e1d25c6fd
   audio_session: 9bb7f6c970f21241b19f5a3658097ae459681ba0
-  auto_orientation: a1600c9ed72e6e96982fb4e1214463343342432a
   battery_plus: b42253f6d2dde71712f8c36fef456d99121c5977
   chat_bottom_container: f1eb8323db77a87db50f361142c679f11e892d1b
   connectivity_plus: cb623214f4e1f6ef8fe7403d580fdad517d2f7dd
@@ -243,6 +242,7 @@ SPEC CHECKSUMS:
   media_kit_libs_ios_video: 5a18affdb97d1f5d466dc79988b13eff6c5e2854
   media_kit_native_event_loop: 5fba1a849a6c87a34985f1e178a0de5bd444a0cf
   media_kit_video: 1746e198cb697d1ffb734b1d05ec429d1fcd1474
+  native_device_orientation: e3580675687d5034770da198f6839ebf2122ef94
   OrderedSet: e539b66b644ff081c73a262d24ad552a69be3a94
   package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
   permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d

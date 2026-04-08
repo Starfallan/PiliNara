@@ -88,10 +88,7 @@ abstract final class Utils {
     int.parse('${color.substring(7)}${color.substring(1, 7)}', radix: 16),
   );
 
-  static int? _sdkInt;
-  static Future<int> get sdkInt async {
-    return _sdkInt ??= (await DeviceInfoPlugin().androidInfo).version.sdkInt;
-  }
+  static late int sdkInt;
 
   static bool? _isIpad;
   static Future<bool> get isIpad async {

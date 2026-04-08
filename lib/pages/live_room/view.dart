@@ -30,7 +30,6 @@ import 'package:PiliPlus/pages/video/widgets/player_focus.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/danmaku_options.dart';
-import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
 import 'package:PiliPlus/plugin/pl_player/view/view.dart';
 import 'package:PiliPlus/services/live_pip_overlay_service.dart';
 import 'package:PiliPlus/services/logger.dart';
@@ -138,6 +137,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     maxWidth = size.width;
     maxHeight = size.height;
     isPortrait = size.isPortrait;
+    plPlayerController.screenRatio = maxHeight / maxWidth;
   }
 
   @override
@@ -282,30 +282,16 @@ class _LiveRoomPageState extends State<LiveRoomPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // 添加空检查，防止在控制器未初始化时访问
-    if (!mounted) return;
-
-    try {
-      if (state == AppLifecycleState.resumed) {
-        if (!plPlayerController.showDanmaku) {
-          _liveRoomController.startLiveTimer();
-          plPlayerController.showDanmaku = true;
-          if (isFullScreen && Platform.isIOS) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!_liveRoomController.isPortrait.value) {
-                landscape();
-              }
-            });
-          }
-        }
-      } else if (state == AppLifecycleState.paused) {
-        _liveRoomController.cancelLiveTimer();
-        plPlayerController
-          ..showDanmaku = false
-          ..danmakuController?.clear();
+    if (plPlayerController.visible = state == .resumed) {
+      if (!plPlayerController.showDanmaku) {
+        _liveRoomController.startLiveTimer();
+        plPlayerController.showDanmaku = true;
       }
-    } catch (e) {
-      // 忽略错误，防止崩溃
+    } else if (state == .paused) {
+      _liveRoomController.cancelLiveTimer();
+      plPlayerController
+        ..showDanmaku = false
+        ..danmakuController?.clear();
     }
   }
 
@@ -474,20 +460,22 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     }
     return popScope(
       canPop: !isFullScreen && !plPlayerController.isDesktopPip,
-      onPopInvokedWithResult: _onPopInvokedWithResult,
+      onPopInvokedWithResult: (didPop, result) =>
+          plPlayerController.onPopInvokedWithResult(didPop, result, isPortrait),
       child: player,
     );
   }
 
-  void _onPopInvokedWithResult(bool didPop, result) {
+  void _onPopInvokedWithResult(bool didPop, result, isPortrait) {
     if (didPop && Platform.isAndroid) {
       // 只要返回了，先强制切断 Auto-PiP 权限，防止手势误触
       plPlayerController.disableAutoEnterPip();
     }
-    final handled = plPlayerController.onPopInvokedWithResult(didPop, result);
-    if (handled && !didPop) {
-      return;
-    }
+    final handled = plPlayerController.onPopInvokedWithResult(
+      didPop,
+      result,
+      isPortrait,
+    );
     if (didPop) {
       _startLivePipIfNeeded();
     }

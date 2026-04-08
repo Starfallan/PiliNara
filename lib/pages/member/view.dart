@@ -40,7 +40,6 @@ import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:extended_nested_scroll_view/extended_nested_scroll_view.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
@@ -383,7 +382,7 @@ class _MemberPageState extends State<MemberPage> {
             ],
           ),
         ),
-        if (kDebugMode || PlatformUtils.isMobile)
+        if (PlatformUtils.isMobile)
           PopupMenuItem(
             onTap: _createShortcut,
             child: const Row(

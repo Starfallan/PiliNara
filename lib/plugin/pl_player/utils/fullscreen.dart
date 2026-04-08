@@ -1,16 +1,14 @@
 import 'dart:async';
-import 'dart:io';
+import 'dart:io' show Platform;
 
-import 'package:PiliPlus/utils/platform_utils.dart';
-import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
-import 'package:auto_orientation/auto_orientation.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/services.dart'
+    show SystemChrome, MethodChannel, SystemUiOverlay, DeviceOrientation;
 
 bool _isDesktopFullScreen = false;
 
 @pragma('vm:notify-debugger-on-exception')
-Future<void> enterDesktopFullscreen({bool inAppFullScreen = false}) async {
+Future<void> enterDesktopFullScreen({bool inAppFullScreen = false}) async {
   if (!inAppFullScreen && !_isDesktopFullScreen) {
     _isDesktopFullScreen = true;
     try {
@@ -22,7 +20,7 @@ Future<void> enterDesktopFullscreen({bool inAppFullScreen = false}) async {
 }
 
 @pragma('vm:notify-debugger-on-exception')
-Future<void> exitDesktopFullscreen() async {
+Future<void> exitDesktopFullScreen() async {
   if (_isDesktopFullScreen) {
     _isDesktopFullScreen = false;
     try {
@@ -33,60 +31,50 @@ Future<void> exitDesktopFullscreen() async {
   }
 }
 
-//横屏
-@pragma('vm:notify-debugger-on-exception')
-Future<void> landscape() async {
-  try {
-    await AutoOrientation.landscapeAutoMode(forceSensor: true);
-  } catch (_) {}
-}
-
-//竖屏
-Future<void> verticalScreenForTwoSeconds() async {
-  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  await autoScreen();
-}
-
-//全向
-bool allowRotateScreen = Pref.allowRotateScreen;
-Future<void> autoScreen() async {
-  if (PlatformUtils.isMobile && allowRotateScreen) {
-    await SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      // DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+List<DeviceOrientation>? _lastOrientation;
+Future<void>? _setPreferredOrientations(List<DeviceOrientation> orientations) {
+  if (_lastOrientation == orientations) {
+    return null;
   }
+  _lastOrientation = orientations;
+  return SystemChrome.setPreferredOrientations(orientations);
 }
 
-Future<void> fullAutoModeForceSensor() {
-  return AutoOrientation.fullAutoMode(forceSensor: true);
+Future<void>? portraitUpMode() {
+  return _setPreferredOrientations(const [.portraitUp]);
+}
+
+Future<void>? landscapeLeftMode() {
+  return _setPreferredOrientations(const [.landscapeLeft]);
+}
+
+Future<void>? landscapeRightMode() {
+  return _setPreferredOrientations(const [.landscapeRight]);
+}
+
+Future<void>? fullMode() {
+  return _setPreferredOrientations(
+    const [.portraitUp, .landscapeLeft, .landscapeRight],
+  );
 }
 
 bool _showStatusBar = true;
-Future<void> hideStatusBar() async {
+Future<void>? hideStatusBar() {
   if (!_showStatusBar) {
-    return;
+    return null;
   }
   _showStatusBar = false;
-  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  return SystemChrome.setEnabledSystemUIMode(.immersiveSticky);
 }
 
 //退出全屏显示
-Future<void> showStatusBar() async {
+Future<void>? showStatusBar() {
   if (_showStatusBar) {
-    return;
+    return null;
   }
   _showStatusBar = true;
-  SystemUiMode mode;
-  if (Platform.isAndroid && (await Utils.sdkInt < 29)) {
-    mode = SystemUiMode.manual;
-  } else {
-    mode = SystemUiMode.edgeToEdge;
-  }
-  await SystemChrome.setEnabledSystemUIMode(
-    mode,
+  return SystemChrome.setEnabledSystemUIMode(
+    Platform.isAndroid && Utils.sdkInt < 29 ? .manual : .edgeToEdge,
     overlays: SystemUiOverlay.values,
   );
 }

@@ -121,15 +121,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.2.3"
-  auto_orientation:
-    dependency: "direct main"
-    description:
-      path: "."
-      ref: master
-      resolved-ref: ca2bb137bd0e4b221df3bc5ba1492d2902c78624
-      url: "https://github.com/bggRGjQaUbCoE/auto_orientation.git"
-    source: git
-    version: "2.3.1"
   battery_plus:
     dependency: "direct main"
     description:
@@ -530,10 +521,10 @@ packages:
     description:
       path: "."
       ref: mod
-      resolved-ref: aba199942d9b92b5c08cf3559d8a8f06594f0480
+      resolved-ref: d1dde80df07a6ec46d9291cfeba6c01de53b5305
       url: "https://github.com/bggRGjQaUbCoE/flutter_file_picker.git"
     source: git
-    version: "11.0.1"
+    version: "11.0.2"
   file_selector_linux:
     dependency: transitive
     description:
@@ -906,10 +897,10 @@ packages:
     dependency: "direct main"
     description:
       name: image_cropper
-      sha256: d2555be1ec4b7b12fc502ede481c846ad44578fbb0748debd4c648b25ca07cad
+      sha256: e2c8da14ecb4c6ead02b8e1265f966ce72b43ff930da66eef3833e622185dec7
       url: "https://pub.dev"
     source: hosted
-    version: "12.1.1"
+    version: "12.2.0"
   image_cropper_for_web:
     dependency: transitive
     description:
@@ -1239,6 +1230,15 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.0"
+  native_device_orientation:
+    dependency: "direct main"
+    description:
+      path: "."
+      ref: master
+      resolved-ref: "42454199133e83a9a31f0fb0107d14af1f96f959"
+      url: "https://github.com/bggRGjQaUbCoE/flutter_native_device_orientation.git"
+    source: git
+    version: "2.0.5"
   native_toolchain_c:
     dependency: transitive
     description:
@@ -1320,7 +1320,7 @@ packages:
     source: hosted
     version: "2.1.5"
   path_provider_android:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
       name: path_provider_android
       sha256: "149441ca6e4f38193b2e004c0ca6376a3d11f51fa5a77552d8bd4d2b0c0912ba"
@@ -1571,10 +1571,10 @@ packages:
     dependency: transitive
     description:
       name: sentry
-      sha256: "288aee3d35f252ac0dc3a4b0accbbe7212fa2867604027f2cc5bc65334afd743"
+      sha256: "682360642a7b14b36daef3b5574b7269164e7763512ac92cdafd55b695bd2183"
       url: "https://pub.dev"
     source: hosted
-    version: "9.16.0"
+    version: "9.16.1"
   share_plus:
     dependency: "direct main"
     description:

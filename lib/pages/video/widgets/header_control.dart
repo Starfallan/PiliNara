@@ -35,7 +35,6 @@ import 'package:PiliPlus/pages/video/widgets/header_mixin.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/data_source.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
-import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
 import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/services/shutdown_timer_service.dart'
     show shutdownTimerService;
@@ -1783,21 +1782,11 @@ class HeaderControlState extends State<HeaderControl>
                     size: 15,
                     color: Colors.white,
                   ),
-                  onPressed: () {
-                    if (plPlayerController.onPopInvokedWithResult(
-                      false,
-                      null,
-                    )) {
-                      return;
-                    }
-                    if (PlatformUtils.isMobile &&
-                        !horizontalScreen &&
-                        !isPortrait) {
-                      verticalScreenForTwoSeconds();
-                    } else {
-                      Get.back();
-                    }
-                  },
+                  onPressed: () => plPlayerController.onPopInvokedWithResult(
+                    false,
+                    null,
+                    videoDetailCtr.isPortrait,
+                  ),
                 ),
               ),
               if (!plPlayerController.isDesktopPip &&
@@ -1813,12 +1802,7 @@ class HeaderControlState extends State<HeaderControl>
                       size: 15,
                       color: Colors.white,
                     ),
-                    onPressed: () {
-                      videoDetailCtr.plPlayerController
-                        ..isCloseAll = true
-                        ..dispose();
-                      Get.until((route) => route.isFirst);
-                    },
+                    onPressed: plPlayerController.onCloseAll,
                   ),
                 ),
               title,
