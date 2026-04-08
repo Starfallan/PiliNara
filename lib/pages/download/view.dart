@@ -54,7 +54,7 @@ class _DownloadPageState extends State<DownloadPage>
   final _progress = ChangeNotifier();
 
   late final TabController _tabController;
-  late final RxInt _tabIndex = 0.obs;
+  int _tabIndex = 0;
 
   @override
   void initState() {
@@ -67,7 +67,11 @@ class _DownloadPageState extends State<DownloadPage>
     if (_tabController.indexIsChanging) {
       return;
     }
-    _tabIndex.value = _tabController.index;
+    if (_tabIndex != _tabController.index && mounted) {
+      setState(() {
+        _tabIndex = _tabController.index;
+      });
+    }
     if (_tabController.index != 0 && _controller.enableMultiSelect.value) {
       _controller.handleSelect();
     }
@@ -158,37 +162,17 @@ class _DownloadPageState extends State<DownloadPage>
     SmartDialog.showToast('已按缓存时间显示');
   }
 
-  Future<void> _showAllSortActions() async {
-    final action = await showDialog<_DownloadSortAction>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        clipBehavior: Clip.hardEdge,
-        contentPadding: const EdgeInsets.symmetric(vertical: 12),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              dense: true,
-              title: const Text('手动排序', style: TextStyle(fontSize: 14)),
-              onTap: () => Get.back(result: _DownloadSortAction.manual),
-            ),
-            ListTile(
-              dense: true,
-              title: const Text('按缓存时间', style: TextStyle(fontSize: 14)),
-              onTap: () => Get.back(result: _DownloadSortAction.reset),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (!mounted || action == null) {
-      return;
-    }
-    if (action == _DownloadSortAction.manual) {
-      await _openAllSortPage();
-    } else {
-      await _resetAllSort();
-    }
+  void _onAllSortSelected(_DownloadSortAction action) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) {
+        return;
+      }
+      if (action == _DownloadSortAction.manual) {
+        await _openAllSortPage();
+      } else {
+        await _resetAllSort();
+      }
+    });
   }
 
   Future<void> _openFolderManagePage() async {
@@ -294,10 +278,30 @@ class _DownloadPageState extends State<DownloadPage>
     );
   }
 
+  Widget _buildAllSortBtn() {
+    return Builder(
+      builder: (context) => PopupMenuButton<_DownloadSortAction>(
+        tooltip: '排序',
+        onSelected: _onAllSortSelected,
+        itemBuilder: (_) => const [
+          PopupMenuItem(
+            value: _DownloadSortAction.manual,
+            child: Text('手动排序'),
+          ),
+          PopupMenuItem(
+            value: _DownloadSortAction.reset,
+            child: Text('按缓存时间'),
+          ),
+        ],
+        icon: const Icon(Icons.sort),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final currentTab = _DownloadTab.values[_tabIndex.value];
+      final currentTab = _DownloadTab.values[_tabIndex];
       final isVideoTab = currentTab == _DownloadTab.videos;
       final MultiSelectBase activeMultiSelectCtr = isVideoTab
           ? _controller
@@ -382,11 +386,7 @@ class _DownloadPageState extends State<DownloadPage>
                     },
                     icon: const Icon(Icons.edit_note),
                   ),
-                  IconButton(
-                    tooltip: '排序',
-                    onPressed: _showAllSortActions,
-                    icon: const Icon(Icons.sort),
-                  ),
+                  _buildAllSortBtn(),
                 ] else ...[
                   IconButton(
                     tooltip: '新建文件夹',
@@ -415,8 +415,16 @@ class _DownloadPageState extends State<DownloadPage>
               bottom: TabBar(
                 controller: _tabController,
                 tabs: [
-                  Tab(text: '全部视频(${_controller.allVideos.length})'),
-                  Tab(text: '文件夹(${_controller.folders.length})'),
+                  Tab(
+                    child: Obx(
+                      () => Text('全部视频(${_controller.allVideos.length})'),
+                    ),
+                  ),
+                  Tab(
+                    child: Obx(
+                      () => Text('文件夹(${_controller.folders.length})'),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -448,30 +456,32 @@ class _DownloadPageState extends State<DownloadPage>
             if (entry == null) {
               return const SliverToBoxAdapter();
             }
-            return SliverMainAxisGroup(
-              slivers: [
-                SliverPadding(
-                  padding: const EdgeInsets.only(left: 12, bottom: 7),
-                  sliver: SliverToBoxAdapter(
-                    child: Text(
-                      '正在缓存 (${_downloadService.waitDownloadQueue.length})',
+            return SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 7),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(left: 12, bottom: 7),
+                      child: Text(
+                        '正在缓存 (${_downloadService.waitDownloadQueue.length})',
+                      ),
                     ),
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: SizedBox(
-                    height: 100,
-                    child: DetailItem(
-                      entry: entry,
-                      progress: _progress,
-                      downloadService: _downloadService,
-                      showTitle: true,
-                      isCurr: true,
-                      controller: _controller,
+                    SizedBox(
+                      height: 100,
+                      child: DetailItem(
+                        entry: entry,
+                        progress: _progress,
+                        downloadService: _downloadService,
+                        showTitle: true,
+                        isCurr: true,
+                        controller: _controller,
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             );
           }),
           Obx(() {
@@ -484,42 +494,41 @@ class _DownloadPageState extends State<DownloadPage>
                 child: HttpError(),
               );
             }
-            return SliverMainAxisGroup(
-              slivers: [
-                if (_downloadService.waitDownloadQueue.isNotEmpty)
-                  const SliverToBoxAdapter(child: SizedBox(height: 7)),
-                SliverGrid.builder(
-                  gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                    mainAxisSpacing: 2,
-                    mainAxisExtent: 100,
-                    maxCrossAxisExtent: Grid.smallCardWidth * 2,
-                  ),
-                  itemCount: _controller.allVideos.length,
-                  itemBuilder: (context, index) {
-                    final entry = _controller.allVideos[index];
-                    return DetailItem(
-                      entry: entry,
-                      progress: _progress,
-                      downloadService: _downloadService,
-                      showTitle: true,
-                      onDelete: () async {
-                        await _downloadService.deleteDownload(
-                          entry: entry,
-                          removeList: true,
-                        );
-                        GStorage.watchProgress.delete(entry.cid.toString());
-                      },
-                      controller: _controller,
-                      playContext: const DownloadVideoPlayContext.all(),
-                      customOnLongPress: () => _controller
-                        ..enableMultiSelect.value = true
-                        ..onSelect(entry),
-                      extraMoreItemsBuilder: (menuContext) =>
-                          _buildFolderQuickMenuItems(menuContext, entry),
-                    );
-                  },
+            return SliverPadding(
+              padding: EdgeInsets.only(
+                top: _downloadService.waitDownloadQueue.isNotEmpty ? 0 : 7,
+              ),
+              sliver: SliverGrid.builder(
+                gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                  mainAxisSpacing: 2,
+                  mainAxisExtent: 100,
+                  maxCrossAxisExtent: Grid.smallCardWidth * 2,
                 ),
-              ],
+                itemCount: _controller.allVideos.length,
+                itemBuilder: (context, index) {
+                  final entry = _controller.allVideos[index];
+                  return DetailItem(
+                    entry: entry,
+                    progress: _progress,
+                    downloadService: _downloadService,
+                    showTitle: true,
+                    onDelete: () async {
+                      await _downloadService.deleteDownload(
+                        entry: entry,
+                        removeList: true,
+                      );
+                      GStorage.watchProgress.delete(entry.cid.toString());
+                    },
+                    controller: _controller,
+                    playContext: const DownloadVideoPlayContext.all(),
+                    customOnLongPress: () => _controller
+                      ..enableMultiSelect.value = true
+                      ..onSelect(entry),
+                    extraMoreItemsBuilder: (menuContext) =>
+                        _buildFolderQuickMenuItems(menuContext, entry),
+                  );
+                },
+              ),
             );
           }),
           SliverToBoxAdapter(
