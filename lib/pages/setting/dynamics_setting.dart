@@ -1,11 +1,17 @@
 import 'package:PiliPlus/common/widgets/flutter/list_tile.dart';
+import 'package:PiliPlus/pages/setting/models/model.dart';
 import 'package:PiliPlus/pages/setting/models/dynamics_settings.dart';
 import 'package:flutter/material.dart' hide ListTile;
 
 class DynamicsSetting extends StatefulWidget {
-  const DynamicsSetting({super.key, this.showAppBar = true});
+  const DynamicsSetting({
+    super.key,
+    this.showAppBar = true,
+    this.autoOpenKeywordFilter = false,
+  });
 
   final bool showAppBar;
+  final bool autoOpenKeywordFilter;
 
   @override
   State<DynamicsSetting> createState() => _DynamicsSettingState();
@@ -13,6 +19,26 @@ class DynamicsSetting extends StatefulWidget {
 
 class _DynamicsSettingState extends State<DynamicsSetting> {
   final list = dynamicsSettings;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.autoOpenKeywordFilter) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || list.isEmpty) {
+          return;
+        }
+        final firstItem = list.first;
+        if (firstItem case NormalModel(:final onTap)) {
+          onTap?.call(context, () {
+            if (mounted) {
+              setState(() {});
+            }
+          });
+        }
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

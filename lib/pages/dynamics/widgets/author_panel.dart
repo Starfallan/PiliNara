@@ -13,6 +13,7 @@ import 'package:PiliPlus/http/video.dart';
 import 'package:PiliPlus/models/dynamics/result.dart';
 import 'package:PiliPlus/pages/dynamics/controller.dart';
 import 'package:PiliPlus/pages/save_panel/view.dart';
+import 'package:PiliPlus/pages/setting/dynamics_setting.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/date_utils.dart';
 import 'package:PiliPlus/utils/extension/context_ext.dart';
@@ -407,6 +408,20 @@ class AuthorPanel extends StatelessWidget {
                       '已永久屏蔽${moduleAuthor.name}(${mid})，可在动态流设置中管理',
                     );
                   } catch (_) {}
+                },
+                minLeadingWidth: 0,
+              ),
+              ListTile(
+                title: Text(
+                  '关键词屏蔽设置',
+                  style: theme.textTheme.titleSmall,
+                ),
+                leading: const Icon(Icons.filter_alt_outlined, size: 19),
+                onTap: () {
+                  Get.back();
+                  Get.to(
+                    () => const DynamicsSetting(autoOpenKeywordFilter: true),
+                  );
                 },
                 minLeadingWidth: 0,
               ),
