@@ -17,12 +17,14 @@ class DownloadFolderManagePage extends StatefulWidget {
   final DownloadCollectionService collectionService;
 
   @override
-  State<DownloadFolderManagePage> createState() => _DownloadFolderManagePageState();
+  State<DownloadFolderManagePage> createState() =>
+      _DownloadFolderManagePageState();
 }
 
 class _DownloadFolderManagePageState extends State<DownloadFolderManagePage> {
-  late final List<DownloadFolder> _folders =
-      List<DownloadFolder>.from(widget.collectionService.folders);
+  late final List<DownloadFolder> _folders = List<DownloadFolder>.from(
+    widget.collectionService.folders,
+  );
 
   List<BiliDownloadEntryInfo> _entriesOf(String folderId) =>
       widget.collectionService.resolveFolderEntries(folderId);
@@ -71,7 +73,7 @@ class _DownloadFolderManagePageState extends State<DownloadFolderManagePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('编辑文件夹'),
+        title: const Text('排序文件夹'),
         actions: [
           TextButton(
             onPressed: () async {

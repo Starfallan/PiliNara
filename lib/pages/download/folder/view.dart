@@ -91,6 +91,39 @@ class _DownloadFolderPageState extends State<DownloadFolderPage> {
     SmartDialog.showToast('已按缓存时间重置');
   }
 
+  Future<void> _showSortActions() async {
+    final action = await showDialog<_FolderSortAction>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        clipBehavior: Clip.hardEdge,
+        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              dense: true,
+              title: const Text('手动排序', style: TextStyle(fontSize: 14)),
+              onTap: () => Get.back(result: _FolderSortAction.manual),
+            ),
+            ListTile(
+              dense: true,
+              title: const Text('按缓存时间', style: TextStyle(fontSize: 14)),
+              onTap: () => Get.back(result: _FolderSortAction.reset),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) {
+      return;
+    }
+    if (action == _FolderSortAction.manual) {
+      await _openSortPage();
+    } else {
+      await _resetOrder();
+    }
+  }
+
   Future<void> _renameFolder() async {
     final currentTitle = _controller.title.value;
     final name = await showDownloadFolderNameDialog(
@@ -181,25 +214,9 @@ class _DownloadFolderPageState extends State<DownloadFolderPage> {
                   },
                   icon: const Icon(Icons.edit_note),
                 ),
-                PopupMenuButton<_FolderSortAction>(
+                IconButton(
                   tooltip: '排序',
-                  onSelected: (value) {
-                    if (value == _FolderSortAction.manual) {
-                      _openSortPage();
-                    } else {
-                      _resetOrder();
-                    }
-                  },
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(
-                      value: _FolderSortAction.manual,
-                      child: Text('手动排序'),
-                    ),
-                    PopupMenuItem(
-                      value: _FolderSortAction.reset,
-                      child: Text('按缓存时间'),
-                    ),
-                  ],
+                  onPressed: _showSortActions,
                   icon: const Icon(Icons.sort),
                 ),
                 PopupMenuButton(

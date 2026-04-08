@@ -158,6 +158,39 @@ class _DownloadPageState extends State<DownloadPage>
     SmartDialog.showToast('已按缓存时间显示');
   }
 
+  Future<void> _showAllSortActions() async {
+    final action = await showDialog<_DownloadSortAction>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        clipBehavior: Clip.hardEdge,
+        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              dense: true,
+              title: const Text('手动排序', style: TextStyle(fontSize: 14)),
+              onTap: () => Get.back(result: _DownloadSortAction.manual),
+            ),
+            ListTile(
+              dense: true,
+              title: const Text('按缓存时间', style: TextStyle(fontSize: 14)),
+              onTap: () => Get.back(result: _DownloadSortAction.reset),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) {
+      return;
+    }
+    if (action == _DownloadSortAction.manual) {
+      await _openAllSortPage();
+    } else {
+      await _resetAllSort();
+    }
+  }
+
   Future<void> _openFolderManagePage() async {
     await Get.to(
       DownloadFolderManagePage(collectionService: _collectionService),
@@ -349,25 +382,9 @@ class _DownloadPageState extends State<DownloadPage>
                     },
                     icon: const Icon(Icons.edit_note),
                   ),
-                  PopupMenuButton<_DownloadSortAction>(
+                  IconButton(
                     tooltip: '排序',
-                    onSelected: (value) {
-                      if (value == _DownloadSortAction.manual) {
-                        _openAllSortPage();
-                      } else {
-                        _resetAllSort();
-                      }
-                    },
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(
-                        value: _DownloadSortAction.manual,
-                        child: Text('手动排序'),
-                      ),
-                      PopupMenuItem(
-                        value: _DownloadSortAction.reset,
-                        child: Text('按缓存时间'),
-                      ),
-                    ],
+                    onPressed: _showAllSortActions,
                     icon: const Icon(Icons.sort),
                   ),
                 ] else ...[
@@ -388,7 +405,7 @@ class _DownloadPageState extends State<DownloadPage>
                     icon: const Icon(Icons.edit_note),
                   ),
                   IconButton(
-                    tooltip: '编辑文件夹',
+                    tooltip: '排序',
                     onPressed: _openFolderManagePage,
                     icon: const Icon(Icons.sort),
                   ),
