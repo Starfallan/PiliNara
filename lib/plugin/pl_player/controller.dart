@@ -927,24 +927,19 @@ class PlPlayerController with BlockConfigMixin {
         final escapedAudio = Platform.isWindows
             ? audio.replaceAll(';', r'\;')
             : audio.replaceAll(':', r'\:');
-        extras['audio-files'] = '"$escapedAudio"';
-        // 兼容旧版 libmpv（如部分 Android TV 设备）：该版本不支持 loadfile 的 options 参数，
-        // 通过 change-list 命令提前设置 audio-files，确保在所有 MPV 版本上均有效。
-        // 新版 MPV 两种方式并存无影响（extras 会覆盖此处设置）。
-        Utils.reportError('[DIAG][audio-files] hasAudio=true, escapedAudio=${escapedAudio.substring(0, escapedAudio.length.clamp(0, 80))}');
-        try {
-          await player.command(['change-list', 'audio-files', 'clr', '']);
-          await player.command(['change-list', 'audio-files', 'set', audio]);
-          Utils.reportError('[DIAG][audio-files] change-list commands succeeded');
-        } catch (e, st) {
-          Utils.reportError('[DIAG][audio-files] change-list command failed: $e', st);
+        // Android 上旧版 libmpv（如部分 Android TV armeabi-v7a 设备）不支持 loadfile 的 options 参数，
+        // 传入 extras 会导致整个 loadfile 命令失败（视频和音频都无法加载）。
+        // 因此 Android 上不使用 extras 传递 audio-files，改为通过 change-list 命令方式（pre-open + post-open 双重保障）。
+        if (!Platform.isAndroid) {
+          extras['audio-files'] = '"$escapedAudio"';
         }
+        await player.command(['change-list', 'audio-files', 'clr', '']);
+        await player.command(['change-list', 'audio-files', 'set', audio]);
       }
       if (kDebugMode || Platform.isAndroid) {
         String audioNormalization = AudioNormalization.getParamFromConfig(
           Pref.audioNormalization,
         );
-        Utils.reportError('[DIAG][lavfi] audioNormalizationConfig=${Pref.audioNormalization}, param=${audioNormalization.isEmpty ? "(empty/disabled)" : audioNormalization.substring(0, audioNormalization.length.clamp(0, 80))}');
         if (volume != null && volume.isNotEmpty) {
           audioNormalization = audioNormalization.replaceFirstMapped(
             loudnormRegExp,
@@ -965,29 +960,17 @@ class PlPlayerController with BlockConfigMixin {
           );
         }
         if (audioNormalization.isNotEmpty) {
-          extras['lavfi-complex'] = '"[aid1] $audioNormalization [ao]"';
-          Utils.reportError('[DIAG][lavfi] setting lavfi-complex: [aid1] ${audioNormalization.substring(0, audioNormalization.length.clamp(0, 80))} [ao]');
-          try {
-            await player.command(['set', 'lavfi-complex', '[aid1] $audioNormalization [ao]']);
-            Utils.reportError('[DIAG][lavfi] set lavfi-complex succeeded');
-          } catch (e, st) {
-            Utils.reportError('[DIAG][lavfi] set lavfi-complex failed: $e', st);
+          // Android 上同样不使用 extras 传递 lavfi-complex，避免旧版 mpv 的 loadfile 失败
+          if (!Platform.isAndroid) {
+            extras['lavfi-complex'] = '"[aid1] $audioNormalization [ao]"';
           }
-        } else {
-          Utils.reportError('[DIAG][lavfi] audioNormalization is empty, skipping lavfi-complex');
+          await player.command(['set', 'lavfi-complex', '[aid1] $audioNormalization [ao]']);
         }
       }
-    } else {
-      Utils.reportError('[DIAG][audio-files] audioSource is null or empty, skipping audio-files setup');
     }
 
     if (kDebugMode) {
       debugPrint('[PlPlayer][DIAG] Opening video: $video, extras: $extras');
-    }
-
-    // 记录传递给 player.open() 的 extras，便于诊断旧版 mpv 兼容性问题
-    if (extras.isNotEmpty) {
-      Utils.reportError('[DIAG][open] extras keys: ${extras.keys.join(", ")}');
     }
 
     await player.open(
@@ -999,15 +982,12 @@ class PlPlayerController with BlockConfigMixin {
       play: false,
     );
 
-    // 旧版 libmpv（如部分 armeabi-v7a Android TV 设备）在 loadfile replace 模式下会清除 audio-files 设置
-    // 因此在 open() 之后再次通过 change-list 重新设置 audio-files，确保旧版 mpv 也能正确加载音频流
-    if (dataSource.audioSource case final audio? when (audio.isNotEmpty && !onlyPlayAudio.value)) {
-      try {
+    // 旧版 libmpv（如部分 armeabi-v7a Android TV 设备）的 loadfile replace 命令会清除 audio-files 属性，
+    // 因此在 player.open() 之后再次通过 change-list 重新设置，确保旧版 mpv 也能正确加载独立音频流
+    if (Platform.isAndroid) {
+      if (dataSource.audioSource case final audio? when (audio.isNotEmpty && !onlyPlayAudio.value)) {
         await player.command(['change-list', 'audio-files', 'clr', '']);
         await player.command(['change-list', 'audio-files', 'set', audio]);
-        Utils.reportError('[DIAG][audio-files] post-open change-list succeeded');
-      } catch (e, st) {
-        Utils.reportError('[DIAG][audio-files] post-open change-list failed: $e', st);
       }
     }
   }
@@ -1017,10 +997,20 @@ class PlPlayerController with BlockConfigMixin {
       return null;
     }
     if (_videoPlayerController?.current.isNotEmpty ?? false) {
-      return _videoPlayerController!.open(
+      final future = _videoPlayerController!.open(
         _videoPlayerController!.current.last.copyWith(start: position),
         play: true,
       );
+      // Android 上需要在 open() 后重新设置 audio-files（旧版 mpv loadfile replace 会清除该属性）
+      if (Platform.isAndroid) {
+        if (dataSource.audioSource case final audio? when (audio.isNotEmpty && !onlyPlayAudio.value)) {
+          return future.then((_) async {
+            await _videoPlayerController?.command(['change-list', 'audio-files', 'clr', '']);
+            await _videoPlayerController?.command(['change-list', 'audio-files', 'set', audio]);
+          });
+        }
+      }
+      return future;
     }
     return null;
   }
