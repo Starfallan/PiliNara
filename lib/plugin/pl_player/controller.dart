@@ -924,13 +924,27 @@ class PlPlayerController with BlockConfigMixin {
       if (onlyPlayAudio.value) {
         video = audio;
       } else {
-        extras['audio-files'] =
-            '"${Platform.isWindows ? audio.replaceAll(';', r'\;') : audio.replaceAll(':', r'\:')}"';
+        final escapedAudio = Platform.isWindows
+            ? audio.replaceAll(';', r'\;')
+            : audio.replaceAll(':', r'\:');
+        extras['audio-files'] = '"$escapedAudio"';
+        // 兼容旧版 libmpv（如部分 Android TV 设备）：该版本不支持 loadfile 的 options 参数，
+        // 通过 change-list 命令提前设置 audio-files，确保在所有 MPV 版本上均有效。
+        // 新版 MPV 两种方式并存无影响（extras 会覆盖此处设置）。
+        Utils.reportError('[DIAG][audio-files] hasAudio=true, escapedAudio=${escapedAudio.substring(0, escapedAudio.length.clamp(0, 80))}');
+        try {
+          await player.command(['change-list', 'audio-files', 'clr', '']);
+          await player.command(['change-list', 'audio-files', 'set', audio]);
+          Utils.reportError('[DIAG][audio-files] change-list commands succeeded');
+        } catch (e, st) {
+          Utils.reportError('[DIAG][audio-files] change-list command failed: $e', st);
+        }
       }
       if (kDebugMode || Platform.isAndroid) {
         String audioNormalization = AudioNormalization.getParamFromConfig(
           Pref.audioNormalization,
         );
+        Utils.reportError('[DIAG][lavfi] audioNormalizationConfig=${Pref.audioNormalization}, param=${audioNormalization.isEmpty ? "(empty/disabled)" : audioNormalization.substring(0, audioNormalization.length.clamp(0, 80))}');
         if (volume != null && volume.isNotEmpty) {
           audioNormalization = audioNormalization.replaceFirstMapped(
             loudnormRegExp,
@@ -952,8 +966,23 @@ class PlPlayerController with BlockConfigMixin {
         }
         if (audioNormalization.isNotEmpty) {
           extras['lavfi-complex'] = '"[aid1] $audioNormalization [ao]"';
+          Utils.reportError('[DIAG][lavfi] setting lavfi-complex: [aid1] ${audioNormalization.substring(0, audioNormalization.length.clamp(0, 80))} [ao]');
+          try {
+            await player.command(['set', 'lavfi-complex', '[aid1] $audioNormalization [ao]']);
+            Utils.reportError('[DIAG][lavfi] set lavfi-complex succeeded');
+          } catch (e, st) {
+            Utils.reportError('[DIAG][lavfi] set lavfi-complex failed: $e', st);
+          }
+        } else {
+          Utils.reportError('[DIAG][lavfi] audioNormalization is empty, skipping lavfi-complex');
         }
       }
+    } else {
+      Utils.reportError('[DIAG][audio-files] audioSource is null or empty, skipping audio-files setup');
+    }
+
+    if (kDebugMode) {
+      debugPrint('[PlPlayer][DIAG] Opening video: $video, extras: $extras');
     }
 
     await player.open(
@@ -1091,6 +1120,13 @@ class PlPlayerController with BlockConfigMixin {
       if (kDebugMode)
         stream.log.listen(((PlayerLog log) {
           if (log.level == 'error' || log.level == 'fatal') {
+            // 过滤旧版 libmpv（如部分 Android TV 设备）不支持 loadfile options 参数时产生的兼容性日志
+            // 这些错误不影响应用逻辑，仅表明该设备 MPV 版本较旧
+            if (log.prefix == 'main' &&
+                (log.text.startsWith('The loadfile option must be an integer:') ||
+                    log.text.startsWith('Command loadfile: argument index can\'t be parsed'))) {
+              return;
+            }
             Utils.reportError('${log.level}: ${log.prefix}: ${log.text}', null);
           } else {
             debugPrint(log.toString());
