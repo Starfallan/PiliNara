@@ -937,41 +937,35 @@ class PlPlayerController with BlockConfigMixin {
         await player.command(['change-list', 'audio-files', 'clr', '']);
         await player.command(['change-list', 'audio-files', 'set', escapedAudio]);
       }
-      if (kDebugMode || Platform.isAndroid) {
-        String audioNormalization = AudioNormalization.getParamFromConfig(
-          Pref.audioNormalization,
+      String audioNormalization = AudioNormalization.getParamFromConfig(
+        Pref.audioNormalization,
+      );
+      if (volume != null && volume.isNotEmpty) {
+        audioNormalization = audioNormalization.replaceFirstMapped(
+          loudnormRegExp,
+          (i) =>
+              'loudnorm=${volume.format(
+                Map.fromEntries(
+                  i.group(1)!.split(':').map((item) {
+                    final parts = item.split('=');
+                    return MapEntry(parts[0].toLowerCase(), num.parse(parts[1]));
+                  }),
+                ),
+              )}',
         );
-        if (volume != null && volume.isNotEmpty) {
-          audioNormalization = audioNormalization.replaceFirstMapped(
-            loudnormRegExp,
-            (i) =>
-                'loudnorm=${volume.format(
-                  Map.fromEntries(
-                    i.group(1)!.split(':').map((item) {
-                      final parts = item.split('=');
-                      return MapEntry(parts[0].toLowerCase(), num.parse(parts[1]));
-                    }),
-                  ),
-                )}',
-          );
-        } else {
-          audioNormalization = audioNormalization.replaceFirst(
-            loudnormRegExp,
-            AudioNormalization.getParamFromConfig(Pref.fallbackNormalization),
-          );
-        }
-        if (audioNormalization.isNotEmpty) {
-          // Android 上同样不使用 extras 传递 lavfi-complex，避免旧版 mpv 的 loadfile 失败
-          if (!Platform.isAndroid) {
-            extras['lavfi-complex'] = '"[aid1] $audioNormalization [ao]"';
-          }
-          await player.command(['set', 'lavfi-complex', '[aid1] $audioNormalization [ao]']);
-        }
+      } else {
+        audioNormalization = audioNormalization.replaceFirst(
+          loudnormRegExp,
+          AudioNormalization.getParamFromConfig(Pref.fallbackNormalization),
+        );
       }
-    }
-
-    if (kDebugMode) {
-      debugPrint('[PlPlayer][DIAG] Opening video: $video, extras: $extras');
+      if (audioNormalization.isNotEmpty) {
+        // Android 上不使用 extras 传递 lavfi-complex，避免旧版 mpv 的 loadfile options 参数导致整体失败
+        if (!Platform.isAndroid) {
+          extras['lavfi-complex'] = '"[aid1] $audioNormalization [ao]"';
+        }
+        await player.command(['set', 'lavfi-complex', '[aid1] $audioNormalization [ao]']);
+      }
     }
 
     await player.open(
@@ -1193,9 +1187,8 @@ class PlPlayerController with BlockConfigMixin {
             return;
           }
           // 旧版 libmpv（如部分 armeabi-v7a Android TV 设备）在 loadfile 传递 options 参数时
-          // 会产生 "invalid parameter" 错误，这是已知的兼容性问题，不影响通过 change-list 预设的 audio-files
+          // 会产生 "invalid parameter" 错误，这是已知的兼容性问题，已通过 change-list 方式规避
           if (event == 'invalid parameter') {
-            Utils.reportError('[COMPAT][stream.error] invalid parameter (likely old mpv loadfile options compat issue, audio loaded via change-list)');
             return;
           }
           Utils.reportError(event);
