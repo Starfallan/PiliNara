@@ -194,37 +194,88 @@ class _DownloadFolderPageState extends State<DownloadFolderPage> {
                   },
                   icon: const Icon(Icons.edit_note),
                 ),
-                PopupMenuButton<_FolderSortAction>(
-                  tooltip: '排序',
-                  onSelected: _onSortSelected,
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(
-                      value: _FolderSortAction.manual,
-                      child: Text('手动排序'),
-                    ),
-                    PopupMenuItem(
-                      value: _FolderSortAction.reset,
-                      child: Text('按缓存时间'),
-                    ),
-                  ],
-                  icon: const Icon(Icons.sort),
-                ),
-                PopupMenuButton(
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      onTap: _renameFolder,
-                      child: const Text('重命名'),
-                    ),
-                    PopupMenuItem(
-                      onTap: _deleteFolder,
-                      child: Text(
-                        '删除文件夹',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
+                Builder(
+                  builder: (context) => IconButton(
+                    tooltip: '排序',
+                    icon: const Icon(Icons.sort),
+                    onPressed: () {
+                      final RenderBox button =
+                          context.findRenderObject()! as RenderBox;
+                      final RenderBox overlay = Overlay.of(context)
+                          .context
+                          .findRenderObject()! as RenderBox;
+                      final position = RelativeRect.fromRect(
+                        Rect.fromPoints(
+                          button.localToGlobal(Offset.zero, ancestor: overlay),
+                          button.localToGlobal(
+                            button.size.bottomRight(Offset.zero),
+                            ancestor: overlay,
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
+                        Offset.zero & overlay.size,
+                      );
+                      showMenu<_FolderSortAction>(
+                        context: context,
+                        position: position,
+                        items: const [
+                          PopupMenuItem(
+                            value: _FolderSortAction.manual,
+                            child: Text('手动排序'),
+                          ),
+                          PopupMenuItem(
+                            value: _FolderSortAction.reset,
+                            child: Text('按缓存时间'),
+                          ),
+                        ],
+                      ).then((value) {
+                        if (value != null) _onSortSelected(value);
+                      });
+                    },
+                  ),
+                ),
+                Builder(
+                  builder: (context) => IconButton(
+                    icon: const Icon(Icons.more_vert),
+                    onPressed: () {
+                      final RenderBox button =
+                          context.findRenderObject()! as RenderBox;
+                      final RenderBox overlay = Overlay.of(context)
+                          .context
+                          .findRenderObject()! as RenderBox;
+                      final position = RelativeRect.fromRect(
+                        Rect.fromPoints(
+                          button.localToGlobal(Offset.zero, ancestor: overlay),
+                          button.localToGlobal(
+                            button.size.bottomRight(Offset.zero),
+                            ancestor: overlay,
+                          ),
+                        ),
+                        Offset.zero & overlay.size,
+                      );
+                      showMenu<int>(
+                        context: context,
+                        position: position,
+                        items: [
+                          const PopupMenuItem(
+                            value: 0,
+                            child: Text('重命名'),
+                          ),
+                          PopupMenuItem(
+                            value: 1,
+                            child: Text(
+                              '删除文件夹',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ).then((value) {
+                        if (value == 0) _renameFolder();
+                        if (value == 1) _deleteFolder();
+                      });
+                    },
+                  ),
                 ),
                 const SizedBox(width: 6),
               ],

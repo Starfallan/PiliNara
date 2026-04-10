@@ -250,50 +250,94 @@ class _DownloadPageState extends State<DownloadPage>
   }
 
   Widget _buildFolderMoreBtn(DownloadFolder folder) {
-    return PopupMenuButton<void>(
-      padding: EdgeInsets.zero,
-      icon: Icon(
-        Icons.more_vert_outlined,
-        color: Theme.of(context).colorScheme.outline,
-        size: 18,
-      ),
-      itemBuilder: (menuContext) => [
-        PopupMenuItem(
-          height: 38,
-          child: const Text('重命名', style: TextStyle(fontSize: 13)),
-          onTap: () => _renameFolder(folder),
+    return Builder(
+      builder: (context) => IconButton(
+        padding: EdgeInsets.zero,
+        icon: Icon(
+          Icons.more_vert_outlined,
+          color: Theme.of(context).colorScheme.outline,
+          size: 18,
         ),
-        PopupMenuItem(
-          height: 38,
-          child: Text(
-            '删除',
-            style: TextStyle(
-              fontSize: 13,
-              color: Theme.of(menuContext).colorScheme.error,
+        onPressed: () {
+          final RenderBox button = context.findRenderObject()! as RenderBox;
+          final RenderBox overlay =
+              Overlay.of(context).context.findRenderObject()! as RenderBox;
+          final position = RelativeRect.fromRect(
+            Rect.fromPoints(
+              button.localToGlobal(Offset.zero, ancestor: overlay),
+              button.localToGlobal(
+                button.size.bottomRight(Offset.zero),
+                ancestor: overlay,
+              ),
             ),
-          ),
-          onTap: () => _deleteFolder(folder),
-        ),
-      ],
+            Offset.zero & overlay.size,
+          );
+          showMenu<int>(
+            context: context,
+            position: position,
+            items: [
+              const PopupMenuItem(
+                value: 0,
+                height: 38,
+                child: Text('重命名', style: TextStyle(fontSize: 13)),
+              ),
+              PopupMenuItem(
+                value: 1,
+                height: 38,
+                child: Text(
+                  '删除',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              ),
+            ],
+          ).then((value) {
+            if (value == 0) _renameFolder(folder);
+            if (value == 1) _deleteFolder(folder);
+          });
+        },
+      ),
     );
   }
 
   Widget _buildAllSortBtn() {
     return Builder(
-      builder: (context) => PopupMenuButton<_DownloadSortAction>(
+      builder: (context) => IconButton(
         tooltip: '排序',
-        onSelected: _onAllSortSelected,
-        itemBuilder: (_) => const [
-          PopupMenuItem(
-            value: _DownloadSortAction.manual,
-            child: Text('手动排序'),
-          ),
-          PopupMenuItem(
-            value: _DownloadSortAction.reset,
-            child: Text('按缓存时间'),
-          ),
-        ],
         icon: const Icon(Icons.sort),
+        onPressed: () {
+          final RenderBox button = context.findRenderObject()! as RenderBox;
+          final RenderBox overlay =
+              Overlay.of(context).context.findRenderObject()! as RenderBox;
+          final position = RelativeRect.fromRect(
+            Rect.fromPoints(
+              button.localToGlobal(Offset.zero, ancestor: overlay),
+              button.localToGlobal(
+                button.size.bottomRight(Offset.zero),
+                ancestor: overlay,
+              ),
+            ),
+            Offset.zero & overlay.size,
+          );
+          showMenu<_DownloadSortAction>(
+            context: context,
+            position: position,
+            items: const [
+              PopupMenuItem(
+                value: _DownloadSortAction.manual,
+                child: Text('手动排序'),
+              ),
+              PopupMenuItem(
+                value: _DownloadSortAction.reset,
+                child: Text('按缓存时间'),
+              ),
+            ],
+          ).then((value) {
+            if (value != null) _onAllSortSelected(value);
+          });
+        },
       ),
     );
   }

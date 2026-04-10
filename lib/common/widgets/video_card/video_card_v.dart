@@ -8,6 +8,7 @@ import 'package:PiliPlus/common/widgets/video_popup_menu.dart';
 import 'package:PiliPlus/http/search.dart';
 import 'package:PiliPlus/models/common/badge_type.dart';
 import 'package:PiliPlus/models/common/stat_type.dart';
+import 'package:PiliPlus/models/home/rcmd/result.dart';
 import 'package:PiliPlus/models/model_rec_video_item.dart';
 import 'package:PiliPlus/utils/app_scheme.dart';
 import 'package:PiliPlus/utils/date_utils.dart';
@@ -110,6 +111,17 @@ class VideoCardV extends StatelessWidget {
                               text: DurationUtils.formatDuration(
                                 videoItem.duration,
                               ),
+                            ),
+                          if (videoItem case RcmdVideoItemAppModel(
+                            :final canPlay,
+                          ) when canPlay != 1)
+                            const PBadge(
+                              text: '充电专属',
+                              top: 6,
+                              right: 6,
+                              size: PBadgeSize.small,
+                              type: PBadgeType.error,
+                              fontSize: 10,
                             ),
                         ],
                       );
