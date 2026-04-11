@@ -106,6 +106,7 @@ class DynamicPanel extends StatelessWidget {
                   dynInteraction(
                     theme: theme,
                     items: items,
+                    dynItem: item,
                   ),
               ActionPanel(item: item),
               if (item.modules.moduleFold case final moduleFold?) ...[

@@ -1,9 +1,14 @@
 import 'dart:math';
 
+import 'package:PiliPlus/common/skeleton/video_reply.dart';
+import 'package:PiliPlus/common/widgets/colored_box_transition.dart';
 import 'package:PiliPlus/common/widgets/custom_icon.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/flutter/text_field/controller.dart';
+import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
 import 'package:PiliPlus/common/widgets/pair.dart';
+import 'package:PiliPlus/grpc/bilibili/main/community/reply/v1.pb.dart'
+    show ReplyInfo;
 import 'package:PiliPlus/http/constants.dart';
 import 'package:PiliPlus/http/dynamics.dart';
 import 'package:PiliPlus/http/loading_state.dart';
@@ -15,6 +20,7 @@ import 'package:PiliPlus/pages/dynamics/widgets/dynamic_panel.dart';
 import 'package:PiliPlus/pages/dynamics_create/view.dart';
 import 'package:PiliPlus/pages/dynamics_detail/controller.dart';
 import 'package:PiliPlus/pages/dynamics_repost/view.dart';
+import 'package:PiliPlus/pages/video/reply/widgets/reply_item_grpc.dart';
 import 'package:PiliPlus/utils/extension/get_ext.dart';
 import 'package:PiliPlus/utils/grid.dart';
 import 'package:PiliPlus/utils/num_utils.dart';
@@ -22,8 +28,10 @@ import 'package:PiliPlus/utils/request_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
+import 'package:super_sliver_list/super_sliver_list.dart';
 
 class DynamicDetailPage extends StatefulWidget {
   const DynamicDetailPage({super.key});
@@ -43,6 +51,121 @@ class _DynamicDetailPageState extends CommonDynPageState<DynamicDetailPage> {
   dynamic get arguments => {
     'item': controller.dynItem,
   };
+
+  Worker? _scrollWorker;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollWorker = ever(controller.targetIndex, (index) {
+      if (index == null) return;
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        controller.animController.forward(from: 0);
+        try {
+          final offset =
+              controller.listController.getOffsetToReveal(index, 0.25);
+          if (offset.isFinite && scrollController.hasClients) {
+            scrollController.jumpTo(
+              offset.clamp(
+                scrollController.position.minScrollExtent,
+                scrollController.position.maxScrollExtent,
+              ),
+            );
+          }
+        } catch (_) {}
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollWorker?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget replyList(
+    ThemeData theme,
+    LoadingState<List<ReplyInfo>?> loadingState,
+  ) {
+    return switch (loadingState) {
+      Loading() => SliverList.builder(
+        itemCount: 12,
+        itemBuilder: (context, index) => const VideoReplySkeleton(),
+      ),
+      Success(:final response) =>
+        response != null && response.isNotEmpty
+            ? _buildReplyList(theme, response)
+            : HttpError(
+                errMsg: '还没有评论',
+                onReload: controller.onReload,
+              ),
+      Error(:final errMsg) => HttpError(
+        errMsg: errMsg,
+        onReload: controller.onReload,
+      ),
+    };
+  }
+
+  Animation<Color?>? _colorAnimation;
+
+  Widget _buildReplyList(ThemeData theme, List<ReplyInfo> response) {
+    final jumpIndex = controller.targetIndex.value;
+    return SuperSliverList.builder(
+      listController: controller.listController,
+      itemCount: response.length + 1,
+      itemBuilder: (context, index) {
+        if (index == response.length) {
+          controller.onLoadMore();
+          return Container(
+            alignment: Alignment.center,
+            margin: EdgeInsets.only(bottom: padding.bottom),
+            height: 125,
+            child: Text(
+              controller.isEnd ? '没有更多了' : '加载中...',
+              style: TextStyle(
+                fontSize: 12,
+                color: theme.colorScheme.outline,
+              ),
+            ),
+          );
+        }
+        final child = ReplyItemGrpc(
+          replyItem: response[index],
+          replyLevel: 1,
+          replyReply: (replyItem, id) =>
+              replyReply(context, replyItem, id, theme),
+          onReply: controller.onReply,
+          onDelete: (item, subIndex) =>
+              controller.onRemove(index, item, subIndex),
+          upMid: controller.upMid,
+          onViewImage: hideFab,
+          onCheckReply: (item) =>
+              controller.onCheckReply(item, isManual: true),
+          onToggleTop: (item) => controller.onToggleTop(
+            item,
+            index,
+            controller.oid,
+            controller.replyType,
+          ),
+        );
+        if (jumpIndex == index) {
+          return ColoredBoxTransition(
+            color: _colorAnimation ??= controller.animController.drive(
+              ColorTween(
+                begin: theme.colorScheme.onInverseSurface,
+                end: theme.colorScheme.surface,
+              ).chain(
+                CurveTween(curve: const Interval(0.8, 1.0)),
+              ),
+            ),
+            child: child,
+          );
+        }
+        return child;
+      },
+    );
+  }
 
   @override
   void didChangeDependencies() {
