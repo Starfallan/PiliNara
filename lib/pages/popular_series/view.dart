@@ -143,7 +143,7 @@ class _PopularSeriesPageState extends State<PopularSeriesPage> with GridMixin {
                   return ListTile(
                     dense: true,
                     minTileHeight: 44,
-                    tileColor: isCurr ? Theme.of(context).highlightColor : null,
+                    enabled: !isCurr,
                     onTap: () {
                       Get.back();
                       if (!isCurr) {
@@ -156,7 +156,7 @@ class _PopularSeriesPageState extends State<PopularSeriesPage> with GridMixin {
                       item.name!,
                       style: const TextStyle(fontSize: 14),
                     ),
-                    trailing: isCurr ? const Icon(Icons.check, size: 18) : null,
+                    trailing: isCurr ? const Icon(Icons.check, size: 20) : null,
                     contentPadding: const EdgeInsetsGeometry.symmetric(
                       horizontal: 16,
                     ),

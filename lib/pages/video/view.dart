@@ -908,41 +908,26 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
             child: Obx(
               () {
                 final scrollRatio = videoDetailController.scrollRatio.value;
-                bool shouldShow =
-                    scrollRatio != 0 &&
-                    videoDetailController.scrollCtr.offset != 0 &&
-                    isPortrait;
-                return Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    AppBar(
-                      backgroundColor: Colors.black,
-                      toolbarHeight: 0,
-                      systemOverlayStyle: Platform.isAndroid
-                          ? shouldShow
-                                ? null
-                                : SystemUiOverlayStyle(
-                                    statusBarIconBrightness: Brightness.light,
-                                    systemNavigationBarIconBrightness:
-                                        themeData.brightness.reverse,
-                                  )
-                          : null,
-                    ),
-                    if (shouldShow)
-                      AppBar(
-                        backgroundColor: themeData.colorScheme.surface
-                            .withValues(alpha: scrollRatio),
-                        toolbarHeight: 0,
-                        systemOverlayStyle: Platform.isAndroid
-                            ? SystemUiOverlayStyle(
-                                statusBarIconBrightness:
-                                    themeData.brightness.reverse,
-                                systemNavigationBarIconBrightness:
-                                    themeData.brightness.reverse,
-                              )
-                            : null,
-                      ),
-                  ],
+                final flag =
+                    isPortrait && videoDetailController.scrollCtr.offset != 0;
+                return AppBar(
+                  backgroundColor: flag && scrollRatio > 0
+                      ? Color.lerp(
+                          Colors.black,
+                          themeData.colorScheme.surface,
+                          scrollRatio,
+                        )
+                      : Colors.black,
+                  toolbarHeight: 0,
+                  systemOverlayStyle: Platform.isAndroid
+                      ? SystemUiOverlayStyle(
+                          statusBarIconBrightness: flag && scrollRatio >= 0.5
+                              ? themeData.brightness.reverse
+                              : Brightness.light,
+                          systemNavigationBarIconBrightness:
+                              themeData.brightness.reverse,
+                        )
+                      : null,
                 );
               },
             ),
@@ -1685,7 +1670,8 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         !isFullScreen &&
         !videoDetailController.plPlayerController.isDesktopPip &&
         (videoDetailController.horizontalScreen || isPortrait),
-    onPopInvokedWithResult: _onPopInvokedWithResult,
+    onPopInvokedWithResult:
+        videoDetailController.plPlayerController.onPopInvokedWithResult,
     child: Obx(
       () =>
           (!isPipMode && !videoDetailController.videoState.value) ||

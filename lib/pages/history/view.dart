@@ -105,7 +105,8 @@ class _HistoryPageState extends State<HistoryPage>
                 right: padding.right,
               ),
               child: Obx(() {
-                if (_historyController.tabs.isEmpty) {
+                final tabs = _historyController.tabs;
+                if (tabs.isEmpty) {
                   return child;
                 }
                 return Column(
@@ -128,9 +129,7 @@ class _HistoryPageState extends State<HistoryPage>
                       },
                       tabs: [
                         const Tab(text: '全部'),
-                        ..._historyController.tabs.map(
-                          (item) => Tab(text: item.name),
-                        ),
+                        ...tabs.map((item) => Tab(text: item.name)),
                       ],
                     ),
                     Expanded(
@@ -143,9 +142,7 @@ class _HistoryPageState extends State<HistoryPage>
                             CustomHorizontalDragGestureRecognizer.new,
                         children: [
                           KeepAliveWrapper(child: child),
-                          ..._historyController.tabs.map(
-                            (item) => HistoryPage(type: item.type),
-                          ),
+                          ...tabs.map((item) => HistoryPage(type: item.type)),
                         ],
                       ),
                     ),

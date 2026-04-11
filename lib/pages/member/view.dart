@@ -221,10 +221,10 @@ class _MemberPageState extends State<MemberPage> {
                           isFollow: isFollow,
                         );
                         if (res.isSuccess) {
-                          if (!context.mounted) return;
                           e
                             ..total += isFollow ? -1 : 1
                             ..isFollow = !isFollow;
+                          if (!context.mounted) return;
                           (context as Element).markNeedsBuild();
                         } else {
                           res.toast();

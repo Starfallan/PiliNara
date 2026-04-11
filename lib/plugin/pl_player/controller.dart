@@ -51,7 +51,7 @@ import 'package:easy_debounce/easy_throttle.dart';
 import 'package:floating/floating.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show HapticFeedback;
+import 'package:flutter/services.dart' show HapticFeedback, DeviceOrientation;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:get/get.dart';
@@ -538,32 +538,41 @@ class PlPlayerController with BlockConfigMixin {
 
   bool visible = true;
 
-  StreamSubscription<NativeDeviceOrientation>? _orientationListener;
+  DeviceOrientation? _orientation;
+  late final checkIsAutoRotate = Platform.isAndroid && mode != .gravity;
+  StreamSubscription<OrientationParams>? _orientationListener;
 
   void _stopOrientationListener() {
     _orientationListener?.cancel();
     _orientationListener = null;
   }
 
-  void _onOrientationChanged(NativeDeviceOrientation value) {
+  void _onOrientationChanged(OrientationParams param) {
     if (!visible) return;
-    switch (value) {
+    final orientation = _orientation = param.orientation;
+    final isFullScreen = this.isFullScreen.value;
+    if (checkIsAutoRotate &&
+        param.isAutoRotate != true &&
+        (!isFullScreen || _isVertical || orientation == .portraitUp)) {
+      return;
+    }
+    switch (orientation) {
       case .portraitUp:
         if (!_isVertical && controlsLock.value) return;
-        if (!horizontalScreen && !_isVertical && isFullScreen.value) {
-          triggerFullScreen(status: false, orientation: value);
+        if (!horizontalScreen && !_isVertical && isFullScreen) {
+          triggerFullScreen(status: false, orientation: orientation);
         } else {
           portraitUpMode();
         }
       case .landscapeLeft:
-        if (!horizontalScreen && !isFullScreen.value) {
-          triggerFullScreen(orientation: value);
+        if (!horizontalScreen && !isFullScreen) {
+          triggerFullScreen(orientation: orientation);
         } else {
           landscapeLeftMode();
         }
       case .landscapeRight:
-        if (!horizontalScreen && !isFullScreen.value) {
-          triggerFullScreen(orientation: value);
+        if (!horizontalScreen && !isFullScreen) {
+          triggerFullScreen(orientation: orientation);
         } else {
           landscapeRightMode();
         }
@@ -573,11 +582,11 @@ class PlPlayerController with BlockConfigMixin {
 
   // 添加一个私有构造函数
   PlPlayerController._() {
-    if (PlatformUtils.isMobile) {
+    if (PlatformUtils.isMobile && !horizontalScreen) {
       _orientationListener = NativeDeviceOrientationPlatform.instance
           .onOrientationChanged(
             useSensor: Platform.isAndroid,
-            checkIsAutoRotate: mode != .gravity,
+            checkIsAutoRotate: checkIsAutoRotate,
           )
           .listen(_onOrientationChanged);
     }
@@ -1509,7 +1518,7 @@ class PlPlayerController with BlockConfigMixin {
   Future<void> triggerFullScreen({
     bool status = true,
     bool inAppFullScreen = false,
-    NativeDeviceOrientation? orientation,
+    DeviceOrientation? orientation,
   }) async {
     if (isDesktopPip) return;
     if (isFullScreen.value == status) return;
@@ -1521,6 +1530,7 @@ class PlPlayerController with BlockConfigMixin {
       if (status) {
         if (PlatformUtils.isMobile) {
           hideStatusBar();
+          if (horizontalScreen) return;
           if (orientation == null && mode == .none) {
             return;
           }
@@ -1534,7 +1544,7 @@ class PlPlayerController with BlockConfigMixin {
             // https://github.com/flutter/flutter/issues/73651
             // https://github.com/flutter/flutter/issues/183708
             if (Platform.isAndroid) {
-              if (orientation == .landscapeRight) {
+              if ((orientation ?? _orientation) == .landscapeRight) {
                 await landscapeRightMode();
               } else {
                 await landscapeLeftMode();
@@ -1666,9 +1676,7 @@ class PlPlayerController with BlockConfigMixin {
   bool get isCloseAll => _isCloseAll;
 
   void resetScreenRotation() {
-    if (horizontalScreen) {
-      fullMode();
-    } else {
+    if (!horizontalScreen) {
       portraitUpMode();
     }
   }

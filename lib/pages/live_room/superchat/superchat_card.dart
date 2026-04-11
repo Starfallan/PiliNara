@@ -181,6 +181,7 @@ class _SuperChatCardState extends State<SuperChatCard> {
               image: item.backgroundImage == null
                   ? null
                   : DecorationImage(
+                      alignment: .topRight,
                       image: CachedNetworkImageProvider(
                         ImageUtils.safeThumbnailUrl(item.backgroundImage),
                       ),

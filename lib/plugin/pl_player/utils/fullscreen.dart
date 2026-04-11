@@ -44,6 +44,10 @@ Future<void>? portraitUpMode() {
   return _setPreferredOrientations(const [.portraitUp]);
 }
 
+Future<void>? portraitDownMode() {
+  return _setPreferredOrientations(const [.portraitDown]);
+}
+
 Future<void>? landscapeLeftMode() {
   return _setPreferredOrientations(const [.landscapeLeft]);
 }
@@ -54,7 +58,7 @@ Future<void>? landscapeRightMode() {
 
 Future<void>? fullMode() {
   return _setPreferredOrientations(
-    const [.portraitUp, .landscapeLeft, .landscapeRight],
+    const [.portraitUp, .portraitDown, .landscapeLeft, .landscapeRight],
   );
 }
 

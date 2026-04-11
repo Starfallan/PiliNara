@@ -809,6 +809,15 @@ abstract final class PiliScheme {
         }
         launchURL();
         return false;
+      case 'bubble':
+        // https://www.bilibili.com/bubble/home/1
+        final id = uriDigitRegExp.firstMatch(path)?.group(1);
+        if (id != null) {
+          Get.toNamed('/bubble', arguments: {'id': id});
+          return true;
+        }
+        launchURL();
+        return false;
       default:
         final res = IdUtils.matchAvorBv(input: area?.split('?').first);
         if (res.isNotEmpty) {

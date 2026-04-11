@@ -45,6 +45,7 @@ class _MyReplyState extends State<MyReply> with DynMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text('我的评论'),
         actions: [

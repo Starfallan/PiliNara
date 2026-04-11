@@ -6,7 +6,6 @@ import 'package:PiliPlus/common/widgets/badge.dart';
 import 'package:PiliPlus/common/widgets/dialog/dialog.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/stat/stat.dart';
-import 'package:PiliPlus/models/common/account_type.dart';
 import 'package:PiliPlus/models/common/badge_type.dart';
 import 'package:PiliPlus/models/common/stat_type.dart';
 import 'package:PiliPlus/models/common/video/video_quality.dart';
@@ -283,8 +282,8 @@ class _DownloadPanelState extends State<DownloadPanel> {
       return false;
     }
 
-    if (kReleaseMode && episode.badge == '会员') {
-      if (vipStatus != 1 && !Accounts.get(AccountType.video).isLogin) {
+    if (kReleaseMode && episode.badge == '会员' && Accounts.mainEqVideo) {
+      if (vipStatus != 1) {
         if (!isDownloadAll) {
           SmartDialog.showToast('需要大会员');
         }
