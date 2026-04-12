@@ -6,11 +6,15 @@ import 'package:PiliPlus/grpc/dm.dart';
 import 'package:PiliPlus/http/download.dart';
 import 'package:PiliPlus/http/init.dart';
 import 'package:PiliPlus/http/loading_state.dart';
+import 'package:PiliPlus/http/sponsor_block.dart';
+import 'package:PiliPlus/http/video.dart';
 import 'package:PiliPlus/models/common/video/video_quality.dart';
 import 'package:PiliPlus/models_new/download/bili_download_entry_info.dart';
 import 'package:PiliPlus/models_new/download/bili_download_media_file_info.dart';
+import 'package:PiliPlus/models_new/download/playback_meta.dart';
 import 'package:PiliPlus/models_new/pgc/pgc_info_model/episode.dart' as pgc;
 import 'package:PiliPlus/models_new/pgc/pgc_info_model/result.dart';
+import 'package:PiliPlus/models_new/sponsor_block/segment_item.dart';
 import 'package:PiliPlus/models_new/video/video_detail/data.dart';
 import 'package:PiliPlus/models_new/video/video_detail/episode.dart' as ugc;
 import 'package:PiliPlus/models_new/video/video_detail/page.dart';
@@ -364,6 +368,116 @@ class DownloadService extends GetxService {
     }
   }
 
+  Future<DownloadPlaybackChapters?> _queryPlaybackChapters({
+    required BiliDownloadEntryInfo entry,
+    required int fetchedAt,
+  }) async {
+    try {
+      final res = await VideoHttp.playInfo(
+        bvid: entry.bvid,
+        cid: entry.cid,
+        seasonId: entry.seasonId,
+        epId: entry.ep?.episodeId,
+      );
+      if (res case Success(:final response)) {
+        final viewPoints = response.viewPoints;
+        if (viewPoints != null &&
+            viewPoints.isNotEmpty &&
+            viewPoints.first.type == 2) {
+          return DownloadPlaybackChapters(
+            fetchedAt: fetchedAt,
+            items: viewPoints
+                .map(
+                  (item) => DownloadPlaybackChapter(
+                    type: item.type,
+                    fromMs: item.from == null ? null : item.from! * 1000,
+                    toMs: item.to == null ? null : item.to! * 1000,
+                    content: item.content,
+                    imgUrl: item.imgUrl,
+                  ),
+                )
+                .toList(),
+          );
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('download playback chapters failed: $e');
+      }
+    }
+    return null;
+  }
+
+  Future<DownloadPlaybackSkipSegments?> _querySponsorBlockSegments({
+    required BiliDownloadEntryInfo entry,
+    required int fetchedAt,
+  }) async {
+    try {
+      final res = await SponsorBlock.getSkipSegments(
+        bvid: entry.bvid,
+        cid: entry.cid,
+      );
+      switch (res) {
+        case Success(:final response) when response.isNotEmpty:
+          return DownloadPlaybackSkipSegments(
+            fetchedAt: fetchedAt,
+            items: response
+                .map(DownloadPlaybackSkipSegment.fromSegmentItemModel)
+                .toList(),
+          );
+        case Error(:final code) when code != 404:
+          if (kDebugMode) {
+            debugPrint('download sponsorblock failed: $res');
+          }
+        default:
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('download sponsorblock exception: $e');
+      }
+    }
+    return null;
+  }
+
+  Future<void> _writePlaybackMeta({
+    required BiliDownloadEntryInfo entry,
+    List<SegmentItemModel>? clipInfoList,
+  }) async {
+    try {
+      final fetchedAt = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final results = await Future.wait<Object?>([
+        _queryPlaybackChapters(entry: entry, fetchedAt: fetchedAt),
+        _querySponsorBlockSegments(entry: entry, fetchedAt: fetchedAt),
+      ]);
+      final meta = DownloadPlaybackMeta(
+        chapters: results[0] as DownloadPlaybackChapters?,
+        sponsorBlock: results[1] as DownloadPlaybackSkipSegments?,
+        clipInfo: clipInfoList?.isNotEmpty == true
+            ? DownloadPlaybackSkipSegments(
+                fetchedAt: fetchedAt,
+                items: clipInfoList!
+                    .map(DownloadPlaybackSkipSegment.fromSegmentItemModel)
+                    .toList(),
+              )
+            : null,
+      );
+      final playbackMetaFile = File(
+        path.join(entry.entryDirPath, PathUtils.playbackMetaName),
+      );
+      if (meta.isEmpty) {
+        if (playbackMetaFile.existsSync()) {
+          await playbackMetaFile.tryDel();
+        }
+        return;
+      }
+      await playbackMetaFile.writeAsString(jsonEncode(meta.toJson()));
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('write playback meta failed: $e');
+      }
+    }
+  }
+
   Future<void> _startDownload(BiliDownloadEntryInfo entry) async {
     try {
       if (!await downloadDanmaku(entry: entry)) {
@@ -372,12 +486,13 @@ class DownloadService extends GetxService {
 
       _updateCurStatus(DownloadStatus.getPlayUrl);
 
-      final mediaFileInfo = await DownloadHttp.getVideoUrl(
+      final downloadResult = await DownloadHttp.getVideoUrl(
         entry: entry,
         ep: entry.ep,
         source: entry.source,
         pageData: entry.pageData,
       );
+      final mediaFileInfo = downloadResult.mediaFileInfo;
 
       final videoDir = Directory(path.join(entry.entryDirPath, entry.typeTag));
       if (!videoDir.existsSync()) {
@@ -388,6 +503,10 @@ class DownloadService extends GetxService {
       await Future.wait([
         mediaJsonFile.writeAsString(jsonEncode(mediaFileInfo.toJson())),
         _downloadCover(entry: entry),
+        _writePlaybackMeta(
+          entry: entry,
+          clipInfoList: downloadResult.clipInfoList,
+        ),
       ]);
 
       if (curDownload.value?.cid != entry.cid) {

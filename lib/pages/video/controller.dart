@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert' show jsonDecode;
 import 'dart:io';
 import 'dart:math' show min;
 import 'dart:ui';
@@ -27,8 +28,10 @@ import 'package:PiliPlus/models/common/video/video_quality.dart';
 import 'package:PiliPlus/models/common/video/video_type.dart';
 import 'package:PiliPlus/models/video/play/url.dart';
 import 'package:PiliPlus/models_new/download/bili_download_entry_info.dart';
+import 'package:PiliPlus/models_new/download/playback_meta.dart';
 import 'package:PiliPlus/models_new/media_list/media_list.dart';
 import 'package:PiliPlus/models_new/pgc/pgc_info_model/result.dart';
+import 'package:PiliPlus/models_new/sponsor_block/segment_item.dart';
 import 'package:PiliPlus/models_new/video/video_detail/data.dart';
 import 'package:PiliPlus/models_new/video/video_detail/episode.dart' as ugc;
 import 'package:PiliPlus/models_new/video/video_detail/page.dart';
@@ -699,6 +702,9 @@ class VideoDetailController extends GetxController
     if (plPlayerController.videoPlayerController == null) {
       plPlayerController = PlPlayerController.getInstance();
     }
+    if (isFileSource) {
+      await _loadLocalPlaybackMeta();
+    }
     Duration? seek = seekToTime ?? defaultST ?? playedTime;
     if (seek == null || seek == Duration.zero) {
       seek = getFirstSegment();
@@ -1037,6 +1043,83 @@ class VideoDetailController extends GetxController
   late final RxBool showVP = true.obs;
   late final RxList<ViewPointSegment> viewPointList = <ViewPointSegment>[].obs;
 
+  ({
+    List<SegmentItemModel> items,
+    bool useBlockConfig,
+    bool isBlockSource,
+  })? _resolveLocalSkipSegments(DownloadPlaybackMeta meta) {
+    final clipInfo = meta.clipInfo;
+    if (entry.ep != null &&
+        plPlayerController.enablePgcSkip &&
+        clipInfo != null &&
+        clipInfo.items.isNotEmpty) {
+      return (
+        items: clipInfo.toSegmentItemModels(),
+        useBlockConfig: false,
+        isBlockSource: false,
+      );
+    }
+    final sponsorBlock = meta.sponsorBlock;
+    if (plPlayerController.enableSponsorBlock &&
+        sponsorBlock != null &&
+        sponsorBlock.items.isNotEmpty) {
+      return (
+        items: sponsorBlock.toSegmentItemModels(),
+        useBlockConfig: true,
+        isBlockSource: true,
+      );
+    }
+    return null;
+  }
+
+  Future<void> _loadLocalPlaybackMeta() async {
+    viewPointList.clear();
+    resetBlock();
+    final metaFile = File(
+      path.join(entry.entryDirPath, PathUtils.playbackMetaName),
+    );
+    if (!metaFile.existsSync()) {
+      return;
+    }
+    try {
+      final meta = DownloadPlaybackMeta.fromJson(
+        (jsonDecode(await metaFile.readAsString()) as Map).cast<String, dynamic>(),
+      );
+      final durationMs = data.timeLength ?? entry.totalTimeMilli;
+      final chapters = meta.chapters;
+      if (plPlayerController.showViewPoints &&
+          durationMs > 0 &&
+          chapters != null) {
+        viewPointList.assignAll(
+          chapters.items
+              .where((item) => item.toMs != null)
+              .map((item) {
+                final toMs = item.toMs!;
+                return ViewPointSegment(
+                  end: (toMs / durationMs).clamp(0.0, 1.0),
+                  title: item.content,
+                  url: item.imgUrl,
+                  from: item.fromMs == null ? null : item.fromMs! ~/ 1000,
+                  to: toMs ~/ 1000,
+                );
+              })
+              .toList(),
+        );
+      }
+      if (_resolveLocalSkipSegments(meta) case final resolved?) {
+        await handleSBData(
+          resolved.items,
+          useBlockConfig: resolved.useBlockConfig,
+          isBlockSource: resolved.isBlockSource,
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('load local playback meta failed: $e');
+      }
+    }
+  }
+
   // 设定字幕轨道
   Future<void> setSubtitle(int index) async {
     if (index <= 0) {
@@ -1291,6 +1374,13 @@ class VideoDetailController extends GetxController
     vttSubtitlesIndex.value = -1;
     vttSubtitles.clear();
 
+    if (plPlayerController.showViewPoints) {
+      viewPointList.clear();
+    }
+    if (!PipOverlayService.isInPipMode) {
+      resetBlock();
+    }
+
     if (!isFileSource) {
       // language
       languages.value = null;
@@ -1299,16 +1389,6 @@ class VideoDetailController extends GetxController
       // dm trend
       if (plPlayerController.showDmChart) {
         dmTrend.value = null;
-      }
-
-      // view point
-      if (plPlayerController.showViewPoints) {
-        viewPointList.clear();
-      }
-
-      // sponsor block
-      if (blockConfig.enableBlock && !PipOverlayService.isInPipMode) {
-        resetBlock();
       }
 
       // interactive video

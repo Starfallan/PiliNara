@@ -1888,25 +1888,25 @@ class HeaderControlState extends State<HeaderControl>
                       ),
                     ),
                   ),
-                Obx(
-                  () => videoDetailCtr.segmentProgressList.isNotEmpty
-                      ? SizedBox(
-                          width: btnWidth,
-                          height: btnHeight,
-                          child: IconButton(
-                            tooltip: '片段信息',
-                            style: btnStyle,
-                            onPressed: videoDetailCtr.showSBDetail,
-                            icon: const Icon(
-                              MdiIcons.advertisements,
-                              size: 19,
-                              color: Colors.white,
-                            ),
-                          ),
-                        )
-                      : const SizedBox.shrink(),
-                ),
               ],
+              Obx(
+                () => videoDetailCtr.segmentProgressList.isNotEmpty
+                    ? SizedBox(
+                        width: btnWidth,
+                        height: btnHeight,
+                        child: IconButton(
+                          tooltip: '片段信息',
+                          style: btnStyle,
+                          onPressed: videoDetailCtr.showSBDetail,
+                          icon: const Icon(
+                            MdiIcons.advertisements,
+                            size: 19,
+                            color: Colors.white,
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
               if (isFullScreen || PlatformUtils.isDesktop) ...[
                 SizedBox(
                   width: btnWidth,
