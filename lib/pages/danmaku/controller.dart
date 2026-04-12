@@ -76,6 +76,7 @@ class PlDanmakuController {
     windowMs: _mergeWindowMs,
     maxDistance: Pref.mergeDanmakuMaxDistance,
     maxCosine: Pref.mergeDanmakuMaxCosine,
+    representativePercent: Pref.mergeDanmakuRepresentativePercent,
     usePinyin: Pref.mergeDanmakuUsePinyin,
     crossMode: Pref.mergeDanmakuCrossMode,
     skipSubtitle: Pref.mergeDanmakuSkipSubtitle,

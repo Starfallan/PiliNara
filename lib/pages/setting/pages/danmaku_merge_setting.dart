@@ -30,6 +30,7 @@ class _DanmakuMergeSettingPageState extends State<DanmakuMergeSettingPage> {
   late double _windowSeconds;
   late int _maxDistance;
   late int _maxCosine;
+  late double _representativePercent;
   late bool _usePinyin;
   late bool _crossMode;
   late bool _skipSubtitle;
@@ -53,6 +54,8 @@ class _DanmakuMergeSettingPageState extends State<DanmakuMergeSettingPage> {
       Pref.mergeDanmakuMaxCosine,
       _cosinePresets,
     );
+    _representativePercent =
+        Pref.mergeDanmakuRepresentativePercent.toDouble();
     _usePinyin = Pref.mergeDanmakuUsePinyin;
     _crossMode = Pref.mergeDanmakuCrossMode;
     _skipSubtitle = Pref.mergeDanmakuSkipSubtitle;
@@ -316,6 +319,33 @@ class _DanmakuMergeSettingPageState extends State<DanmakuMergeSettingPage> {
               ),
             ),
           ),
+          ListTile(
+            title: const Text('代表性百分位'),
+            subtitle: Text(
+              '合并后弹幕时间取该组前 ${_representativePercent.round()}% 位置的代表弹幕',
+            ),
+            trailing: Text(
+              '${_representativePercent.round()}%',
+              style: TextStyle(color: theme.colorScheme.primary, fontSize: 16),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Slider(
+              value: _representativePercent,
+              min: 0,
+              max: 100,
+              divisions: 20,
+              label: '${_representativePercent.round()}',
+              onChanged: (value) => _updateDouble(
+                () => _representativePercent = value,
+              ),
+              onChangeEnd: (value) => _persist(
+                SettingBoxKey.mergeDanmakuRepresentativePercent,
+                value.round(),
+              ),
+            ),
+          ),
           SwitchListTile(
             title: const Text('识别谐音弹幕'),
             subtitle: const Text('将文本转换为拼音后再进行一次相似匹配'),
@@ -355,6 +385,7 @@ class _DanmakuMergeSettingPageState extends State<DanmakuMergeSettingPage> {
       SettingBoxKey.mergeDanmakuWindowSeconds,
       SettingBoxKey.mergeDanmakuMaxDistance,
       SettingBoxKey.mergeDanmakuMaxCosine,
+      SettingBoxKey.mergeDanmakuRepresentativePercent,
       SettingBoxKey.mergeDanmakuUsePinyin,
       SettingBoxKey.mergeDanmakuCrossMode,
       SettingBoxKey.mergeDanmakuSkipSubtitle,
@@ -379,6 +410,8 @@ class _DanmakuMergeSettingPageState extends State<DanmakuMergeSettingPage> {
         Pref.mergeDanmakuMaxCosine,
         _cosinePresets,
       );
+      _representativePercent =
+          Pref.mergeDanmakuRepresentativePercent.toDouble();
       _usePinyin = Pref.mergeDanmakuUsePinyin;
       _crossMode = Pref.mergeDanmakuCrossMode;
       _skipSubtitle = Pref.mergeDanmakuSkipSubtitle;

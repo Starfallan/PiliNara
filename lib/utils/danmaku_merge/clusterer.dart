@@ -137,10 +137,18 @@ class DanmakuClusterer {
 
   DanmakuElem _buildRepresentative(DanmakuMergeCluster cluster) {
     final chosenText = _chooseText(cluster);
-    final representative = cluster.root.element.deepCopy()
+    final representativePeer = _pickRepresentativePeer(cluster);
+    final representative = representativePeer.element.deepCopy()
       ..content = chosenText
       ..count = cluster.peers.length;
     return representative;
+  }
+
+  DanmakuMergeCandidate _pickRepresentativePeer(DanmakuMergeCluster cluster) {
+    final index = ((cluster.peers.length * config.representativePercent) / 100)
+        .floor()
+        .clamp(0, cluster.peers.length - 1);
+    return cluster.peers[index];
   }
 
   String _chooseText(DanmakuMergeCluster cluster) {

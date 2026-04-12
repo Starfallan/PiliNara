@@ -202,6 +202,7 @@ abstract final class SettingBoxKey {
       mergeDanmakuWindowSeconds = 'mergeDanmakuWindowSeconds',
       mergeDanmakuMaxDistance = 'mergeDanmakuMaxDistance',
       mergeDanmakuMaxCosine = 'mergeDanmakuMaxCosine',
+      mergeDanmakuRepresentativePercent = 'mergeDanmakuRepresentativePercent',
       mergeDanmakuUsePinyin = 'mergeDanmakuUsePinyin',
       mergeDanmakuCrossMode = 'mergeDanmakuCrossMode',
       mergeDanmakuSkipSubtitle = 'mergeDanmakuSkipSubtitle',

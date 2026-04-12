@@ -597,6 +597,11 @@ abstract final class Pref {
   static int get mergeDanmakuMaxCosine =>
       _setting.get(SettingBoxKey.mergeDanmakuMaxCosine, defaultValue: 45);
 
+  static int get mergeDanmakuRepresentativePercent => _setting.get(
+    SettingBoxKey.mergeDanmakuRepresentativePercent,
+    defaultValue: 20,
+  );
+
   static bool get mergeDanmakuUsePinyin =>
       _setting.get(SettingBoxKey.mergeDanmakuUsePinyin, defaultValue: true);
 
