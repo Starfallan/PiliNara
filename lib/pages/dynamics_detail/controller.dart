@@ -1,5 +1,5 @@
 import 'package:PiliPlus/grpc/bilibili/main/community/reply/v1.pb.dart'
-    show Mode;
+    show MainListReply, Mode, ReplyInfo;
 import 'package:PiliPlus/http/dynamics.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/http/reply.dart';
@@ -128,15 +128,16 @@ class DynamicDetailController extends CommonDynController
   bool customHandleResponse(bool isRefresh, Success response) {
     final result = super.customHandleResponse(isRefresh, response);
     if (isRefresh && targetRpid != null) {
-      _setTargetIndex();
+      // super.customHandleResponse may have inserted upTop at index 0,
+      // so read from the already-mutated response.replies directly.
+      _setTargetIndex((response.response as MainListReply).replies);
       targetRpid = null;
     }
     return result;
   }
 
-  void _setTargetIndex() {
-    final data = loadingState.value.data;
-    if (data == null || data.isEmpty) return;
+  void _setTargetIndex(List<ReplyInfo> data) {
+    if (data.isEmpty) return;
     final targetId = Int64(targetRpid!);
     final index = data.indexWhere((item) => item.id == targetId);
     if (index != -1) {
