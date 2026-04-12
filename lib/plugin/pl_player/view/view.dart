@@ -38,7 +38,6 @@ import 'package:PiliPlus/pages/video/post_panel/view.dart';
 import 'package:PiliPlus/pages/video/widgets/header_control.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/bottom_control_type.dart';
-import 'package:PiliPlus/plugin/pl_player/models/bottom_progress_behavior.dart';
 import 'package:PiliPlus/plugin/pl_player/models/data_status.dart';
 import 'package:PiliPlus/plugin/pl_player/models/double_tap_type.dart';
 import 'package:PiliPlus/plugin/pl_player/models/fullscreen_mode.dart';
@@ -1039,7 +1038,6 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
       final dy = cumulativeDelta.dy.abs();
       if (dx > 3 * dy) {
         _gestureType = GestureType.horizontal;
-        _showControlsIfNeeded();
       } else if (dy > 3 * dx) {
         if (!plPlayerController.enableSlideVolumeBrightness &&
             !plPlayerController.enableSlideFS) {
@@ -1337,19 +1335,6 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
     }
   }
 
-  void _showControlsIfNeeded() {
-    if (plPlayerController.isLive) return;
-    late final isFullScreen = this.isFullScreen;
-    final progressType = plPlayerController.progressType;
-    if (progressType == BtmProgressBehavior.alwaysHide ||
-        (isFullScreen &&
-            progressType == BtmProgressBehavior.onlyHideFullScreen) ||
-        (!isFullScreen &&
-            progressType == BtmProgressBehavior.onlyShowFullScreen)) {
-      plPlayerController.controls = true;
-    }
-  }
-
   void _onPointerPanZoomUpdate(PointerPanZoomUpdateEvent event) {
     if (plPlayerController.controlsLock.value) return;
     if (_gestureType == null) {
@@ -1359,7 +1344,6 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
       final dy = pan.dy.abs();
       if (dx > 3 * dy) {
         _gestureType = GestureType.horizontal;
-        _showControlsIfNeeded();
       } else if (dy > 3 * dx) {
         _gestureType = GestureType.right;
       }
@@ -1792,8 +1776,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
         ),
 
         /// 进度条 live模式下禁用
-        if (!isLive &&
-            plPlayerController.progressType != BtmProgressBehavior.alwaysHide)
+        if (!isLive)
           Positioned(
             bottom: -2.2,
             left: 0,
@@ -1801,13 +1784,26 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
             child: Obx(
               () {
                 final showControls = plPlayerController.showControls.value;
-                final offstage = switch (plPlayerController.progressType) {
-                  BtmProgressBehavior.onlyShowFullScreen =>
-                    showControls || !isFullScreen,
-                  BtmProgressBehavior.onlyHideFullScreen =>
-                    showControls || isFullScreen,
-                  _ => showControls,
-                };
+                final bool offstage;
+                switch (plPlayerController.progressType) {
+                  case .alwaysShow:
+                    offstage = showControls;
+                  case .alwaysHide:
+                    if (!plPlayerController.isSliderMoving.value) {
+                      return const SizedBox.shrink();
+                    }
+                    offstage = showControls;
+                  case .onlyShowFullScreen:
+                    offstage =
+                        showControls ||
+                        (!isFullScreen &&
+                            !plPlayerController.isSliderMoving.value);
+                  case .onlyHideFullScreen:
+                    offstage =
+                        showControls ||
+                        (isFullScreen &&
+                            !plPlayerController.isSliderMoving.value);
+                }
                 return Offstage(
                   offstage: offstage,
                   child: Stack(
