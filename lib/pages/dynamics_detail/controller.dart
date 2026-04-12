@@ -5,7 +5,7 @@ import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/http/reply.dart';
 import 'package:PiliPlus/models/dynamics/result.dart';
 import 'package:PiliPlus/pages/common/dyn/common_dyn_controller.dart';
-import 'package:PiliPlus/utils/id_utils.dart';
+import 'package:PiliPlus/utils/id_utils.dart' show IdUtils;
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart' show AnimationController;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
@@ -34,6 +34,9 @@ class DynamicDetailController extends CommonDynController
       );
 
   final ListController listController = ListController();
+
+  @override
+  int? get seekRpid => targetRpid;
 
   @override
   dynamic get sourceId => replyType == 1 ? IdUtils.av2bv(oid) : oid;

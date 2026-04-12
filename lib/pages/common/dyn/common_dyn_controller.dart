@@ -16,6 +16,8 @@ abstract class CommonDynController extends ReplyController<MainListReply> {
 
   late final showDynActionBar = Pref.showDynActionBar;
 
+  int? get seekRpid => null;
+
   @override
   Future<LoadingState<MainListReply>> customGetData() => ReplyGrpc.mainList(
     type: replyType,
@@ -23,6 +25,7 @@ abstract class CommonDynController extends ReplyController<MainListReply> {
     mode: mode.value,
     cursorNext: cursorNext,
     offset: paginationReply?.nextOffset,
+    seekRpid: seekRpid,
   );
 
   @override

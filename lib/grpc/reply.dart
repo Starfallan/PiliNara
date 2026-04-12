@@ -47,17 +47,14 @@ abstract final class ReplyGrpc {
     required Mode mode,
     required String? offset,
     required Int64? cursorNext,
+    int? seekRpid,
   }) async {
     final res = await GrpcReq.request(
       GrpcUrl.mainList,
       MainListReq(
         oid: Int64(oid),
         type: Int64(type),
-        rpid: Int64.ZERO,
-        // cursor: CursorReq(
-        //   mode: mode,
-        //   next: cursorNext,
-        // ),
+        rpid: seekRpid != null ? Int64(seekRpid) : Int64.ZERO,
         mode: mode,
         pagination: offset == null ? null : FeedPagination(offset: offset),
       ),
