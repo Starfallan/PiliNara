@@ -57,6 +57,8 @@ abstract final class SettingBoxKey {
       applyFilterToHotVideos = 'applyFilterToHotVideos',
       applyFilterToRankVideos = 'applyFilterToRankVideos',
       autoUpdate = 'autoUpdate',
+      preReleaseUpdate = 'preReleaseUpdate',
+      skipVersion = 'skipVersion',
       autoClearCache = 'autoClearCache',
       maxCacheSize = 'maxCacheSize',
       defaultShowComment = 'defaultShowComment',

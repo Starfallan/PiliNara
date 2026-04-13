@@ -666,6 +666,13 @@ List<SettingsModel> get extraSettings => [
       }
     },
   ),
+  const SwitchModel(
+    title: '检测预发布版本更新',
+    subtitle: '检查更新时同时包含 pre-release 版本',
+    leading: Icon(Icons.preview_outlined),
+    setKey: SettingBoxKey.preReleaseUpdate,
+    defaultVal: false,
+  ),
 ];
 
 Future<void> audioNormalization(

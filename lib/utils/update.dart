@@ -10,6 +10,7 @@ import 'package:PiliPlus/utils/accounts/account.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
@@ -35,13 +36,25 @@ abstract final class Update {
         }
         return;
       }
-      final data = res.data[0];
+      final bool includePreRelease = Pref.preReleaseUpdate;
+      final data = (res.data as List).firstWhere(
+        (e) => includePreRelease || e['prerelease'] != true,
+        orElse: () => null,
+      );
+      if (data == null) {
+        if (!isAuto) {
+          SmartDialog.showToast('已是最新版本');
+        }
+        return;
+      }
       final int latest =
           DateTime.parse(data['created_at']).millisecondsSinceEpoch ~/ 1000;
       if (BuildConfig.buildTime >= latest) {
         if (!isAuto) {
           SmartDialog.showToast('已是最新版本');
         }
+      } else if (isAuto && Pref.skipVersion == data['tag_name']) {
+        // 用户已选择跳过此版本，静默忽略
       } else {
       Map<String, dynamic>? bestAsset;
       if (Platform.isAndroid) {
@@ -90,7 +103,8 @@ abstract final class Update {
                 TextButton(
                   onPressed: () {
                     SmartDialog.dismiss();
-                    GStorage.setting.put(SettingBoxKey.autoUpdate, false);
+                    GStorage.setting.put(
+                        SettingBoxKey.skipVersion, data['tag_name']);
                   },
                   child: Text(
                     '不再提醒',

@@ -573,6 +573,12 @@ abstract final class Pref {
   static bool get autoUpdate =>
       _setting.get(SettingBoxKey.autoUpdate, defaultValue: true);
 
+  static bool get preReleaseUpdate =>
+      _setting.get(SettingBoxKey.preReleaseUpdate, defaultValue: false);
+
+  static String get skipVersion =>
+      _setting.get(SettingBoxKey.skipVersion, defaultValue: '');
+
   static bool get horizontalPreview =>
       _setting.get(SettingBoxKey.horizontalPreview, defaultValue: false);
 
