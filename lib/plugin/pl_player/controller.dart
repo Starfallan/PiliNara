@@ -329,14 +329,6 @@ class PlPlayerController with BlockConfigMixin {
     }
   }
 
-  void _enableAutoEnterPip() {
-    if (_shouldSetPip && autoPiP && _isCurrVideoPage) {
-      Utils.channel.invokeMethod('setPipAutoEnterEnabled', {
-        'autoEnable': true,
-      });
-    }
-  }
-
   // 弹幕相关配置
   late final enableTapDm = PlatformUtils.isMobile && Pref.enableTapDm;
   late RuleFilter filters = Pref.danmakuFilterRule;
@@ -373,9 +365,11 @@ class PlPlayerController with BlockConfigMixin {
   late final enableSlideVolumeBrightness = Pref.enableSlideVolumeBrightness;
   late final enableSlideFS = Pref.enableSlideFS;
   late final enableDragSubtitle = Pref.enableDragSubtitle;
-  late final fastForBackwardDuration = Duration(
-    seconds: Pref.fastForBackwardDuration,
-  );
+  Duration get fastBackwardDuration =>
+      Duration(seconds: Pref.doubleTapBackwardDuration);
+  Duration get fastForwardDuration =>
+      Duration(seconds: Pref.doubleTapForwardDuration);
+  bool get enableTwoFingerTapPause => Pref.enableTwoFingerTapPause;
 
   late final horizontalSeasonPanel = Pref.horizontalSeasonPanel;
   late final preInitPlayer = Pref.preInitPlayer;
@@ -668,9 +662,7 @@ class PlPlayerController with BlockConfigMixin {
         : SuperResolutionType.disable;
     superResolutionType.value = defaultSuperResolutionType;
     if (_videoPlayerController != null) {
-      unawaited(
-        setShader(defaultSuperResolutionType, _videoPlayerController!),
-      );
+      unawaited(setShader(defaultSuperResolutionType, _videoPlayerController!));
     }
   }
 
@@ -850,9 +842,7 @@ class PlPlayerController with BlockConfigMixin {
 
   Future<Player> _initPlayer() async {
     assert(_videoPlayerController == null);
-    final opt = {
-      'video-sync': Pref.videoSync,
-    };
+    final opt = {'video-sync': Pref.videoSync};
     if (Platform.isAndroid) {
       opt['volume-max'] = '100';
       opt['ao'] = Pref.audioOutput;
@@ -885,10 +875,7 @@ class PlPlayerController with BlockConfigMixin {
       ),
     );
 
-    player.setMediaHeader(
-      userAgent: BrowserUa.pc,
-      referer: HttpString.baseUrl,
-    );
+    player.setMediaHeader(userAgent: BrowserUa.pc, referer: HttpString.baseUrl);
     // await player.setAudioTrack(.auto());
 
     _startListeners(player);
@@ -944,14 +931,10 @@ class PlPlayerController with BlockConfigMixin {
           audioNormalization = audioNormalization.replaceFirstMapped(
             loudnormRegExp,
             (i) =>
-                'loudnorm=${volume.format(
-                  Map.fromEntries(
-                    i.group(1)!.split(':').map((item) {
-                      final parts = item.split('=');
-                      return MapEntry(parts[0].toLowerCase(), num.parse(parts[1]));
-                    }),
-                  ),
-                )}',
+                'loudnorm=${volume.format(Map.fromEntries(i.group(1)!.split(':').map((item) {
+                  final parts = item.split('=');
+                  return MapEntry(parts[0].toLowerCase(), num.parse(parts[1]));
+                })))}',
           );
         } else {
           audioNormalization = audioNormalization.replaceFirst(
@@ -966,11 +949,7 @@ class PlPlayerController with BlockConfigMixin {
     }
 
     await player.open(
-      Media(
-        video,
-        start: seekTo,
-        extras: extras.isEmpty ? null : extras,
-      ),
+      Media(video, start: seekTo, extras: extras.isEmpty ? null : extras),
       play: false,
     );
   }

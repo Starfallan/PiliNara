@@ -254,10 +254,8 @@ abstract final class Pref {
     }
     return SegmentType.values
         .map(
-          (item) => Pair(
-            first: item,
-            second: SkipType.values[list[item.index]],
-          ),
+          (item) =>
+              Pair(first: item, second: SkipType.values[list[item.index]]),
         )
         .toList();
   }
@@ -267,13 +265,11 @@ abstract final class Pref {
     if (list == null || list.length != SegmentType.values.length) {
       return SegmentType.values.map((i) => i.color).toList();
     }
-    return SegmentType.values.map(
-      (item) {
-        final String e = list[item.index];
-        final color = e.isNotEmpty ? int.tryParse('FF$e', radix: 16) : null;
-        return color != null ? Color(color) : item.color;
-      },
-    ).toList();
+    return SegmentType.values.map((item) {
+      final String e = list[item.index];
+      final color = e.isNotEmpty ? int.tryParse('FF$e', radix: 16) : null;
+      return color != null ? Color(color) : item.color;
+    }).toList();
   }
 
   static bool get feedBackEnable =>
@@ -805,6 +801,19 @@ abstract final class Pref {
   static int get fastForBackwardDuration =>
       _setting.get(SettingBoxKey.fastForBackwardDuration, defaultValue: 10);
 
+  static int get doubleTapBackwardDuration => _setting.get(
+    SettingBoxKey.doubleTapBackwardDuration,
+    defaultValue: fastForBackwardDuration,
+  );
+
+  static int get doubleTapForwardDuration => _setting.get(
+    SettingBoxKey.doubleTapForwardDuration,
+    defaultValue: fastForBackwardDuration,
+  );
+
+  static bool get enableTwoFingerTapPause =>
+      _setting.get(SettingBoxKey.enableTwoFingerTapPause, defaultValue: false);
+
   static bool get recordSearchHistory =>
       _setting.get(SettingBoxKey.recordSearchHistory, defaultValue: true);
 
@@ -934,15 +943,11 @@ abstract final class Pref {
     defaultValue: true,
   );
 
-  static bool get applyFilterToHotVideos => _setting.get(
-    SettingBoxKey.applyFilterToHotVideos,
-    defaultValue: false,
-  );
+  static bool get applyFilterToHotVideos =>
+      _setting.get(SettingBoxKey.applyFilterToHotVideos, defaultValue: false);
 
-  static bool get applyFilterToRankVideos => _setting.get(
-    SettingBoxKey.applyFilterToRankVideos,
-    defaultValue: false,
-  );
+  static bool get applyFilterToRankVideos =>
+      _setting.get(SettingBoxKey.applyFilterToRankVideos, defaultValue: false);
 
   static bool get enableBackgroundPlay =>
       _setting.get(SettingBoxKey.enableBackgroundPlay, defaultValue: true);
@@ -1001,10 +1006,8 @@ abstract final class Pref {
     defaultValue: false,
   );
 
-  static bool get dynamicsShowSelfUp => _setting.get(
-    SettingBoxKey.dynamicsShowSelfUp,
-    defaultValue: true,
-  );
+  static bool get dynamicsShowSelfUp =>
+      _setting.get(SettingBoxKey.dynamicsShowSelfUp, defaultValue: true);
 
   static bool get enableShowDanmaku =>
       _setting.get(SettingBoxKey.enableShowDanmaku, defaultValue: true);
