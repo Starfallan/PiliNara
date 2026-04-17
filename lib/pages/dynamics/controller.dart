@@ -192,7 +192,7 @@ class DynamicsController extends GetxController
   @override
   Future<void> onRefresh() {
     _refreshFollowUp();
-    return controller!.onRefresh();
+    return controller?.showRefresh() ?? Future.value();
   }
 
   void _refreshFollowUp() {
