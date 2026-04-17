@@ -1145,6 +1145,9 @@ abstract final class Pref {
   static bool get defaultShowComment =>
       _setting.get(SettingBoxKey.defaultShowComment, defaultValue: false);
 
+  static bool get swapReplyLikeDislike =>
+      _setting.get(SettingBoxKey.swapReplyLikeDislike, defaultValue: false);
+
   static bool get enableTrending =>
       _setting.get(SettingBoxKey.enableHotKey, defaultValue: true);
 

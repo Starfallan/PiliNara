@@ -172,6 +172,13 @@ List<SettingsModel> get extraSettings => [
     ),
     onTap: _showReplyLengthDialog,
   ),
+  const SwitchModel(
+    title: '评论点赞/点踩按钮交换位置',
+    subtitle: '交换后：点赞在左，点踩在右（与官方客户端一致）',
+    leading: Icon(Icons.swap_horiz),
+    setKey: SettingBoxKey.swapReplyLikeDislike,
+    defaultVal: false,
+  ),
   NormalModel(
     title: '弹幕行高',
     subtitle: '默认1.6',
