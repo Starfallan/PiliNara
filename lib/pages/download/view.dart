@@ -1,6 +1,8 @@
 import 'package:PiliPlus/common/widgets/appbar/appbar.dart';
 import 'package:PiliPlus/common/widgets/dialog/dialog.dart';
 import 'package:PiliPlus/common/widgets/flutter/pop_scope.dart';
+import 'package:PiliPlus/common/widgets/flutter/scroll_view/scroll_view.dart';
+import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
 import 'package:PiliPlus/models_new/download/bili_download_entry_info.dart';
 import 'package:PiliPlus/models_new/download/download_collection.dart';
@@ -25,7 +27,8 @@ import 'package:get/get.dart';
 
 enum _DownloadTab {
   videos('全部视频'),
-  folders('文件夹');
+  folders('文件夹')
+  ;
 
   final String label;
   const _DownloadTab(this.label);
@@ -59,8 +62,10 @@ class _DownloadPageState extends State<DownloadPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _DownloadTab.values.length, vsync: this)
-      ..addListener(_handleTabChanged);
+    _tabController = TabController(
+      length: _DownloadTab.values.length,
+      vsync: this,
+    )..addListener(_handleTabChanged);
   }
 
   void _handleTabChanged() {
