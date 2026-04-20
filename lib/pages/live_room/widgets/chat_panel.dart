@@ -129,6 +129,7 @@ class LiveRoomChatPanel extends StatelessWidget {
                 return SuperChatCard(
                   item: item,
                   persistentSC: true,
+                  superChatTimeType: liveRoomController.superChatTimeType,
                   onReport: () => liveRoomController.reportSC(item),
                 );
               }

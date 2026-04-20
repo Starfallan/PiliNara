@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:PiliPlus/common/widgets/flutter/selectable_text/selection_area.dart';
+import 'package:PiliPlus/models/common/super_chat_time_type.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/models/common/image_type.dart';
 import 'package:PiliPlus/models_new/live/live_superchat/item.dart';
@@ -20,12 +21,14 @@ class SuperChatCard extends StatefulWidget {
     required this.item,
     this.onRemove,
     this.persistentSC = false,
+    this.superChatTimeType = SuperChatTimeType.disable,
     required this.onReport,
   });
 
   final SuperChatItem item;
   final VoidCallback? onRemove;
   final bool persistentSC;
+  final SuperChatTimeType superChatTimeType;
   final VoidCallback onReport;
 
   @override
@@ -133,6 +136,20 @@ class _SuperChatCardState extends State<SuperChatCard> {
     });
   }
 
+  bool get _showTime => switch (widget.superChatTimeType) {
+        SuperChatTimeType.disable => false,
+        SuperChatTimeType.whenPersist => widget.persistentSC,
+        SuperChatTimeType.always => true,
+      };
+
+  String _formatTime(int ts) {
+    final dt = DateTime.fromMillisecondsSinceEpoch(ts * 1000);
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    final s = dt.second.toString().padLeft(2, '0');
+    return '$h:$m:$s';
+  }
+
   @override
   Widget build(BuildContext context) {
     final item = widget.item;
@@ -203,11 +220,27 @@ class _SuperChatCardState extends State<SuperChatCard> {
                     crossAxisAlignment: .start,
                     children: [
                       name,
-                      Text(
-                        "￥${item.price}",
-                        style: TextStyle(
-                          color: Utils.parseColor(item.backgroundPriceColor),
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            "￥${item.price}",
+                            style: TextStyle(
+                              color: Utils.parseColor(item.backgroundPriceColor),
+                            ),
+                          ),
+                          if (_showTime) ...[
+                            const Spacer(),
+                            Text(
+                              _formatTime(item.ts),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontFamily: 'monospace',
+                                color: Utils.parseColor(item.backgroundPriceColor)
+                                    .withValues(alpha: 0.6),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),

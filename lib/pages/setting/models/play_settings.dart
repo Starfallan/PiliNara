@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:PiliPlus/common/widgets/custom_icon.dart';
+import 'package:PiliPlus/models/common/super_chat_time_type.dart';
 import 'package:PiliPlus/models/common/super_chat_type.dart';
 import 'package:PiliPlus/models/common/video/subtitle_pref_type.dart';
 import 'package:PiliPlus/pages/main/controller.dart';
@@ -144,6 +145,12 @@ List<SettingsModel> get playSettings => [
     leading: const Icon(Icons.live_tv),
     getSubtitle: () => '当前:「${Pref.superChatType.title}」',
     onTap: _showSuperChatDialog,
+  ),
+  NormalModel(
+    title: 'SuperChat 发送时间显示',
+    leading: const Icon(Icons.access_time_outlined),
+    getSubtitle: () => '当前:「${Pref.superChatTimeType.title}」',
+    onTap: _showSuperChatTimeDialog,
   ),
   const SwitchModel(
     title: '竖屏扩大展示',
@@ -293,6 +300,24 @@ Future<void> _showSubtitleDialog(
       SettingBoxKey.subtitlePreferenceV2,
       res.index,
     );
+    setState();
+  }
+}
+
+Future<void> _showSuperChatTimeDialog(
+  BuildContext context,
+  VoidCallback setState,
+) async {
+  final res = await showDialog<SuperChatTimeType>(
+    context: context,
+    builder: (context) => SelectDialog<SuperChatTimeType>(
+      title: 'SuperChat 发送时间显示',
+      value: Pref.superChatTimeType,
+      values: SuperChatTimeType.values.map((e) => (e, e.title)).toList(),
+    ),
+  );
+  if (res != null) {
+    await GStorage.setting.put(SettingBoxKey.superChatTimeType, res.index);
     setState();
   }
 }

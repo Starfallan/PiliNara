@@ -1,3 +1,4 @@
+import 'package:PiliPlus/models/common/super_chat_time_type.dart';
 import 'package:PiliPlus/models/common/super_chat_type.dart';
 import 'package:PiliPlus/pages/live_room/controller.dart';
 import 'package:PiliPlus/pages/live_room/superchat/superchat_card.dart';
@@ -24,6 +25,8 @@ class _SuperChatPanelState extends DebounceStreamState<SuperChatPanel, bool>
 
   late final persistentSC =
       widget.controller.superChatType == SuperChatType.persist;
+  late final SuperChatTimeType superChatTimeType =
+      widget.controller.superChatTimeType;
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +51,7 @@ class _SuperChatPanelState extends DebounceStreamState<SuperChatPanel, bool>
             item: item,
             onRemove: () => ctr?.add(true),
             persistentSC: persistentSC,
+            superChatTimeType: superChatTimeType,
             onReport: () => widget.controller.reportSC(item),
           );
         },

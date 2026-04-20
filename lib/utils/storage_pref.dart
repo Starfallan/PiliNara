@@ -15,6 +15,7 @@ import 'package:PiliPlus/models/common/nav_bar_config.dart';
 import 'package:PiliPlus/models/common/reply/reply_sort_type.dart';
 import 'package:PiliPlus/models/common/sponsor_block/segment_type.dart';
 import 'package:PiliPlus/models/common/sponsor_block/skip_type.dart';
+import 'package:PiliPlus/models/common/super_chat_time_type.dart';
 import 'package:PiliPlus/models/common/super_chat_type.dart';
 import 'package:PiliPlus/models/common/super_resolution_type.dart';
 import 'package:PiliPlus/models/common/theme/theme_type.dart';
@@ -1216,6 +1217,12 @@ abstract final class Pref {
       SuperChatType.values[_setting.get(
         SettingBoxKey.superChatType,
         defaultValue: SuperChatType.valid.index,
+      )];
+
+  static SuperChatTimeType get superChatTimeType =>
+      SuperChatTimeType.values[_setting.get(
+        SettingBoxKey.superChatTimeType,
+        defaultValue: SuperChatTimeType.disable.index,
       )];
 
   static bool get minimizeOnExit =>
