@@ -220,32 +220,41 @@ class _SuperChatCardState extends State<SuperChatCard> {
                     crossAxisAlignment: .start,
                     children: [
                       name,
-                      Row(
-                        children: [
-                          Text(
-                            "￥${item.price}",
-                            style: TextStyle(
-                              color: Utils.parseColor(item.backgroundPriceColor),
-                            ),
-                          ),
-                          if (_showTime) ...[
-                            const Spacer(),
-                            Text(
-                              _formatTime(item.ts),
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontFamily: 'monospace',
-                                color: Utils.parseColor(item.backgroundPriceColor)
-                                    .withValues(alpha: 0.6),
-                              ),
-                            ),
-                          ],
-                        ],
+                      Text(
+                        "￥${item.price}",
+                        style: TextStyle(
+                          color: Utils.parseColor(item.backgroundPriceColor),
+                        ),
                       ),
                     ],
                   ),
                 ),
-                if (_remains != null)
+                if (_showTime)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_remains != null)
+                        Obx(
+                          () => Text(
+                            _remains.toString(),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ),
+                      Text(
+                        _formatTime(item.ts),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Utils.parseColor(item.backgroundPriceColor)
+                              .withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
+                  )
+                else if (_remains != null)
                   Obx(
                     () => Text(
                       _remains.toString(),

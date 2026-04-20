@@ -1222,7 +1222,7 @@ abstract final class Pref {
   static SuperChatTimeType get superChatTimeType =>
       SuperChatTimeType.values[_setting.get(
         SettingBoxKey.superChatTimeType,
-        defaultValue: SuperChatTimeType.disable.index,
+        defaultValue: SuperChatTimeType.whenPersist.index,
       )];
 
   static bool get minimizeOnExit =>
