@@ -20,6 +20,7 @@ import 'package:PiliPlus/models_new/live/live_room_info_h5/data.dart';
 import 'package:PiliPlus/models_new/live/live_superchat/item.dart';
 import 'package:PiliPlus/pages/danmaku/danmaku_model.dart';
 import 'package:PiliPlus/pages/live_room/contribution_rank/controller.dart';
+import 'package:PiliPlus/pages/live_room/contribution_rank/view.dart';
 import 'package:PiliPlus/pages/live_room/controller.dart';
 import 'package:PiliPlus/pages/live_room/superchat/superchat_card.dart';
 import 'package:PiliPlus/pages/live_room/superchat/superchat_panel.dart';
@@ -30,6 +31,7 @@ import 'package:PiliPlus/pages/video/widgets/player_focus.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/danmaku_options.dart';
+import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
 import 'package:PiliPlus/plugin/pl_player/view/view.dart';
 import 'package:PiliPlus/services/live_pip_overlay_service.dart';
 import 'package:PiliPlus/services/logger.dart';
@@ -126,13 +128,20 @@ class _LiveRoomPageState extends State<LiveRoomPage>
         ..startLiveMsg();
     } else {
       plPlayerController.isLive = true;
+      if (plPlayerController.removeSafeArea) {
+        hideSystemBar();
+      }
     }
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    padding = MediaQuery.viewPaddingOf(context);
+    if (plPlayerController.removeSafeArea) {
+      padding = .zero;
+    } else {
+      padding = MediaQuery.viewPaddingOf(context);
+    }
     final size = MediaQuery.sizeOf(context);
     maxWidth = size.width;
     maxHeight = size.height;
@@ -362,6 +371,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
               onPlayAudio: _liveRoomController.queryLiveUrl,
               isPortrait: isPortrait,
               liveController: _liveRoomController,
+              onlineWidget: onlineWidget,
             ),
             bottomControl: BottomControl(
               plPlayerController: plPlayerController,
@@ -588,9 +598,12 @@ class _LiveRoomPageState extends State<LiveRoomPage>
               },
             ),
           Scaffold(
+            primary: !plPlayerController.removeSafeArea,
             resizeToAvoidBottomInset: false,
             backgroundColor: Colors.transparent,
-            appBar: _buildAppBar(isFullScreen),
+            appBar: isFullScreen && !isPortrait
+                ? null
+                : _buildAppBar(isFullScreen),
             body: isPortrait
                 ? Obx(
                     () {
@@ -609,7 +622,9 @@ class _LiveRoomPageState extends State<LiveRoomPage>
 
   Widget _buildPH(bool isFullScreen) {
     final height = maxWidth / Style.aspectRatio16x9;
-    final videoHeight = isFullScreen ? maxHeight - padding.top : height;
+    final videoHeight = isFullScreen
+        ? maxHeight - (isPortrait ? padding.top : 0)
+        : height;
     final bottomHeight = maxHeight - padding.top - height - kToolbarHeight;
     return Column(
       children: [
@@ -637,7 +652,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
   Widget _buildPP(bool isFullScreen) {
     final bottomHeight = 70 + padding.bottom;
     final videoHeight = isFullScreen
-        ? maxHeight - padding.top
+        ? maxHeight - (isPortrait ? padding.top : 0)
         : maxHeight - bottomHeight;
     return Stack(
       clipBehavior: Clip.none,
@@ -676,9 +691,47 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     );
   }
 
+  Widget get onlineWidget => GestureDetector(
+    onTap: _showRank,
+    child: Obx(() {
+      if (_liveRoomController.onlineCount.value case final onlineCount?) {
+        return Text(
+          '高能观众($onlineCount)',
+          style: const TextStyle(
+            fontSize: 12,
+            color: Colors.white,
+          ),
+        );
+      }
+      return const SizedBox.shrink();
+    }),
+  );
+
+  void _showRank() {
+    if (_liveRoomController.ruid case final ruid?) {
+      final heightFactor = PlatformUtils.isMobile && !isPortrait ? 1.0 : 0.7;
+      showModalBottomSheet(
+        context: context,
+        useSafeArea: true,
+        clipBehavior: .hardEdge,
+        isScrollControlled: true,
+        constraints: const BoxConstraints(maxWidth: 450),
+        builder: (context) => FractionallySizedBox(
+          widthFactor: 1.0,
+          heightFactor: heightFactor,
+          child: ContributionRankPanel(
+            ruid: ruid,
+            roomId: _liveRoomController.roomId,
+          ),
+        ),
+      );
+    }
+  }
+
   PreferredSizeWidget _buildAppBar(bool isFullScreen) {
     final color = Theme.of(context).colorScheme.onSurfaceVariant;
     return AppBar(
+      primary: !plPlayerController.removeSafeArea,
       toolbarHeight: isFullScreen ? 0 : null,
       backgroundColor: Colors.transparent,
       foregroundColor: Colors.white,
@@ -725,7 +778,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
                                     ),
                                   ),
                                 ),
-                                _liveRoomController.onlineWidget,
+                                onlineWidget,
                               ],
                             ),
                             Row(
@@ -852,7 +905,9 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     videoWidth = maxWidth - rightWidth - padding.horizontal;
     final videoHeight = maxHeight - padding.top - kToolbarHeight;
     final width = isFullScreen ? maxWidth : videoWidth;
-    final height = isFullScreen ? maxHeight - padding.top : videoHeight;
+    final height = isFullScreen
+        ? maxHeight - (isPortrait ? padding.top : 0)
+        : videoHeight;
     return Padding(
       padding: isFullScreen
           ? EdgeInsets.zero

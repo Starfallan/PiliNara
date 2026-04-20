@@ -162,7 +162,8 @@ abstract final class SettingBoxKey {
       showDynDispute = 'showDynDispute',
       touchSlopH = 'touchSlopH',
       floatingNavBar = 'floatingNavBar',
-      mixWithOthers = 'mixWithOthers';
+      mixWithOthers = 'mixWithOthers',
+      removeSafeArea = 'removeSafeArea';
 
   static const String minimizeOnExit = 'minimizeOnExit',
       windowSize = 'windowSize',

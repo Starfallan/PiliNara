@@ -59,7 +59,7 @@ class _GroupPanelState extends State<GroupPanel> {
       tags.isEmpty ? '0' : tags.join(','),
     );
     if (res.isSuccess) {
-      SmartDialog.showToast('操作成功');
+      SmartDialog.showToast('保存成功');
       Get.back(result: tags);
     } else {
       res.toast();

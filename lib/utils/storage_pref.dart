@@ -324,13 +324,15 @@ abstract final class Pref {
         defaultValue: UpPanelPosition.leftFixed.index,
       )];
 
-  static FullScreenMode get fullScreenMode =>
-      FullScreenMode.values[_setting.get(
-        SettingBoxKey.fullScreenMode,
-        defaultValue: horizontalScreen
-            ? FullScreenMode.none.index
-            : FullScreenMode.auto.index,
-      )];
+  static FullScreenMode get fullScreenMode {
+    int? index = _setting.get(SettingBoxKey.fullScreenMode);
+    if (index == null) {
+      final FullScreenMode mode = horizontalScreen && isTablet ? .none : .auto;
+      _setting.put(SettingBoxKey.fullScreenMode, mode.index);
+      return mode;
+    }
+    return FullScreenMode.values[index];
+  }
 
   static BtmProgressBehavior get btmProgressBehavior =>
       BtmProgressBehavior.values[_setting.get(
@@ -519,12 +521,12 @@ abstract final class Pref {
 
   static bool get horizontalSeasonPanel => _setting.get(
     SettingBoxKey.horizontalSeasonPanel,
-    defaultValue: PlatformUtils.isDesktop,
+    defaultValue: horizontalScreen,
   );
 
   static bool get horizontalMemberPage => _setting.get(
     SettingBoxKey.horizontalMemberPage,
-    defaultValue: PlatformUtils.isDesktop,
+    defaultValue: horizontalScreen,
   );
 
   static int? get replyLengthLimit {
@@ -972,8 +974,10 @@ abstract final class Pref {
   static double get uiScale =>
       _setting.get(SettingBoxKey.uiScale, defaultValue: 1.0);
 
-  static bool get dynamicsWaterfallFlow =>
-      _setting.get(SettingBoxKey.dynamicsWaterfallFlow, defaultValue: true);
+  static bool get dynamicsWaterfallFlow => _setting.get(
+    SettingBoxKey.dynamicsWaterfallFlow,
+    defaultValue: horizontalScreen,
+  );
 
   static bool get hideTopBar => _setting.get(
     SettingBoxKey.hideTopBar,
@@ -1301,4 +1305,7 @@ abstract final class Pref {
 
   static bool get floatingNavBar =>
       _setting.get(SettingBoxKey.floatingNavBar, defaultValue: false);
+
+  static bool get removeSafeArea =>
+      _setting.get(SettingBoxKey.removeSafeArea, defaultValue: false);
 }

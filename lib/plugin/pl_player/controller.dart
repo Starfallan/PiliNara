@@ -553,36 +553,44 @@ class PlPlayerController with BlockConfigMixin {
     final isFullScreen = this.isFullScreen.value;
     if (checkIsAutoRotate &&
         param.isAutoRotate != true &&
-        (!isFullScreen || _isVertical || orientation == .portraitUp)) {
+        (!isFullScreen ||
+            _isVertical ||
+            orientation == .portraitUp ||
+            orientation == .portraitDown)) {
       return;
     }
     switch (orientation) {
       case .portraitUp:
         if (!_isVertical && controlsLock.value) return;
         if (!horizontalScreen && !_isVertical && isFullScreen) {
-          triggerFullScreen(status: false, orientation: orientation);
+          if (!isManualFS) {
+            triggerFullScreen(status: false, orientation: orientation);
+          }
         } else {
           portraitUpMode();
         }
+      case .portraitDown:
+        if (!horizontalScreen) return;
+        if (!_isVertical && controlsLock.value) return;
+        portraitDownMode();
       case .landscapeLeft:
         if (!horizontalScreen && !isFullScreen) {
-          triggerFullScreen(orientation: orientation);
+          triggerFullScreen(orientation: orientation, isManualFS: false);
         } else {
           landscapeLeftMode();
         }
       case .landscapeRight:
         if (!horizontalScreen && !isFullScreen) {
-          triggerFullScreen(orientation: orientation);
+          triggerFullScreen(orientation: orientation, isManualFS: false);
         } else {
           landscapeRightMode();
         }
-      case _:
     }
   }
 
   // 添加一个私有构造函数
   PlPlayerController._() {
-    if (PlatformUtils.isMobile && !horizontalScreen) {
+    if (PlatformUtils.isMobile) {
       _orientationListener = NativeDeviceOrientationPlatform.instance
           .onOrientationChanged(
             useSensor: Platform.isAndroid,
@@ -1510,8 +1518,10 @@ class PlPlayerController with BlockConfigMixin {
   }
 
   double screenRatio = 0.0;
+  bool isManualFS = true;
   late final FullScreenMode mode = Pref.fullScreenMode;
   late final horizontalScreen = Pref.horizontalScreen;
+  late final removeSafeArea = Pref.removeSafeArea;
 
   // 全屏
   bool _fsProcessing = false;
@@ -1519,6 +1529,7 @@ class PlPlayerController with BlockConfigMixin {
     bool status = true,
     bool inAppFullScreen = false,
     DeviceOrientation? orientation,
+    bool isManualFS = true,
   }) async {
     if (isDesktopPip) return;
     if (isFullScreen.value == status) return;
@@ -1526,11 +1537,11 @@ class PlPlayerController with BlockConfigMixin {
     if (_fsProcessing) return;
     _fsProcessing = true;
     toggleFullScreen(status);
+    this.isManualFS = isManualFS;
     try {
       if (status) {
         if (PlatformUtils.isMobile) {
-          hideStatusBar();
-          if (horizontalScreen) return;
+          hideSystemBar();
           if (orientation == null && mode == .none) {
             return;
           }
@@ -1562,12 +1573,26 @@ class PlPlayerController with BlockConfigMixin {
         }
       } else {
         if (PlatformUtils.isMobile) {
-          showStatusBar();
+          if (!removeSafeArea) {
+            showSystemBar();
+          }
           if (orientation == null && mode == .none) {
             return;
           }
           if (!horizontalScreen) {
             await portraitUpMode();
+          } else {
+            switch (_orientation) {
+              case .portraitUp:
+                await portraitUpMode();
+              case .landscapeLeft:
+                await landscapeLeftMode();
+              case .portraitDown:
+                await portraitDownMode();
+              case .landscapeRight:
+                await landscapeRightMode();
+              case _:
+            }
           }
         } else {
           await exitDesktopFullScreen();
@@ -1676,7 +1701,9 @@ class PlPlayerController with BlockConfigMixin {
   bool get isCloseAll => _isCloseAll;
 
   void resetScreenRotation() {
-    if (!horizontalScreen) {
+    if (horizontalScreen) {
+      fullMode();
+    } else {
       portraitUpMode();
     }
   }
@@ -1702,6 +1729,9 @@ class PlPlayerController with BlockConfigMixin {
     }
 
     _playerCount = 0;
+    if (removeSafeArea) {
+      showSystemBar();
+    }
     danmakuController = null;
     _stopOrientationListener();
     _disableAutoEnterPip();

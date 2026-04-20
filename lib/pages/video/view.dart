@@ -61,7 +61,6 @@ import 'package:PiliPlus/utils/image_utils.dart';
 import 'package:PiliPlus/utils/mobile_observer.dart';
 import 'package:PiliPlus/utils/num_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
-import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
@@ -228,6 +227,10 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         );
       }
       videoDetailController = Get.put(VideoDetailController(), tag: heroTag);
+    }
+
+    if (videoDetailController.removeSafeArea) {
+      hideSystemBar();
     }
 
     if (videoDetailController.showReply) {
@@ -607,6 +610,10 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       }
     }
 
+    if (!videoDetailController.removeSafeArea) {
+      showSystemBar();
+    }
+
     if (!videoDetailController.plPlayerController.isCloseAll) {
       if (isInAppPip || _isEnteringPipMode) {
         videoDetailController.makeHeartBeat();
@@ -621,9 +628,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       }
     }
     removeObserverMobile(this);
-    if (PlatformUtils.isMobile) {
-      showStatusBar();
-    }
+
     super.dispose();
   }
 
@@ -835,7 +840,11 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    padding = MediaQuery.viewPaddingOf(context);
+    if (videoDetailController.removeSafeArea) {
+      padding = .zero;
+    } else {
+      padding = MediaQuery.viewPaddingOf(context);
+    }
 
     final size = MediaQuery.sizeOf(context);
     maxWidth = size.width;
@@ -893,6 +902,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     }
   }
 
+  bool get removeAppBar =>
+      videoDetailController.removeSafeArea || (isFullScreen && !isPortrait);
+
   Widget get childWhenDisabled {
     videoDetailController.animationController
       ..removeListener(animListener)
@@ -903,42 +915,47 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         return Scaffold(
           backgroundColor: themeData.scaffoldBackgroundColor,
           resizeToAvoidBottomInset: false,
-          appBar: PreferredSize(
-            preferredSize: const Size.fromHeight(0),
-            child: Obx(
-              () {
-                final scrollRatio = videoDetailController.scrollRatio.value;
-                final flag =
-                    isPortrait && videoDetailController.scrollCtr.offset != 0;
-                return AppBar(
-                  backgroundColor: flag && scrollRatio > 0
-                      ? Color.lerp(
-                          Colors.black,
-                          themeData.colorScheme.surface,
-                          scrollRatio,
-                        )
-                      : Colors.black,
-                  toolbarHeight: 0,
-                  systemOverlayStyle: Platform.isAndroid
-                      ? SystemUiOverlayStyle(
-                          statusBarIconBrightness: flag && scrollRatio >= 0.5
-                              ? themeData.brightness.reverse
-                              : Brightness.light,
-                          systemNavigationBarIconBrightness:
-                              themeData.brightness.reverse,
-                        )
-                      : null,
-                );
-              },
-            ),
-          ),
+          appBar: removeAppBar
+              ? null
+              : PreferredSize(
+                  preferredSize: const Size.fromHeight(0),
+                  child: Obx(
+                    () {
+                      final scrollRatio =
+                          videoDetailController.scrollRatio.value;
+                      final flag =
+                          isPortrait &&
+                          videoDetailController.scrollCtr.offset != 0;
+                      return AppBar(
+                        backgroundColor: flag && scrollRatio > 0
+                            ? Color.lerp(
+                                Colors.black,
+                                themeData.colorScheme.surface,
+                                scrollRatio,
+                              )
+                            : Colors.black,
+                        toolbarHeight: 0,
+                        systemOverlayStyle: Platform.isAndroid
+                            ? SystemUiOverlayStyle(
+                                statusBarIconBrightness:
+                                    flag && scrollRatio >= 0.5
+                                    ? themeData.brightness.reverse
+                                    : Brightness.light,
+                                systemNavigationBarIconBrightness:
+                                    themeData.brightness.reverse,
+                              )
+                            : null,
+                      );
+                    },
+                  ),
+                ),
           body: ExtendedNestedScrollView(
             key: videoDetailController.scrollKey,
             controller: videoDetailController.scrollCtr,
             onlyOneScrollInBody: true,
             pinnedHeaderSliverHeightBuilder: () {
               double pinnedHeight = this.isFullScreen || !isPortrait
-                  ? maxHeight - padding.top
+                  ? maxHeight - (isPortrait ? padding.top : 0)
                   : videoDetailController.isExpanding ||
                         videoDetailController.isCollapsing
                   ? animHeight
@@ -964,7 +981,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
             },
             headerSliverBuilder: (context, innerBoxIsScrolled) {
               final height = isFullScreen || !isPortrait
-                  ? maxHeight - padding.top
+                  ? maxHeight - (isPortrait ? padding.top : 0)
                   : videoDetailController.isExpanding ||
                         videoDetailController.isCollapsing
                   ? animHeight
@@ -1214,7 +1231,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       return Scaffold(
         backgroundColor: themeData.scaffoldBackgroundColor,
         resizeToAvoidBottomInset: false,
-        appBar: AppBar(backgroundColor: Colors.black, toolbarHeight: 0),
+        appBar: removeAppBar
+            ? null
+            : AppBar(backgroundColor: Colors.black, toolbarHeight: 0),
         body: Padding(
           padding: !isFullScreen
               ? padding.copyWith(top: 0, bottom: 0)
@@ -1347,7 +1366,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     }
     final videoWidth = isFullScreen ? maxWidth : width;
     final double height = width / Style.aspectRatio16x9;
-    final videoHeight = isFullScreen ? maxHeight - padding.top : height;
+    final videoHeight = isFullScreen
+        ? maxHeight - (isPortrait ? padding.top : 0)
+        : height;
     if (height > maxHeight) {
       return childSplit(Style.aspectRatio16x9);
     }
@@ -1441,7 +1462,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     return Scaffold(
       backgroundColor: themeData.scaffoldBackgroundColor,
       resizeToAvoidBottomInset: false,
-      appBar: AppBar(backgroundColor: Colors.black, toolbarHeight: 0),
+      appBar: removeAppBar
+          ? null
+          : AppBar(backgroundColor: Colors.black, toolbarHeight: 0),
       body: Padding(
         padding: !isFullScreen
             ? padding.copyWith(top: 0, bottom: 0)
@@ -1464,7 +1487,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       }
       final shouldShowSeasonPanel = _shouldShowSeasonPanel;
       final double height = maxHeight / 2.5;
-      final videoHeight = isFullScreen ? maxHeight - padding.top : height;
+      final videoHeight = isFullScreen
+          ? maxHeight - (isPortrait ? padding.top : 0)
+          : height;
       final bottomHeight = maxHeight - height - padding.top;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1917,6 +1942,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         Obx(() {
           if (!videoDetailController.autoPlay) {
             return Positioned.fill(
+              bottom: -1,
               child: GestureDetector(
                 onTap: handlePlay,
                 behavior: .opaque,
