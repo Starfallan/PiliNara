@@ -5,6 +5,7 @@ import 'package:PiliPlus/grpc/grpc_req.dart';
 import 'package:PiliPlus/grpc/url.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
+import 'package:PiliPlus/utils/user_whitelist.dart';
 import 'package:fixnum/fixnum.dart';
 
 abstract final class ReplyGrpc {
@@ -14,6 +15,8 @@ abstract final class ReplyGrpc {
     caseSensitive: false,
   );
   static bool enableFilter = replyRegExp.pattern.isNotEmpty;
+  static Map<int, String> replyBlockedMids = Pref.replyBlockedMids;
+  static int replyMinLevel = Pref.replyMinLevel;
 
   // static Future replyInfo({required int rpid}) {
   //   return _request(
@@ -37,8 +40,12 @@ abstract final class ReplyGrpc {
   }
 
   static bool needRemoveGrpc(ReplyInfo reply) {
+    final mid = reply.mid.toInt();
+    if (UserWhitelist.contains(mid)) return false;
     return (enableFilter && replyRegExp.hasMatch(reply.content.message)) ||
-        (antiGoodsReply && needRemoveGoodGrpc(reply));
+        (antiGoodsReply && needRemoveGoodGrpc(reply)) ||
+        (replyBlockedMids.isNotEmpty && replyBlockedMids.containsKey(mid)) ||
+        (replyMinLevel > 0 && reply.member.level.toInt() < replyMinLevel);
   }
 
   static Future<LoadingState<MainListReply>> mainList({

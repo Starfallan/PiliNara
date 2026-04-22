@@ -29,6 +29,7 @@ abstract final class GStorage {
     'dynamicsBlockedMids',
     'whitelistMids',
     'recommendBlockedMids',
+    'replyBlockedMids',
     'danmakuFilterRules',
   ];
   static late final Box<Uint8List>? reply;
@@ -147,7 +148,8 @@ abstract final class GStorage {
       'blackMids' ||
       'dynamicsBlockedMids' => value is Set ? value.toList() : value,
       'whitelistMids' ||
-      'recommendBlockedMids' =>
+      'recommendBlockedMids' ||
+      'replyBlockedMids' =>
         value is Map ? value.map((k, v) => MapEntry(k.toString(), v)) : value,
       'danmakuFilterRules' =>
         value is RuleFilter
@@ -166,7 +168,8 @@ abstract final class GStorage {
       'blackMids' || 'dynamicsBlockedMids' =>
         value is List ? value.whereType<int>().toSet() : value,
       'whitelistMids' ||
-      'recommendBlockedMids' =>
+      'recommendBlockedMids' ||
+      'replyBlockedMids' =>
         value is Map
             ? value.map(
                 (k, v) =>
