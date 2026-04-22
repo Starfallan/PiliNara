@@ -1,9 +1,8 @@
 import 'dart:async';
 
-import 'package:PiliPlus/common/widgets/flutter/selectable_text/selection_area.dart';
-import 'package:PiliPlus/models/common/super_chat_time_type.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/models/common/image_type.dart';
+import 'package:PiliPlus/models/common/super_chat_time_type.dart';
 import 'package:PiliPlus/models_new/live/live_superchat/item.dart';
 import 'package:PiliPlus/pages/member/widget/medal_widget.dart';
 import 'package:PiliPlus/utils/image_utils.dart';
@@ -12,7 +11,7 @@ import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
-import 'package:flutter/material.dart' hide SelectionArea;
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class SuperChatCard extends StatefulWidget {
@@ -137,10 +136,10 @@ class _SuperChatCardState extends State<SuperChatCard> {
   }
 
   bool get _showTime => switch (widget.superChatTimeType) {
-        SuperChatTimeType.disable => false,
-        SuperChatTimeType.whenPersist => widget.persistentSC,
-        SuperChatTimeType.always => true,
-      };
+    SuperChatTimeType.disable => false,
+    SuperChatTimeType.whenPersist => widget.persistentSC,
+    SuperChatTimeType.always => true,
+  };
 
   String _formatTime(int ts) {
     final dt = DateTime.fromMillisecondsSinceEpoch(ts * 1000);
@@ -248,8 +247,9 @@ class _SuperChatCardState extends State<SuperChatCard> {
                         _formatTime(item.ts),
                         style: TextStyle(
                           fontSize: 11,
-                          color: Utils.parseColor(item.backgroundPriceColor)
-                              .withValues(alpha: 0.6),
+                          color: Utils.parseColor(
+                            item.backgroundPriceColor,
+                          ).withValues(alpha: 0.6),
                         ),
                       ),
                     ],
