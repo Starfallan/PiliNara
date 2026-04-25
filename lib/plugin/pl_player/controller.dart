@@ -49,7 +49,6 @@ import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:easy_debounce/easy_throttle.dart';
 import 'package:floating/floating.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
-import 'package:screen_brightness_platform_interface/screen_brightness_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback, DeviceOrientation;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
@@ -593,11 +592,6 @@ class PlPlayerController with BlockConfigMixin {
 
   // 添加一个私有构造函数
   PlPlayerController._() {
-    if (Platform.isIOS) {
-      // 禁用 iOS 的自动重置，防止息屏时亮度被重置为 0
-      ScreenBrightnessPlatform.instance.setAutoReset(false);
-    }
-
     if (PlatformUtils.isMobile) {
       _orientationListener = NativeDeviceOrientationPlatform.instance
           .onOrientationChanged(
@@ -1732,11 +1726,6 @@ class PlPlayerController with BlockConfigMixin {
     }
 
     _playerCount = 0;
-
-    if (Platform.isIOS) {
-      // 播放器销毁时恢复自动重置，确保其他页面的正常行为
-      ScreenBrightnessPlatform.instance.setAutoReset(true);
-    }
 
     if (removeSafeArea) {
       showSystemBar();

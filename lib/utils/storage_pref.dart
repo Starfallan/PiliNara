@@ -1324,6 +1324,9 @@ abstract final class Pref {
   static bool get setSystemBrightness =>
       _setting.get(SettingBoxKey.setSystemBrightness, defaultValue: false);
 
+  static bool get disableAutoReset =>
+      _setting.get(SettingBoxKey.disableAutoReset, defaultValue: false);
+
   static String? get downloadPath => _setting.get(SettingBoxKey.downloadPath);
 
   static String? get liveCdnUrl => _setting.get(SettingBoxKey.liveCdnUrl);

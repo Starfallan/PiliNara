@@ -39,6 +39,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:screen_brightness_platform_interface/screen_brightness_platform_interface.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
@@ -163,6 +164,11 @@ void main() async {
         }
         FlutterDisplayMode.setPreferredMode(displayMode ?? DisplayMode.auto);
       });
+    }
+  } else if (Platform.isIOS) {
+    // iOS: 根据设置禁用亮度自动重置，防止息屏后亮度异常
+    if (Pref.disableAutoReset) {
+      ScreenBrightnessPlatform.instance.setAutoReset(false);
     }
   } else if (PlatformUtils.isDesktop) {
     await windowManager.ensureInitialized();

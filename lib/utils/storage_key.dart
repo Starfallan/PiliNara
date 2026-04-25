@@ -157,6 +157,7 @@ abstract final class SettingBoxKey {
       enablePlayAll = 'enablePlayAll',
       enableTapDm = 'enableTapDm',
       setSystemBrightness = 'setSystemBrightness',
+      disableAutoReset = 'disableAutoReset',
       downloadPath = 'downloadPath',
       followOrderType = 'followOrderType',
       enableImgMenu = 'enableImgMenu',

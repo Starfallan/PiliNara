@@ -87,6 +87,14 @@ List<SettingsModel> get playSettings => [
       setKey: SettingBoxKey.setSystemBrightness,
       defaultVal: false,
     ),
+  if (Platform.isIOS)
+    const SwitchModel(
+      title: '禁用亮度自动重置',
+      subtitle: '修复息屏后亮度异常，但是会导致退出应用和退出播放时不会重置亮度，需要重启 App 生效',
+      leading: Icon(Icons.brightness_6_outlined),
+      setKey: SettingBoxKey.disableAutoReset,
+      defaultVal: false,
+    ),
   const SwitchModel(
     title: '中间滑动进入/退出全屏',
     leading: Icon(MdiIcons.panVertical),
