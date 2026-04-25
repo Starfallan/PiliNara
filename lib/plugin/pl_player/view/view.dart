@@ -61,6 +61,7 @@ import 'package:PiliPlus/utils/path_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:collection/collection.dart';
@@ -230,24 +231,41 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
     if (PlatformUtils.isMobile) {
       Future.microtask(() async {
         try {
-          FlutterVolumeController.updateShowSystemUI(true);
-          plPlayerController.volume.value =
-              (await FlutterVolumeController.getVolume())!;
-          FlutterVolumeController.addListener((double value) {
-            if (mounted && !plPlayerController.volumeInterceptEventStream) {
-              plPlayerController.volume.value = value;
-              if (Platform.isIOS && !FlutterVolumeController.showSystemUI) {
-                plPlayerController
-                  ..volumeIndicator.value = true
-                  ..volumeTimer?.cancel()
-                  ..volumeTimer = Timer(const Duration(milliseconds: 800), () {
-                    if (mounted) {
-                      plPlayerController.volumeIndicator.value = false;
-                    }
-                  });
+          if (Pref.enableAppVolume) {
+            // 应用内音量模式：显示系统原生 HUD，不显示应用内指示器
+            FlutterVolumeController.updateShowSystemUI(true);
+            // 只保存系统音量，不改变播放器音量和显示指示器
+            plPlayerController.systemVolume.value =
+                (await FlutterVolumeController.getVolume())!;
+            FlutterVolumeController.addListener((double value) {
+              if (mounted && !plPlayerController.volumeInterceptEventStream) {
+                // 只更新系统音量记录，不影响播放器音量和指示器显示
+                plPlayerController.systemVolume.value = value;
+                // 注意：这里不更新 volume.value 和 volumeIndicator
               }
-            }
-          }, emitOnStart: false);
+            }, emitOnStart: false);
+          } else {
+            // 同步模式：隐藏系统原生 HUD，显示应用内指示器
+            FlutterVolumeController.updateShowSystemUI(false);
+            // 同步系统音量
+            plPlayerController.volume.value =
+                (await FlutterVolumeController.getVolume())!;
+            FlutterVolumeController.addListener((double value) {
+              if (mounted && !plPlayerController.volumeInterceptEventStream) {
+                plPlayerController.volume.value = value;
+                if (Platform.isIOS && !FlutterVolumeController.showSystemUI) {
+                  plPlayerController
+                    ..volumeIndicator.value = true
+                    ..volumeTimer?.cancel()
+                    ..volumeTimer = Timer(const Duration(milliseconds: 800), () {
+                      if (mounted) {
+                        plPlayerController.volumeIndicator.value = false;
+                      }
+                    });
+                }
+              }
+            }, emitOnStart: false);
+          }
         } catch (_) {}
       });
 

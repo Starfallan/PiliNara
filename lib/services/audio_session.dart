@@ -52,11 +52,7 @@ class AudioSessionHandler {
         // if (!player.playerStatus.playing) return;
         switch (event.type) {
           case AudioInterruptionType.duck:
-            PlPlayerController.setVolumeIfExists(
-              (PlPlayerController.getVolumeIfExists() ?? 0) * 0.5,
-              showIndicator: false,
-            );
-            // player.setVolume(player.volume.value * 0.5);
+            PlPlayerController.getInstance().handleDuck(true);
             break;
           case AudioInterruptionType.pause:
             // 接收到其他 App 播放音频的通知，如果允许了同时播放，就无视
@@ -74,11 +70,7 @@ class AudioSessionHandler {
       } else {
         switch (event.type) {
           case AudioInterruptionType.duck:
-            PlPlayerController.setVolumeIfExists(
-              (PlPlayerController.getVolumeIfExists() ?? 0) * 2,
-              showIndicator: false,
-            );
-            // player.setVolume(player.volume.value * 2);
+            PlPlayerController.getInstance().handleDuck(false);
             break;
           case AudioInterruptionType.pause:
             if (_playInterrupted) PlPlayerController.playIfExists();

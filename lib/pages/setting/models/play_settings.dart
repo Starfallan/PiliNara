@@ -7,6 +7,7 @@ import 'package:PiliPlus/models/common/video/subtitle_pref_type.dart';
 import 'package:PiliPlus/pages/main/controller.dart';
 import 'package:PiliPlus/pages/setting/models/model.dart';
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
+import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/bottom_progress_behavior.dart';
 import 'package:PiliPlus/plugin/pl_player/models/fullscreen_mode.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
@@ -93,6 +94,29 @@ List<SettingsModel> get playSettings => [
       subtitle: '修复息屏后亮度异常，但是会导致退出应用和退出播放时不会重置亮度，需要重启 App 生效',
       leading: Icon(Icons.brightness_6_outlined),
       setKey: SettingBoxKey.disableAutoReset,
+      defaultVal: false,
+    ),
+  if (PlatformUtils.isMobile)
+    SwitchModel(
+      title: '应用内音量',
+      subtitle: '开启后在应用内调节音量不会改变系统音量',
+      leading: Icon(Icons.volume_up_outlined),
+      setKey: SettingBoxKey.enableAppVolume,
+      defaultVal: false,
+      onChanged: (value) async {
+        // 设置变更时通知播放器控制器
+        final controller = PlPlayerController.getInstance();
+        if (controller != null) {
+          await controller.onAppVolumeSettingChanged();
+        }
+      },
+    ),
+  if (PlatformUtils.isMobile && Pref.enableAppVolume)
+    SwitchModel(
+      title: '音量增强',
+      subtitle: '在应用内音量模式下允许放大至 200%',
+      leading: Icon(Icons.volume_up_outlined),
+      setKey: SettingBoxKey.enableVolumeBoost,
       defaultVal: false,
     ),
   const SwitchModel(

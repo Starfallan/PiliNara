@@ -113,6 +113,12 @@ class PlPlayerController with BlockConfigMixin {
   );
   final setSystemBrightness = Pref.setSystemBrightness;
 
+  /// 系统音量（仅在应用内音量模式下用于追踪当前系统音量）
+  final RxDouble systemVolume = RxDouble(1.0);
+  /// duck 相关状态
+  bool _isDucked = false;
+  double _preDuckVolume = 1.0;
+
   /// 亮度控制条
   final RxDouble brightness = (-1.0).obs;
 
@@ -868,6 +874,13 @@ class PlPlayerController with BlockConfigMixin {
       opt['ao'] = Pref.audioOutput;
     } else if (PlatformUtils.isDesktop) {
       opt['volume'] = (volume.value * 100).toString();
+    } else if (PlatformUtils.isMobile && Pref.enableAppVolume) {
+      // 移动平台应用内音量模式：初始化系统音量
+      systemVolume.value = (await FlutterVolumeController.getVolume()) ?? 1.0;
+      // 从持久化存储读取应用内音量
+      volume.value = Pref.appVolume;
+      // 使用 media_kit 设置初始音量
+      opt['volume'] = (volume.value * 100).toString();
     }
     final autosync = Pref.autosync;
     if (autosync != '0') {
@@ -1353,16 +1366,26 @@ class PlPlayerController with BlockConfigMixin {
   Timer? volumeTimer;
   bool volumeInterceptEventStream = false;
 
-  static final double maxVolume = PlatformUtils.isDesktop ? 2.0 : 1.0;
+  static double get maxVolume => PlatformUtils.isDesktop
+      ? 2.0
+      : (Pref.enableAppVolume && Pref.enableVolumeBoost ? 2.0 : 1.0);
   Future<void> setVolume(double volume, {bool showIndicator = true}) async {
+    final oldVolume = this.volume.value;
     if (this.volume.value != volume) {
       this.volume.value = volume;
       try {
         if (PlatformUtils.isDesktop) {
           _videoPlayerController!.setVolume(volume * 100);
         } else {
-          FlutterVolumeController.updateShowSystemUI(false);
-          await FlutterVolumeController.setVolume(volume);
+          // 移动平台：根据设置选择音量控制方式
+          if (Pref.enableAppVolume) {
+            // 应用内音量模式：使用 media_kit 控制应用内音量
+            _videoPlayerController?.setVolume(volume * 100);
+          } else {
+            // 默认模式：控制系统音量
+            FlutterVolumeController.updateShowSystemUI(false);
+            await FlutterVolumeController.setVolume(volume);
+          }
         }
       } catch (err) {
         if (kDebugMode) debugPrint(err.toString());
@@ -1378,8 +1401,80 @@ class PlPlayerController with BlockConfigMixin {
       volumeInterceptEventStream = false;
       if (PlatformUtils.isDesktop) {
         setting.put(SettingBoxKey.desktopVolume, volume.toPrecision(3));
+      } else if (Pref.enableAppVolume) {
+        // 移动平台应用内音量模式：保存音量到持久化存储
+        // duck 期间不保存，避免保存临时的减半音量
+        if (!_isDucked) {
+          Pref.appVolume = volume;
+        }
       }
     });
+    // 音量增强：当突破 100% 时显示提示
+    if (Pref.enableAppVolume && Pref.enableVolumeBoost) {
+      if (volume > 1.0 && oldVolume <= 1.0) {
+        SmartDialog.showToast('再次滑动以突破 100%');
+      }
+    }
+  }
+
+  /// 处理应用内音量设置变更
+  Future<void> onAppVolumeSettingChanged() async {
+    if (!PlatformUtils.isMobile) return;
+
+    // 如果播放器未初始化，直接返回（设置已保存，下次播放器初始化时生效）
+    if (_videoPlayerController == null) return;
+
+    if (Pref.enableAppVolume) {
+      // 切换到应用内音量模式
+      // 获取当前系统音量
+      final currentSystemVolume = (await FlutterVolumeController.getVolume()) ?? 1.0;
+      systemVolume.value = currentSystemVolume;
+
+      // 应用内音量初始化为 1.0，保持实际听感音量不变
+      volume.value = 1.0;
+
+      // 设置 media_kit 音量为 1.0（实际听感 = 系统音量 × 1.0 = 系统音量）
+      _videoPlayerController?.setVolume(100);
+
+      // 显示提示
+      SmartDialog.showToast('已切换到应用内音量模式');
+    } else {
+      // 切换到同步系统音量模式
+      // 实际听感 = 系统音量 × 应用内音量
+      // 切换后应用内音量 = 1.0，要保持听感不变，需要：
+      // 新系统音量 = 旧系统音量 × 旧应用内音量
+      final currentSystemVolume = (await FlutterVolumeController.getVolume()) ?? 1.0;
+      final newSystemVolume = currentSystemVolume * volume.value;
+
+      await FlutterVolumeController.updateShowSystemUI(false);
+      await FlutterVolumeController.setVolume(newSystemVolume);
+
+      // 更新状态
+      systemVolume.value = newSystemVolume;
+      volume.value = newSystemVolume;
+
+      SmartDialog.showToast('已切换到同步系统音量模式');
+    }
+  }
+
+  /// duck 事件处理（由 audio_session.dart 调用）
+  Future<void> handleDuck(bool begin) async {
+    if (!PlatformUtils.isMobile) return;
+
+    if (Pref.enableAppVolume) {
+      // 应用内音量模式：使用临时音量，不影响持久化值
+      if (begin) {
+        _isDucked = true;
+        _preDuckVolume = volume.value;
+        volume.value = volume.value * 0.5;
+        _videoPlayerController?.setVolume(volume.value * 100);
+      } else {
+        _isDucked = false;
+        volume.value = _preDuckVolume;
+        _videoPlayerController?.setVolume(volume.value * 100);
+      }
+    }
+    // 同步模式：使用原有逻辑，直接调用 setVolume 即可
   }
 
   /// Toggle Change the videofit accordingly
