@@ -1,3 +1,4 @@
+import 'package:PiliPlus/grpc/reply.dart';
 import 'package:PiliPlus/models/dynamics/result.dart';
 import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/recommend_filter.dart';
@@ -43,5 +44,11 @@ abstract final class UserWhitelist {
     Pref.dynamicsBlockedMids = dynamicsBlockedMids;
     GlobalData().dynamicsBlockedMids = dynamicsBlockedMids;
     DynamicsDataModel.dynamicsBlockedMids = dynamicsBlockedMids;
+
+    final replyBlockedMids = Map<int, String>.from(
+      Pref.replyBlockedMids,
+    )..removeWhere((key, _) => whitelistSet.contains(key));
+    Pref.replyBlockedMids = replyBlockedMids;
+    ReplyGrpc.replyBlockedMids = replyBlockedMids;
   }
 }

@@ -1157,6 +1157,23 @@ class ReplyItemGrpc extends StatelessWidget {
               leading: Icon(Icons.error_outline, color: errorColor, size: 19),
               title: Text('举报', style: style.copyWith(color: errorColor)),
             ),
+          if (item.member.mid != Int64.ZERO)
+            ListTile(
+              onTap: () {
+                final mid = item.member.mid.toInt();
+                final rawName = item.member.name.trim();
+                final name = rawName.isEmpty ? 'UID:$mid' : rawName;
+                final mids = Map<int, String>.from(Pref.replyBlockedMids);
+                mids[mid] = name;
+                Pref.replyBlockedMids = mids;
+                ReplyGrpc.replyBlockedMids = mids;
+                Get.back();
+                SmartDialog.showToast('已屏蔽 $name');
+              },
+              minLeadingWidth: 0,
+              leading: const Icon(Icons.person_off_outlined, size: 19),
+              title: Text('屏蔽用户', style: style),
+            ),
           if (replyLevel == 1 && !isSubReply && ownerMid == upMid)
             ListTile(
               onTap: () {

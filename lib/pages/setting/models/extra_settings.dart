@@ -8,7 +8,6 @@ import 'package:PiliPlus/common/widgets/gesture/horizontal_drag_gesture_recogniz
 import 'package:PiliPlus/common/widgets/image_grid/image_grid_view.dart'
     show ImageGridView, ImageModel;
 import 'package:PiliPlus/common/widgets/pendant_avatar.dart';
-import 'package:PiliPlus/grpc/reply.dart';
 import 'package:PiliPlus/http/fav.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/models/common/audio_normalization.dart';
@@ -24,6 +23,7 @@ import 'package:PiliPlus/pages/home/controller.dart';
 import 'package:PiliPlus/pages/main/controller.dart';
 import 'package:PiliPlus/pages/setting/models/model.dart';
 import 'package:PiliPlus/pages/setting/pages/danmaku_merge_setting.dart';
+import 'package:PiliPlus/pages/setting/reply_setting.dart';
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/slider_dialog.dart';
 import 'package:PiliPlus/pages/video/reply/widgets/reply_item_grpc.dart';
@@ -230,13 +230,11 @@ List<SettingsModel> get extraSettings => [
     setKey: SettingBoxKey.continuePlayingPart,
     defaultVal: true,
   ),
-  getListBanWordModel(
-    title: '评论关键词过滤',
-    key: SettingBoxKey.banWordForReply,
-    onChanged: (value) {
-      ReplyGrpc.replyRegExp = value;
-      ReplyGrpc.enableFilter = value.pattern.isNotEmpty;
-    },
+  NormalModel(
+    title: '评论区过滤设置',
+    leading: const Icon(Icons.comment_outlined),
+    getSubtitle: () => '关键词、用户屏蔽、等级过滤、屏蔽带货评论',
+    onTap: (context, _) => Get.to(() => const ReplySetting()),
   ),
   getListBanWordModel(
     title: '动态关键词过滤',
@@ -451,20 +449,6 @@ List<SettingsModel> get extraSettings => [
     setKey: SettingBoxKey.antiGoodsDyn,
     defaultVal: false,
     onChanged: (value) => DynamicsDataModel.antiGoodsDyn = value,
-  ),
-  SwitchModel(
-    title: '屏蔽带货评论',
-    leading: const Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.center,
-      children: [
-        Icon(Icons.shopping_bag_outlined, size: 14),
-        Icon(Icons.not_interested),
-      ],
-    ),
-    setKey: SettingBoxKey.antiGoodsReply,
-    defaultVal: false,
-    onChanged: (value) => ReplyGrpc.antiGoodsReply = value,
   ),
   SwitchModel(
     title: '侧滑关闭二级页面',

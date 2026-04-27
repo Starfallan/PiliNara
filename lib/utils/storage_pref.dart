@@ -200,6 +200,48 @@ abstract final class Pref {
     _localCache.put(LocalCacheKey.recommendBlockedMids, blockedMidsMap);
   }
 
+  static Map<int, String> get replyBlockedMids {
+    final data = _localCache.get(LocalCacheKey.replyBlockedMids);
+
+    if (data is Set) {
+      final map = <int, String>{};
+      for (final mid in data) {
+        if (mid is int) {
+          map[mid] = 'UID:$mid';
+        }
+      }
+      _localCache.put(LocalCacheKey.replyBlockedMids, map);
+      return map;
+    }
+
+    if (data is Map) {
+      final map = <int, String>{};
+      for (final entry in data.entries) {
+        final key = entry.key;
+        final value = entry.value;
+        int? uid;
+        if (key is int) {
+          uid = key;
+        } else if (key is String) {
+          uid = int.tryParse(key);
+        }
+        if (uid != null && value is String) {
+          map[uid] = value;
+        }
+      }
+      if (map.isNotEmpty && data.keys.first is! int) {
+        _localCache.put(LocalCacheKey.replyBlockedMids, map);
+      }
+      return map;
+    }
+
+    return <int, String>{};
+  }
+
+  static set replyBlockedMids(Map<int, String> blockedMidsMap) {
+    _localCache.put(LocalCacheKey.replyBlockedMids, blockedMidsMap);
+  }
+
   static RuleFilter get danmakuFilterRule => _localCache.get(
     LocalCacheKey.danmakuFilterRules,
     defaultValue: RuleFilter.empty(),
@@ -710,6 +752,12 @@ abstract final class Pref {
 
   static bool get antiGoodsReply =>
       _setting.get(SettingBoxKey.antiGoodsReply, defaultValue: false);
+
+  static int get replyMinLevel =>
+      _setting.get(SettingBoxKey.replyMinLevel, defaultValue: 0);
+
+  static set replyMinLevel(int v) =>
+      _setting.put(SettingBoxKey.replyMinLevel, v);
 
   static bool get expandDynLivePanel =>
       _setting.get(SettingBoxKey.expandDynLivePanel, defaultValue: false);
