@@ -34,6 +34,7 @@ import 'package:PiliPlus/plugin/pl_player/models/hwdec_type.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
 import 'package:PiliPlus/utils/extension/context_ext.dart';
 import 'package:PiliPlus/utils/extension/iterable_ext.dart';
+import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/login_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
@@ -1323,6 +1324,18 @@ abstract final class Pref {
 
   static bool get setSystemBrightness =>
       _setting.get(SettingBoxKey.setSystemBrightness, defaultValue: false);
+
+  static bool get enableAppVolume =>
+      _setting.get(SettingBoxKey.enableAppVolume, defaultValue: false);
+
+  static double get appVolume =>
+      _setting.get(SettingBoxKey.appVolume, defaultValue: 1.0);
+
+  static set appVolume(double value) =>
+      _setting.put(SettingBoxKey.appVolume, value.toPrecision(3));
+
+  static bool get enableVolumeBoost =>
+      _setting.get(SettingBoxKey.enableVolumeBoost, defaultValue: false);
 
   static String? get downloadPath => _setting.get(SettingBoxKey.downloadPath);
 
