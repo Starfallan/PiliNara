@@ -14,6 +14,8 @@ $BottomSheetPatch = "lib/scripts/bottom_sheet.patch"
 
 $ScrollViewPatch = "lib/scripts/scroll_view.patch"
 
+$TextSelectionPatch = "lib/scripts/text_selection.patch"
+
 # TODO: remove
 # https://github.com/flutter/flutter/issues/90223
 $ModalBarrierPatch = "lib/scripts/modal_barrier.patch"
@@ -26,7 +28,7 @@ Set-Location $env:FLUTTER_ROOT
 
 $picks   = @()
 $reverts = @()
-$patches = @($ModalBarrierPatch, $MouseCursorPatch)
+$patches = @($ModalBarrierPatch, $TextSelectionPatch, $MouseCursorPatch)
 
 switch ($platform.ToLower()) {
     "android" {

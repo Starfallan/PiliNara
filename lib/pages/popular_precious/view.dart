@@ -57,6 +57,7 @@ class _PopularPreciousPageState extends State<PopularPreciousPage>
                 PageUtils.toVideoPage(
                   bvid: item.bvid,
                   cid: item.cid!,
+                  dimension: item.dimension,
                   extraArguments: {
                     'sourceType': SourceType.playlist,
                     'favTitle': '入站必刷',

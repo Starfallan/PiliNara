@@ -25,9 +25,7 @@ import 'package:PiliPlus/common/widgets/image_viewer/image.dart';
 import 'package:PiliPlus/common/widgets/image_viewer/loading_indicator.dart';
 import 'package:PiliPlus/common/widgets/image_viewer/viewer.dart';
 import 'package:PiliPlus/common/widgets/scroll_physics.dart';
-import 'package:PiliPlus/main.dart' show tmpPadding;
 import 'package:PiliPlus/models/common/image_preview_type.dart';
-import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/extension/string_ext.dart';
 import 'package:PiliPlus/utils/image_utils.dart';
@@ -78,7 +76,6 @@ class _GalleryViewerState extends State<GalleryViewer>
   late final int _quality;
   late final RxInt _currIndex;
   GlobalKey? _key;
-  EdgeInsets? _padding;
 
   late bool _hasInit = false;
   Player? _player;
@@ -173,25 +170,6 @@ class _GalleryViewerState extends State<GalleryViewer>
     );
   }
 
-  final _hideSystemBar = PlatformUtils.isMobile && showSystemBar_;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_padding == null) {
-      final padding = MediaQuery.viewPaddingOf(context);
-      _padding = padding;
-      if (_hideSystemBar) {
-        tmpPadding = padding;
-        hideSystemBar()!.whenComplete(
-          () => WidgetsBinding.instance.addPostFrameCallback(
-            (_) => tmpPadding = null,
-          ),
-        );
-      }
-    }
-  }
-
   Matrix4 _onTransform(double val) {
     final scale = val.lerp(1.0, 0.25);
 
@@ -281,9 +259,6 @@ class _GalleryViewerState extends State<GalleryViewer>
     }
     Future.delayed(const Duration(milliseconds: 200), _currIndex.close);
     super.dispose();
-    if (_hideSystemBar) {
-      showSystemBar();
-    }
   }
 
   void _onPointerDown(PointerDownEvent event) {
@@ -336,7 +311,9 @@ class _GalleryViewerState extends State<GalleryViewer>
     right: 0,
     child: IgnorePointer(
       child: Container(
-        padding: _padding! + const EdgeInsets.fromLTRB(12, 8, 20, 8),
+        padding:
+            MediaQuery.viewPaddingOf(context) +
+            const EdgeInsets.fromLTRB(12, 8, 20, 8),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,

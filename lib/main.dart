@@ -45,11 +45,10 @@ import 'package:get/get.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:screen_brightness_platform_interface/screen_brightness_platform_interface.dart';
 import 'package:window_manager/window_manager.dart' hide calcWindowPosition;
 
 WebViewEnvironment? webViewEnvironment;
-
-EdgeInsets? tmpPadding;
 
 Future<void> _initDownPath() async {
   if (PlatformUtils.isDesktop) {
@@ -163,6 +162,8 @@ void main() async {
         }
         FlutterDisplayMode.setPreferredMode(displayMode ?? DisplayMode.auto);
       });
+    } else {
+      ScreenBrightnessPlatform.instance.setAutoReset(false);
     }
   } else if (PlatformUtils.isDesktop) {
     await windowManager.ensureInitialized();
@@ -336,7 +337,8 @@ class MyApp extends StatelessWidget {
       // - Check both top AND bottom to avoid misdetecting during orientation changes
       const maxNormalPadding = 50.0;
 
-      final hasAbnormalPadding = mediaQuery.viewPadding.top > maxNormalPadding &&
+      final hasAbnormalPadding =
+          mediaQuery.viewPadding.top > maxNormalPadding &&
           mediaQuery.viewPadding.bottom > maxNormalPadding;
 
       if (hasAbnormalPadding) {
@@ -351,9 +353,9 @@ class MyApp extends StatelessWidget {
         data: mediaQuery.copyWith(
           textScaler: textScaler,
           size: mediaQuery.size / uiScale,
-          padding: (tmpPadding ?? effectivePadding) / uiScale,
+          padding: effectivePadding / uiScale, // 应用修正后的 padding
           viewInsets: mediaQuery.viewInsets / uiScale,
-          viewPadding: (tmpPadding ?? effectiveViewPadding) / uiScale,
+          viewPadding: effectiveViewPadding / uiScale, // 应用修正后的
           devicePixelRatio: mediaQuery.devicePixelRatio * uiScale,
         ),
         child: child!,
@@ -362,8 +364,8 @@ class MyApp extends StatelessWidget {
       child = MediaQuery(
         data: mediaQuery.copyWith(
           textScaler: textScaler,
-          padding: tmpPadding ?? effectivePadding,
-          viewPadding: tmpPadding ?? effectiveViewPadding,
+          viewPadding: effectiveViewPadding, // 即使不缩放，也要应用修正值
+          padding: effectivePadding, // 即使不缩放，也要应用修正值
         ),
         child: child!,
       );

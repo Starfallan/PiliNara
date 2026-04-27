@@ -230,7 +230,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     }
 
     if (videoDetailController.removeSafeArea) {
-      hideSystemBar();
+      hideStatusBar();
     }
 
     if (videoDetailController.showReply) {
@@ -476,10 +476,10 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                       videoDetailController.videoHeight,
             );
           } else {
-            refreshPage();
+            videoDetailController.refreshPage();
           }
         } else {
-          refreshPage();
+          videoDetailController.refreshPage();
         }
       }
     } catch (e) {
@@ -585,8 +585,6 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       ?..removeStatusLister(playerListener)
       ..removePositionListener(positionListener);
 
-    videoDetailController.animController?.removeListener(animListener);
-
     Get.delete<HorizontalMemberPageController>(
       tag: videoDetailController.heroTag,
     );
@@ -611,7 +609,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     }
 
     if (!videoDetailController.removeSafeArea) {
-      showSystemBar();
+      showStatusBar();
     }
 
     if (!videoDetailController.plPlayerController.isCloseAll) {
@@ -867,48 +865,10 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         : Theme.of(context);
   }
 
-  void animListener() {
-    if (videoDetailController.animationController.isForwardOrCompleted) {
-      cal();
-      refreshPage();
-    }
-  }
-
-  late double animHeight;
-
-  void cal() {
-    if (videoDetailController.isExpanding) {
-      animHeight = clampDouble(
-        videoDetailController.videoHeight *
-            videoDetailController.animationController.value,
-        kToolbarHeight,
-        videoDetailController.videoHeight,
-      );
-    } else if (videoDetailController.isCollapsing) {
-      animHeight = clampDouble(
-        videoDetailController.maxVideoHeight -
-            (videoDetailController.maxVideoHeight -
-                    videoDetailController.minVideoHeight) *
-                videoDetailController.animationController.value,
-        videoDetailController.minVideoHeight,
-        videoDetailController.maxVideoHeight,
-      );
-    }
-  }
-
-  void refreshPage() {
-    if (videoDetailController.scrollKey.currentState?.mounted == true) {
-      videoDetailController.scrollKey.currentState?.setState(() {});
-    }
-  }
-
   bool get removeAppBar =>
       videoDetailController.removeSafeArea || (isFullScreen && !isPortrait);
 
   Widget get childWhenDisabled {
-    videoDetailController.animationController
-      ..removeListener(animListener)
-      ..addListener(animListener);
     return Obx(
       () {
         final isFullScreen = this.isFullScreen;
@@ -958,7 +918,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                   ? maxHeight - (isPortrait ? padding.top : 0)
                   : videoDetailController.isExpanding ||
                         videoDetailController.isCollapsing
-                  ? animHeight
+                  ? videoDetailController.animHeight
                   : videoDetailController.isCollapsing ||
                         (plPlayerController?.playerStatus.isPlaying ?? false)
                   ? videoDetailController.minVideoHeight
@@ -968,13 +928,13 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                 videoDetailController.isExpanding = false;
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   videoDetailController.scrollRatio.value = 0;
-                  refreshPage();
+                  videoDetailController.refreshPage();
                 });
               } else if (videoDetailController.isCollapsing &&
                   videoDetailController.animationController.value == 1) {
                 videoDetailController.isCollapsing = false;
                 WidgetsBinding.instance.addPostFrameCallback((_) {
-                  refreshPage();
+                  videoDetailController.refreshPage();
                 });
               }
               return pinnedHeight;
@@ -984,7 +944,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                   ? maxHeight - (isPortrait ? padding.top : 0)
                   : videoDetailController.isExpanding ||
                         videoDetailController.isCollapsing
-                  ? animHeight
+                  ? videoDetailController.animHeight
                   : videoDetailController.videoHeight;
               return [
                 SliverPinnedDynamicHeader(
@@ -1235,10 +1195,10 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
             ? null
             : AppBar(backgroundColor: Colors.black, toolbarHeight: 0),
         body: Padding(
-          padding: !isFullScreen
-              ? padding.copyWith(top: 0, bottom: 0)
-              : EdgeInsets.zero,
-          child: childWhenDisabledLandscapeInner(isFullScreen, padding),
+          padding: isFullScreen
+              ? EdgeInsets.zero
+              : padding.copyWith(top: 0, bottom: 0),
+          child: childWhenDisabledLandscapeInner(isFullScreen),
         ),
       );
     },
@@ -1295,70 +1255,75 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     );
   }
 
-  Widget childWhenDisabledLandscapeInner(
-    bool isFullScreen,
-    EdgeInsets padding,
-  ) => Obx(() {
-    if (videoDetailController.isVertical.value &&
-        enableVerticalExpand &&
-        !isPortrait) {
-      final double videoHeight = maxHeight - padding.vertical;
-      final double width = videoHeight / Style.aspectRatio16x9;
-      final videoWidth = isFullScreen ? maxWidth : width;
-      final introWidth = (maxWidth - padding.horizontal - width) / 2;
-      final introHeight = maxHeight - padding.top;
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Offstage(
-            offstage: isFullScreen,
-            child: SizedBox(
-              width: introWidth,
-              height: introHeight,
-              child: videoIntro(
-                width: introWidth,
-                height: introHeight,
-              ),
-            ),
-          ),
-          SizedBox(
-            width: videoWidth,
-            height: videoHeight,
-            child: videoPlayer(
-              width: videoWidth,
-              height: videoHeight,
-            ),
-          ),
-          Offstage(
-            offstage: isFullScreen,
-            child: SizedBox(
-              width: introWidth,
-              height: introHeight,
-              child: Scaffold(
-                key: videoDetailController.childKey,
-                resizeToAvoidBottomInset: false,
-                backgroundColor: Colors.transparent,
-                body: Column(
-                  children: [
-                    buildTabBar(showIntro: false),
-                    Expanded(
-                      child: tabBarView(
-                        controller: videoDetailController.tabCtr,
-                        children: [
-                          if (videoDetailController.showReply)
-                            videoReplyPanel(),
-                          if (_shouldShowSeasonPanel) seasonPanel,
-                        ],
-                      ),
-                    ),
-                  ],
+  Widget childWhenDisabledLandscapeInner(bool isFullScreen) {
+    if (enableVerticalExpand) {
+      return Obx(() {
+        if (videoDetailController.isVertical.value && !isPortrait) {
+          final double videoHeight = maxHeight - padding.vertical;
+          final double width = videoHeight / Style.aspectRatio16x9;
+          final videoWidth = isFullScreen ? maxWidth : width;
+          final introWidth = (maxWidth - padding.horizontal - width) / 2;
+          final introHeight = maxHeight - padding.top;
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Offstage(
+                offstage: isFullScreen,
+                child: SizedBox(
+                  width: introWidth,
+                  height: introHeight,
+                  child: videoIntro(
+                    width: introWidth,
+                    height: introHeight,
+                  ),
                 ),
               ),
-            ),
-          ),
-        ],
-      );
+              SizedBox(
+                width: videoWidth,
+                height: videoHeight,
+                child: videoPlayer(
+                  width: videoWidth,
+                  height: videoHeight,
+                ),
+              ),
+              Offstage(
+                offstage: isFullScreen,
+                child: SizedBox(
+                  width: introWidth,
+                  height: introHeight,
+                  child: Scaffold(
+                    key: videoDetailController.childKey,
+                    resizeToAvoidBottomInset: false,
+                    backgroundColor: Colors.transparent,
+                    body: Column(
+                      children: [
+                        buildTabBar(showIntro: false),
+                        Expanded(
+                          child: tabBarView(
+                            controller: videoDetailController.tabCtr,
+                            children: [
+                              if (videoDetailController.showReply)
+                                videoReplyPanel(),
+                              if (_shouldShowSeasonPanel) seasonPanel,
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+
+        return _childWhenDisabledLandscapeInner(isFullScreen);
+      });
     }
+    return _childWhenDisabledLandscapeInner(isFullScreen);
+  }
+
+  Widget _childWhenDisabledLandscapeInner(bool isFullScreen) {
     double width =
         clampDouble(maxHeight / maxWidth * 1.08, 0.5, 0.7) * maxWidth;
     if (maxWidth >= 560) {
@@ -1455,7 +1420,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         ),
       ],
     );
-  });
+  }
 
   Widget get childWhenDisabledAlmostSquare => Obx(() {
     final isFullScreen = this.isFullScreen;
@@ -1466,86 +1431,90 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
           ? null
           : AppBar(backgroundColor: Colors.black, toolbarHeight: 0),
       body: Padding(
-        padding: !isFullScreen
-            ? padding.copyWith(top: 0, bottom: 0)
-            : EdgeInsets.zero,
-        child: childWhenDisabledAlmostSquareInner(isFullScreen, padding),
+        padding: isFullScreen
+            ? EdgeInsets.zero
+            : padding.copyWith(top: 0, bottom: 0),
+        child: childWhenDisabledAlmostSquareInner(isFullScreen),
       ),
     );
   });
 
-  Widget childWhenDisabledAlmostSquareInner(
-    bool isFullScreen,
-    EdgeInsets padding,
-  ) => Obx(
-    () {
-      final isFullScreen = this.isFullScreen;
-      if (videoDetailController.isVertical.value &&
-          enableVerticalExpand &&
-          !isPortrait) {
-        return childSplit(9 / 16);
-      }
-      final shouldShowSeasonPanel = _shouldShowSeasonPanel;
-      final double height = maxHeight / 2.5;
-      final videoHeight = isFullScreen
-          ? maxHeight - (isPortrait ? padding.top : 0)
-          : height;
-      final bottomHeight = maxHeight - height - padding.top;
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
+  Widget childWhenDisabledAlmostSquareInner(bool isFullScreen) {
+    if (enableVerticalExpand) {
+      return Obx(
+        () {
+          if (videoDetailController.isVertical.value && !isPortrait) {
+            return childSplit(9 / 16);
+          }
+
+          return _childWhenDisabledAlmostSquareInner(isFullScreen);
+        },
+      );
+    }
+
+    return _childWhenDisabledAlmostSquareInner(isFullScreen);
+  }
+
+  Widget _childWhenDisabledAlmostSquareInner(bool isFullScreen) {
+    final shouldShowSeasonPanel = _shouldShowSeasonPanel;
+    final double height = maxHeight / 2.5;
+    final videoHeight = isFullScreen
+        ? maxHeight - (isPortrait ? padding.top : 0)
+        : height;
+    final bottomHeight = maxHeight - height - padding.top;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: maxWidth,
+          height: videoHeight,
+          child: videoPlayer(
             width: maxWidth,
             height: videoHeight,
-            child: videoPlayer(
-              width: maxWidth,
-              height: videoHeight,
-            ),
           ),
-          Offstage(
-            offstage: isFullScreen,
-            child: SizedBox(
-              width: maxWidth - padding.horizontal,
-              height: bottomHeight,
-              child: Scaffold(
-                key: videoDetailController.childKey,
-                resizeToAvoidBottomInset: false,
-                backgroundColor: Colors.transparent,
-                body: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    buildTabBar(needIndicator: false),
-                    Expanded(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: videoIntro(
-                              width: () {
-                                double flex = 1;
-                                if (videoDetailController.showReply) flex++;
-                                if (shouldShowSeasonPanel) flex++;
-                                return maxWidth / flex;
-                              }(),
-                              height: bottomHeight,
-                            ),
+        ),
+        Offstage(
+          offstage: isFullScreen,
+          child: SizedBox(
+            width: maxWidth - padding.horizontal,
+            height: bottomHeight,
+            child: Scaffold(
+              key: videoDetailController.childKey,
+              resizeToAvoidBottomInset: false,
+              backgroundColor: Colors.transparent,
+              body: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  buildTabBar(needIndicator: false),
+                  Expanded(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: videoIntro(
+                            width: () {
+                              double flex = 1;
+                              if (videoDetailController.showReply) flex++;
+                              if (shouldShowSeasonPanel) flex++;
+                              return maxWidth / flex;
+                            }(),
+                            height: bottomHeight,
                           ),
-                          if (videoDetailController.showReply)
-                            Expanded(child: videoReplyPanel()),
-                          if (shouldShowSeasonPanel)
-                            Expanded(child: seasonPanel),
-                        ],
-                      ),
+                        ),
+                        if (videoDetailController.showReply)
+                          Expanded(child: videoReplyPanel()),
+                        if (shouldShowSeasonPanel) Expanded(child: seasonPanel),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
-        ],
-      );
-    },
-  );
+        ),
+      ],
+    );
+  }
 
   Widget get manualPlayerWidget => Obx(() {
     if (!videoDetailController.autoPlay) {

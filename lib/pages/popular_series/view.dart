@@ -72,6 +72,7 @@ class _PopularSeriesPageState extends State<PopularSeriesPage> with GridMixin {
                   PageUtils.toVideoPage(
                     bvid: item.bvid,
                     cid: item.cid!,
+                    dimension: item.dimension,
                     extraArguments: {
                       'sourceType': SourceType.playlist,
                       'favTitle': '每周必看 ${config?.label ?? ''}',

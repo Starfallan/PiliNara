@@ -6,6 +6,7 @@ import 'package:PiliPlus/common/assets.dart';
 import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/button/icon_button.dart';
 import 'package:PiliPlus/common/widgets/custom_icon.dart';
+import 'package:PiliPlus/common/widgets/extra_hittest_stack.dart';
 import 'package:PiliPlus/common/widgets/flutter/page/page_view.dart';
 import 'package:PiliPlus/common/widgets/flutter/pop_scope.dart';
 import 'package:PiliPlus/common/widgets/flutter/text_field/controller.dart';
@@ -129,7 +130,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     } else {
       plPlayerController.isLive = true;
       if (plPlayerController.removeSafeArea) {
-        hideSystemBar();
+        hideStatusBar();
       }
     }
   }
@@ -433,21 +434,18 @@ class _LiveRoomPageState extends State<LiveRoomPage>
                 return const SizedBox.shrink();
               }
               try {
-                return Stack(
+                return ExtraHitTestStack(
                   key: ValueKey(item.id),
                   clipBehavior: Clip.none,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.only(right: 6, top: 6),
-                      child: SuperChatCard(
-                        item: item,
-                        onRemove: () => _liveRoomController.fsSC.value = null,
-                        onReport: () => _liveRoomController.reportSC(item),
-                      ),
+                    SuperChatCard(
+                      item: item,
+                      onRemove: () => _liveRoomController.fsSC.value = null,
+                      onReport: () => _liveRoomController.reportSC(item),
                     ),
                     Positioned(
-                      right: 0,
-                      top: 0,
+                      right: -6,
+                      top: -6,
                       child: iconButton(
                         size: 24,
                         iconSize: 14,

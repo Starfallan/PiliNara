@@ -3,7 +3,6 @@ import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/custom_icon.dart';
 import 'package:PiliPlus/common/widgets/dialog/dialog.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
-import 'package:PiliPlus/common/widgets/flutter/selectable_text/selectable_text.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
 import 'package:PiliPlus/common/widgets/sliver/sliver_floating_header.dart';
@@ -19,7 +18,7 @@ import 'package:PiliPlus/utils/extension/theme_ext.dart';
 import 'package:PiliPlus/utils/num_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
-import 'package:flutter/material.dart' hide SelectableText;
+import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 

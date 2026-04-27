@@ -102,6 +102,7 @@ class DetailItem extends StatelessWidget {
                     cid: cid!,
                     cover: entry.cover,
                     title: entry.showTitle,
+                    isVertical: entry.pageData?.isVertical ?? false,
                     extraArguments: {
                       'sourceType': SourceType.file,
                       'entry': entry,
@@ -132,11 +133,11 @@ class DetailItem extends StatelessWidget {
                 }
               }
             : null,
-        onLongPress:
-            enableTap && customOnLongPress != null ? onLongPress : null,
-        onSecondaryTap: !enableTap ||
-                PlatformUtils.isMobile ||
-                customOnLongPress == null
+        onLongPress: enableTap && customOnLongPress != null
+            ? onLongPress
+            : null,
+        onSecondaryTap:
+            !enableTap || PlatformUtils.isMobile || customOnLongPress == null
             ? null
             : onLongPress,
         child: Padding(
