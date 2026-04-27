@@ -20,6 +20,9 @@ abstract final class PathUtils {
   static const danmakuName = 'danmaku.pb';
   static const playbackMetaName = 'playback_meta.json';
   static const downloadDir = 'download';
+  static const subtitlesDirName = 'subtitles';
+  static const subtitleIndexName = 'index.json';
+  static String subtitleVttName(String lan) => '$lan.vtt';
 
   static String buildShadersAbsolutePath(
     String baseDirectory,
