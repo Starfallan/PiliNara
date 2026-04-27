@@ -164,11 +164,8 @@ void main() async {
         }
         FlutterDisplayMode.setPreferredMode(displayMode ?? DisplayMode.auto);
       });
-    }
-  } else if (Platform.isIOS) {
-    // iOS: 根据设置禁用亮度自动重置，防止息屏后亮度异常
-    if (Pref.disableAutoReset) {
-      ScreenBrightnessPlatform.instance.setAutoReset(false);
+    } else if (Platform.isIOS && Pref.disableAutoReset) {
+      await ScreenBrightnessPlatform.instance.setAutoReset(false);
     }
   } else if (PlatformUtils.isDesktop) {
     await windowManager.ensureInitialized();
