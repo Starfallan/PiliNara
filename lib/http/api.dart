@@ -459,6 +459,8 @@ abstract final class Api {
 
   static const String delFollowTag = '/x/relation/tag/del';
 
+  static const String sortFollowTag = '/x/relation/tag/update_sort';
+
   // 获取未读私信数
   // https://api.vc.bilibili.com/session_svr/v1/session_svr/single_unread
   static const String msgUnread =

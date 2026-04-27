@@ -657,6 +657,26 @@ abstract final class MemberHttp {
     }
   }
 
+  static Future<LoadingState<void>> sortFollowTag(String tagids) async {
+    final res = await Request().post(
+      Api.sortFollowTag,
+      queryParameters: {
+        'x-bili-device-req-json':
+            '{"platform":"web","device":"pc","spmid":"333.1387"}',
+      },
+      data: {
+        'tagids': tagids,
+        'csrf': Accounts.main.csrf,
+      },
+      options: Options(contentType: Headers.formUrlEncodedContentType),
+    );
+    if (res.data['code'] == 0) {
+      return const Success(null);
+    } else {
+      return Error(res.data['message']);
+    }
+  }
+
   // 获取up置顶
   static Future<LoadingState<List<MemberTagItemModel>?>> getTopVideo() async {
     final res = await Request().get(Api.getTopVideoApi);

@@ -1,3 +1,4 @@
+import 'package:PiliPlus/common/widgets/dialog/dialog.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/loading_widget.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/http/member.dart';
@@ -6,6 +7,7 @@ import 'package:PiliPlus/utils/extension/iterable_ext.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show LengthLimitingTextInputFormatter;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 
@@ -45,6 +47,31 @@ class _GroupPanelState extends State<GroupPanel> {
         setState(() {});
       }
     });
+  }
+
+  void _onCreateTag() {
+    String tagName = '';
+    showConfirmDialog(
+      context: context,
+      title: const Text('新建分组'),
+      content: TextFormField(
+        autofocus: true,
+        initialValue: tagName,
+        onChanged: (value) => tagName = value,
+        inputFormatters: [LengthLimitingTextInputFormatter(16)],
+        decoration: const InputDecoration(border: OutlineInputBorder()),
+      ),
+      onConfirm: () async {
+        if (tagName.isEmpty) return;
+        final res = await MemberHttp.createFollowTag(tagName);
+        if (res.isSuccess) {
+          SmartDialog.showToast('创建成功');
+          _query();
+        } else {
+          res.toast();
+        }
+      },
+    );
   }
 
   Future<void> onSave() async {
@@ -135,6 +162,13 @@ class _GroupPanelState extends State<GroupPanel> {
             icon: const Icon(Icons.close_outlined),
           ),
           title: const Text('设置关注分组'),
+          actions: [
+            IconButton(
+              tooltip: '新建分组',
+              icon: const Icon(Icons.add),
+              onPressed: _onCreateTag,
+            ),
+          ],
         ),
         Expanded(child: _buildBody),
         Divider(

@@ -7,6 +7,7 @@ import 'package:PiliPlus/models/member/tags.dart';
 import 'package:PiliPlus/pages/follow/child/child_controller.dart';
 import 'package:PiliPlus/pages/follow/child/child_view.dart';
 import 'package:PiliPlus/pages/follow/controller.dart';
+import 'package:PiliPlus/pages/follow/widgets/group_sort.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/material.dart';
@@ -73,6 +74,21 @@ class _FollowPageState extends State<FollowPage> {
                 PopupMenuButton(
                   icon: const Icon(Icons.more_vert),
                   itemBuilder: (context) => [
+                    PopupMenuItem(
+                      onTap: () => Get.to(
+                        () => FollowGroupSortPage(
+                          followController: _followController,
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.sort, size: 19),
+                          SizedBox(width: 10),
+                          Text('分组排序'),
+                        ],
+                      ),
+                    ),
                     PopupMenuItem(
                       onTap: () => Get.toNamed('/blackListPage'),
                       child: const Row(
