@@ -1368,8 +1368,26 @@ class PlPlayerController with BlockConfigMixin {
   static double get maxVolume => PlatformUtils.isDesktop
       ? 2.0
       : (Pref.enableAppVolume && Pref.enableVolumeBoost ? 2.0 : 1.0);
+
+  // 音量增强二次确认：是否已解锁突破 100%（松手后重置）
+  bool volumeBoostUnlocked = false;
+
+  // 手势滑动时的音量上限：未解锁时最大 1.0，解锁后最大 2.0
+  double get gestureVolumeMax {
+    if (Pref.enableAppVolume && Pref.enableVolumeBoost) {
+      return volumeBoostUnlocked ? 2.0 : 1.0;
+    }
+    return maxVolume;
+  }
+
+  // 松手时重置解锁状态
+  void onVolumeGestureEnd() {
+    if (Pref.enableAppVolume && Pref.enableVolumeBoost) {
+      volumeBoostUnlocked = false;
+    }
+  }
+
   Future<void> setVolume(double volume, {bool showIndicator = true}) async {
-    final oldVolume = this.volume.value;
     if (this.volume.value != volume) {
       this.volume.value = volume;
       try {
@@ -1406,12 +1424,6 @@ class PlPlayerController with BlockConfigMixin {
         }
       }
     });
-    // 音量增强：当突破 100% 时显示提示
-    if (Pref.enableAppVolume && Pref.enableVolumeBoost) {
-      if (volume > 1.0 && oldVolume <= 1.0) {
-        SmartDialog.showToast('再次滑动以突破 100%');
-      }
-    }
   }
 
   /// 处理应用内音量设置变更
