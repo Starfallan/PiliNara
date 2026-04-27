@@ -256,7 +256,8 @@ class PlDanmakuController {
     if (segmentIndex > 0) {
       await _mergeSegment(segmentIndex - 1);
     }
-    if (_rawDmSegMap.containsKey(segmentIndex + 1) ||
+    if (_isFileSource ||
+        _rawDmSegMap.containsKey(segmentIndex + 1) ||
         _isLastSegment(segmentIndex)) {
       await _mergeSegment(segmentIndex);
     }
@@ -270,7 +271,8 @@ class PlDanmakuController {
     if (currentSegment == null || currentSegment.isEmpty) {
       return;
     }
-    if (!_isLastSegment(segmentIndex) &&
+    if (!_isFileSource &&
+        !_isLastSegment(segmentIndex) &&
         !_rawDmSegMap.containsKey(segmentIndex + 1)) {
       if (kDebugMode) {
         debugPrint(
