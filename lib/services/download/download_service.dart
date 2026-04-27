@@ -18,6 +18,7 @@ import 'package:PiliPlus/models_new/sponsor_block/segment_item.dart';
 import 'package:PiliPlus/models_new/video/video_detail/data.dart';
 import 'package:PiliPlus/models_new/video/video_detail/episode.dart' as ugc;
 import 'package:PiliPlus/models_new/video/video_detail/page.dart';
+import 'package:PiliPlus/models_new/video/video_play_info/subtitle.dart';
 import 'package:PiliPlus/pages/danmaku/controller.dart';
 import 'package:PiliPlus/services/download/download_manager.dart';
 import 'package:PiliPlus/utils/extension/file_ext.dart';
@@ -346,6 +347,85 @@ class DownloadService extends GetxService {
     return true;
   }
 
+  Future<void> _downloadSubtitles({
+    required BiliDownloadEntryInfo entry,
+  }) async {
+    try {
+      final cid = entry.pageData?.cid ?? entry.source?.cid;
+      if (cid == null) return;
+
+      final res = await VideoHttp.playInfo(
+        bvid: entry.bvid,
+        cid: cid,
+        seasonId: entry.seasonId,
+        epId: entry.ep?.episodeId,
+      );
+      final List<Subtitle>? subtitleList;
+      if (res case Success(:final response)) {
+        subtitleList = response.subtitle?.subtitles;
+      } else {
+        return;
+      }
+      if (subtitleList == null || subtitleList.isEmpty) return;
+
+      final vttResults = await Future.wait(
+        subtitleList.map((sub) async {
+          if (sub.subtitleUrl?.isNotEmpty != true) return null;
+          try {
+            return await VideoHttp.vttSubtitles(sub.subtitleUrl!);
+          } catch (_) {
+            return null;
+          }
+        }),
+      );
+
+      final subsDir = Directory(
+        path.join(entry.entryDirPath, PathUtils.subtitlesDirName),
+      );
+      if (!subsDir.existsSync()) {
+        await subsDir.create(recursive: true);
+      }
+
+      final successfulSubs = <Subtitle>[];
+      for (int i = 0; i < subtitleList.length; i++) {
+        final vtt = vttResults[i];
+        if (vtt == null) continue;
+        final sub = subtitleList[i];
+        try {
+          await File(
+            path.join(subsDir.path, PathUtils.subtitleVttName(sub.lan)),
+          ).writeAsString(vtt);
+          successfulSubs.add(sub);
+        } catch (_) {}
+      }
+      if (successfulSubs.isEmpty) return;
+
+      final indexJson = successfulSubs
+          .map(
+            (sub) => {
+              'lan': sub.lan,
+              'lan_doc': sub.isAi
+                  ? sub.lanDoc!.substring(
+                      0,
+                      sub.lanDoc!.length - '（AI）'.length,
+                    )
+                  : sub.lanDoc ?? '',
+              'subtitle_url': sub.subtitleUrl ?? '',
+              'subtitle_url_v2': sub.subtitleUrlV2,
+              'type': sub.isAi ? 1 : 0,
+            },
+          )
+          .toList();
+      await File(
+        path.join(subsDir.path, PathUtils.subtitleIndexName),
+      ).writeAsString(jsonEncode(indexJson));
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('_downloadSubtitles failed: $e');
+      }
+    }
+  }
+
   Future<bool> _downloadCover({
     required BiliDownloadEntryInfo entry,
   }) async {
@@ -512,6 +592,8 @@ class DownloadService extends GetxService {
       if (curDownload.value?.cid != entry.cid) {
         return;
       }
+
+      unawaited(_downloadSubtitles(entry: entry));
 
       switch (mediaFileInfo) {
         case Type1 mediaFileInfo:

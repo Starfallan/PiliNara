@@ -761,6 +761,10 @@ class VideoDetailController extends GetxController
       if (plPlayerController.showDmChart && dmTrend.value == null) {
         _getDmTrend();
       }
+    } else {
+      if (vttSubtitlesIndex.value == -1) {
+        unawaited(_loadFileSubtitles());
+      }
     }
 
     defaultST = null;
@@ -1119,6 +1123,59 @@ class VideoDetailController extends GetxController
         debugPrint('load local playback meta failed: $e');
       }
     }
+  }
+
+  Future<void> _loadFileSubtitles() async {
+    final indexFile = File(
+      path.join(
+        entry.entryDirPath,
+        PathUtils.subtitlesDirName,
+        PathUtils.subtitleIndexName,
+      ),
+    );
+    if (!indexFile.existsSync()) return;
+
+    List<Subtitle> loaded;
+    try {
+      final jsonList =
+          (jsonDecode(await indexFile.readAsString()) as List)
+              .cast<Map<String, dynamic>>();
+      loaded = jsonList.map(Subtitle.fromJson).toList();
+    } catch (e) {
+      if (kDebugMode) debugPrint('_loadFileSubtitles parse failed: $e');
+      return;
+    }
+
+    final validSubs = <Subtitle>[];
+    for (final sub in loaded) {
+      final vttPath = path.join(
+        entry.entryDirPath,
+        PathUtils.subtitlesDirName,
+        PathUtils.subtitleVttName(sub.lan),
+      );
+      if (File(vttPath).existsSync()) {
+        vttSubtitles[validSubs.length] = (isData: false, id: vttPath);
+        validSubs.add(sub);
+      }
+    }
+    if (validSubs.isEmpty) return;
+    if (isClosed) return;
+
+    subtitles.value = validSubs;
+
+    final idx = switch (Pref.subtitlePreferenceV2) {
+      SubtitlePrefType.off => 0,
+      SubtitlePrefType.on => 1,
+      SubtitlePrefType.withoutAi =>
+        subtitles.first.lan.startsWith('ai') ? 0 : 1,
+      SubtitlePrefType.auto =>
+        !subtitles.first.lan.startsWith('ai') ||
+                (PlatformUtils.isMobile &&
+                    (await FlutterVolumeController.getVolume() ?? 0.0) <= 0.0)
+            ? 1
+            : 0,
+    };
+    if (!isClosed) await setSubtitle(idx);
   }
 
   // 设定字幕轨道
