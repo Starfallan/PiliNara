@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math' show pow, sqrt;
 
 import 'package:PiliPlus/common/widgets/pair.dart';
+import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/http/constants.dart';
 import 'package:PiliPlus/models/common/bar_hide_type.dart';
 import 'package:PiliPlus/models/common/danmaku/danmaku_font_sync_mode.dart';
