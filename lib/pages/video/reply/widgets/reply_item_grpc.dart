@@ -1262,20 +1262,21 @@ class ReplyItemGrpc extends StatelessWidget {
           onPressed: () {
             Navigator.of(context).pop();
             final select = editableTextState.textEditingValue;
-            String text = RegExp.escape(
+            final escapedText = RegExp.escape(
               select.selection.textInside(select.text),
             );
-            if (ReplyGrpc.enableFilter) text = '|$text';
 
             showConfirmDialog(
               context: context,
               title: const Text('是否确认评论过滤的变更：'),
               content: Text.rich(
                 TextSpan(
-                  text: ReplyGrpc.replyRegExp.pattern,
+                  text: ReplyGrpc.replyRegExp.pattern.isEmpty
+                      ? ''
+                      : '${ReplyGrpc.replyRegExp.pattern}\n',
                   children: [
                     TextSpan(
-                      text: text,
+                      text: escapedText,
                       style: const TextStyle(
                         color: Colors.green,
                         fontWeight: .bold,
@@ -1285,10 +1286,14 @@ class ReplyItemGrpc extends StatelessWidget {
                 ),
               ),
               onConfirm: () {
-                final filter = ReplyGrpc.replyRegExp.pattern + text;
-                ReplyGrpc.replyRegExp = RegExp(filter, caseSensitive: true);
+                final currentStored = Pref.banWordForReply;
+                final newStored = currentStored.isEmpty
+                    ? escapedText
+                    : '$currentStored\n$escapedText';
+                GStorage.setting.put(SettingBoxKey.banWordForReply, newStored);
+                final newPattern = Pref.parseBanWordToRegex(newStored);
+                ReplyGrpc.replyRegExp = RegExp(newPattern, caseSensitive: true);
                 ReplyGrpc.enableFilter = true;
-                GStorage.setting.put(SettingBoxKey.banWordForReply, filter);
                 SmartDialog.showToast('已保存');
               },
             );
