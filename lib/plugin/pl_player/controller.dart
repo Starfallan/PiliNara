@@ -1997,9 +1997,9 @@ class PlPlayerController with BlockConfigMixin {
     });
   }
 
-  void onPopInvokedWithResult(bool didPop, Object? result) {
+  void onPopInvokedWithResult(bool didPop, Object? result, {bool pauseOnPop = true}) {
     if (didPop) {
-      if (playerStatus.isPlaying) {
+      if (pauseOnPop && playerStatus.isPlaying) {
         pause();
       }
 

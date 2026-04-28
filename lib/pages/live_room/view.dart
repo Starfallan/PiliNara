@@ -474,10 +474,14 @@ class _LiveRoomPageState extends State<LiveRoomPage>
   }
 
   void _onPopInvokedWithResult(bool didPop, Object? result) {
-    plPlayerController.onPopInvokedWithResult(didPop, result);
     if (didPop) {
       _startLivePipIfNeeded();
     }
+    plPlayerController.onPopInvokedWithResult(
+      didPop,
+      result,
+      pauseOnPop: !_isEnteringPipMode,
+    );
   }
 
   bool _shouldStartLivePip() {
