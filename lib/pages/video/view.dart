@@ -589,13 +589,6 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       tag: videoDetailController.heroTag,
     );
 
-    if (!Get.previousRoute.startsWith('/video') && !isInAppPip) {
-      if (Platform.isAndroid && !videoDetailController.setSystemBrightness) {
-        ScreenBrightnessPlatform.instance.resetApplicationScreenBrightness();
-      }
-      PlPlayerController.setPlayCallBack(null);
-    }
-
     if (!videoDetailController.isFileSource &&
         !isInAppPip &&
         !_isEnteringPipMode) {
