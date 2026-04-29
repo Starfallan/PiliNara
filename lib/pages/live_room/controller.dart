@@ -317,6 +317,7 @@ class LiveRoomController extends GetxController {
   }
 
   void scrollToBottom([_]) {
+    if (!scrollController.hasClients) return;
     EasyThrottle.throttle(
       'liveDm',
       const Duration(milliseconds: 500),
