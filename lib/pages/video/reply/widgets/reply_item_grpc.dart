@@ -28,6 +28,8 @@ import 'package:PiliPlus/pages/video/controller.dart';
 import 'package:PiliPlus/pages/video/reply/widgets/zan_grpc.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/app_scheme.dart';
+import 'package:PiliPlus/utils/bili_utils.dart';
+import 'package:PiliPlus/utils/color_utils.dart';
 import 'package:PiliPlus/utils/danmaku_utils.dart';
 import 'package:PiliPlus/utils/date_utils.dart';
 import 'package:PiliPlus/utils/duration_utils.dart';
@@ -183,7 +185,7 @@ class ReplyItemGrpc extends StatelessWidget {
                         ),
                       ),
                       Image.asset(
-                        Utils.levelName(
+                        BiliUtils.levelName(
                           member.level,
                           isSeniorMember: member.isSeniorMember == 1,
                         ),
@@ -278,7 +280,7 @@ class ReplyItemGrpc extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 8,
                       fontFamily: Assets.digitalNum,
-                      color: Utils.parseColor(garb.cardFanColor),
+                      color: ColourUtils.parseColor(garb.cardFanColor),
                     ),
                   ),
                 ),

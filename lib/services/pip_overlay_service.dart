@@ -8,6 +8,7 @@ import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
+import 'package:PiliPlus/utils/device_utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -87,7 +88,7 @@ class PipOverlayService {
     }
 
     // 2. 直接同步获取 sdkInt 并执行逻辑，不再使用 .then
-    if (Utils.sdkInt >= 31) {
+    if (DeviceUtils.sdkInt >= 31) {
       Utils.channel.invokeMethod('setPipAutoEnterEnabled', {
         'autoEnable': enabled,
       });

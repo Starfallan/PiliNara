@@ -15,6 +15,7 @@ import 'package:PiliPlus/pages/main/controller.dart';
 import 'package:PiliPlus/pages/mine/controller.dart';
 import 'package:PiliPlus/pages/mine/widgets/history_card_item.dart';
 import 'package:PiliPlus/pages/mine/widgets/item.dart';
+import 'package:PiliPlus/utils/bili_utils.dart';
 import 'package:PiliPlus/utils/extension/get_ext.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
@@ -321,7 +322,7 @@ class _MediaPageState extends CommonPageState<MinePage>
                             ),
                           ),
                           Image.asset(
-                            Utils.levelName(
+                            BiliUtils.levelName(
                               levelInfo?.currentLevel ?? 0,
                               isSeniorMember: userInfo.isSeniorMember == 1,
                             ),

@@ -27,6 +27,7 @@ import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/id_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
+import 'package:PiliPlus/utils/share_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
@@ -197,7 +198,7 @@ class PgcIntroController extends CommonIntroController {
                 ),
                 onTap: () {
                   Get.back();
-                  Utils.shareText(videoUrl);
+                  ShareUtils.shareText(videoUrl);
                 },
               ),
             ListTile(

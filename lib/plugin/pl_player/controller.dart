@@ -33,6 +33,7 @@ import 'package:PiliPlus/services/pip_overlay_service.dart';
 import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/asset_utils.dart';
+import 'package:PiliPlus/utils/device_utils.dart';
 import 'package:PiliPlus/utils/extension/box_ext.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
@@ -43,6 +44,7 @@ import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
+import 'package:PiliPlus/utils/theme_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:archive/archive.dart' show getCrc32;
 import 'package:canvas_danmaku/canvas_danmaku.dart';
@@ -612,7 +614,7 @@ class PlPlayerController with BlockConfigMixin {
 
     if (Platform.isAndroid && autoPiP) {
       // 1. 直接同步获取 sdkInt，去掉 .then 嵌套
-      final sdkInt = Utils.sdkInt;
+      final sdkInt = DeviceUtils.sdkInt;
 
       // 2. 立即注册监听，不再等待异步回调
       Utils.channel.setMethodCallHandler((call) async {
@@ -1687,7 +1689,7 @@ class PlPlayerController with BlockConfigMixin {
     try {
       if (status) {
         if (PlatformUtils.isMobile) {
-          hideStatusBar();
+          hideSystemBar();
           await changeOrientation(
             isVertical: isVertical,
             orientation: orientation,
@@ -1698,7 +1700,7 @@ class PlPlayerController with BlockConfigMixin {
       } else {
         if (PlatformUtils.isMobile) {
           if (!removeSafeArea) {
-            showStatusBar();
+            showSystemBar();
           }
           if (orientation == null && mode == .none) {
             return;
@@ -1845,7 +1847,7 @@ class PlPlayerController with BlockConfigMixin {
 
     _playerCount = 0;
     if (removeSafeArea) {
-      showStatusBar();
+      showSystemBar();
     }
     danmakuController = null;
     _stopOrientationListener();
@@ -1972,13 +1974,13 @@ class PlPlayerController with BlockConfigMixin {
                 padding: const EdgeInsets.only(right: 12),
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
-                    maxWidth: min(Get.width / 3, 350),
+                    maxWidth: min(DeviceUtils.size.width / 3, 350),
                   ),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       border: Border.all(
                         width: 5,
-                        color: Get.theme.colorScheme.surface,
+                        color: ThemeUtils.theme.colorScheme.surface,
                       ),
                     ),
                     child: Padding(
@@ -1997,7 +1999,11 @@ class PlPlayerController with BlockConfigMixin {
     });
   }
 
-  void onPopInvokedWithResult(bool didPop, Object? result, {bool pauseOnPop = true}) {
+  void onPopInvokedWithResult(
+    bool didPop,
+    Object? result, {
+    bool pauseOnPop = true,
+  }) {
     if (didPop) {
       if (pauseOnPop && playerStatus.isPlaying) {
         pause();

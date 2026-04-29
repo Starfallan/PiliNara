@@ -18,6 +18,7 @@ import 'package:PiliPlus/utils/login_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
+import 'package:PiliPlus/utils/theme_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
@@ -287,7 +288,7 @@ class MineController extends CommonDataController<FavFolderData, FavFolderData>
     final newVal = nextThemeType;
     themeType.value = newVal;
     GStorage.setting.put(SettingBoxKey.themeMode, newVal.index);
-    Get.changeThemeMode(newVal.toThemeMode);
+    Get.changeThemeMode(ThemeUtils.themeMode = newVal.toThemeMode);
   }
 
   void push(String name) {

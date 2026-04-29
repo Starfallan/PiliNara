@@ -20,9 +20,11 @@ import 'package:PiliPlus/utils/cache_manager.dart';
 import 'package:PiliPlus/utils/calc_window_position.dart';
 import 'package:PiliPlus/utils/danmaku_font.dart';
 import 'package:PiliPlus/utils/date_utils.dart';
+import 'package:PiliPlus/utils/device_utils.dart';
 import 'package:PiliPlus/utils/extension/iterable_ext.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
 import 'package:PiliPlus/utils/json_file_handler.dart';
+import 'package:PiliPlus/utils/max_screen_size.dart';
 import 'package:PiliPlus/utils/path_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/request_utils.dart';
@@ -49,6 +51,8 @@ import 'package:screen_brightness_platform_interface/screen_brightness_platform_
 import 'package:window_manager/window_manager.dart' hide calcWindowPosition;
 
 WebViewEnvironment? webViewEnvironment;
+
+EdgeInsets? tmpPadding;
 
 Future<void> _initDownPath() async {
   if (PlatformUtils.isDesktop) {
@@ -89,7 +93,7 @@ Future<void> _initAppPath() async {
 }
 
 Future<void> _initSdkInt() async {
-  Utils.sdkInt = (await DeviceInfoPlugin().androidInfo).version.sdkInt;
+  DeviceUtils.sdkInt = (await DeviceInfoPlugin().androidInfo).version.sdkInt;
 }
 
 void main() async {
@@ -117,7 +121,7 @@ void main() async {
 
   if (PlatformUtils.isMobile) {
     await Future.wait([
-      if (Platform.isAndroid) _initSdkInt(),
+      if (Platform.isAndroid) ...[_initSdkInt(), MaxScreenSize.init()],
       if (Pref.horizontalScreen) ?fullMode() else ?portraitUpMode(),
       setupServiceLocator(),
     ]);
@@ -236,8 +240,6 @@ class MyApp extends StatelessWidget {
 
   static ColorScheme? _light, _dark;
 
-  static ThemeData? darkThemeData;
-
   static void _onBack() {
     if (SmartDialog.checkExist()) {
       SmartDialog.dismiss();
@@ -263,13 +265,13 @@ class MyApp extends StatelessWidget {
     late final brandColor = colorThemeTypes[Pref.customColor].color;
     late final variant = Pref.schemeVariant;
     return (
-      ThemeUtils.getThemeData(
+      ThemeUtils.lightTheme = ThemeUtils.getThemeData(
         colorScheme: dynamicColor
             ? _light!
             : brandColor.asColorSchemeSeed(variant, .light),
         isDynamic: dynamicColor,
       ),
-      ThemeUtils.getThemeData(
+      ThemeUtils.darkTheme = ThemeUtils.getThemeData(
         isDark: true,
         colorScheme: dynamicColor
             ? _dark!
@@ -286,7 +288,7 @@ class MyApp extends StatelessWidget {
       title: Constants.appName,
       theme: light,
       darkTheme: dark,
-      themeMode: Pref.themeMode,
+      themeMode: ThemeUtils.themeMode = Pref.themeMode,
       localizationsDelegates: const [
         GlobalCupertinoLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
@@ -353,9 +355,9 @@ class MyApp extends StatelessWidget {
         data: mediaQuery.copyWith(
           textScaler: textScaler,
           size: mediaQuery.size / uiScale,
-          padding: effectivePadding / uiScale, // 应用修正后的 padding
+          padding: (tmpPadding ?? effectivePadding) / uiScale,
           viewInsets: mediaQuery.viewInsets / uiScale,
-          viewPadding: effectiveViewPadding / uiScale, // 应用修正后的
+          viewPadding: (tmpPadding ?? effectiveViewPadding) / uiScale,
           devicePixelRatio: mediaQuery.devicePixelRatio * uiScale,
         ),
         child: child!,
@@ -364,8 +366,8 @@ class MyApp extends StatelessWidget {
       child = MediaQuery(
         data: mediaQuery.copyWith(
           textScaler: textScaler,
-          viewPadding: effectiveViewPadding, // 即使不缩放，也要应用修正值
-          padding: effectivePadding, // 即使不缩放，也要应用修正值
+          padding: tmpPadding ?? effectivePadding,
+          viewPadding: tmpPadding ?? effectiveViewPadding,
         ),
         child: child!,
       );

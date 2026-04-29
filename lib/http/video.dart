@@ -38,6 +38,7 @@ import 'package:PiliPlus/utils/request_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
+import 'package:PiliPlus/utils/parse_int.dart';
 import 'package:PiliPlus/utils/wbi_sign.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show compute;
@@ -71,7 +72,7 @@ abstract final class VideoHttp {
     if (res.data['code'] == 0) {
       List<RcmdVideoItemModel> list = <RcmdVideoItemModel>[];
       for (final i in res.data['data']['item']) {
-        final mid = Utils.safeToInt(i['owner']?['mid']);
+        final mid = safeToInt(i['owner']?['mid']);
         //过滤掉live与ad，以及拉黑用户
         if (i['goto'] == 'av' &&
             (i['owner'] != null &&
@@ -148,7 +149,7 @@ abstract final class VideoHttp {
       List<RcmdVideoItemAppModel> list = <RcmdVideoItemAppModel>[];
       final bool removeBlockedRcmd = Pref.removeBlockedRcmd;
       for (final i in res.data['data']['items']) {
-        final upMid = Utils.safeToInt(i['args']?['up_id']);
+        final upMid = safeToInt(i['args']?['up_id']);
         final isWhitelisted = RecommendFilter.isWhitelisted(upMid);
         // 屏蔽推广和拉黑用户
         if (i['card_goto'] != 'ad_av' &&
@@ -191,7 +192,7 @@ abstract final class VideoHttp {
       List<HotVideoItemModel> list = <HotVideoItemModel>[];
       final applyFullFilter = RecommendFilter.applyFilterToHotVideos;
       for (final i in res.data['data']['list']) {
-        final mid = Utils.safeToInt(i['owner']?['mid']);
+        final mid = safeToInt(i['owner']?['mid']);
         final isWhitelisted = RecommendFilter.isWhitelisted(mid);
         // 分区关键词过滤（始终生效，上游原始行为）
         if (enableFilter &&
@@ -883,7 +884,7 @@ abstract final class VideoHttp {
 
   static bool _canAddRank(Map i) {
     final isWhitelisted = RecommendFilter.isWhitelisted(
-      Utils.safeToInt(i['owner']?['mid']),
+      safeToInt(i['owner']?['mid']),
     );
     if (isWhitelisted) {
       return true;
@@ -908,7 +909,7 @@ abstract final class VideoHttp {
       for (final i in res.data['data']['list']) {
         if (!_canAddRank(i)) continue;
         final isWhitelisted = RecommendFilter.isWhitelisted(
-          Utils.safeToInt(i['owner']?['mid']),
+          safeToInt(i['owner']?['mid']),
         );
         if (applyFullFilter) {
           // 开关开启：全局黑名单 + 完整过滤（时长、播放量、点赞率、标题关键词、推荐屏蔽用户）

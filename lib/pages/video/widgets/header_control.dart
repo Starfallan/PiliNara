@@ -40,6 +40,7 @@ import 'package:PiliPlus/services/shutdown_timer_service.dart'
     show shutdownTimerService;
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/accounts/account.dart';
+import 'package:PiliPlus/utils/connectivity_utils.dart';
 import 'package:PiliPlus/utils/extension/iterable_ext.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/extension/string_ext.dart';
@@ -50,6 +51,7 @@ import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/subtitle_utils.dart';
+import 'package:PiliPlus/utils/storage_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:PiliPlus/utils/video_utils.dart';
 import 'package:battery_plus/battery_plus.dart';
@@ -980,7 +982,7 @@ class HeaderControlState extends State<HeaderControl>
                         // update
                         if (!plPlayerController.tempPlayerConf) {
                           setting.put(
-                            await Utils.isWiFi
+                            await ConnectivityUtils.isWiFi
                                 ? SettingBoxKey.defaultVideoQa
                                 : SettingBoxKey.defaultVideoQaCellular,
                             quality,
@@ -1060,7 +1062,7 @@ class HeaderControlState extends State<HeaderControl>
                         // update
                         if (!plPlayerController.tempPlayerConf) {
                           setting.put(
-                            await Utils.isWiFi
+                            await ConnectivityUtils.isWiFi
                                 ? SettingBoxKey.defaultAudioQa
                                 : SettingBoxKey.defaultAudioQaCellular,
                             quality,
@@ -1239,7 +1241,7 @@ class HeaderControlState extends State<HeaderControl>
                             RegExp(r'[<>:/\\|?*"]'),
                             '',
                           );
-                          Utils.saveBytes2File(
+                          StorageUtils.saveBytes2File(
                             name: name,
                             bytes: bytes,
                             allowedExtensions: [extension],

@@ -42,9 +42,11 @@ import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/extension/size_ext.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
 import 'package:PiliPlus/utils/image_utils.dart';
+import 'package:PiliPlus/utils/max_screen_size.dart';
 import 'package:PiliPlus/utils/mobile_observer.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
+import 'package:PiliPlus/utils/share_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/utils.dart';
@@ -130,7 +132,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     } else {
       plPlayerController.isLive = true;
       if (plPlayerController.removeSafeArea) {
-        hideStatusBar();
+        hideSystemBar();
       }
     }
   }
@@ -146,6 +148,10 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     final size = MediaQuery.sizeOf(context);
     maxWidth = size.width;
     maxHeight = size.height;
+    isWindowMode = MaxScreenSize.isWindowMode(
+      width: maxWidth,
+      height: maxHeight,
+    );
     isPortrait = size.isPortrait;
     plPlayerController.screenRatio = maxHeight / maxWidth;
   }
@@ -310,6 +316,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
 
   late double maxWidth;
   late double maxHeight;
+  bool isWindowMode = false;
   late EdgeInsets padding;
   late bool isPortrait;
 
@@ -606,7 +613,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
             primary: !plPlayerController.removeSafeArea,
             resizeToAvoidBottomInset: false,
             backgroundColor: Colors.transparent,
-            appBar: isFullScreen && !isPortrait
+            appBar: isWindowMode && isFullScreen && !isPortrait
                 ? null
                 : _buildAppBar(isFullScreen),
             body: isPortrait
@@ -628,7 +635,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
   Widget _buildPH(bool isFullScreen) {
     final height = maxWidth / Style.aspectRatio16x9;
     final videoHeight = isFullScreen
-        ? maxHeight - (isPortrait ? padding.top : 0)
+        ? maxHeight - (isWindowMode && !isPortrait ? 0 : padding.top)
         : height;
     final bottomHeight = maxHeight - padding.top - height - kToolbarHeight;
     return Column(
@@ -657,7 +664,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
   Widget _buildPP(bool isFullScreen) {
     final bottomHeight = 70 + padding.bottom;
     final videoHeight = isFullScreen
-        ? maxHeight - (isPortrait ? padding.top : 0)
+        ? maxHeight - (isWindowMode && !isPortrait ? 0 : padding.top)
         : maxHeight - bottomHeight;
     return Stack(
       clipBehavior: Clip.none,
@@ -831,7 +838,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
               ),
               if (PlatformUtils.isMobile)
                 PopupMenuItem(
-                  onTap: () => Utils.shareText(liveUrl),
+                  onTap: () => ShareUtils.shareText(liveUrl),
                   child: Row(
                     spacing: 10,
                     mainAxisSize: MainAxisSize.min,
@@ -911,7 +918,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     final videoHeight = maxHeight - padding.top - kToolbarHeight;
     final width = isFullScreen ? maxWidth : videoWidth;
     final height = isFullScreen
-        ? maxHeight - (isPortrait ? padding.top : 0)
+        ? maxHeight - (isWindowMode && !isPortrait ? 0 : padding.top)
         : videoHeight;
     return Padding(
       padding: isFullScreen

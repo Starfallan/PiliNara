@@ -14,7 +14,6 @@ import 'package:PiliPlus/http/init.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/http/user.dart';
 import 'package:PiliPlus/http/video.dart';
-import 'package:PiliPlus/main.dart';
 import 'package:PiliPlus/models/common/account_type.dart';
 import 'package:PiliPlus/models/common/sponsor_block/action_type.dart';
 import 'package:PiliPlus/models/common/sponsor_block/post_segment_model.dart';
@@ -57,6 +56,7 @@ import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/services/download/download_service.dart';
 import 'package:PiliPlus/services/pip_overlay_service.dart';
 import 'package:PiliPlus/utils/accounts.dart';
+import 'package:PiliPlus/utils/connectivity_utils.dart';
 import 'package:PiliPlus/utils/extension/context_ext.dart';
 import 'package:PiliPlus/utils/extension/file_ext.dart';
 import 'package:PiliPlus/utils/extension/iterable_ext.dart';
@@ -67,6 +67,7 @@ import 'package:PiliPlus/utils/path_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
+import 'package:PiliPlus/utils/theme_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:PiliPlus/utils/video_utils.dart';
 import 'package:extended_nested_scroll_view/extended_nested_scroll_view.dart';
@@ -545,11 +546,8 @@ class VideoDetailController extends GetxController
       if (plPlayerController.isFullScreen.value || showVideoSheet) {
         PageUtils.showVideoBottomSheet(
           context,
-          child: plPlayerController.darkVideoPage && MyApp.darkThemeData != null
-              ? Theme(
-                  data: MyApp.darkThemeData!,
-                  child: panel(),
-                )
+          child: plPlayerController.darkVideoPage
+              ? Theme(data: ThemeUtils.darkTheme, child: panel())
               : panel(),
           isFullScreen: () => plPlayerController.isFullScreen.value,
         );
@@ -596,6 +594,7 @@ class VideoDetailController extends GetxController
 
   @override
   Widget buildItem(Object item, Animation<double> animation) {
+    final theme = ThemeUtils.theme;
     return Align(
       alignment: Alignment.centerLeft,
       child: SlideTransition(
@@ -871,7 +870,7 @@ class VideoDetailController extends GetxController
       querySponsorBlock(bvid: bvid, cid: cid.value);
     }
     if (plPlayerController.cacheVideoQa == null) {
-      final isWiFi = await Utils.isWiFi;
+      final isWiFi = await ConnectivityUtils.isWiFi;
       plPlayerController
         ..cacheVideoQa = isWiFi
             ? Pref.defaultVideoQa
@@ -1083,9 +1082,9 @@ class VideoDetailController extends GetxController
     if (plPlayerController.isFullScreen.value || showVideoSheet) {
       PageUtils.showVideoBottomSheet(
         context,
-        child: plPlayerController.darkVideoPage && MyApp.darkThemeData != null
+        child: plPlayerController.darkVideoPage
             ? Theme(
-                data: MyApp.darkThemeData!,
+                data: ThemeUtils.darkTheme,
                 child: PostPanel(
                   enableSlide: false,
                   videoDetailController: this,
@@ -1121,7 +1120,8 @@ class VideoDetailController extends GetxController
     List<SegmentItemModel> items,
     bool useBlockConfig,
     bool isBlockSource,
-  })? _resolveLocalSkipSegments(DownloadPlaybackMeta meta) {
+  })?
+  _resolveLocalSkipSegments(DownloadPlaybackMeta meta) {
     final clipInfo = meta.clipInfo;
     if (entry.ep != null &&
         plPlayerController.enablePgcSkip &&
@@ -1157,7 +1157,8 @@ class VideoDetailController extends GetxController
     }
     try {
       final meta = DownloadPlaybackMeta.fromJson(
-        (jsonDecode(await metaFile.readAsString()) as Map).cast<String, dynamic>(),
+        (jsonDecode(await metaFile.readAsString()) as Map)
+            .cast<String, dynamic>(),
       );
       final durationMs = data.timeLength ?? entry.totalTimeMilli;
       final chapters = meta.chapters;
@@ -1165,19 +1166,16 @@ class VideoDetailController extends GetxController
           durationMs > 0 &&
           chapters != null) {
         viewPointList.assignAll(
-          chapters.items
-              .where((item) => item.toMs != null)
-              .map((item) {
-                final toMs = item.toMs!;
-                return ViewPointSegment(
-                  end: (toMs / durationMs).clamp(0.0, 1.0),
-                  title: item.content,
-                  url: item.imgUrl,
-                  from: item.fromMs == null ? null : item.fromMs! ~/ 1000,
-                  to: toMs ~/ 1000,
-                );
-              })
-              .toList(),
+          chapters.items.where((item) => item.toMs != null).map((item) {
+            final toMs = item.toMs!;
+            return ViewPointSegment(
+              end: (toMs / durationMs).clamp(0.0, 1.0),
+              title: item.content,
+              url: item.imgUrl,
+              from: item.fromMs == null ? null : item.fromMs! ~/ 1000,
+              to: toMs ~/ 1000,
+            );
+          }).toList(),
         );
       }
       if (_resolveLocalSkipSegments(meta) case final resolved?) {
@@ -1206,9 +1204,8 @@ class VideoDetailController extends GetxController
 
     List<Subtitle> loaded;
     try {
-      final jsonList =
-          (jsonDecode(await indexFile.readAsString()) as List)
-              .cast<Map<String, dynamic>>();
+      final jsonList = (jsonDecode(await indexFile.readAsString()) as List)
+          .cast<Map<String, dynamic>>();
       loaded = jsonList.map(Subtitle.fromJson).toList();
     } catch (e) {
       if (kDebugMode) debugPrint('_loadFileSubtitles parse failed: $e');
@@ -1566,9 +1563,9 @@ class VideoDetailController extends GetxController
     if (plPlayerController.isFullScreen.value || showVideoSheet) {
       PageUtils.showVideoBottomSheet(
         context,
-        child: plPlayerController.darkVideoPage && MyApp.darkThemeData != null
+        child: plPlayerController.darkVideoPage
             ? Theme(
-                data: MyApp.darkThemeData!,
+                data: ThemeUtils.darkTheme,
                 child: NoteListPage(
                   oid: aid,
                   enableSlide: false,
