@@ -1091,10 +1091,10 @@ class PlPlayerController with BlockConfigMixin {
           for (final element in _statusListeners) {
             element(PlayerStatus.completed);
           }
+          makeHeartBeat(positionSeconds.value, type: HeartBeatType.completed);
         } else {
           // playerStatus.value = PlayerStatus.playing;
         }
-        makeHeartBeat(positionSeconds.value, type: HeartBeatType.completed);
       }),
       stream.position.listen((event) {
         position = event;
