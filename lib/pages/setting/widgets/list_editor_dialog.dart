@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
-/// A dialog for editing a list of strings with add/remove functionality
+/// A dialog for editing a list of strings with add/remove/edit functionality
 /// Follows Material Design 3 style
 class ListEditorDialog extends StatefulWidget {
   final String title;
@@ -12,6 +12,8 @@ class ListEditorDialog extends StatefulWidget {
   final TextInputType? keyboardType;
   final List<TextInputFormatter>? inputFormatters;
   final String? Function(String)? validator;
+  // When false, items are read-only (no add/edit/delete), but text is selectable
+  final bool allowEdit;
 
   const ListEditorDialog({
     super.key,
@@ -22,6 +24,7 @@ class ListEditorDialog extends StatefulWidget {
     this.keyboardType,
     this.inputFormatters,
     this.validator,
+    this.allowEdit = true,
   });
 
   @override
@@ -30,36 +33,36 @@ class ListEditorDialog extends StatefulWidget {
 
 class _ListEditorDialogState extends State<ListEditorDialog> {
   late List<String> _items;
-  final TextEditingController _textController = TextEditingController();
-  final FocusNode _focusNode = FocusNode();
+  late List<TextEditingController> _controllers;
+  final TextEditingController _addController = TextEditingController();
+  final FocusNode _addFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
     _items = List<String>.from(widget.initialItems);
+    _controllers = _items.map((e) => TextEditingController(text: e)).toList();
   }
 
   @override
   void dispose() {
-    _textController.dispose();
-    _focusNode.dispose();
+    for (final c in _controllers) {
+      c.dispose();
+    }
+    _addController.dispose();
+    _addFocusNode.dispose();
     super.dispose();
   }
 
   void _addItem() {
-    final value = _textController.text.trim();
+    final value = _addController.text.trim();
     if (value.isEmpty) return;
 
-    // Validate if validator is provided
     if (widget.validator != null) {
       final error = widget.validator!(value);
       if (error != null) {
-        // Show error toast or snackbar
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error),
-            duration: const Duration(seconds: 2),
-          ),
+          SnackBar(content: Text(error), duration: const Duration(seconds: 2)),
         );
         return;
       }
@@ -68,7 +71,8 @@ class _ListEditorDialogState extends State<ListEditorDialog> {
     if (!_items.contains(value)) {
       setState(() {
         _items.add(value);
-        _textController.clear();
+        _controllers.add(TextEditingController(text: value));
+        _addController.clear();
       });
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -80,9 +84,46 @@ class _ListEditorDialogState extends State<ListEditorDialog> {
     }
   }
 
+  void _commitEdit(int index) {
+    final value = _controllers[index].text.trim();
+    if (value.isEmpty || value == _items[index]) {
+      // Revert if empty or unchanged
+      _controllers[index].text = _items[index];
+      return;
+    }
+
+    if (widget.validator != null) {
+      final error = widget.validator!(value);
+      if (error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error), duration: const Duration(seconds: 2)),
+        );
+        _controllers[index].text = _items[index];
+        return;
+      }
+    }
+
+    if (_items.contains(value)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('该${widget.itemLabel}已存在'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      _controllers[index].text = _items[index];
+      return;
+    }
+
+    setState(() {
+      _items[index] = value;
+    });
+  }
+
   void _removeItem(int index) {
+    _controllers[index].dispose();
     setState(() {
       _items.removeAt(index);
+      _controllers.removeAt(index);
     });
   }
 
@@ -98,33 +139,33 @@ class _ListEditorDialogState extends State<ListEditorDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Input field with add button
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _textController,
-                    focusNode: _focusNode,
-                    keyboardType: widget.keyboardType,
-                    inputFormatters: widget.inputFormatters,
-                    decoration: InputDecoration(
-                      hintText: widget.hintText,
-                      isDense: true,
+            if (widget.allowEdit) ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _addController,
+                      focusNode: _addFocusNode,
+                      keyboardType: widget.keyboardType,
+                      inputFormatters: widget.inputFormatters,
+                      decoration: InputDecoration(
+                        hintText: widget.hintText,
+                        isDense: true,
+                      ),
+                      onSubmitted: (_) => _addItem(),
                     ),
-                    onSubmitted: (_) => _addItem(),
                   ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.add_circle_outline),
-                  onPressed: _addItem,
-                  tooltip: '添加',
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // List of items
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline),
+                    onPressed: _addItem,
+                    tooltip: '添加',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
             if (_items.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -149,24 +190,43 @@ class _ListEditorDialogState extends State<ListEditorDialog> {
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
                           dense: true,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
+                          contentPadding: const EdgeInsets.only(
+                            left: 12,
+                            right: 4,
+                            top: 4,
+                            bottom: 4,
                           ),
-                          title: Text(
-                            _items[index],
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline, size: 20),
-                            onPressed: () => _removeItem(index),
-                            tooltip: '删除',
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(
-                              minWidth: 32,
-                              minHeight: 32,
-                            ),
-                          ),
+                          title: widget.allowEdit
+                              ? TextField(
+                                  controller: _controllers[index],
+                                  keyboardType: widget.keyboardType,
+                                  inputFormatters: widget.inputFormatters,
+                                  style: theme.textTheme.bodyMedium,
+                                  decoration: const InputDecoration(
+                                    isDense: true,
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                  onSubmitted: (_) => _commitEdit(index),
+                                  onTapOutside: (_) => _commitEdit(index),
+                                )
+                              : SelectableText(
+                                  _items[index],
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                          trailing: widget.allowEdit
+                              ? IconButton(
+                                  icon: const Icon(Icons.delete_outline,
+                                      size: 20),
+                                  onPressed: () => _removeItem(index),
+                                  tooltip: '删除',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 32,
+                                    minHeight: 32,
+                                  ),
+                                )
+                              : null,
                         ),
                       );
                     },
@@ -182,13 +242,20 @@ class _ListEditorDialogState extends State<ListEditorDialog> {
           onPressed: Get.back,
           child: Text(
             '取消',
-            style: TextStyle(
-              color: theme.colorScheme.outline,
-            ),
+            style: TextStyle(color: theme.colorScheme.outline),
           ),
         ),
         FilledButton(
-          onPressed: () => Get.back(result: _items),
+          onPressed: () {
+            // Commit any in-progress edits before saving
+            for (int i = 0; i < _items.length; i++) {
+              final value = _controllers[i].text.trim();
+              if (value.isNotEmpty && value != _items[i]) {
+                _items[i] = value;
+              }
+            }
+            Get.back(result: _items);
+          },
           child: const Text('保存'),
         ),
       ],

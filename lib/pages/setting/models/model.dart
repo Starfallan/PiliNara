@@ -352,6 +352,7 @@ SettingsModel getListUidWithNameModel({
             itemLabel: 'UID',
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            allowEdit: false,
             validator: (value) {
               if (value.isEmpty) return '请输入UID';
               final uid = int.tryParse(value);
@@ -425,6 +426,7 @@ SettingsModel getListUidModel({
             itemLabel: 'UID',
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            allowEdit: false,
             validator: (value) {
               if (value.isEmpty) return '请输入UID';
               final uid = int.tryParse(value);
