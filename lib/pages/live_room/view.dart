@@ -301,9 +301,8 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     if (plPlayerController.visible = state == .resumed) {
       if (!plPlayerController.showDanmaku) {
         _liveRoomController
-          ..startLiveTimer()
-          ..closeLiveMsg()
-          ..startLiveMsg();
+          ..refreshMsgIfNeeded()
+          ..startLiveTimer();
         plPlayerController.showDanmaku = true;
       }
     } else if (state == .paused) {

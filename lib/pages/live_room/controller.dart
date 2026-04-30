@@ -107,7 +107,9 @@ class LiveRoomController extends GetxController {
   // dm
   LiveDmInfoData? dmInfo;
   List<RichTextItem>? savedDanmaku;
+  int builtLength = 0;
   RxList<dynamic> messages = <dynamic>[].obs;
+  bool get shouldRefresh => builtLength != messages.length;
   late final Rx<SuperChatItem?> fsSC = Rx<SuperChatItem?>(null);
   late final RxList<SuperChatItem> superChatMsg = <SuperChatItem>[].obs;
   RxBool disableAutoScroll = false.obs;
@@ -339,7 +341,17 @@ class LiveRoomController extends GetxController {
     }
   }
 
-  void jumpToBottom() {
+  void handleJumpToBottom() {
+    disableAutoScroll.value = false;
+    if (shouldRefresh) {
+      messages.refresh();
+      WidgetsBinding.instance.addPostFrameCallback(_jumpToBottom);
+    } else {
+      _jumpToBottom();
+    }
+  }
+
+  void _jumpToBottom([_]) {
     if (scrollController.hasClients) {
       scrollController.jumpTo(scrollController.position.maxScrollExtent);
     }
@@ -403,9 +415,18 @@ class LiveRoomController extends GetxController {
       disableAutoScroll.value = true;
     } else if (userScrollDirection == .reverse) {
       final pos = scrollController.position;
-      if (pos.maxScrollExtent - pos.pixels <= 100) {
+      if (pos.maxScrollExtent - pos.pixels <= 100 && disableAutoScroll.value) {
         disableAutoScroll.value = false;
+        refreshMsgIfNeeded();
       }
+    }
+  }
+
+  void refreshMsgIfNeeded() {
+    if (shouldRefresh) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        messages.refresh();
+      });
     }
   }
 
