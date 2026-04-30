@@ -27,6 +27,8 @@ import 'package:PiliPlus/models/common/video/video_decode_type.dart';
 import 'package:PiliPlus/models/common/video/video_quality.dart';
 import 'package:PiliPlus/models/user/danmaku_rule.dart';
 import 'package:PiliPlus/models/user/info.dart';
+import 'package:PiliPlus/pages/setting/pages/fullscreen_sc_size.dart'
+    show kFullScreenSCWidth;
 import 'package:PiliPlus/plugin/pl_player/models/audio_output_type.dart';
 import 'package:PiliPlus/plugin/pl_player/models/bottom_progress_behavior.dart';
 import 'package:PiliPlus/plugin/pl_player/models/fullscreen_mode.dart';
@@ -1273,6 +1275,11 @@ abstract final class Pref {
         SettingBoxKey.superChatTimeType,
         defaultValue: SuperChatTimeType.whenPersist.index,
       )];
+
+  static double get fullScreenSCWidth => _setting.get(
+    SettingBoxKey.fullScreenSCWidth,
+    defaultValue: kFullScreenSCWidth,
+  );
 
   static bool get minimizeOnExit =>
       _setting.get(SettingBoxKey.minimizeOnExit, defaultValue: true);

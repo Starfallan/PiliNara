@@ -24,6 +24,7 @@ abstract final class SettingBoxKey {
       enableOnlineTotal = 'enableOnlineTotal',
       superChatType = 'superChatType',
       superChatTimeType = 'superChatTimeType',
+      fullScreenSCWidth = 'fullScreenSCWidth',
       keyboardControl = 'keyboardControl',
       pauseOnMinimize = 'pauseOnMinimize',
       pgcSkipType = 'pgcSkipType',
