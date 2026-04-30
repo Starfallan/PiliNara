@@ -936,6 +936,12 @@ class PlPlayerController with BlockConfigMixin {
     buffered.value = Duration.zero;
     _heartDuration = 0;
     position = Duration.zero;
+    if (kDebugMode) {
+      debugPrint(
+        '[SeekDebug] _createVideoController: position reset to zero'
+        ' bvid=$_bvid cid=$cid playerStatus=${playerStatus.value}',
+      );
+    }
     // 初始化时清空弹幕，防止上次重叠
     danmakuController?.clear();
 
@@ -1079,11 +1085,27 @@ class PlPlayerController with BlockConfigMixin {
         for (final element in _statusListeners) {
           element(event ? PlayerStatus.playing : PlayerStatus.paused);
         }
+        if (kDebugMode) {
+          debugPrint(
+            '[SeekDebug] stream.playing event=$event'
+            ' nativePos=${videoPlayerController!.state.position.inSeconds}s'
+            ' plPos=${positionSeconds.value}s'
+            ' bvid=$_bvid cid=$cid',
+          );
+        }
         if (videoPlayerController!.state.position.inSeconds != 0) {
           makeHeartBeat(positionSeconds.value, type: HeartBeatType.status);
         }
       }),
       stream.completed.listen((event) {
+        if (kDebugMode) {
+          debugPrint(
+            '[SeekDebug] stream.completed event=$event'
+            ' nativePos=${videoPlayerController!.state.position.inSeconds}s'
+            ' plPos=${positionSeconds.value}s'
+            ' bvid=$_bvid cid=$cid',
+          );
+        }
         if (event) {
           playerStatus.value = PlayerStatus.completed;
 

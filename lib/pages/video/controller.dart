@@ -776,6 +776,15 @@ class VideoDetailController extends GetxController
     if (seek == null || seek == Duration.zero) {
       seek = getFirstSegment();
     }
+    if (kDebugMode) {
+      debugPrint(
+        '[SeekDebug] playerInit: bvid=$bvid cid=${cid.value}'
+        ' seekToTime=$seekToTime defaultST=$defaultST playedTime=$playedTime'
+        ' finalSeek=$seek'
+        ' plPosition=${plPlayerController.position.inSeconds}s'
+        ' plStatus=${plPlayerController.playerStatus.value}',
+      );
+    }
     await plPlayerController.setDataSource(
       isFileSource
           ? FileSource(
@@ -904,6 +913,13 @@ class VideoDetailController extends GetxController
         this.defaultST = Duration(milliseconds: progress);
       } else if (defaultST == null && data.lastPlayTime != null) {
         this.defaultST = Duration(milliseconds: data.lastPlayTime!);
+      }
+      if (kDebugMode) {
+        debugPrint(
+          '[SeekDebug] queryVideoUrl: bvid=$bvid cid=${cid.value}'
+          ' data.lastPlayTime=${data.lastPlayTime}'
+          ' defaultST=${this.defaultST}',
+        );
       }
 
       if (!isUgc && !fromReset && plPlayerController.enablePgcSkip) {
@@ -1336,10 +1352,27 @@ class VideoDetailController extends GetxController
       epId: epId,
     );
     if (res case Success(:final response)) {
+      if (kDebugMode) {
+        debugPrint(
+          '[SeekDebug] _queryPlayInfo response: bvid=$bvid cid=${cid.value}'
+          ' lastPlayTime=${response.lastPlayTime}'
+          ' position=${plPlayerController.position.inSeconds}s'
+          ' playerStatus=${plPlayerController.playerStatus.value}'
+          ' videoMid=${Accounts.get(AccountType.video).mid}'
+          ' heartbeatMid=${Accounts.get(AccountType.heartbeat).mid}',
+        );
+      }
       if (response.lastPlayTime != null && response.lastPlayTime! > 0) {
         if (Accounts.get(AccountType.video).mid !=
             Accounts.get(AccountType.heartbeat).mid) {
           if (plPlayerController.position.inSeconds <= 3) {
+            if (kDebugMode) {
+              debugPrint(
+                '[SeekDebug] SEEKING to ${response.lastPlayTime}ms'
+                ' (${response.lastPlayTime! ~/ 1000}s)'
+                ' for bvid=$bvid',
+              );
+            }
             plPlayerController.seekTo(
               Duration(milliseconds: response.lastPlayTime!),
             );
