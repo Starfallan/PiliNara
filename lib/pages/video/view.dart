@@ -305,6 +305,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       _justReturnedFromPip = true;
 
       plPlayerController = videoDetailController.plPlayerController;
+      final wasPlaying = plPlayerController!.playerStatus.isPlaying;
 
       // 重新创建 TabController，因为旧的 vsync (State) 已经失效
       final List<String> initialTabs = [
@@ -326,9 +327,6 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
       if (plPlayerController!.isFullScreen.value) {
         plPlayerController!.triggerFullScreen(status: false);
-      }
-      if (plPlayerController!.playerStatus.value != PlayerStatus.playing) {
-        plPlayerController!.play();
       }
       plPlayerController!.controls = true;
 
@@ -354,6 +352,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
         videoDetailController.videoState.value = true;
         videoDetailController.videoState.refresh();
+        if (wasPlaying && !plPlayerController!.playerStatus.isPlaying) {
+          plPlayerController!.play();
+        }
         videoDetailController.cid.refresh();
         videoDetailController.cover.refresh();
 
