@@ -17,6 +17,8 @@ class GlobalData {
 
   Map<int, String> whitelistMids = Pref.whitelistMids;
 
+  Map<int, String> remarkMids = Pref.remarkMids;
+
   Map<int, String> recommendBlockedMids = Pref.recommendBlockedMids;
 
   bool dynamicsWaterfallFlow = Pref.dynamicsWaterfallFlow;

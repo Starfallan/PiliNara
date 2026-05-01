@@ -245,6 +245,34 @@ abstract final class Pref {
     _localCache.put(LocalCacheKey.replyBlockedMids, blockedMidsMap);
   }
 
+  static Map<int, String> get remarkMids {
+    final data = _localCache.get(LocalCacheKey.remarkMids);
+    if (data is Map) {
+      final map = <int, String>{};
+      for (final entry in data.entries) {
+        final key = entry.key;
+        final value = entry.value;
+        int? uid;
+        if (key is int) {
+          uid = key;
+        } else if (key is String) {
+          uid = int.tryParse(key);
+        }
+        if (uid != null && value is String) {
+          map[uid] = value;
+        }
+      }
+      if (map.isNotEmpty && data.keys.first is! int) {
+        _localCache.put(LocalCacheKey.remarkMids, map);
+      }
+      return map;
+    }
+    return <int, String>{};
+  }
+
+  static set remarkMids(Map<int, String> v) =>
+      _localCache.put(LocalCacheKey.remarkMids, v);
+
   static RuleFilter get danmakuFilterRule => _localCache.get(
     LocalCacheKey.danmakuFilterRules,
     defaultValue: RuleFilter.empty(),

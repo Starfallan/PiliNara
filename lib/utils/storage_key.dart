@@ -285,7 +285,8 @@ abstract final class LocalCacheKey {
       downloadCollections = 'downloadCollections',
       mixinKey = 'mixinKey',
       timeStamp = 'timeStamp',
-      buvid = 'buvid';
+      buvid = 'buvid',
+      remarkMids = 'remarkMids';
 }
 
 abstract final class VideoBoxKey {
