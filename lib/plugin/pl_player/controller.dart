@@ -881,12 +881,13 @@ class PlPlayerController with BlockConfigMixin {
       opt['ao'] = Pref.audioOutput;
     } else if (PlatformUtils.isDesktop) {
       opt['volume'] = (volume.value * 100).toString();
-    } else if (PlatformUtils.isMobile && Pref.enableAppVolume) {
+    }
+    if (PlatformUtils.isMobile && Pref.enableAppVolume) {
       // 移动平台应用内音量模式：初始化系统音量
       systemVolume.value = (await FlutterVolumeController.getVolume()) ?? 1.0;
       // 从持久化存储读取应用内音量
       volume.value = Pref.appVolume;
-      // 使用 media_kit 设置初始音量
+      // 使用 media_kit 设置初始音量（Android 上覆盖默认值）
       opt['volume'] = (volume.value * 100).toString();
     }
     final autosync = Pref.autosync;
