@@ -496,6 +496,9 @@ class _LiveRoomPageState extends State<LiveRoomPage>
   }
 
   bool _shouldStartLivePip() {
+    if (!Pref.enableInAppPip) {
+      return false;
+    }
     if (LivePipOverlayService.isInPipMode) {
       return false;
     }
