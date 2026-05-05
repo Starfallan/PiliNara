@@ -31,6 +31,7 @@ import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/extension/string_ext.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
+import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/id_utils.dart';
 import 'package:PiliPlus/utils/num_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
@@ -922,18 +923,36 @@ class _UgcIntroPanelState extends State<UgcIntroPanel> {
               officialType: userStat.card?.official?.type,
             ),
             const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  userStat.card?.name ?? "",
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                Text.rich(
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: isVip && userStat.card?.vip?.type == 2
-                        ? theme.colorScheme.vipColor
-                        : null,
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: userStat.card?.name ?? "",
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isVip && userStat.card?.vip?.type == 2
+                              ? theme.colorScheme.vipColor
+                              : null,
+                        ),
+                      ),
+                      if (GlobalData().remarkMids[
+                              int.tryParse(userStat.card?.mid ?? '')]
+                          case final String remark
+                          when remark.isNotEmpty)
+                        TextSpan(
+                          text: '（$remark）',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 0),
@@ -945,6 +964,7 @@ class _UgcIntroPanelState extends State<UgcIntroPanel> {
                   ),
                 ),
               ],
+              ),
             ),
           ],
         );

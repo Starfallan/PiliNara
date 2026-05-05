@@ -119,18 +119,36 @@ class AuthorPanel extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    moduleAuthor.name!,
+                  Text.rich(
                     maxLines: 1,
                     overflow: .ellipsis,
-                    style: TextStyle(
-                      color:
-                          moduleAuthor.vip != null &&
-                              moduleAuthor.vip!.status > 0 &&
-                              moduleAuthor.vip!.type == 2
-                          ? theme.colorScheme.vipColor
-                          : theme.colorScheme.onSurface,
-                      fontSize: theme.textTheme.titleSmall!.fontSize,
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: moduleAuthor.name!,
+                          style: TextStyle(
+                            color:
+                                moduleAuthor.vip != null &&
+                                    moduleAuthor.vip!.status > 0 &&
+                                    moduleAuthor.vip!.type == 2
+                                ? theme.colorScheme.vipColor
+                                : theme.colorScheme.onSurface,
+                            fontSize: theme.textTheme.titleSmall!.fontSize,
+                          ),
+                        ),
+                        if (GlobalData().remarkMids[moduleAuthor.mid]
+                            case final String remark
+                            when remark.isNotEmpty)
+                          TextSpan(
+                            text: '（$remark）',
+                            style: TextStyle(
+                              color: theme.colorScheme.primary,
+                              fontSize:
+                                  (theme.textTheme.titleSmall!.fontSize ?? 14) -
+                                  1,
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                   ?pubTs,
