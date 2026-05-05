@@ -48,7 +48,12 @@ class _MediaPageState extends CommonPageState<MinePage>
   static List<MineCardType> _loadMineCards() {
     final List? cache = GStorage.setting.get(SettingBoxKey.mineCardSort);
     if (cache == null || cache.isEmpty) {
-      return MineCardType.values;
+      const defaults = [MineCardType.history, MineCardType.fav];
+      GStorage.setting.put(
+        SettingBoxKey.mineCardSort,
+        defaults.map((e) => e.index).toList(),
+      );
+      return defaults;
     }
     return cache
         .whereType<int>()
@@ -568,7 +573,7 @@ class _MediaPageState extends CommonPageState<MinePage>
                 }
                 return ToViewCardItem(item: list[index] as LaterItemModel);
               },
-              separatorBuilder: (_, __) => const SizedBox(width: 14),
+              separatorBuilder: (_, _) => const SizedBox(width: 14),
             ),
           );
         },
@@ -681,7 +686,7 @@ class _MediaPageState extends CommonPageState<MinePage>
                 }
                 return HistoryCardItem(item: list[index]);
               },
-              separatorBuilder: (_, __) => const SizedBox(width: 14),
+              separatorBuilder: (_, _) => const SizedBox(width: 14),
             ),
           );
         },
@@ -765,7 +770,7 @@ class _MediaPageState extends CommonPageState<MinePage>
           }
           bool flag = (controller.favFolderCount ?? 0) > favFolderList.length;
           return SizedBox(
-            height: 200,
+            height: 173,
             child: ListView.separated(
               controller: controller.scrollController,
               padding: const .only(left: 20, top: 10, right: 20),
@@ -773,7 +778,7 @@ class _MediaPageState extends CommonPageState<MinePage>
               itemBuilder: (context, index) {
                 if (flag && index == favFolderList.length) {
                   return Padding(
-                    padding: const .only(bottom: 35),
+                    padding: const .only(bottom: 46),
                     child: Center(
                       child: IconButton(
                         tooltip: '查看更多',
