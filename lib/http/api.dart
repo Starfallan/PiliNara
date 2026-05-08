@@ -883,6 +883,8 @@ abstract final class Api {
 
   static const String coinLog = '/x/member/web/coin/log';
 
+  static const String coinTodayExp = '/x/web-interface/coin/today/exp';
+
   static const String dynTopicRcmd = '/x/topic/web/dynamic/rcmd';
 
   static const String matchInfo = '/x/esports/match/info';

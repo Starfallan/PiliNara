@@ -391,6 +391,15 @@ abstract final class UserHttp {
     }
   }
 
+  static Future<LoadingState<int>> coinTodayExp() async {
+    final res = await Request().get(Api.coinTodayExp);
+    if (res.data['code'] == 0) {
+      return Success((res.data['data'] as num?)?.toInt() ?? 0);
+    } else {
+      return Error(res.data['message']);
+    }
+  }
+
   static Future<LoadingState<void>> dynamicReport({
     required Object mid,
     required Object dynId,
