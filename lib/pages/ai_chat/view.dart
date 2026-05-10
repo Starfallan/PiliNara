@@ -31,10 +31,13 @@ class _AiChatPageState extends State<AiChatPage>
   bool _isAtBottom = true;
   double _lastScrollOffset = 0;
 
-  /// Hard keyboard: Enter sends, Shift+Enter inserts newline
+  /// Physical keyboard only: Enter sends, Shift+Enter inserts newline.
+  /// Soft keyboard "换行" is handled by TextInputAction.newline and won't trigger this.
   static KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
     if (event is KeyDownEvent &&
         event.logicalKey == LogicalKeyboardKey.enter &&
+        (event.physicalKey == PhysicalKeyboardKey.enter ||
+         event.physicalKey == PhysicalKeyboardKey.numpadEnter) &&
         !HardwareKeyboard.instance.isShiftPressed) {
       final state = node.context?.findAncestorStateOfType<_AiChatPageState>();
       if (state != null && !state.chatCtl.isAnalyzing.value) {
@@ -499,15 +502,26 @@ class _AiChatPageState extends State<AiChatPage>
     );
   }
 
-  static final _timestampReg =
-      RegExp(r'\[(\d{1,2}:\d{2}(?::\d{2})?)(?:-\d{1,2}:\d{2}(?::\d{2})?)?\]');
+  static final _singleTsReg = RegExp(r'\[(\d{1,2}:\d{2}(?::\d{2})?)\]');
+  static final _rangeTsReg =
+      RegExp(r'\[(\d{1,2}:\d{2}(?::\d{2})?)\s*-\s*(\d{1,2}:\d{2}(?::\d{2})?)\]');
 
   String _preprocessTimestamps(String text) {
-    return text.replaceAllMapped(_timestampReg, (match) {
+    // First handle ranges: [00:04 - 00:42] → [00:04](ts://4) - [00:42](ts://42)
+    text = text.replaceAllMapped(_rangeTsReg, (match) {
+      final ts1 = match.group(1)!;
+      final ts2 = match.group(2)!;
+      final s1 = DurationUtils.parseDuration(ts1);
+      final s2 = DurationUtils.parseDuration(ts2);
+      return '[$ts1](timestamp://$s1) - [$ts2](timestamp://$s2)';
+    });
+    // Then handle single: [05:30] → [05:30](ts://330)
+    text = text.replaceAllMapped(_singleTsReg, (match) {
       final ts = match.group(1)!;
       final seconds = DurationUtils.parseDuration(ts);
       return '[$ts](timestamp://$seconds)';
     });
+    return text;
   }
 
   void _seekToTimestamp(String href) {
@@ -526,13 +540,11 @@ class _AiChatPageState extends State<AiChatPage>
 
   Widget _buildInputBar(ThemeData theme) {
     final colorScheme = theme.colorScheme;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final safeBottom = MediaQuery.of(context).viewPadding.bottom;
+    final bottomPadding = bottomInset > 0 ? bottomInset + 4.0 : safeBottom + 16.0;
     return Container(
-      padding: EdgeInsets.fromLTRB(
-        16,
-        8,
-        8,
-        8 + MediaQuery.of(context).viewInsets.bottom,
-      ),
+      padding: EdgeInsets.fromLTRB(16, 8, 8, bottomPadding),
       decoration: BoxDecoration(
         color: colorScheme.surface,
         border: Border(
@@ -545,7 +557,7 @@ class _AiChatPageState extends State<AiChatPage>
             child: TextField(
               controller: _inputCtl,
               focusNode: _focusNode,
-              maxLines: 4,
+              maxLines: 3,
               minLines: 1,
               textInputAction: TextInputAction.newline,
               decoration: InputDecoration(
