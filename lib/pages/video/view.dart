@@ -2345,13 +2345,10 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
   // ai字幕分析
   void showAiChatBottomSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
+    videoDetailController.childKey.currentState?.showBottomSheet(
       backgroundColor: Colors.transparent,
       constraints: const BoxConstraints(),
-      builder: (context) => AiChatPage(heroTag: heroTag),
+      (context) => AiChatPage(heroTag: heroTag),
     );
   }
 

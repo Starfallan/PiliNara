@@ -24,10 +24,26 @@ class _AiChatPageState extends State<AiChatPage>
     with SingleTickerProviderStateMixin, CommonSlideMixin {
   late final AiChatController chatCtl;
   final _inputCtl = TextEditingController();
+  final _focusNode = FocusNode(onKeyEvent: _handleKeyEvent);
   final _scrollCtl = ScrollController();
   late List<AiPromptTemplate> _templates;
   int _selectedPromptIndex = 0;
   bool _isAtBottom = true;
+  double _lastScrollOffset = 0;
+
+  /// Hard keyboard: Enter sends, Shift+Enter inserts newline
+  static KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.enter &&
+        !HardwareKeyboard.instance.isShiftPressed) {
+      final state = node.context?.findAncestorStateOfType<_AiChatPageState>();
+      if (state != null && !state.chatCtl.isAnalyzing.value) {
+        state._sendCustomPrompt();
+      }
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
 
   @override
   void initState() {
@@ -40,23 +56,20 @@ class _AiChatPageState extends State<AiChatPage>
   @override
   void dispose() {
     _inputCtl.dispose();
+    _focusNode.dispose();
     _scrollCtl
       ..removeListener(_onScroll)
       ..dispose();
     super.dispose();
   }
 
-  double _lastScrollOffset = 0;
-
   void _onScroll() {
     if (!_scrollCtl.hasClients) return;
     final pos = _scrollCtl.position;
     final offset = pos.pixels;
     if (offset < _lastScrollOffset) {
-      // Scrolled up → stop auto-scroll
       if (_isAtBottom) setState(() => _isAtBottom = false);
     } else if (offset > _lastScrollOffset) {
-      // Scrolled down → re-enable if near bottom
       if (!_isAtBottom && pos.maxScrollExtent - offset <= 100) {
         setState(() => _isAtBottom = true);
       }
@@ -115,14 +128,19 @@ class _AiChatPageState extends State<AiChatPage>
       child: Column(
         children: [
           // Drag handle
-          Center(
-            child: Container(
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: colorScheme.outlineVariant,
-                borderRadius: BorderRadius.circular(2),
+          GestureDetector(
+            onTap: Get.back,
+            child: SizedBox(
+              height: 35,
+              child: Center(
+                child: Container(
+                  width: 32,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary,
+                    borderRadius: const BorderRadius.all(Radius.circular(3)),
+                  ),
+                ),
               ),
             ),
           ),
@@ -179,9 +197,9 @@ class _AiChatPageState extends State<AiChatPage>
             );
           }),
 
-          // Content area
+          // Content area (slideable)
           Expanded(
-            child: enableSlide ? slideList(theme) : _buildContent(theme),
+            child: enableSlide ? slideList(theme) : buildList(theme),
           ),
 
           // Input bar
@@ -189,6 +207,11 @@ class _AiChatPageState extends State<AiChatPage>
         ],
       ),
     );
+  }
+
+  @override
+  Widget buildList(ThemeData theme) {
+    return _buildContent(theme);
   }
 
   Widget _buildPromptBar(ThemeData theme) {
@@ -336,7 +359,7 @@ class _AiChatPageState extends State<AiChatPage>
     );
   }
 
-  Widget _buildAssistantMessage(dynamic msg, ThemeData theme) {
+  Widget _buildAssistantMessage(ChatMessage msg, ThemeData theme) {
     final colorScheme = theme.colorScheme;
     return Align(
       alignment: Alignment.centerLeft,
@@ -476,9 +499,9 @@ class _AiChatPageState extends State<AiChatPage>
     );
   }
 
-  static final _timestampReg = RegExp(r'\[(\d{1,2}:\d{2}(?::\d{2})?)\]');
+  static final _timestampReg =
+      RegExp(r'\[(\d{1,2}:\d{2}(?::\d{2})?)(?:-\d{1,2}:\d{2}(?::\d{2})?)?\]');
 
-  /// Convert [MM:SS] / [HH:MM:SS] to clickable markdown links
   String _preprocessTimestamps(String text) {
     return text.replaceAllMapped(_timestampReg, (match) {
       final ts = match.group(1)!;
@@ -508,7 +531,7 @@ class _AiChatPageState extends State<AiChatPage>
         16,
         8,
         8,
-        MediaQuery.viewPaddingOf(context).bottom + 8,
+        8 + MediaQuery.of(context).viewInsets.bottom,
       ),
       decoration: BoxDecoration(
         color: colorScheme.surface,
@@ -521,9 +544,10 @@ class _AiChatPageState extends State<AiChatPage>
           Expanded(
             child: TextField(
               controller: _inputCtl,
+              focusNode: _focusNode,
               maxLines: 4,
               minLines: 1,
-              textInputAction: TextInputAction.send,
+              textInputAction: TextInputAction.newline,
               decoration: InputDecoration(
                 hintText: '输入问题继续对话...',
                 hintStyle: TextStyle(color: colorScheme.outline),
@@ -536,7 +560,6 @@ class _AiChatPageState extends State<AiChatPage>
                 ),
                 isDense: true,
               ),
-              onSubmitted: (_) => _sendCustomPrompt(),
             ),
           ),
           const SizedBox(width: 8),
@@ -547,10 +570,5 @@ class _AiChatPageState extends State<AiChatPage>
         ],
       ),
     );
-  }
-
-  @override
-  Widget buildList(ThemeData theme) {
-    return _buildContent(theme);
   }
 }

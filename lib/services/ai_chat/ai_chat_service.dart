@@ -136,9 +136,19 @@ class AiChatService {
     if (raw.isEmpty) return defaultTemplates;
     try {
       final list = jsonDecode(raw) as List;
-      return list
+      final templates = list
           .map((e) => AiPromptTemplate.fromJson(e as Map<String, dynamic>))
           .toList();
+      // Merge in missing default templates
+      final existingNames = templates.map((e) => e.name).toSet();
+      final missing = defaultTemplates
+          .where((t) => !existingNames.contains(t.name))
+          .toList();
+      if (missing.isNotEmpty) {
+        templates.insertAll(0, missing);
+        saveTemplates(templates);
+      }
+      return templates;
     } catch (_) {
       return defaultTemplates;
     }
