@@ -37,6 +37,7 @@ class VideoCardV extends StatelessWidget {
       case 'bangumi':
         PageUtils.viewPgc(epId: videoItem.param!);
         break;
+      case 'vertical_av':
       case 'av':
         var bvid = videoItem.bvid ?? IdUtils.av2bv(videoItem.aid!);
         var cid = videoItem.cid;
@@ -146,7 +147,7 @@ class VideoCardV extends StatelessWidget {
             ),
           ),
         ),
-        if (videoItem.goto == 'av')
+        if (videoItem.goto == 'av' || videoItem.goto == 'vertical_av')
           Positioned(
             right: -5,
             bottom: -2,
@@ -228,7 +229,7 @@ class VideoCardV extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (videoItem.goto == 'av') const SizedBox(width: 10),
+                if (videoItem.goto == 'av' || videoItem.goto == 'vertical_av') const SizedBox(width: 10),
               ],
             ),
           ],
