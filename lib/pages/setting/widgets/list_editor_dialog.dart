@@ -214,19 +214,17 @@ class _ListEditorDialogState extends State<ListEditorDialog> {
                                   _items[index],
                                   style: theme.textTheme.bodyMedium,
                                 ),
-                          trailing: widget.allowEdit
-                              ? IconButton(
-                                  icon: const Icon(Icons.delete_outline,
-                                      size: 20),
-                                  onPressed: () => _removeItem(index),
-                                  tooltip: '删除',
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(
-                                    minWidth: 32,
-                                    minHeight: 32,
-                                  ),
-                                )
-                              : null,
+                          trailing: IconButton(
+                                icon: const Icon(Icons.delete_outline,
+                                    size: 20),
+                                onPressed: () => _removeItem(index),
+                                tooltip: '删除',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 32,
+                                  minHeight: 32,
+                                ),
+                              ),
                         ),
                       );
                     },
