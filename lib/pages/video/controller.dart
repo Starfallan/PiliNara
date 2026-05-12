@@ -440,6 +440,29 @@ class VideoDetailController extends GetxController
       vsync: this,
       initialIndex: Pref.defaultShowComment ? 1 : 0,
     );
+
+    // 进入全屏时切换到全屏默认画质
+    if (PlatformUtils.isMobile) {
+      ever(plPlayerController.isFullScreen, (bool fs) async {
+        if (!fs) return;
+        PlayUrlModel data;
+        try {
+          data = this.data;
+        } catch (_) {
+          return;
+        }
+        if (data.dash == null) return;
+        final halfScreenQa = Pref.defaultVideoQaHalfScreen;
+        if (halfScreenQa == null) return;
+        final isWiFi = await ConnectivityUtils.isWiFi;
+        final fsQa = isWiFi ? Pref.defaultVideoQa : Pref.defaultVideoQaCellular;
+        if (plPlayerController.cacheVideoQa != fsQa) {
+          plPlayerController.cacheVideoQa = fsQa;
+          currentVideoQa.value = VideoQuality.fromCode(fsQa);
+          updatePlayer();
+        }
+      });
+    }
   }
 
   Future<void> getMediaList({
@@ -878,10 +901,14 @@ class VideoDetailController extends GetxController
     }
     if (plPlayerController.cacheVideoQa == null) {
       final isWiFi = await ConnectivityUtils.isWiFi;
+      final halfScreenQa = Pref.defaultVideoQaHalfScreen;
       plPlayerController
-        ..cacheVideoQa = isWiFi
-            ? Pref.defaultVideoQa
-            : Pref.defaultVideoQaCellular
+        ..cacheVideoQa = !plPlayerController.isFullScreen.value &&
+                halfScreenQa != null
+            ? halfScreenQa
+            : isWiFi
+                ? Pref.defaultVideoQa
+                : Pref.defaultVideoQaCellular
         ..cacheAudioQa = isWiFi
             ? Pref.defaultAudioQa
             : Pref.defaultAudioQaCellular;

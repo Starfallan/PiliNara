@@ -366,6 +366,13 @@ List<SettingsModel> get extraSettings => [
     defaultVal: true,
     onChanged: (value) => GlobalData().showMedal = value,
   ),
+  const SwitchModel(
+    title: '显示视频推荐理由',
+    subtitle: '显示首页视频卡片下方的已关注，x万点赞的标签',
+    leading: Icon(Icons.label_outline),
+    setKey: SettingBoxKey.showRcmdReason,
+    defaultVal: true,
+  ),
   SwitchModel(
     title: '预览 Live Photo',
     subtitle: '开启则以视频形式预览 Live Photo，否则预览静态图片',

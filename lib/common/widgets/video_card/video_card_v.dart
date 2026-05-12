@@ -17,6 +17,7 @@ import 'package:PiliPlus/utils/extension/dimension_ext.dart';
 import 'package:PiliPlus/utils/id_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:flutter/material.dart' hide LayoutBuilder;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:intl/intl.dart';
@@ -193,7 +194,8 @@ class VideoCardV extends StatelessWidget {
                     type: .line_primary,
                     fontSize: 9,
                   ),
-                if (videoItem.rcmdReason != null)
+                if (Pref.showRcmdReason &&
+                    videoItem.rcmdReason != null)
                   PBadge(
                     text: videoItem.rcmdReason,
                     isStack: false,
@@ -208,7 +210,7 @@ class VideoCardV extends StatelessWidget {
                     type: .line_primary,
                     fontSize: 9,
                   ),
-                if (videoItem.isFollowed)
+                if (Pref.showRcmdReason && videoItem.isFollowed)
                   const PBadge(
                     text: '已关注',
                     isStack: false,
