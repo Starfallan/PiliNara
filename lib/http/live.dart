@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:PiliPlus/common/constants.dart';
 import 'package:PiliPlus/http/api.dart';
 import 'package:PiliPlus/http/browser_ua.dart';
@@ -757,5 +759,26 @@ abstract final class LiveHttp {
     } else {
       return Error(res.data['message']);
     }
+  }
+
+  // Web 端直播心跳
+  static Future<int?> webHeartBeat({
+    required int roomId,
+    int interval = 60,
+  }) async {
+    final hb = base64Encode(utf8.encode('$interval|$roomId|1|0'));
+    try {
+      final res = await Request().get(
+        Api.webHeartBeat,
+        queryParameters: {'hb': hb, 'pf': 'web'},
+        options: Options(
+          extra: {'account': Accounts.heartbeat},
+        ),
+      );
+      if (res.data?['code'] == 0) {
+        return res.data['data']['next_interval'] as int?;
+      }
+    } catch (_) {}
+    return null;
   }
 }

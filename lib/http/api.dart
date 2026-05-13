@@ -278,6 +278,9 @@ abstract final class Api {
   static const String roomEntryAction =
       '${HttpString.liveBaseUrl}/xlive/web-room/v1/index/roomEntryAction';
 
+  static const String webHeartBeat =
+      'https://live-trace.bilibili.com/xlive/rdata-interface/v1/heartbeat/webHeartBeat';
+
   static const String mediaListHistory = '/x/v1/medialist/history';
 
   // 查询视频分P列表 (avid/bvid转cid)

@@ -35,6 +35,7 @@ abstract final class ApiType {
       Api.seasonArchives,
       Api.seriesArchives,
       Api.liveRoomDmToken,
+      Api.webHeartBeat,
       Api.liveRoomDmPrefetch,
       Api.superChatMsg,
       Api.searchByType,
