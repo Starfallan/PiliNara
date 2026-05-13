@@ -773,6 +773,7 @@ abstract final class LiveHttp {
         queryParameters: {'hb': hb, 'pf': 'web'},
         options: Options(
           extra: {'account': Accounts.heartbeat},
+          headers: {'user-agent': BrowserUa.pc},
         ),
       );
       if (res.data?['code'] == 0) {
