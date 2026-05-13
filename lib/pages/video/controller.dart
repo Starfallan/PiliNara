@@ -444,7 +444,7 @@ class VideoDetailController extends GetxController
     // 进入全屏时切换到全屏默认画质
     if (PlatformUtils.isMobile) {
       plPlayerController.onFullScreenChanged = (bool fs) async {
-        if (!fs) return;
+        if (!fs || plPlayerController.isLive) return;
         PlayUrlModel data;
         try {
           data = this.data;
