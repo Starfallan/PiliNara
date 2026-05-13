@@ -403,6 +403,9 @@ class VideoDetailController extends GetxController
         immediate: true,
         targetContextKey: PipOverlayService.contextKeyFromArgs(args),
       );
+      // 同步清理旧视频的 SponsorBlock 状态，避免污染新视频
+      // 不能放在 stopPip 里异步执行，否则会与新视频初始化竞态
+      resetBlock();
     }
 
     videoType = args['videoType'];
@@ -931,12 +934,6 @@ class VideoDetailController extends GetxController
             : Pref.defaultAudioQaCellular;
     }
 
-    // 将 cacheVideoQa 捕获到局部变量中，防止在后续 await 期间
-    // 被并发操作（如 PiP 清理的 resetTempPlayerSettingsToDefault 或
-    // 并发的 setDataSource）重置为 null 导致空指针异常
-    final int cacheVideoQa = plPlayerController.cacheVideoQa ??
-        Pref.defaultVideoQa;
-
     final result = await VideoHttp.videoUrl(
       cid: cid.value,
       bvid: bvid,
@@ -1022,10 +1019,10 @@ class VideoDetailController extends GetxController
       // 预设的画质为null，则当前可用的最高质量
       int targetVideoQa = curHighestVideoQa;
       if (data.acceptQuality?.isNotEmpty == true &&
-          cacheVideoQa <= curHighestVideoQa) {
+          plPlayerController.cacheVideoQa! <= curHighestVideoQa) {
         // 如果预设的画质低于当前最高
         targetVideoQa = data.acceptQuality!.findClosestTarget(
-          (e) => e <= cacheVideoQa,
+          (e) => e <= plPlayerController.cacheVideoQa!,
           (a, b) => a > b ? a : b,
         );
       }

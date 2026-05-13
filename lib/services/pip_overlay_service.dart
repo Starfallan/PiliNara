@@ -261,33 +261,9 @@ class PipOverlayService {
       );
     }
 
-    // 强制调用控制器的清理逻辑，特别是 SponsorBlock 相关的监听器。
-    // 延迟到下一帧执行，避免从 initState 调用时在 build 阶段触发 Rx rebuild。
-    final controllerToReset = _savedController;
-    final playerToReset = _savedPlayerController;
-    if (shouldResetState) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        try {
-          playerToReset?.resetTempPlayerSettingsToDefault();
-          if (controllerToReset is VideoDetailController) {
-            if (kDebugMode) {
-              debugPrint(
-                '[PiP] Explicitly resetting SponsorBlock state for cached VideoDetailController',
-              );
-            }
-            controllerToReset.resetBlock();
-          } else if (kDebugMode) {
-            debugPrint(
-              '[PiP] Cached controller is not a VideoDetailController, skipping resetBlock',
-            );
-          }
-        } catch (e) {
-          if (kDebugMode) {
-            debugPrint('[PiP] Error while resetting cached controller: $e');
-          }
-        }
-      });
-    }
+    // resetTempSettings 已在 PlPlayerController.setDataSource() 中同步执行，
+    // resetBlock 已在 VideoDetailController.onInit() 中同步执行，
+    // 此处不再需要异步重置，避免与新视频初始化产生竞态。
 
     _savedController = null;
     _savedPlayerController = null;

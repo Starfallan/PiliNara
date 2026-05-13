@@ -660,7 +660,7 @@ class PlPlayerController with BlockConfigMixin {
 
   static bool _isAnimPgcType(int? pgcType) => pgcType == 1 || pgcType == 4;
 
-  void resetTempPlayerSettingsToDefault({int? nextPgcType}) {
+  void resetTempSettings({int? nextPgcType}) {
     if (!tempPlayerConf) {
       return;
     }
@@ -747,7 +747,7 @@ class PlPlayerController with BlockConfigMixin {
           nextVideoContextKey != null &&
           nextVideoContextKey != _activeVideoContextKey;
       if (shouldResetTempSettings) {
-        resetTempPlayerSettingsToDefault(nextPgcType: pgcType);
+        resetTempSettings(nextPgcType: pgcType);
       }
       _activeVideoContextKey = nextVideoContextKey;
       this.isLive = isLive;
