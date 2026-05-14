@@ -25,8 +25,6 @@ import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import kotlin.math.roundToInt
-import kotlin.system.exitProcess
-import java.io.File
 
 class MainActivity : AudioServiceActivity() {
     private lateinit var methodChannel: MethodChannel
@@ -38,7 +36,7 @@ class MainActivity : AudioServiceActivity() {
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "PiliNara")
         methodChannel.setMethodCallHandler { call, result ->
             when (call.method) {
-                "back" -> back();
+                "back" -> back()
 
                 "biliSendCommAntifraud" -> {
                     try {
@@ -53,7 +51,7 @@ class MainActivity : AudioServiceActivity() {
                         val pictures = call.argument<String?>("pictures")
                         val sourceId = call.argument<String>("source_id") ?: ""
                         val uid = call.argument<Number>("uid") ?: 0L
-                        val cookies = call.argument<List<String>>("cookies") ?: emptyList<String>()
+                        val cookies = call.argument<List<String>>("cookies") ?: emptyList()
 
                         val intent = Intent().apply {
                             component = ComponentName(
@@ -181,7 +179,7 @@ class MainActivity : AudioServiceActivity() {
                                     pendingIntent.intentSender
                                 )
                             }
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                         }
                     }
                 }
@@ -230,7 +228,7 @@ class MainActivity : AudioServiceActivity() {
                     "maxHeight" to (realSizePoint.y / density).roundToInt(),
                 )
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             return null
         }
     }
@@ -254,7 +252,7 @@ class MainActivity : AudioServiceActivity() {
             try {
                 isFoldable =
                     packageManager.hasSystemFeature(PackageManager.FEATURE_SENSOR_HINGE_ANGLE)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
             }
         }
     }
