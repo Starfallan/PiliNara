@@ -942,24 +942,10 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
           'autoPlay=${videoDetailController.autoPlay}',
     );
 
-    // 重试 PiP：_onPopInvokedWithResult 触发了 didPop=true 但被其他视频/直播的 PiP 抢先占用，
-    // 现在其他 PiP 已关闭、播放器已恢复，重新尝试启动 PiP
-    if (_pipRetryPending) {
-      _pipRetryPending = false;
-      _logSponsorBlock('Retrying PiP after closing other PiP');
-      _pipTrace('didPopNext-retry-before', '');
-      _startInAppPipIfNeeded();
-      _pipTrace(
-        'didPopNext-retry-after',
-        '_isEnteringPipMode=$_isEnteringPipMode, '
-            'isInPipMode=${PipOverlayService.isInPipMode}',
-      );
-      if (_isEnteringPipMode) {
-        _logSponsorBlock('PiP retry succeeded');
-      } else {
-        _logSponsorBlock('PiP retry failed');
-      }
-    }
+    // 不在此处重试 _startInAppPipIfNeeded。
+    // didPopNext 是"返回到本页面"的回调，无法预知用户接下来是停留还是继续返回。
+    // 若立即重试，会在用户停在本页时把视频错误地送入 PiP（Bug #1）。
+    // _pipRetryPending 留待 _onPopInvokedWithResult 消费——只有用户真正继续 pop 时才重试。
     _pipTrace('didPopNext-exit', '');
   }
 
@@ -2662,6 +2648,39 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     }
     if (didPop) {
       _startInAppPipIfNeeded();
+      // 消费 didPopNext else 分支设的重试标志（用户真的继续 pop 了）。
+      // 立即调用通常足够（didPopNext 已同步关闭其他 PiP，playerInit 多半已完成）；
+      // 若立即调用失败（多半是 rapid back press，playerInit 还在 await），
+      // 延迟到下一帧再试一次，那时 playerInit 完成、playerStatus=playing。
+      if (_pipRetryPending) {
+        final pendingScheduled = !_isEnteringPipMode;
+        _pipRetryPending = false;
+        if (pendingScheduled) {
+          _pipTrace(
+            'onPop-deferredRetry-schedule',
+            'immediate _startInAppPipIfNeeded failed; scheduling PostFrameCallback retry',
+          );
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _pipTrace(
+              'onPop-deferredRetry-fire',
+              'isInPipMode=${PipOverlayService.isInPipMode}, '
+                  '_isEnteringPipMode=$_isEnteringPipMode, '
+                  'playerStatus=${plPlayerController?.playerStatus.value}',
+            );
+            _startInAppPipIfNeeded();
+            _pipTrace(
+              'onPop-deferredRetry-after',
+              '_isEnteringPipMode=$_isEnteringPipMode, '
+                  'isInPipMode=${PipOverlayService.isInPipMode}',
+            );
+          });
+        } else {
+          _pipTrace(
+            'onPop-deferredRetry-skip',
+            'immediate _startInAppPipIfNeeded already succeeded',
+          );
+        }
+      }
     }
     videoDetailController.plPlayerController.onPopInvokedWithResult(
       didPop,
