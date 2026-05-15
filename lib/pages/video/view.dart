@@ -976,10 +976,24 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
           'autoPlay=${videoDetailController.autoPlay}',
     );
 
-    // 不在此处重试 _startInAppPipIfNeeded。
-    // didPopNext 是"返回到本页面"的回调，无法预知用户接下来是停留还是继续返回。
-    // 若立即重试，会在用户停在本页时把视频错误地送入 PiP（Bug #1）。
-    // _pipRetryPending 留待 _onPopInvokedWithResult 消费——只有用户真正继续 pop 时才重试。
+    // 延迟重试 PiP：在下一帧检查页面是否已经开始 dispose（mounted=false）。
+    // 如果 mounted=false，说明用户继续返回了，尝试启动 PiP；
+    // 如果 mounted=true，说明用户停留在本页，不启动 PiP（避免 Bug #1）。
+    if (_pipRetryPending) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _pipTrace(
+          'didPopNext-deferredRetry-check',
+          'mounted=$mounted, _pipRetryPending=$_pipRetryPending, '
+              'isInPipMode=${PipOverlayService.isInPipMode}',
+        );
+        if (!mounted && _pipRetryPending) {
+          _pipTrace('didPopNext-deferredRetry-go', 'page is disposing, starting PiP');
+          _startInAppPipIfNeeded();
+        } else if (mounted) {
+          _pipTrace('didPopNext-deferredRetry-skip', 'user stayed on page, not starting PiP');
+        }
+      });
+    }
     _pipTrace('didPopNext-exit', '');
   }
 
