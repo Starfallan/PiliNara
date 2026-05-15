@@ -610,6 +610,13 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   void dispose() {
     VideoStackManager.decrement(); // 减少视频页面层级追踪
     final isInAppPip = PipOverlayService.isInPipMode;
+    _pipTrace(
+      'dispose-enter',
+      'isInAppPip=$isInAppPip, '
+          '_isEnteringPipMode=$_isEnteringPipMode, '
+          '_pipRetryPending=$_pipRetryPending, '
+          'playerStatus=${plPlayerController?.playerStatus.value}',
+    );
     plPlayerController
       ?..removeStatusLister(playerListener)
       ..removePositionListener(positionListener);
@@ -636,8 +643,16 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
     if (!videoDetailController.plPlayerController.isCloseAll) {
       if (isInAppPip || _isEnteringPipMode) {
+        _pipTrace(
+          'dispose-skipCleanup',
+          'skipping player dispose (isInAppPip=$isInAppPip, _isEnteringPipMode=$_isEnteringPipMode)',
+        );
         videoDetailController.makeHeartBeat();
       } else {
+        _pipTrace(
+          'dispose-cleanup',
+          'disposing player (isInAppPip=$isInAppPip, _isEnteringPipMode=$_isEnteringPipMode)',
+        );
         videoPlayerServiceHandler?.onVideoDetailDispose(heroTag);
         if (plPlayerController != null) {
           videoDetailController.makeHeartBeat();
