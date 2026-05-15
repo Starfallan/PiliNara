@@ -617,6 +617,18 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
           '_pipRetryPending=$_pipRetryPending, '
           'playerStatus=${plPlayerController?.playerStatus.value}',
     );
+
+    // 如果 _pipRetryPending=true 但用户没有继续 pop（_onPopInvokedWithResult 未触发），
+    // 说明用户通过其他方式离开（点导航栏、Get.offAll 等），需要主动暂停播放器。
+    if (_pipRetryPending && !isInAppPip && !_isEnteringPipMode) {
+      _pipTrace(
+        'dispose-pipRetryPending-cleanup',
+        'user left without triggering _onPopInvokedWithResult, pausing player',
+      );
+      plPlayerController?.pause();
+      _pipRetryPending = false;
+    }
+
     plPlayerController
       ?..removeStatusLister(playerListener)
       ..removePositionListener(positionListener);
@@ -671,6 +683,13 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   // 离开当前页面时
   void didPushNext() {
     super.didPushNext();
+    _pipTrace(
+      'didPushNext-enter',
+      'isInPipMode=${PipOverlayService.isInPipMode}, '
+          '_isEnteringPipMode=$_isEnteringPipMode, '
+          '_pipRetryPending=$_pipRetryPending, '
+          'stackCount=${VideoStackManager.getCount()}',
+    );
     isShowing = false;
 
     removeObserverMobile(this);
