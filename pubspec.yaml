@@ -180,6 +180,10 @@ dependencies:
       ref: main
 
 dependency_overrides:
+  clipboard:
+    git:
+      url: https://github.com/dongfengweixiao/flutter_clipboard.git
+      ref: patch-1
   get:
     git:
       url: https://github.com/Starfallan/getx.git

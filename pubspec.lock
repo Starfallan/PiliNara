@@ -279,10 +279,11 @@ packages:
   clipboard:
     dependency: "direct main"
     description:
-      name: clipboard
-      sha256: c0ba5e7214035b824549473fa134870bc544fff0d7b89170d4756c0ac2c0239d
-      url: "https://pub.dev"
-    source: hosted
+      path: "."
+      ref: patch-1
+      resolved-ref: "6f8dce7b71396b713ab3d71cb20a04967c5458fd"
+      url: "https://github.com/dongfengweixiao/flutter_clipboard.git"
+    source: git
     version: "3.0.14"
   clock:
     dependency: transitive
