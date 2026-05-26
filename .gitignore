@@ -159,3 +159,5 @@ CLAUDE.md
 
 .claude
 test*
+
+.worktrees/
