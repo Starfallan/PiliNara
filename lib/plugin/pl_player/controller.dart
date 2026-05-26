@@ -28,6 +28,8 @@ import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/plugin/pl_player/models/video_fit_type.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
+import 'package:PiliPlus/services/cast/cast_remote_state.dart';
+import 'package:PiliPlus/services/cast/google_cast_service.dart';
 import 'package:PiliPlus/services/live_pip_overlay_service.dart';
 import 'package:PiliPlus/services/pip_overlay_service.dart';
 import 'package:PiliPlus/services/service_locator.dart';
@@ -179,6 +181,8 @@ class PlPlayerController with BlockConfigMixin {
 
   Timer? _timer;
   StreamSubscription<Duration>? _subForSeek;
+  StreamSubscription<CastRemoteState>? _castSub;
+  bool _usingCastState = false;
 
   Box setting = GStorage.setting;
 
@@ -197,6 +201,10 @@ class PlPlayerController with BlockConfigMixin {
 
   /// [videoController] instance of Player
   VideoController? get videoController => _videoController;
+
+  bool get isCasting =>
+      GoogleCastService.instance.state.connection ==
+      CastConnectionState.connected;
 
   bool isMuted = false;
 
@@ -526,6 +534,17 @@ class PlPlayerController with BlockConfigMixin {
     }
   }
 
+  static Future<void> pauseLocalIfExists({
+    bool notify = true,
+    bool isInterrupt = false,
+  }) async {
+    await _instance?._pauseLocal(
+      notify: notify,
+      isInterrupt: isInterrupt,
+      updateStatus: _instance?.isCasting != true,
+    );
+  }
+
   static Future<void> seekToIfExists(
     Duration position, {
     bool isSeek = true,
@@ -648,6 +667,8 @@ class PlPlayerController with BlockConfigMixin {
         _shouldSetPip = true;
       }
     }
+
+    _castSub = GoogleCastService.instance.stateStream.listen(_onCastState);
   }
 
   // 获取实例 传参
@@ -1216,6 +1237,58 @@ class PlPlayerController with BlockConfigMixin {
     _subscriptions = null;
   }
 
+  void _onCastState(CastRemoteState state) {
+    if (state.connection != CastConnectionState.connected) {
+      if (_usingCastState) {
+        _usingCastState = false;
+        isBuffering.value = false;
+        if (_videoPlayerController != null) {
+          position = _videoPlayerController!.state.position;
+          sliderPosition = position;
+          duration.value = _videoPlayerController!.state.duration;
+          updatePositionSecond();
+          updateSliderPositionSecond();
+          playerStatus.value = _videoPlayerController!.state.playing
+              ? PlayerStatus.playing
+              : PlayerStatus.paused;
+        }
+      }
+      return;
+    }
+
+    _usingCastState = true;
+    position = state.position;
+    updatePositionSecond();
+    if (!isSliderMoving.value) {
+      sliderPosition = state.position;
+      updateSliderPositionSecond();
+    }
+
+    if (state.duration > Duration.zero && state.duration != duration.value) {
+      duration.value = state.duration;
+    }
+
+    volume.value = state.volume;
+    isMuted = state.isMuted;
+
+    switch (state.playback) {
+      case CastPlaybackState.playing:
+        playerStatus.value = PlayerStatus.playing;
+        isBuffering.value = false;
+      case CastPlaybackState.paused:
+        playerStatus.value = PlayerStatus.paused;
+        isBuffering.value = false;
+      case CastPlaybackState.idle:
+        if (state.duration > Duration.zero || state.position > Duration.zero) {
+          playerStatus.value = PlayerStatus.completed;
+        }
+        isBuffering.value = false;
+      case CastPlaybackState.buffering:
+      case CastPlaybackState.loading:
+        isBuffering.value = true;
+    }
+  }
+
   void _cancelSubForSeek() {
     if (_subForSeek != null) {
       _subForSeek!.cancel();
@@ -1237,6 +1310,15 @@ class PlPlayerController with BlockConfigMixin {
     this.position = position;
     updatePositionSecond();
     _heartDuration = position.inSeconds;
+
+    if (isCasting) {
+      if (!isSliderMoving.value) {
+        sliderPosition = position;
+        updateSliderPositionSecond();
+      }
+      await GoogleCastService.instance.seek(position);
+      return;
+    }
 
     Future<void> seek() async {
       if (isSeek) {
@@ -1302,8 +1384,13 @@ class PlPlayerController with BlockConfigMixin {
     controls = !hideControls;
     // repeat为true，将从头播放
     if (repeat) {
-      // await seekTo(Duration.zero);
       await seekTo(Duration.zero, isSeek: false);
+    }
+
+    if (isCasting) {
+      await GoogleCastService.instance.play();
+      playerStatus.value = PlayerStatus.playing;
+      return;
     }
 
     await _videoPlayerController?.play();
@@ -1316,8 +1403,24 @@ class PlPlayerController with BlockConfigMixin {
 
   /// 暂停播放
   Future<void> pause({bool notify = true, bool isInterrupt = false}) async {
+    if (isCasting) {
+      await GoogleCastService.instance.pause();
+      playerStatus.value = PlayerStatus.paused;
+      return;
+    }
+
+    await _pauseLocal(notify: notify, isInterrupt: isInterrupt);
+  }
+
+  Future<void> _pauseLocal({
+    bool notify = true,
+    bool isInterrupt = false,
+    bool updateStatus = true,
+  }) async {
     await _videoPlayerController?.pause();
-    playerStatus.value = PlayerStatus.paused;
+    if (updateStatus) {
+      playerStatus.value = PlayerStatus.paused;
+    }
 
     // 主动暂停时让出音频焦点
     if (!isInterrupt) {
@@ -1396,42 +1499,62 @@ class PlPlayerController with BlockConfigMixin {
     }
   }
 
-  Future<void> setVolume(double volume, {bool showIndicator = true}) async {
-    if (this.volume.value != volume) {
-      this.volume.value = volume;
-      try {
-        if (PlatformUtils.isDesktop) {
-          _videoPlayerController!.setVolume(volume * 100);
-        } else {
-          // 移动平台：根据设置选择音量控制方式
-          if (Pref.enableAppVolume) {
-            // 应用内音量模式：使用 media_kit 控制应用内音量
-            _videoPlayerController?.setVolume(volume * 100);
+  Future<void> setVolume(
+    double volume, {
+    bool showIndicator = true,
+    bool interceptEventStream = true,
+  }) async {
+    final targetVolume = isCasting
+        ? CastRemoteState(volume: volume).volume
+        : volume;
+    if (isCasting) {
+      this.volume.value = targetVolume;
+      isMuted = targetVolume == 0;
+      await GoogleCastService.instance.setVolume(targetVolume);
+    } else {
+      if (this.volume.value != targetVolume) {
+        this.volume.value = targetVolume;
+        try {
+          if (PlatformUtils.isDesktop) {
+            _videoPlayerController!.setVolume(targetVolume * 100);
           } else {
-            // 默认模式：控制系统音量
-            FlutterVolumeController.updateShowSystemUI(false);
-            await FlutterVolumeController.setVolume(volume);
+            // 移动平台：根据设置选择音量控制方式
+            if (Pref.enableAppVolume) {
+              // 应用内音量模式：使用 media_kit 控制应用内音量
+              _videoPlayerController?.setVolume(targetVolume * 100);
+            } else {
+              // 默认模式：控制系统音量
+              FlutterVolumeController.updateShowSystemUI(false);
+              await FlutterVolumeController.setVolume(targetVolume);
+            }
           }
+        } catch (err) {
+          if (kDebugMode) debugPrint(err.toString());
         }
-      } catch (err) {
-        if (kDebugMode) debugPrint(err.toString());
       }
     }
     if (showIndicator) {
       volumeIndicator.value = true;
     }
-    volumeInterceptEventStream = true;
+    if (interceptEventStream) {
+      volumeInterceptEventStream = true;
+    }
     volumeTimer?.cancel();
     volumeTimer = Timer(const Duration(milliseconds: 200), () {
       volumeIndicator.value = false;
       volumeInterceptEventStream = false;
-      if (PlatformUtils.isDesktop) {
-        setting.put(SettingBoxKey.desktopVolume, volume.toPrecision(3));
-      } else if (Pref.enableAppVolume) {
-        // 移动平台应用内音量模式：保存音量到持久化存储
-        // duck 期间不保存，避免保存临时的减半音量
-        if (!_isDucked) {
-          Pref.appVolume = volume;
+      if (!isCasting) {
+        if (PlatformUtils.isDesktop) {
+          setting.put(
+            SettingBoxKey.desktopVolume,
+            targetVolume.toPrecision(3),
+          );
+        } else if (Pref.enableAppVolume) {
+          // 移动平台应用内音量模式：保存音量到持久化存储
+          // duck 期间不保存，避免保存临时的减半音量
+          if (!_isDucked) {
+            Pref.appVolume = targetVolume;
+          }
         }
       }
     });
@@ -1476,6 +1599,17 @@ class PlPlayerController with BlockConfigMixin {
       volume.value = newSystemVolume;
 
       SmartDialog.showToast('已切换到同步系统音量模式');
+    }
+  }
+
+  Future<void> setMuted(bool muted) async {
+    isMuted = muted;
+    if (isCasting) {
+      await GoogleCastService.instance.setMuted(muted);
+    } else {
+      _videoPlayerController?.setVolume(
+        muted ? 0 : volume.value * 100,
+      );
     }
   }
 
@@ -1563,12 +1697,24 @@ class PlPlayerController with BlockConfigMixin {
     }
   }
 
-  bool get _isCompleted =>
-      videoPlayerController!.state.completed ||
-      (duration.value - position).inMilliseconds <= 50;
+  bool get _isCompleted {
+    if (_videoPlayerController == null) {
+      return playerStatus.isCompleted;
+    }
+    return _videoPlayerController!.state.completed ||
+        (duration.value - position).inMilliseconds <= 50;
+  }
 
   // 双击播放、暂停
   Future<void> onDoubleTapCenter() async {
+    if (isCasting) {
+      if (playerStatus.isPlaying) {
+        await pause();
+      } else {
+        await play();
+      }
+      return;
+    }
     if (!isLive && _isCompleted) {
       await videoPlayerController!.seek(Duration.zero);
       videoPlayerController!.play();
@@ -1597,10 +1743,33 @@ class PlPlayerController with BlockConfigMixin {
   }
 
   void onForwardBackward(Duration duration) {
+    if (isCasting) {
+      final d = _clampCastSeekPosition(duration);
+      position = d;
+      updatePositionSecond();
+      if (!isSliderMoving.value) {
+        sliderPosition = d;
+        updateSliderPositionSecond();
+      }
+      unawaited(() async {
+        await GoogleCastService.instance.seek(d, resumePlayback: true);
+        playerStatus.value = PlayerStatus.playing;
+      }());
+      return;
+    }
     seekTo(
       duration.clamp(Duration.zero, videoPlayerController!.state.duration),
       isSeek: false,
     ).whenComplete(play);
+  }
+
+  Duration _clampCastSeekPosition(Duration value) {
+    if (value < Duration.zero) return Duration.zero;
+    final maxDuration = duration.value;
+    if (maxDuration > Duration.zero && value > maxDuration) {
+      return maxDuration;
+    }
+    return value;
   }
 
   void doubleTapFuc(DoubleTapType type) {
@@ -1836,6 +2005,8 @@ class PlPlayerController with BlockConfigMixin {
     }
 
     _playerCount = 0;
+    _castSub?.cancel();
+    _castSub = null;
     if (removeSafeArea) {
       showSystemBar();
     }

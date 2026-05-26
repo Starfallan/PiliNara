@@ -161,3 +161,7 @@ CLAUDE.md
 test*
 
 .worktrees/
+!test/
+!test/services/
+!test/services/cast/
+!test/services/cast/*.dart

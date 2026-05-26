@@ -179,6 +179,15 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
 
   void _onVolumeChanged(double value) {
     if (mounted && !plPlayerController.volumeInterceptEventStream) {
+      if (plPlayerController.isCasting) {
+        unawaited(
+          plPlayerController.setVolume(
+            value,
+            interceptEventStream: false,
+          ),
+        );
+        return;
+      }
       plPlayerController.volume.value = value;
       if (Platform.isIOS && !FlutterVolumeController.showSystemUI) {
         plPlayerController
@@ -198,7 +207,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
 
   void _getCurrVolume() {
     FlutterVolumeController.getVolume().then((res) {
-      if (mounted) {
+      if (mounted && !plPlayerController.isCasting) {
         plPlayerController.volume.value = res!;
       }
     });
@@ -280,6 +289,15 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                 (await FlutterVolumeController.getVolume())!;
             FlutterVolumeController.addListener((double value) {
               if (mounted && !plPlayerController.volumeInterceptEventStream) {
+                if (plPlayerController.isCasting) {
+                  unawaited(
+                    plPlayerController.setVolume(
+                      value,
+                      interceptEventStream: false,
+                    ),
+                  );
+                  return;
+                }
                 // 只更新系统音量记录，不影响播放器音量和指示器显示
                 plPlayerController.systemVolume.value = value;
               }
@@ -558,7 +576,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
 
               // Use TextPainter to manually truncate the string to ensure the Text widget
               // tight-wraps the text, avoiding the layout padding caused by TextOverflow.ellipsis
-              final textStyle = const TextStyle(
+              const textStyle = TextStyle(
                 color: Colors.white,
                 fontSize: 12,
               );
@@ -2230,8 +2248,8 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
               minScale: plPlayerController.enableShrinkVideoSize ? 0.75 : 1,
               maxScale: 2.0,
               boundaryMargin: plPlayerController.enableShrinkVideoSize
-                            ? const .all(double.infinity)
-                            : .zero,
+                  ? const .all(double.infinity)
+                  : .zero,
               panAxis: .aligned,
               transformationController: _transformationController,
               childKey: _videoKey,
