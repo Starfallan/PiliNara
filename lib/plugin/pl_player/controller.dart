@@ -488,6 +488,12 @@ class PlPlayerController with BlockConfigMixin {
     }
   }
 
+  void _traceProgress(String message) {
+    if (kDebugMode) {
+      debugPrint('[ProgressTrace][PlPlayer] $message');
+    }
+  }
+
   static PlPlayerController? get instance => _instance;
 
   static bool instanceExists() {
@@ -723,6 +729,13 @@ class PlPlayerController with BlockConfigMixin {
   }) async {
     try {
       _processing = true;
+      _traceProgress(
+        'setDataSource enter oldBvid=$_bvid oldCid=${this.cid} '
+        'nextBvid=$bvid nextCid=$cid seekTo=${seekTo?.inMilliseconds} '
+        'status=${playerStatus.value} dataStatus=${dataStatus.value} '
+        'pos=${position.inMilliseconds} posSec=${positionSeconds.value} '
+        'statePos=${_videoPlayerController?.state.position.inMilliseconds}',
+      );
       final nextVideoContextKey = PipOverlayService.buildVideoContextKey(
         videoType: videoType ?? VideoType.ugc,
         bvid: bvid,
@@ -773,6 +786,13 @@ class PlPlayerController with BlockConfigMixin {
       }
       // 配置Player 音轨、字幕等等
       await _createVideoController(dataSource, seekTo, volume);
+      _traceProgress(
+        'setDataSource after open bvid=$bvid cid=$cid '
+        'seekTo=${seekTo?.inMilliseconds} '
+        'statePos=${_videoPlayerController?.state.position.inMilliseconds} '
+        'stateDuration=${_videoPlayerController?.state.duration.inMilliseconds} '
+        'pos=${position.inMilliseconds} posSec=${positionSeconds.value}',
+      );
 
       if (_playerCount == 0) {
         _removeListeners();
@@ -790,6 +810,12 @@ class PlPlayerController with BlockConfigMixin {
       updateBufferedSecond();
       // 数据加载完成
       dataStatus.value = DataStatus.loaded;
+      _traceProgress(
+        'setDataSource loaded bvid=$_bvid cid=${this.cid} '
+        'seekTo=${seekTo?.inMilliseconds} duration=${this.duration.value.inMilliseconds} '
+        'pos=${position.inMilliseconds} posSec=${positionSeconds.value} '
+        'slider=${sliderPosition.inMilliseconds} status=${playerStatus.value}',
+      );
 
       if (autoFullScreenFlag && autoEnterFullScreen) {
         triggerFullScreen(status: true);
@@ -932,6 +958,12 @@ class PlPlayerController with BlockConfigMixin {
     updatePositionSecond();
     updateSliderPositionSecond();
     updateBufferedSecond();
+    _traceProgress(
+      'createVideoController reset seekTo=${seekTo?.inMilliseconds} '
+      'initial=${initialPosition.inMilliseconds} '
+      'statePos=${_videoPlayerController?.state.position.inMilliseconds} '
+      'posSec=${positionSeconds.value} dataStatus=${dataStatus.value}',
+    );
     // 初始化时清空弹幕，防止上次重叠
     danmakuController?.clear();
 
@@ -989,6 +1021,11 @@ class PlPlayerController with BlockConfigMixin {
       }
     }
 
+    _traceProgress(
+      'createVideoController open start seekTo=${seekTo?.inMilliseconds} '
+      'playerStatePos=${player.state.position.inMilliseconds} '
+      'playerStateDuration=${player.state.duration.inMilliseconds}',
+    );
     await player.open(
       Media(
         video,
@@ -996,6 +1033,11 @@ class PlPlayerController with BlockConfigMixin {
         extras: extras.isEmpty ? null : extras,
       ),
       play: false,
+    );
+    _traceProgress(
+      'createVideoController open done seekTo=${seekTo?.inMilliseconds} '
+      'playerStatePos=${player.state.position.inMilliseconds} '
+      'playerStateDuration=${player.state.duration.inMilliseconds}',
     );
   }
 
@@ -1050,6 +1092,12 @@ class PlPlayerController with BlockConfigMixin {
     final stream = player.stream;
     _subscriptions = [
       stream.playing.listen((event) {
+        _traceProgress(
+          'stream.playing event=$event bvid=$_bvid cid=$cid '
+          'dataStatus=${dataStatus.value} statusBefore=${playerStatus.value} '
+          'posSec=${positionSeconds.value} pos=${position.inMilliseconds} '
+          'statePos=${videoPlayerController?.state.position.inMilliseconds}',
+        );
         WakelockPlus.toggle(enable: event);
         if (event) {
           if (_isAutoEnterPip) {
@@ -1079,6 +1127,12 @@ class PlPlayerController with BlockConfigMixin {
         }
       }),
       stream.completed.listen((event) {
+        _traceProgress(
+          'stream.completed event=$event bvid=$_bvid cid=$cid '
+          'dataStatus=${dataStatus.value} statusBefore=${playerStatus.value} '
+          'posSec=${positionSeconds.value} pos=${position.inMilliseconds} '
+          'statePos=${videoPlayerController?.state.position.inMilliseconds}',
+        );
         if (event) {
           playerStatus.value = PlayerStatus.completed;
 
@@ -1092,6 +1146,16 @@ class PlPlayerController with BlockConfigMixin {
         }
       }),
       stream.position.listen((event) {
+        final previousPositionSeconds = positionSeconds.value;
+        if (dataStatus.value != DataStatus.loaded ||
+            (event.inSeconds - previousPositionSeconds).abs() > 5) {
+          _traceProgress(
+            'stream.position event=${event.inMilliseconds} bvid=$_bvid cid=$cid '
+            'dataStatus=${dataStatus.value} status=${playerStatus.value} '
+            'prevPosSec=$previousPositionSeconds '
+            'statePos=${videoPlayerController?.state.position.inMilliseconds}',
+          );
+        }
         position = event;
         updatePositionSecond();
         if (!isSliderMoving.value) {
@@ -1212,7 +1276,15 @@ class PlPlayerController with BlockConfigMixin {
     // if (position >= duration.value) {
     //   position = duration.value - const Duration(milliseconds: 100);
     // }
+    _traceProgress(
+      'seekTo request target=${position.inMilliseconds} isSeek=$isSeek '
+      'bvid=$_bvid cid=$cid dataStatus=${dataStatus.value} '
+      'status=${playerStatus.value} pos=${this.position.inMilliseconds} '
+      'posSec=${positionSeconds.value} duration=${duration.value.inMilliseconds} '
+      'statePos=${_videoPlayerController?.state.position.inMilliseconds}',
+    );
     if (_playerCount == 0) {
+      _traceProgress('seekTo skip playerCount=0 target=${position.inMilliseconds}');
       return;
     }
     if (position < Duration.zero) {
@@ -1230,6 +1302,11 @@ class PlPlayerController with BlockConfigMixin {
       danmakuController?.clear();
       try {
         await _videoPlayerController?.seek(position);
+        _traceProgress(
+          'seekTo done target=${position.inMilliseconds} isSeek=$isSeek '
+          'bvid=$_bvid cid=$cid statePos=${_videoPlayerController?.state.position.inMilliseconds} '
+          'pos=${this.position.inMilliseconds} posSec=${positionSeconds.value}',
+        );
       } catch (e) {
         if (kDebugMode) debugPrint('seek failed: $e');
       }
@@ -1239,6 +1316,10 @@ class PlPlayerController with BlockConfigMixin {
       seek();
     } else {
       // if (kDebugMode) debugPrint('seek duration else');
+      _traceProgress(
+        'seekTo defer until duration target=${position.inMilliseconds} '
+        'bvid=$_bvid cid=$cid',
+      );
       _subForSeek?.cancel();
       _subForSeek = duration.listen((_) {
         seek();
@@ -1734,25 +1815,53 @@ class PlPlayerController with BlockConfigMixin {
     VideoType? videoType,
   }) {
     if (!isManual && dataStatus.value != DataStatus.loaded) {
+      _traceProgress(
+        'heartbeat skip loading type=$type progress=$progress '
+        'bvid=$_bvid cid=${this.cid} posSec=${positionSeconds.value} '
+        'status=${playerStatus.value} dataStatus=${dataStatus.value}',
+      );
       return null;
     }
     if (isLive ||
         !enableHeart ||
         progress == 0 ||
         (playerStatus.isPaused && !isManual)) {
+      if (isManual || progress != 0) {
+        _traceProgress(
+          'heartbeat skip type=$type manual=$isManual progress=$progress '
+          'isLive=$isLive enableHeart=$enableHeart '
+          'paused=${playerStatus.isPaused} bvid=$_bvid cid=${this.cid} '
+          'posSec=${positionSeconds.value} dataStatus=${dataStatus.value}',
+        );
+      }
       return null;
     }
 
     Future<void> send() {
+      final sendAid = aid ?? _aid;
+      final sendBvid = bvid ?? _bvid;
+      final sendCid = cid ?? this.cid;
+      final sendEpid = epid ?? _epid;
+      final sendSeasonId = seasonId ?? _seasonId;
+      final sendPgcType = pgcType ?? _pgcType;
+      final sendVideoType = videoType ?? _videoType;
+      _traceProgress(
+        'heartbeat send type=$type manual=$isManual progress=$progress '
+        'aid=$sendAid bvid=$sendBvid cid=$sendCid epid=$sendEpid '
+        'seasonId=$sendSeasonId pgcType=$sendPgcType videoType=$sendVideoType '
+        'pos=${position.inMilliseconds} posSec=${positionSeconds.value} '
+        'heartDuration=$_heartDuration dataStatus=${dataStatus.value} '
+        'status=${playerStatus.value}',
+      );
       return VideoHttp.heartBeat(
-        aid: aid ?? _aid,
-        bvid: bvid ?? _bvid,
-        cid: cid ?? this.cid,
+        aid: sendAid,
+        bvid: sendBvid,
+        cid: sendCid,
         progress: progress,
-        epid: epid ?? _epid,
-        seasonId: seasonId ?? _seasonId,
-        subType: pgcType ?? _pgcType,
-        videoType: videoType ?? _videoType,
+        epid: sendEpid,
+        seasonId: sendSeasonId,
+        subType: sendPgcType,
+        videoType: sendVideoType,
       );
     }
 

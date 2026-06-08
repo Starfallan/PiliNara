@@ -152,6 +152,12 @@ class VideoDetailController extends GetxController
     return pos == null || pos == 0 ? '' : '?t=${pos / 1000}';
   }
 
+  void _traceProgress(String message) {
+    if (kDebugMode) {
+      debugPrint('[ProgressTrace][VideoDetail][$heroTag] $message');
+    }
+  }
+
   // 亮度
   double? brightness;
 
@@ -913,9 +919,22 @@ class VideoDetailController extends GetxController
       await _loadLocalPlaybackMeta();
     }
     Duration? seek = seekToTime ?? defaultST ?? playedTime;
+    _traceProgress(
+      'playerInit enter bvid=$bvid cid=${cid.value} seekToTime=${seekToTime?.inMilliseconds} '
+      'defaultST=${defaultST?.inMilliseconds} playedTime=${playedTime?.inMilliseconds} '
+      'chosenSeekBeforeSegment=${seek?.inMilliseconds} autoplay=${autoplay ?? _autoPlay.value} '
+      'plStatus=${plPlayerController.playerStatus.value} '
+      'plPos=${plPlayerController.position.inMilliseconds} '
+      'plPosSec=${plPlayerController.positionSeconds.value}',
+    );
     if (seek == null || seek == Duration.zero) {
       seek = getFirstSegment();
     }
+    _traceProgress(
+      'playerInit setDataSource bvid=$bvid cid=${cid.value} '
+      'seek=${seek?.inMilliseconds} dataTimeLength=${data.timeLength} '
+      'videoUrlNull=${videoUrl == null} audioUrlNull=${audioUrl == null}',
+    );
     await plPlayerController.setDataSource(
       isFileSource
           ? FileSource(
@@ -951,6 +970,13 @@ class VideoDetailController extends GetxController
       height: firstVideo.height,
       volume: volume ?? this.volume,
       autoFullScreenFlag: autoFullScreenFlag,
+    );
+    _traceProgress(
+      'playerInit setDataSource done bvid=$bvid cid=${cid.value} '
+      'plStatus=${plPlayerController.playerStatus.value} '
+      'plDataStatus=${plPlayerController.dataStatus.value} '
+      'plPos=${plPlayerController.position.inMilliseconds} '
+      'plPosSec=${plPlayerController.positionSeconds.value}',
     );
 
     if (isClosed) return;
@@ -1002,10 +1028,17 @@ class VideoDetailController extends GetxController
     bool reinitializePlayer = true,
     bool autoFullScreenFlag = false,
   }) async {
+    _traceProgress(
+      'queryVideoUrl enter bvid=$bvid cid=${cid.value} '
+      'argDefaultST=${defaultST?.inMilliseconds} fieldDefaultST=${this.defaultST?.inMilliseconds} '
+      'playedTime=${playedTime?.inMilliseconds} isQuerying=$isQuerying '
+      'fromReset=$fromReset reinitialize=$reinitializePlayer',
+    );
     if (isFileSource) {
       return _initPlayerIfNeeded(autoFullScreenFlag);
     }
     if (isQuerying) {
+      _traceProgress('queryVideoUrl skip isQuerying bvid=$bvid cid=${cid.value}');
       return;
     }
     isQuerying = true;
@@ -1058,12 +1091,33 @@ class VideoDetailController extends GetxController
       volume = data.volume;
 
       final progress = args.remove('progress');
+      final canUsePlayUrlProgress = _canUseLastPlayTime(data.lastPlayCid);
+      _traceProgress(
+        'queryVideoUrl response bvid=$bvid cid=${cid.value} '
+        'progressArg=$progress lastPlayTime=${data.lastPlayTime} '
+        'lastPlayCid=${data.lastPlayCid} canUse=$canUsePlayUrlProgress '
+        'argDefaultST=${defaultST?.inMilliseconds} fieldDefaultST=${this.defaultST?.inMilliseconds}',
+      );
       if (progress != null) {
         this.defaultST = Duration(milliseconds: progress);
+        _traceProgress(
+          'queryVideoUrl use route progress bvid=$bvid cid=${cid.value} '
+          'defaultST=${this.defaultST?.inMilliseconds}',
+        );
       } else if (defaultST == null &&
           data.lastPlayTime != null &&
-          _canUseLastPlayTime(data.lastPlayCid)) {
+          canUsePlayUrlProgress) {
         this.defaultST = Duration(milliseconds: data.lastPlayTime!);
+        _traceProgress(
+          'queryVideoUrl use playurl progress bvid=$bvid cid=${cid.value} '
+          'defaultST=${this.defaultST?.inMilliseconds}',
+        );
+      } else if (data.lastPlayTime != null) {
+        _traceProgress(
+          'queryVideoUrl skip playurl progress bvid=$bvid cid=${cid.value} '
+          'lastPlayTime=${data.lastPlayTime} lastPlayCid=${data.lastPlayCid} '
+          'canUse=$canUsePlayUrlProgress argDefaultST=${defaultST?.inMilliseconds}',
+        );
       }
 
       if (!isUgc && !fromReset && plPlayerController.enablePgcSkip) {
@@ -1505,18 +1559,47 @@ class VideoDetailController extends GetxController
       epId: epId,
     );
     if (res case Success(:final response)) {
+      final canUsePlayInfoProgress = _canUseLastPlayTime(response.lastPlayCid);
+      final isAccountDifferent = Accounts.get(AccountType.video).mid !=
+          Accounts.get(AccountType.heartbeat).mid;
+      _traceProgress(
+        'queryPlayInfo response bvid=$bvid cid=${cid.value} '
+        'lastPlayTime=${response.lastPlayTime} lastPlayCid=${response.lastPlayCid} '
+        'canUse=$canUsePlayInfoProgress accountDifferent=$isAccountDifferent '
+        'plPos=${plPlayerController.position.inMilliseconds} '
+        'plPosSec=${plPlayerController.positionSeconds.value} '
+        'plStatus=${plPlayerController.playerStatus.value}',
+      );
       if (response.lastPlayTime != null &&
           response.lastPlayTime! > 0 &&
-          _canUseLastPlayTime(response.lastPlayCid)) {
-        if (Accounts.get(AccountType.video).mid !=
-            Accounts.get(AccountType.heartbeat).mid) {
+          canUsePlayInfoProgress) {
+        if (isAccountDifferent) {
           if (plPlayerController.position.inSeconds <= 3) {
+            _traceProgress(
+              'queryPlayInfo seek bvid=$bvid cid=${cid.value} '
+              'target=${response.lastPlayTime} lastPlayCid=${response.lastPlayCid}',
+            );
             plPlayerController.seekTo(
               Duration(milliseconds: response.lastPlayTime!),
             );
             SmartDialog.showToast('已跳转至上次观看位置');
+          } else {
+            _traceProgress(
+              'queryPlayInfo skip seek positionOver3 bvid=$bvid cid=${cid.value} '
+              'plPos=${plPlayerController.position.inMilliseconds}',
+            );
           }
+        } else {
+          _traceProgress(
+            'queryPlayInfo skip seek sameAccount bvid=$bvid cid=${cid.value}',
+          );
         }
+      } else if (response.lastPlayTime != null && response.lastPlayTime! > 0) {
+        _traceProgress(
+          'queryPlayInfo skip progress bvid=$bvid cid=${cid.value} '
+          'lastPlayTime=${response.lastPlayTime} lastPlayCid=${response.lastPlayCid} '
+          'canUse=$canUsePlayInfoProgress',
+        );
       }
 
       // interactive video
@@ -1600,9 +1683,18 @@ class VideoDetailController extends GetxController
   }
 
   void makeHeartBeat() {
-    if (plPlayerController.enableHeart &&
+    final canSend = plPlayerController.enableHeart &&
         !plPlayerController.playerStatus.isCompleted &&
-        playedTime != null) {
+        playedTime != null;
+    _traceProgress(
+      'manual heartbeat check canSend=$canSend bvid=$bvid cid=${cid.value} '
+      'playedTime=${playedTime?.inMilliseconds} timeLength=${canSend ? data.timeLength : null} '
+      'plStatus=${plPlayerController.playerStatus.value} '
+      'plPos=${plPlayerController.position.inMilliseconds} '
+      'plPosSec=${plPlayerController.positionSeconds.value} '
+      'enableHeart=${plPlayerController.enableHeart}',
+    );
+    if (canSend) {
       try {
         plPlayerController.makeHeartBeat(
           data.timeLength != null
@@ -1651,6 +1743,13 @@ class VideoDetailController extends GetxController
   }
 
   void onReset({bool isStein = false}) {
+    _traceProgress(
+      'onReset bvid=$bvid cid=${cid.value} isStein=$isStein '
+      'playedTime=${playedTime?.inMilliseconds} defaultST=${defaultST?.inMilliseconds} '
+      'plPos=${plPlayerController.position.inMilliseconds} '
+      'plPosSec=${plPlayerController.positionSeconds.value} '
+      'plStatus=${plPlayerController.playerStatus.value}',
+    );
     if (isFileSource) {
       cacheLocalProgress();
     }

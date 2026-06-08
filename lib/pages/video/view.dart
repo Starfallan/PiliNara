@@ -46,6 +46,7 @@ import 'package:PiliPlus/pages/video/view_point/view.dart';
 import 'package:PiliPlus/pages/video/widgets/header_control.dart';
 import 'package:PiliPlus/pages/video/widgets/player_focus.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
+import 'package:PiliPlus/plugin/pl_player/models/data_status.dart';
 import 'package:PiliPlus/plugin/pl_player/models/fullscreen_mode.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
@@ -453,6 +454,22 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   }
 
   void positionListener(Duration position) {
+    final previous = videoDetailController.playedTime;
+    final plPlayerController = videoDetailController.plPlayerController;
+    if (kDebugMode &&
+        (plPlayerController.dataStatus.value != DataStatus.loaded ||
+            previous == null ||
+            (position.inSeconds - previous.inSeconds).abs() > 5)) {
+      debugPrint(
+        '[ProgressTrace][VideoView][${videoDetailController.heroTag}] positionListener '
+        'bvid=${videoDetailController.bvid} cid=${videoDetailController.cid.value} '
+        'new=${position.inMilliseconds} previous=${previous?.inMilliseconds} '
+        'plDataStatus=${plPlayerController.dataStatus.value} '
+        'plStatus=${plPlayerController.playerStatus.value} '
+        'plPos=${plPlayerController.position.inMilliseconds} '
+        'plPosSec=${plPlayerController.positionSeconds.value}',
+      );
+    }
     videoDetailController.playedTime = position;
   }
 
@@ -646,10 +663,28 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
     if (!videoDetailController.plPlayerController.isCloseAll) {
       if (isInAppPip || _isEnteringPipMode) {
+        if (kDebugMode) {
+          debugPrint(
+            '[ProgressTrace][VideoView][${videoDetailController.heroTag}] dispose pip heartbeat '
+            'bvid=${videoDetailController.bvid} cid=${videoDetailController.cid.value} '
+            'playedTime=${videoDetailController.playedTime?.inMilliseconds} '
+            'plStatus=${plPlayerController?.playerStatus.value} '
+            'plPos=${plPlayerController?.position.inMilliseconds}',
+          );
+        }
         videoDetailController.makeHeartBeat();
       } else {
         videoPlayerServiceHandler?.onVideoDetailDispose(heroTag);
         if (plPlayerController != null) {
+          if (kDebugMode) {
+            debugPrint(
+              '[ProgressTrace][VideoView][${videoDetailController.heroTag}] dispose heartbeat and playerDispose '
+              'bvid=${videoDetailController.bvid} cid=${videoDetailController.cid.value} '
+              'playedTime=${videoDetailController.playedTime?.inMilliseconds} '
+              'plStatus=${plPlayerController?.playerStatus.value} '
+              'plPos=${plPlayerController?.position.inMilliseconds}',
+            );
+          }
           videoDetailController.makeHeartBeat();
           plPlayerController!.dispose();
         } else {
@@ -708,6 +743,17 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
     // 4. 处理播放器实例
     if (plPlayerController != null) {
+      if (kDebugMode) {
+        debugPrint(
+          '[ProgressTrace][VideoView][${videoDetailController.heroTag}] didPushNext '
+          'bvid=${videoDetailController.bvid} cid=${videoDetailController.cid.value} '
+          'playedTime=${videoDetailController.playedTime?.inMilliseconds} '
+          'willStartPip=$willStartPip shouldKeepAlive=$shouldKeepAlive '
+          'plStatus=${plPlayerController?.playerStatus.value} '
+          'plPos=${plPlayerController?.position.inMilliseconds} '
+          'plPosSec=${plPlayerController?.positionSeconds.value}',
+        );
+      }
       videoDetailController.makeHeartBeat();
       plPlayerController!
         ..removeStatusLister(playerListener)

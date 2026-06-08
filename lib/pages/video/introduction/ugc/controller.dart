@@ -482,6 +482,17 @@ class UgcIntroController extends CommonIntroController with ReloadMixin {
       }
 
       final String? cover = episode.cover;
+      if (kDebugMode) {
+        debugPrint(
+          '[ProgressTrace][UgcIntro][$heroTag] onChangeEpisode '
+          'oldBvid=${this.bvid} oldCid=${this.cid.value} '
+          'nextBvid=$bvid nextCid=$cid aid=$aid isStein=$isStein '
+          'playedTime=${videoDetailCtr.playedTime?.inMilliseconds} '
+          'plPos=${videoDetailCtr.plPlayerController.position.inMilliseconds} '
+          'plPosSec=${videoDetailCtr.plPlayerController.positionSeconds.value} '
+          'plStatus=${videoDetailCtr.plPlayerController.playerStatus.value}',
+        );
+      }
 
       // 重新获取视频资源
       if (videoDetailCtr.isPlayAll) {
@@ -509,6 +520,14 @@ class UgcIntroController extends CommonIntroController with ReloadMixin {
         ..aid = aid
         ..cid.value = cid
         ..queryVideoUrl();
+      if (kDebugMode) {
+        debugPrint(
+          '[ProgressTrace][UgcIntro][$heroTag] onChangeEpisode queryVideoUrl called '
+          'bvid=$bvid cid=$cid videoDetailCid=${videoDetailCtr.cid.value} '
+          'playedTime=${videoDetailCtr.playedTime?.inMilliseconds} '
+          'defaultST=${videoDetailCtr.defaultST?.inMilliseconds}',
+        );
+      }
 
       if (this.bvid != bvid) {
         reload = true;

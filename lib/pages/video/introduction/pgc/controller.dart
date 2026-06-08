@@ -286,6 +286,17 @@ class PgcIntroController extends CommonIntroController {
         return false;
       }
       final String? cover = episode.cover;
+      if (kDebugMode) {
+        debugPrint(
+          '[ProgressTrace][PgcIntro][$heroTag] onChangeEpisode '
+          'oldBvid=${this.bvid} oldCid=${this.cid.value} oldEpId=${this.epId} '
+          'nextBvid=$bvid nextCid=$cid nextEpId=$epId aid=$aid '
+          'playedTime=${videoDetailCtr.playedTime?.inMilliseconds} '
+          'plPos=${videoDetailCtr.plPlayerController.position.inMilliseconds} '
+          'plPosSec=${videoDetailCtr.plPlayerController.positionSeconds.value} '
+          'plStatus=${videoDetailCtr.plPlayerController.playerStatus.value}',
+        );
+      }
 
       // 重新获取视频资源
       this.epId = epId;
@@ -300,6 +311,14 @@ class PgcIntroController extends CommonIntroController {
         ..aid = aid
         ..cid.value = cid
         ..queryVideoUrl();
+      if (kDebugMode) {
+        debugPrint(
+          '[ProgressTrace][PgcIntro][$heroTag] onChangeEpisode queryVideoUrl called '
+          'bvid=$bvid cid=$cid epId=$epId videoDetailCid=${videoDetailCtr.cid.value} '
+          'playedTime=${videoDetailCtr.playedTime?.inMilliseconds} '
+          'defaultST=${videoDetailCtr.defaultST?.inMilliseconds}',
+        );
+      }
       if (cover != null && cover.isNotEmpty) {
         videoDetailCtr.cover.value = cover;
       }
