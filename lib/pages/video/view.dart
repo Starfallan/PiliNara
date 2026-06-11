@@ -770,6 +770,10 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         videoDetailController.isEnteringPip = false;
         // 小窗模式下控制栏可能被隐藏了，恢复它
         plPlayerController?.controls = true;
+        // 如果播放器正在播放，临时启用 autoPlay 以确保 UI 正确显示
+        if (plPlayerController?.playerStatus.isPlaying ?? false) {
+          videoDetailController.autoPlay = true;
+        }
       } else {
         // 小窗里播放的是其他视频，返回到新的视频页面时必须关闭小窗，否则会同时播放两个视频
         _logSponsorBlock(
@@ -869,6 +873,10 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       // 由于小窗可能刚刚被关闭（OverlayEntry 移除），我们需要延迟一个帧再显示主页播放器
       // 以确保 GlobalKey (videoPlayerKey) 已经从小窗中彻底释放，避免冲突
       _logSponsorBlock('Restoring current player (delayed refresh)');
+      // 如果播放器正在播放，临时启用 autoPlay 以确保 UI 正确显示
+      if (plPlayerController?.playerStatus.isPlaying ?? false) {
+        videoDetailController.autoPlay = true;
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         videoDetailController.videoState.value = true;
