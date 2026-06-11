@@ -884,14 +884,24 @@ class VideoDetailController extends GetxController
   }
 
   Future<void>? _initPlayerIfNeeded(bool autoFullScreenFlag) {
+    if (kDebugMode) {
+      debugPrint('[PROGRESS_LOAD] _initPlayerIfNeeded - _autoPlay=${_autoPlay.value}, preInitPlayer=${plPlayerController.preInitPlayer}, processing=${plPlayerController.processing}');
+    }
+
     if (_autoPlay.value ||
         (plPlayerController.preInitPlayer && !plPlayerController.processing) &&
             (isFileSource
                 ? true
                 : videoPlayerKey.currentState?.mounted == true)) {
+      if (kDebugMode) {
+        debugPrint('[PROGRESS_LOAD] _initPlayerIfNeeded - calling playerInit');
+      }
       return playerInit(
         autoFullScreenFlag: autoFullScreenFlag && _autoPlay.value,
       );
+    }
+    if (kDebugMode) {
+      debugPrint('[PROGRESS_LOAD] _initPlayerIfNeeded - conditions not met, returning null');
     }
     return null;
   }
@@ -905,6 +915,10 @@ class VideoDetailController extends GetxController
     Volume? volume,
     bool autoFullScreenFlag = false,
   }) async {
+    if (kDebugMode) {
+      debugPrint('[PROGRESS_LOAD] playerInit called');
+    }
+
     // 如果播放器单例已被外部销毁（例如在二级页面关闭了小窗），重新获取一个新实例
     if (plPlayerController.videoPlayerController == null) {
       plPlayerController = PlPlayerController.getInstance();
@@ -953,19 +967,42 @@ class VideoDetailController extends GetxController
       autoFullScreenFlag: autoFullScreenFlag,
     );
 
-    if (isClosed) return;
+    if (isClosed) {
+      if (kDebugMode) {
+        debugPrint('[PROGRESS_LOAD] playerInit - controller is closed, returning');
+      }
+      return;
+    }
 
     if (!isFileSource) {
       if (plPlayerController.enableBlock) {
         initSkip();
       }
 
+      if (kDebugMode) {
+        debugPrint('[PROGRESS_LOAD] playerInit - checking load conditions: vttSubtitlesIndex=${vttSubtitlesIndex.value}, dmTrend=${dmTrend.value}');
+      }
+
       if (vttSubtitlesIndex.value == -1) {
+        if (kDebugMode) {
+          debugPrint('[PROGRESS_LOAD] playerInit - calling _queryPlayInfo');
+        }
         _queryPlayInfo();
+      } else {
+        if (kDebugMode) {
+          debugPrint('[PROGRESS_LOAD] playerInit - skipping _queryPlayInfo, vttSubtitlesIndex != -1');
+        }
       }
 
       if (plPlayerController.showDmChart && dmTrend.value == null) {
+        if (kDebugMode) {
+          debugPrint('[PROGRESS_LOAD] playerInit - calling _getDmTrend');
+        }
         _getDmTrend();
+      } else {
+        if (kDebugMode) {
+          debugPrint('[PROGRESS_LOAD] playerInit - skipping _getDmTrend, showDmChart=${plPlayerController.showDmChart}, dmTrend=${dmTrend.value}');
+        }
       }
     } else {
       if (vttSubtitlesIndex.value == -1) {
@@ -974,6 +1011,9 @@ class VideoDetailController extends GetxController
     }
 
     defaultST = null;
+    if (kDebugMode) {
+      debugPrint('[PROGRESS_LOAD] playerInit - completed');
+    }
   }
 
   bool isQuerying = false;
@@ -1002,10 +1042,18 @@ class VideoDetailController extends GetxController
     bool reinitializePlayer = true,
     bool autoFullScreenFlag = false,
   }) async {
+    if (kDebugMode) {
+      debugPrint('[PROGRESS_LOAD] queryVideoUrl called - bvid: $bvid, cid: ${cid.value}, reinitializePlayer: $reinitializePlayer');
+      debugPrint('[PROGRESS_LOAD] queryVideoUrl - vttSubtitlesIndex=${vttSubtitlesIndex.value}, dmTrend=${dmTrend.value}');
+    }
+
     if (isFileSource) {
       return _initPlayerIfNeeded(autoFullScreenFlag);
     }
     if (isQuerying) {
+      if (kDebugMode) {
+        debugPrint('[PROGRESS_LOAD] queryVideoUrl - already querying, return');
+      }
       return;
     }
     isQuerying = true;
@@ -1050,6 +1098,9 @@ class VideoDetailController extends GetxController
     );
 
     if (result case Success(:final response)) {
+      if (kDebugMode) {
+        debugPrint('[PROGRESS_LOAD] queryVideoUrl - HTTP success, data received');
+      }
       data = response;
 
       languages.value = data.language?.items;
@@ -1084,6 +1135,9 @@ class VideoDetailController extends GetxController
         );
       }
       if (data.dash == null && data.durl != null) {
+        if (kDebugMode) {
+          debugPrint('[PROGRESS_LOAD] queryVideoUrl - FLV/MP4 format, will return early');
+        }
         final first = data.durl!.first;
         videoUrl = VideoUtils.getCdnUrl(first.playUrls);
         audioUrl = '';
@@ -1110,9 +1164,15 @@ class VideoDetailController extends GetxController
           }
         }
         isQuerying = false;
+        if (kDebugMode) {
+          debugPrint('[PROGRESS_LOAD] queryVideoUrl - FLV/MP4 early return, isQuerying set to false');
+        }
         return;
       }
       if (data.dash == null) {
+        if (kDebugMode) {
+          debugPrint('[PROGRESS_LOAD] queryVideoUrl - dash is null, will return early');
+        }
         SmartDialog.showToast('视频资源不存在');
         _autoPlay.value = false;
         videoState.value = false;
@@ -1120,7 +1180,13 @@ class VideoDetailController extends GetxController
           plPlayerController.triggerFullScreen(status: false);
         }
         isQuerying = false;
+        if (kDebugMode) {
+          debugPrint('[PROGRESS_LOAD] queryVideoUrl - dash null early return, isQuerying set to false');
+        }
         return;
+      }
+      if (kDebugMode) {
+        debugPrint('[PROGRESS_LOAD] queryVideoUrl - DASH format, continuing to process');
       }
       final List<VideoItem> videoList = data.dash!.video!;
       // if (kDebugMode) debugPrint("allVideosList:${allVideosList}");
@@ -1208,8 +1274,17 @@ class VideoDetailController extends GetxController
         audioUrl = '';
       }
       if (reinitializePlayer) {
+        if (kDebugMode) {
+          debugPrint('[PROGRESS_LOAD] queryVideoUrl - calling _initPlayerIfNeeded');
+        }
         await _initPlayerIfNeeded(autoFullScreenFlag);
+        if (kDebugMode) {
+          debugPrint('[PROGRESS_LOAD] queryVideoUrl - _initPlayerIfNeeded completed');
+        }
       } else {
+        if (kDebugMode) {
+          debugPrint('[PROGRESS_LOAD] queryVideoUrl - reinitializePlayer=false, skipping _initPlayerIfNeeded');
+        }
         // 从 PiP 返回时，播放器已在运行，但需要重新初始化 SponsorBlock 的跳过监听器
         if (plPlayerController.enableSponsorBlock && segmentList.isNotEmpty) {
           // 等待播放器就绪
@@ -1219,6 +1294,9 @@ class VideoDetailController extends GetxController
         }
       }
     } else {
+      if (kDebugMode) {
+        debugPrint('[PROGRESS_LOAD] queryVideoUrl - HTTP request failed');
+      }
       _autoPlay.value = false;
       videoState.value = false;
       if (plPlayerController.isFullScreen.value) {
@@ -1228,6 +1306,9 @@ class VideoDetailController extends GetxController
     }
     } finally {
       isQuerying = false;
+      if (kDebugMode) {
+        debugPrint('[PROGRESS_LOAD] queryVideoUrl - finally block, isQuerying set to false');
+      }
     }
   }
 
@@ -1501,6 +1582,10 @@ class VideoDetailController extends GetxController
   }
 
   Future<void> _queryPlayInfo() async {
+    if (kDebugMode) {
+      debugPrint('[PROGRESS_LOAD] _queryPlayInfo called - bvid: $bvid, cid: ${cid.value}');
+    }
+
     vttSubtitles.clear();
     vttSubtitlesIndex.value = 0;
     if (plPlayerController.showViewPoints) {
@@ -1512,6 +1597,11 @@ class VideoDetailController extends GetxController
       seasonId: seasonId,
       epId: epId,
     );
+
+    if (kDebugMode) {
+      debugPrint('[PROGRESS_LOAD] _queryPlayInfo response - success: ${res is Success}');
+    }
+
     if (res case Success(:final response)) {
       if (response.lastPlayTime != null &&
           response.lastPlayTime! > 0 &&
@@ -1562,6 +1652,9 @@ class VideoDetailController extends GetxController
 
       if (plPlayerController.showViewPoints &&
           response.viewPoints?.firstOrNull?.type == 2) {
+        if (kDebugMode) {
+          debugPrint('[PROGRESS_LOAD] _queryPlayInfo - viewPoints found, count: ${response.viewPoints?.length}, data.timeLength: ${data.timeLength}');
+        }
         try {
           viewPointList.value = response.viewPoints!.map((item) {
             final end = (item.to! / (data.timeLength! / 1000)).clamp(0.0, 1.0);
@@ -1573,7 +1666,18 @@ class VideoDetailController extends GetxController
               to: item.to,
             );
           }).toList();
-        } catch (_) {}
+          if (kDebugMode) {
+            debugPrint('[PROGRESS_LOAD] _queryPlayInfo - viewPointList set, length: ${viewPointList.length}');
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('[PROGRESS_LOAD] _queryPlayInfo - error setting viewPointList: $e');
+          }
+        }
+      } else {
+        if (kDebugMode) {
+          debugPrint('[PROGRESS_LOAD] _queryPlayInfo - viewPoints not found or type != 2, showViewPoints=${plPlayerController.showViewPoints}, viewPoints=${response.viewPoints}, type=${response.viewPoints?.firstOrNull?.type}');
+        }
       }
 
       if (response.subtitle?.subtitles?.isNotEmpty == true) {
@@ -1660,6 +1764,11 @@ class VideoDetailController extends GetxController
   }
 
   void onReset({bool isStein = false}) {
+    if (kDebugMode) {
+      debugPrint('[PROGRESS_LOAD] onReset called - bvid: $bvid, cid: ${cid.value}, isStein: $isStein');
+      debugPrint('[PROGRESS_LOAD] onReset - before reset: vttSubtitlesIndex=${vttSubtitlesIndex.value}, dmTrend=${dmTrend.value}, viewPointList.length=${viewPointList.length}');
+    }
+
     if (isFileSource) {
       cacheLocalProgress();
     }
@@ -1706,6 +1815,11 @@ class VideoDetailController extends GetxController
       steinEdgeInfo = null;
       showSteinEdgeInfo.value = false;
     }
+
+    if (kDebugMode) {
+      debugPrint('[PROGRESS_LOAD] onReset - after reset: vttSubtitlesIndex=${vttSubtitlesIndex.value}, dmTrend=${dmTrend.value}, viewPointList.length=${viewPointList.length}');
+      debugPrint('[PROGRESS_LOAD] onReset - showViewPoints=${plPlayerController.showViewPoints}, showDmChart=${plPlayerController.showDmChart}');
+    }
   }
 
   late final Rx<LoadingState<List<double>>?> dmTrend =
@@ -1714,8 +1828,15 @@ class VideoDetailController extends GetxController
   int _dmTrendTaskId = 0;
 
   Future<void> _getDmTrend() async {
+    if (kDebugMode) {
+      debugPrint('[PROGRESS_LOAD] _getDmTrend called - bvid: $bvid, cid: ${cid.value}');
+    }
+
     final source = plPlayerController.dmChartSource;
     if (!source.isEnabled) {
+      if (kDebugMode) {
+        debugPrint('[PROGRESS_LOAD] _getDmTrend - source not enabled');
+      }
       dmTrend.value = null;
       return;
     }
@@ -1723,31 +1844,57 @@ class VideoDetailController extends GetxController
     final taskId = ++_dmTrendTaskId;
     bool shouldCancel() => taskId != _dmTrendTaskId || isClosed;
 
+    if (kDebugMode) {
+      debugPrint('[PROGRESS_LOAD] _getDmTrend - taskId: $taskId, setting to loading');
+    }
+
     dmTrend.value = LoadingState<List<double>>.loading();
 
     if (source.enableOfficial) {
       final official = await _tryGetOfficialDmTrend();
-      if (shouldCancel()) return;
+      if (shouldCancel()) {
+        if (kDebugMode) {
+          debugPrint('[PROGRESS_LOAD] _getDmTrend - cancelled after official check');
+        }
+        return;
+      }
       if (official?.isNotEmpty == true) {
         dmTrend.value = Success(official!);
+        if (kDebugMode) {
+          debugPrint('[PROGRESS_LOAD] _getDmTrend - official data loaded, length: ${official.length}');
+        }
         return;
       }
       if (!source.enableLocalDensity) {
         dmTrend.value = const Error(null);
+        if (kDebugMode) {
+          debugPrint('[PROGRESS_LOAD] _getDmTrend - no official data and local disabled, set to error');
+        }
         return;
       }
     }
 
     if (source.enableLocalDensity) {
       final local = await _tryBuildLocalDmTrend(shouldCancel);
-      if (shouldCancel()) return;
+      if (shouldCancel()) {
+        if (kDebugMode) {
+          debugPrint('[PROGRESS_LOAD] _getDmTrend - cancelled after local check');
+        }
+        return;
+      }
       if (local?.isNotEmpty == true) {
         dmTrend.value = Success(local!);
+        if (kDebugMode) {
+          debugPrint('[PROGRESS_LOAD] _getDmTrend - local data loaded, length: ${local.length}');
+        }
         return;
       }
     }
 
     dmTrend.value = const Error(null);
+    if (kDebugMode) {
+      debugPrint('[PROGRESS_LOAD] _getDmTrend - no data available, set to error');
+    }
   }
 
   Future<List<double>?> _tryGetOfficialDmTrend() async {

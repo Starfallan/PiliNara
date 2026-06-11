@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:PiliPlus/common/widgets/button/icon_button.dart';
 import 'package:PiliPlus/common/widgets/scroll_physics.dart';
 import 'package:PiliPlus/http/api.dart';
@@ -509,6 +510,10 @@ class UgcIntroController extends CommonIntroController with ReloadMixin {
         ..aid = aid
         ..cid.value = cid
         ..queryVideoUrl();
+
+      if (kDebugMode) {
+        debugPrint('[PROGRESS_LOAD] UgcIntroController - switched to bvid: $bvid, cid: $cid');
+      }
 
       if (this.bvid != bvid) {
         reload = true;

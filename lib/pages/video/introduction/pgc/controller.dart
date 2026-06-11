@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' show max;
 
+import 'package:flutter/foundation.dart';
 import 'package:PiliPlus/http/constants.dart';
 import 'package:PiliPlus/http/fav.dart';
 import 'package:PiliPlus/http/loading_state.dart';
@@ -300,6 +301,11 @@ class PgcIntroController extends CommonIntroController {
         ..aid = aid
         ..cid.value = cid
         ..queryVideoUrl();
+
+      if (kDebugMode) {
+        debugPrint('[PROGRESS_LOAD] PgcIntroController - switched to epId: $epId, bvid: $bvid, cid: $cid');
+      }
+
       if (cover != null && cover.isNotEmpty) {
         videoDetailCtr.cover.value = cover;
       }

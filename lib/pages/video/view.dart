@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show SystemChrome;
 
 import 'package:PiliPlus/common/assets.dart';
@@ -2791,6 +2792,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         _handleInAppPipCloseCleanup();
       },
       onTapToReturn: () {
+        if (kDebugMode) {
+          debugPrint('[PROGRESS_LOAD] PiP onTapToReturn - returning to video page');
+        }
         // 不取消 position subscription，让它在新页面继续工作
         _logSponsorBlock(
           'Returning from PiP, positionSubscription will be preserved',
