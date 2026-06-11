@@ -430,6 +430,9 @@ class VideoDetailController extends GetxController
   @override
   void onInit() {
     super.onInit();
+    if (kDebugMode) {
+      debugPrint('[PROGRESS_LOAD] VideoDetailController onInit - hashCode=$hashCode');
+    }
     args = Get.arguments;
 
     // 开启新视频时，如果存在前代播放器的应用内小窗，则按播放上下文决定是否重置旧状态
@@ -1738,9 +1741,18 @@ class VideoDetailController extends GetxController
 
   @override
   void onClose() {
+    if (kDebugMode) {
+      debugPrint('[PROGRESS_LOAD] VideoDetailController onClose called - isEnteringPip=$isEnteringPip, isClosed=$isClosed, hashCode=$hashCode');
+    }
     if (isEnteringPip) {
       // 正在进入小窗，保留资源
+      if (kDebugMode) {
+        debugPrint('[PROGRESS_LOAD] VideoDetailController onClose - returning early due to isEnteringPip');
+      }
       return;
+    }
+    if (kDebugMode) {
+      debugPrint('[PROGRESS_LOAD] VideoDetailController onClose - proceeding with cleanup');
     }
     cancelBlockListener();
     _dmTrendTaskId++;

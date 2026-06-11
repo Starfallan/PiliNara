@@ -195,8 +195,17 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
         // 直接使用保存的控制器
         videoDetailController = savedController;
+        if (kDebugMode) {
+          debugPrint('[PROGRESS_LOAD] Restoring savedController - hashCode=${savedController.hashCode}, isClosed=${savedController.isClosed}, isEnteringPip=${savedController.isEnteringPip}');
+        }
         videoDetailController.isEnteringPip = false; // 重置标志
+        if (kDebugMode) {
+          debugPrint('[PROGRESS_LOAD] Reset isEnteringPip=false for restored controller');
+        }
         Get.put(savedController, tag: heroTag);
+        if (kDebugMode) {
+          debugPrint('[PROGRESS_LOAD] Called Get.put() for restored controller');
+        }
 
         PipOverlayService.stopPip(
           callOnClose: false,
@@ -221,15 +230,24 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         });
       } else {
         // 没有保存的控制器，创建新的
+        if (kDebugMode) {
+          debugPrint('[PROGRESS_LOAD] No savedController found, creating new VideoDetailController');
+        }
         PipOverlayService.stopPip(
           callOnClose: false,
           immediate: true,
           targetContextKey: targetContextKey,
         );
         videoDetailController = Get.put(VideoDetailController(), tag: heroTag);
+        if (kDebugMode) {
+          debugPrint('[PROGRESS_LOAD] Created new VideoDetailController - hashCode=${videoDetailController.hashCode}');
+        }
       }
     } else {
       // 非 PiP 返回，正常流程（包括原页面还留在栈中或由于某些原因被销毁重构）
+      if (kDebugMode) {
+        debugPrint('[PROGRESS_LOAD] Normal flow (not from PiP)');
+      }
       if (PipOverlayService.isInPipMode) {
         PipOverlayService.stopPip(
           callOnClose: false,
@@ -238,6 +256,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         );
       }
       videoDetailController = Get.put(VideoDetailController(), tag: heroTag);
+      if (kDebugMode) {
+        debugPrint('[PROGRESS_LOAD] Created new VideoDetailController (normal flow) - hashCode=${videoDetailController.hashCode}');
+      }
     }
 
     if (videoDetailController.removeSafeArea) {
@@ -2741,8 +2762,16 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       'Starting PiP mode, segmentList.length: ${videoDetailController.segmentList.length}',
     );
 
+    if (kDebugMode) {
+      debugPrint('[PROGRESS_LOAD] Entering PiP - videoDetailController.hashCode=${videoDetailController.hashCode}, isClosed=${videoDetailController.isClosed}');
+    }
+
     // 设置控制器标志，防止 onClose 清理资源
     videoDetailController.isEnteringPip = true;
+
+    if (kDebugMode) {
+      debugPrint('[PROGRESS_LOAD] Set isEnteringPip=true for VideoDetailController');
+    }
 
     // 保存所有相关控制器
     final additionalControllers = <String, dynamic>{};
