@@ -597,16 +597,20 @@ class UgcIntroController extends CommonIntroController with ReloadMixin {
   /// 播放上一个
   @override
   bool prevPlay([bool skipPart = false]) {
+    logger.d('[UgcIntroController] prevPlay 被调用，skipPart: $skipPart, heroTag: $heroTag');
     final List<BaseEpisodeItem> episodes = <BaseEpisodeItem>[];
     bool isPart = false;
 
     final videoDetail = this.videoDetail.value;
+    logger.d('[UgcIntroController] videoDetail.pages?.length: ${videoDetail.pages?.length}, isPlayAll: ${videoDetailCtr.isPlayAll}, ugcSeason: ${videoDetail.ugcSeason != null}');
 
     if (!skipPart && (videoDetail.pages?.length ?? 0) > 1) {
       isPart = true;
       episodes.addAll(videoDetail.pages!);
+      logger.d('[UgcIntroController] 使用 pages，episodes.length: ${episodes.length}');
     } else if (videoDetailCtr.isPlayAll) {
       episodes.addAll(videoDetailCtr.mediaList);
+      logger.d('[UgcIntroController] 使用 playAll mediaList，episodes.length: ${episodes.length}');
     } else if (videoDetail.ugcSeason != null) {
       final UgcSeason ugcSeason = videoDetail.ugcSeason!;
       final List<SectionItem> sections = ugcSeason.sections!;
@@ -614,6 +618,7 @@ class UgcIntroController extends CommonIntroController with ReloadMixin {
         final List<EpisodeItem> episodesList = sections[i].episodes!;
         episodes.addAll(episodesList);
       }
+      logger.d('[UgcIntroController] 使用 ugcSeason，episodes.length: ${episodes.length}');
     }
 
     final int currentIndex = episodes.indexWhere(
@@ -625,22 +630,29 @@ class UgcIntroController extends CommonIntroController with ReloadMixin {
                     : videoDetail.pages!.first.cid
               : this.cid.value),
     );
+    logger.d('[UgcIntroController] 当前 cid: ${this.cid.value}, currentIndex: $currentIndex');
 
     int prevIndex = currentIndex - 1;
     final PlayRepeat playRepeat = videoDetailCtr.plPlayerController.playRepeat;
+    logger.d('[UgcIntroController] prevIndex: $prevIndex, playRepeat: $playRepeat');
 
     // 列表循环
     if (prevIndex < 0) {
+      logger.d('[UgcIntroController] prevIndex < 0，检查是否需要切换模式或循环');
       if (isPart &&
           (videoDetailCtr.isPlayAll || videoDetail.ugcSeason != null)) {
+        logger.d('[UgcIntroController] isPart 且有其他播放源，递归调用 prevPlay(true)');
         return prevPlay(true);
       }
       if (_isShuffleMode(isPart)) {
+        logger.d('[UgcIntroController] 处于随机播放模式，返回 false');
         return false;
       }
       if (playRepeat == PlayRepeat.listCycle) {
         prevIndex = episodes.length - 1;
+        logger.d('[UgcIntroController] 列表循环，跳到最后一个: $prevIndex');
       } else {
+        logger.d('[UgcIntroController] 没有上一集且不循环，返回 false');
         return false;
       }
     }
@@ -649,15 +661,19 @@ class UgcIntroController extends CommonIntroController with ReloadMixin {
     while (cid == null) {
       prevIndex--;
       if (prevIndex < 0) {
+        logger.w('[UgcIntroController] 找不到有效的 cid，返回 false');
         return false;
       }
       cid = episodes[prevIndex].cid;
     }
 
+    logger.d('[UgcIntroController] 目标 cid: $cid, 当前 cid: ${this.cid.value}');
     if (cid != this.cid.value) {
+      logger.i('[UgcIntroController] 切换到上一集，返回 true');
       onChangeEpisode(episodes[prevIndex]);
       return true;
     } else {
+      logger.w('[UgcIntroController] 目标 cid 与当前相同，返回 false');
       return false;
     }
   }
@@ -666,17 +682,21 @@ class UgcIntroController extends CommonIntroController with ReloadMixin {
   @override
   bool nextPlay([bool skipPart = false]) {
     try {
+      logger.d('[UgcIntroController] nextPlay 被调用，skipPart: $skipPart, heroTag: $heroTag');
       final List<BaseEpisodeItem> episodes = <BaseEpisodeItem>[];
       bool isPart = false;
       final videoDetail = this.videoDetail.value;
+      logger.d('[UgcIntroController] videoDetail.pages?.length: ${videoDetail.pages?.length}, isPlayAll: ${videoDetailCtr.isPlayAll}, ugcSeason: ${videoDetail.ugcSeason != null}');
 
       // part -> playall -> season
       if (!skipPart && (videoDetail.pages?.length ?? 0) > 1) {
         isPart = true;
         final List<Part> pages = videoDetail.pages!;
         episodes.addAll(pages);
+        logger.d('[UgcIntroController] 使用 pages，episodes.length: ${episodes.length}');
       } else if (videoDetailCtr.isPlayAll) {
         episodes.addAll(videoDetailCtr.mediaList);
+        logger.d('[UgcIntroController] 使用 playAll mediaList，episodes.length: ${episodes.length}');
       } else if (videoDetail.ugcSeason != null) {
         final UgcSeason ugcSeason = videoDetail.ugcSeason!;
         final List<SectionItem> sections = ugcSeason.sections!;
@@ -684,20 +704,26 @@ class UgcIntroController extends CommonIntroController with ReloadMixin {
           final List<EpisodeItem> episodesList = sections[i].episodes!;
           episodes.addAll(episodesList);
         }
+        logger.d('[UgcIntroController] 使用 ugcSeason，episodes.length: ${episodes.length}');
       }
 
       final PlayRepeat playRepeat =
           videoDetailCtr.plPlayerController.playRepeat;
+      logger.d('[UgcIntroController] playRepeat: $playRepeat');
 
       if (episodes.isEmpty) {
+        logger.d('[UgcIntroController] episodes 为空');
         if (playRepeat == PlayRepeat.listCycle) {
+          logger.d('[UgcIntroController] 列表循环模式，重播当前视频');
           videoDetailCtr.plPlayerController.play(repeat: true);
           return true;
         }
         if (playRepeat == PlayRepeat.autoPlayRelated &&
             videoDetailCtr.plPlayerController.showRelatedVideo) {
+          logger.d('[UgcIntroController] 自动播放相关视频');
           return playRelated();
         }
+        logger.d('[UgcIntroController] episodes 为空且无其他播放源，返回 false');
         return false;
       }
 
@@ -710,31 +736,40 @@ class UgcIntroController extends CommonIntroController with ReloadMixin {
                       : videoDetail.pages!.first.cid
                 : this.cid.value),
       );
+      logger.d('[UgcIntroController] 当前 cid: ${this.cid.value}, currentIndex: $currentIndex');
 
       int nextIndex = currentIndex + 1;
+      logger.d('[UgcIntroController] nextIndex: $nextIndex, episodes.length: ${episodes.length}');
 
       if (!isPart &&
           videoDetailCtr.isPlayAll &&
           currentIndex == episodes.length - 2) {
+        logger.d('[UgcIntroController] 接近播放列表末尾，加载更多');
         videoDetailCtr.getMediaList();
       }
 
       // 列表循环
       if (nextIndex >= episodes.length) {
+        logger.d('[UgcIntroController] nextIndex >= episodes.length，检查是否需要切换模式或循环');
         if (isPart &&
             (videoDetailCtr.isPlayAll || videoDetail.ugcSeason != null)) {
+          logger.d('[UgcIntroController] isPart 且有其他播放源，递归调用 nextPlay(true)');
           return nextPlay(true);
         }
 
         if (_isShuffleMode(isPart)) {
+          logger.d('[UgcIntroController] 处于随机播放模式，返回 false');
           return false;
         }
         if (playRepeat == PlayRepeat.listCycle) {
           nextIndex = 0;
+          logger.d('[UgcIntroController] 列表循环，跳到第一个');
         } else if (playRepeat == PlayRepeat.autoPlayRelated &&
             videoDetailCtr.plPlayerController.showRelatedVideo) {
+          logger.d('[UgcIntroController] 自动播放相关视频');
           return playRelated();
         } else {
+          logger.d('[UgcIntroController] 没有下一集且不循环，返回 false');
           return false;
         }
       }
@@ -743,18 +778,23 @@ class UgcIntroController extends CommonIntroController with ReloadMixin {
       while (cid == null) {
         nextIndex++;
         if (nextIndex >= episodes.length) {
+          logger.w('[UgcIntroController] 找不到有效的 cid，返回 false');
           return false;
         }
         cid = episodes[nextIndex].cid;
       }
 
+      logger.d('[UgcIntroController] 目标 cid: $cid, 当前 cid: ${this.cid.value}');
       if (cid != this.cid.value) {
+        logger.i('[UgcIntroController] 切换到下一集，返回 true');
         onChangeEpisode(episodes[nextIndex]);
         return true;
       } else {
+        logger.w('[UgcIntroController] 目标 cid 与当前相同，返回 false');
         return false;
       }
-    } catch (_) {
+    } catch (e) {
+      logger.e('[UgcIntroController] nextPlay 异常: $e');
       return false;
     }
   }

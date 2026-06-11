@@ -27,6 +27,7 @@ import 'package:PiliPlus/pages/video/introduction/ugc/widgets/triple_mixin.dart'
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
+import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/services/shutdown_timer_service.dart';
 import 'package:PiliPlus/utils/accounts.dart';
@@ -662,24 +663,38 @@ class AudioController extends GetxController
   }
 
   bool playPrev() {
+    logger.d('[AudioController] playPrev 被调用，heroTag: $heroTag');
+    logger.d('[AudioController] index: $index, playlist.length: ${playlist?.length}, player: ${player != null}');
     if (index != null && playlist != null && player != null) {
       final prev = index! - 1;
+      logger.d('[AudioController] prev: $prev');
       if (prev >= 0) {
+        logger.i('[AudioController] 切换到上一个，返回 true');
         playIndex(prev);
         return true;
+      } else {
+        logger.d('[AudioController] prev < 0，没有上一个');
       }
+    } else {
+      logger.d('[AudioController] 条件不满足: index=${index != null}, playlist=${playlist != null}, player=${player != null}');
     }
+    logger.w('[AudioController] playPrev 返回 false');
     return false;
   }
 
   bool playNext({bool nextPart = false}) {
+    logger.d('[AudioController] playNext 被调用，nextPart: $nextPart, heroTag: $heroTag');
     if (nextPart) {
+      logger.d('[AudioController] 尝试切换分P');
       if (audioItem.value case DetailItem(:final parts)) {
+        logger.d('[AudioController] parts.length: ${parts.length}');
         if (parts.length > 1) {
           final subId = this.subId.firstOrNull;
           final nextIndex = parts.indexWhere((e) => e.subId == subId) + 1;
+          logger.d('[AudioController] 当前 subId: $subId, nextIndex: $nextIndex');
           if (nextIndex != 0 && nextIndex < parts.length) {
             final nextPart = parts[nextIndex];
+            logger.i('[AudioController] 切换到下一个分P，返回 true');
             oid = nextPart.oid;
             this.subId = [nextPart.subId];
             _queryPlayUrl().then((res) {
@@ -688,20 +703,35 @@ class AudioController extends GetxController
               }
             });
             return true;
+          } else {
+            logger.d('[AudioController] nextIndex 超出范围');
           }
+        } else {
+          logger.d('[AudioController] 只有一个分P');
         }
+      } else {
+        logger.d('[AudioController] audioItem 不是 DetailItem 或没有 parts');
       }
     }
+    logger.d('[AudioController] index: $index, playlist.length: ${playlist?.length}, player: ${player != null}');
     if (index != null && playlist != null && player != null) {
       final next = index! + 1;
+      logger.d('[AudioController] next: $next, playlist.length: ${playlist!.length}');
       if (next < playlist!.length) {
         if (next == playlist!.length - 1 && _next != null) {
+          logger.d('[AudioController] 接近末尾，加载更多');
           _queryPlayList(isLoadNext: true);
         }
+        logger.i('[AudioController] 切换到下一个，返回 true');
         playIndex(next);
         return true;
+      } else {
+        logger.d('[AudioController] next >= playlist.length，没有下一个');
       }
+    } else {
+      logger.d('[AudioController] 条件不满足: index=${index != null}, playlist=${playlist != null}, player=${player != null}');
     }
+    logger.w('[AudioController] playNext 返回 false');
     return false;
   }
 

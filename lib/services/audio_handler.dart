@@ -8,6 +8,7 @@ import 'package:PiliPlus/pages/video/introduction/local/controller.dart';
 import 'package:PiliPlus/pages/audio/controller.dart';
 
 import 'package:PiliPlus/common/constants.dart';
+import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/grpc/bilibili/app/listener/v1.pb.dart' show DetailItem;
 import 'package:PiliPlus/models_new/download/bili_download_entry_info.dart';
 import 'package:PiliPlus/models_new/live/live_room_info_h5/data.dart';
@@ -53,54 +54,138 @@ class VideoPlayerServiceHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> skipToNext() async {
+    logger.d('[AudioHandler] skipToNext 被调用');
     if (onSkipToNext != null) {
+      logger.d('[AudioHandler] 使用 onSkipToNext 回调');
       await onSkipToNext?.call();
       return;
     }
-    if (currentHeroTag == null) return;
+    if (currentHeroTag == null) {
+      logger.w('[AudioHandler] currentHeroTag 为 null，无法切换');
+      return;
+    }
+    logger.d('[AudioHandler] currentHeroTag: $currentHeroTag');
     // 直接尝试 find，不检查 isRegistered
     try {
-      Get.find<UgcIntroController>(tag: currentHeroTag!).nextPlay();
-      return;
-    } catch (_) {}
+      final ctr = Get.find<UgcIntroController>(tag: currentHeroTag!);
+      logger.d('[AudioHandler] 找到 UgcIntroController');
+      final result = ctr.nextPlay();
+      logger.d('[AudioHandler] UgcIntroController.nextPlay() 返回: $result');
+      if (result) {
+        logger.i('[AudioHandler] 切换成功');
+        return;
+      } else {
+        logger.w('[AudioHandler] UgcIntroController.nextPlay() 返回 false，继续尝试其他 Controller');
+      }
+    } catch (e) {
+      logger.d('[AudioHandler] 未找到 UgcIntroController: $e');
+    }
     try {
-      Get.find<PgcIntroController>(tag: currentHeroTag!).nextPlay();
-      return;
-    } catch (_) {}
+      final ctr = Get.find<PgcIntroController>(tag: currentHeroTag!);
+      logger.d('[AudioHandler] 找到 PgcIntroController');
+      final result = ctr.nextPlay();
+      logger.d('[AudioHandler] PgcIntroController.nextPlay() 返回: $result');
+      if (result) {
+        logger.i('[AudioHandler] 切换成功');
+        return;
+      } else {
+        logger.w('[AudioHandler] PgcIntroController.nextPlay() 返回 false，继续尝试其他 Controller');
+      }
+    } catch (e) {
+      logger.d('[AudioHandler] 未找到 PgcIntroController: $e');
+    }
     try {
-      Get.find<LocalIntroController>(tag: currentHeroTag!).nextPlay();
-      return;
-    } catch (_) {}
+      final ctr = Get.find<LocalIntroController>(tag: currentHeroTag!);
+      logger.d('[AudioHandler] 找到 LocalIntroController');
+      final result = ctr.nextPlay();
+      logger.d('[AudioHandler] LocalIntroController.nextPlay() 返回: $result');
+      if (result) {
+        logger.i('[AudioHandler] 切换成功');
+        return;
+      } else {
+        logger.w('[AudioHandler] LocalIntroController.nextPlay() 返回 false，继续尝试其他 Controller');
+      }
+    } catch (e) {
+      logger.d('[AudioHandler] 未找到 LocalIntroController: $e');
+    }
     try {
-      Get.find<AudioController>(tag: currentHeroTag!).playNext();
+      final ctr = Get.find<AudioController>(tag: currentHeroTag!);
+      logger.d('[AudioHandler] 找到 AudioController');
+      ctr.playNext();
+      logger.i('[AudioHandler] AudioController.playNext() 调用完成');
       return;
-    } catch (_) {}
+    } catch (e) {
+      logger.d('[AudioHandler] 未找到 AudioController: $e');
+    }
+    logger.e('[AudioHandler] 所有 Controller 都未能成功切换下一集');
   }
 
   @override
   Future<void> skipToPrevious() async {
+    logger.d('[AudioHandler] skipToPrevious 被调用');
     if (onSkipToPrevious != null) {
+      logger.d('[AudioHandler] 使用 onSkipToPrevious 回调');
       await onSkipToPrevious?.call();
       return;
     }
-    if (currentHeroTag == null) return;
+    if (currentHeroTag == null) {
+      logger.w('[AudioHandler] currentHeroTag 为 null，无法切换');
+      return;
+    }
+    logger.d('[AudioHandler] currentHeroTag: $currentHeroTag');
     // 直接尝试 find，不检查 isRegistered
     try {
-      Get.find<UgcIntroController>(tag: currentHeroTag!).prevPlay();
-      return;
-    } catch (_) {}
+      final ctr = Get.find<UgcIntroController>(tag: currentHeroTag!);
+      logger.d('[AudioHandler] 找到 UgcIntroController');
+      final result = ctr.prevPlay();
+      logger.d('[AudioHandler] UgcIntroController.prevPlay() 返回: $result');
+      if (result) {
+        logger.i('[AudioHandler] 切换成功');
+        return;
+      } else {
+        logger.w('[AudioHandler] UgcIntroController.prevPlay() 返回 false，继续尝试其他 Controller');
+      }
+    } catch (e) {
+      logger.d('[AudioHandler] 未找到 UgcIntroController: $e');
+    }
     try {
-      Get.find<PgcIntroController>(tag: currentHeroTag!).prevPlay();
-      return;
-    } catch (_) {}
+      final ctr = Get.find<PgcIntroController>(tag: currentHeroTag!);
+      logger.d('[AudioHandler] 找到 PgcIntroController');
+      final result = ctr.prevPlay();
+      logger.d('[AudioHandler] PgcIntroController.prevPlay() 返回: $result');
+      if (result) {
+        logger.i('[AudioHandler] 切换成功');
+        return;
+      } else {
+        logger.w('[AudioHandler] PgcIntroController.prevPlay() 返回 false，继续尝试其他 Controller');
+      }
+    } catch (e) {
+      logger.d('[AudioHandler] 未找到 PgcIntroController: $e');
+    }
     try {
-      Get.find<LocalIntroController>(tag: currentHeroTag!).prevPlay();
-      return;
-    } catch (_) {}
+      final ctr = Get.find<LocalIntroController>(tag: currentHeroTag!);
+      logger.d('[AudioHandler] 找到 LocalIntroController');
+      final result = ctr.prevPlay();
+      logger.d('[AudioHandler] LocalIntroController.prevPlay() 返回: $result');
+      if (result) {
+        logger.i('[AudioHandler] 切换成功');
+        return;
+      } else {
+        logger.w('[AudioHandler] LocalIntroController.prevPlay() 返回 false，继续尝试其他 Controller');
+      }
+    } catch (e) {
+      logger.d('[AudioHandler] 未找到 LocalIntroController: $e');
+    }
     try {
-      Get.find<AudioController>(tag: currentHeroTag!).playPrev();
+      final ctr = Get.find<AudioController>(tag: currentHeroTag!);
+      logger.d('[AudioHandler] 找到 AudioController');
+      ctr.playPrev();
+      logger.i('[AudioHandler] AudioController.playPrev() 调用完成');
       return;
-    } catch (_) {}
+    } catch (e) {
+      logger.d('[AudioHandler] 未找到 AudioController: $e');
+    }
+    logger.e('[AudioHandler] 所有 Controller 都未能成功切换上一集');
   }
 
   @override
@@ -141,27 +226,49 @@ class VideoPlayerServiceHandler extends BaseAudioHandler with SeekHandler {
   }
 
   bool _hasEpisodes() {
-    if (currentHeroTag == null) return false;
+    logger.d('[AudioHandler] _hasEpisodes 被调用，currentHeroTag: $currentHeroTag');
+    if (currentHeroTag == null) {
+      logger.d('[AudioHandler] currentHeroTag 为 null，返回 false');
+      return false;
+    }
     try {
       final ctr = Get.find<UgcIntroController>(tag: currentHeroTag!);
+      logger.d('[AudioHandler] 找到 UgcIntroController');
       final videoDetail = ctr.videoDetail.value;
       final isSeason = videoDetail.ugcSeason != null;
       final isPart = videoDetail.pages != null && videoDetail.pages!.length > 1;
       final isPlayAll = ctr.videoDetailCtr.isPlayAll;
-      return isSeason || isPart || isPlayAll;
-    } catch (_) {}
+      logger.d('[AudioHandler] UgcIntroController 状态: isSeason=$isSeason, isPart=$isPart (pages=${videoDetail.pages?.length}), isPlayAll=$isPlayAll');
+      final result = isSeason || isPart || isPlayAll;
+      logger.d('[AudioHandler] _hasEpisodes 返回: $result');
+      return result;
+    } catch (e) {
+      logger.d('[AudioHandler] 未找到 UgcIntroController: $e');
+    }
     try {
       Get.find<PgcIntroController>(tag: currentHeroTag!);
+      logger.d('[AudioHandler] 找到 PgcIntroController，返回 true');
       return true;
-    } catch (_) {}
+    } catch (e) {
+      logger.d('[AudioHandler] 未找到 PgcIntroController: $e');
+    }
     try {
       final ctr = Get.find<LocalIntroController>(tag: currentHeroTag!);
-      return ctr.list.length > 1;
-    } catch (_) {}
+      final result = ctr.list.length > 1;
+      logger.d('[AudioHandler] 找到 LocalIntroController，list.length=${ctr.list.length}，返回: $result');
+      return result;
+    } catch (e) {
+      logger.d('[AudioHandler] 未找到 LocalIntroController: $e');
+    }
     try {
       final ctr = Get.find<AudioController>(tag: currentHeroTag!);
-      return ctr.playlist != null && ctr.playlist!.isNotEmpty;
-    } catch (_) {}
+      final result = ctr.playlist != null && ctr.playlist!.isNotEmpty;
+      logger.d('[AudioHandler] 找到 AudioController，playlist=${ctr.playlist?.length ?? 0}，返回: $result');
+      return result;
+    } catch (e) {
+      logger.d('[AudioHandler] 未找到 AudioController: $e');
+    }
+    logger.d('[AudioHandler] 所有 Controller 都未找到，返回 false');
     return false;
   }
 
@@ -170,9 +277,11 @@ class VideoPlayerServiceHandler extends BaseAudioHandler with SeekHandler {
     bool isBuffering,
     bool isLive,
   ) {
+    logger.d('[AudioHandler] setPlaybackState 被调用: status.isPlaying=${status.isPlaying}, isBuffering=$isBuffering, isLive=$isLive');
     if (!enableBackgroundPlay ||
         _item.isEmpty ||
         !PlPlayerController.instanceExists()) {
+      logger.d('[AudioHandler] setPlaybackState 跳过: enableBackgroundPlay=$enableBackgroundPlay, _item.isEmpty=${_item.isEmpty}, instanceExists=${PlPlayerController.instanceExists()}');
       return;
     }
 
@@ -188,6 +297,7 @@ class VideoPlayerServiceHandler extends BaseAudioHandler with SeekHandler {
     final playing = status.isPlaying;
 
     final hasEpisodes = _hasEpisodes();
+    logger.d('[AudioHandler] hasEpisodes: $hasEpisodes，将${hasEpisodes ? "显示" : "隐藏"}上下集按钮');
 
     final controls = <MediaControl>[
       if (!isLive && hasEpisodes) MediaControl.skipToPrevious,
