@@ -171,6 +171,12 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       Get.arguments is Map ? Get.arguments as Map : null,
     );
 
+    if (kDebugMode) {
+      debugPrint('[VideoPage] initState called, fromPip=$fromPip, '
+          'arguments: bvid=${Get.arguments['bvid']}, cid=${Get.arguments['cid']}, '
+          'heroTag=${Get.arguments['heroTag']}, targetContextKey=$targetContextKey');
+    }
+
     // 如果有直播间 PiP 在运行，关闭它（采用非销毁式，避免干扰视频播放器单例）
     if (LivePipOverlayService.isInPipMode && !fromPip) {
       LivePipOverlayService.stopLivePip(callOnClose: false);
@@ -180,9 +186,20 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
     // 如果从 PiP 返回，尝试恢复保存的控制器
     if (fromPip && PipOverlayService.isInPipMode) {
+      if (kDebugMode) {
+        debugPrint('[VideoPage] Restoring from PiP...');
+      }
+
       final savedController =
           PipOverlayService.getSavedController<VideoDetailController>();
       if (savedController != null) {
+        if (kDebugMode) {
+          debugPrint('[VideoPage] Found saved controller: ${savedController.hashCode}, '
+              'isEnteringPip=${savedController.isEnteringPip}, '
+              'isClosed=${savedController.isClosed}, '
+              'tabCtr.length=${savedController.tabCtr.length}');
+        }
+
         // 必须在 stopPip 之前取出所有 additional controllers，
         // 因为 stopPip 会调用 _savedControllers.clear() 清空缓存
         final savedReplyControllerFromPip =
@@ -195,7 +212,17 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         // 直接使用保存的控制器
         videoDetailController = savedController;
         videoDetailController.isEnteringPip = false; // 重置标志
+
+        if (kDebugMode) {
+          debugPrint('[VideoPage] Calling \$reopenLifeCycle() to reset isClosed...');
+        }
+
         videoDetailController.$reopenLifeCycle(); // 重置 isClosed
+
+        if (kDebugMode) {
+          debugPrint('[VideoPage] After \$reopenLifeCycle: isClosed=${videoDetailController.isClosed}');
+        }
+
         Get.put(savedController, tag: heroTag);
 
         PipOverlayService.stopPip(
@@ -623,6 +650,13 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
   @override
   void dispose() {
+    if (kDebugMode) {
+      debugPrint('[VideoPage] dispose called, heroTag=$heroTag, '
+          'controller hashCode=${videoDetailController.hashCode}, '
+          'isEnteringPip=${videoDetailController.isEnteringPip}, '
+          'isClosed=${videoDetailController.isClosed}');
+    }
+
     VideoStackManager.decrement(); // 减少视频页面层级追踪
     final isInAppPip = PipOverlayService.isInPipMode;
     // 如果 _pipRetryPending=true 但用户没有继续 pop（_onPopInvokedWithResult 未触发），
@@ -1849,21 +1883,53 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     bool showIntro = true,
     VoidCallback? onTap,
   }) {
+    if (kDebugMode) {
+      debugPrint('[TabBar-${videoDetailController.hashCode}] buildTabBar called, '
+          'showIntro=$showIntro, showReply=${videoDetailController.showReply}, '
+          'shouldShowSeasonPanel=$_shouldShowSeasonPanel, '
+          'currentTabCtr.length=${videoDetailController.tabCtr.length}, '
+          'isClosed=${videoDetailController.isClosed}');
+    }
+
     List<String> tabs = [
       if (showIntro)
         videoDetailController.isFileSource ? '离线视频' : introText ?? '简介',
       if (videoDetailController.showReply) '评论',
       if (_shouldShowSeasonPanel) '播放列表',
     ];
+
+    if (kDebugMode) {
+      debugPrint('[TabBar-${videoDetailController.hashCode}] tabs.length=${tabs.length}, '
+          'need rebuild: ${videoDetailController.tabCtr.length != tabs.length}');
+    }
+
     if (videoDetailController.tabCtr.length != tabs.length) {
+      final oldIndex = videoDetailController.tabCtr.index;
+      if (kDebugMode) {
+        debugPrint('[TabBar-${videoDetailController.hashCode}] Disposing old TabController '
+            '(length=${videoDetailController.tabCtr.length}, index=$oldIndex) '
+            'and creating new one (length=${tabs.length})');
+      }
+
       videoDetailController.tabCtr.dispose();
+
+      if (kDebugMode) {
+        debugPrint('[TabBar-${videoDetailController.hashCode}] Old TabController disposed, '
+            'creating new one...');
+      }
+
       videoDetailController.tabCtr = TabController(
         vsync: videoDetailController,
         length: tabs.length,
         initialIndex: tabs.isEmpty
             ? 0
-            : videoDetailController.tabCtr.index.clamp(0, tabs.length - 1),
+            : oldIndex.clamp(0, tabs.length - 1),
       );
+
+      if (kDebugMode) {
+        debugPrint('[TabBar-${videoDetailController.hashCode}] New TabController created '
+            '(length=${tabs.length}, initialIndex=${tabs.isEmpty ? 0 : oldIndex.clamp(0, tabs.length - 1)})');
+      }
     }
 
     final flag = !needIndicator || tabs.length == 1;

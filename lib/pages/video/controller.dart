@@ -432,6 +432,11 @@ class VideoDetailController extends GetxController
     super.onInit();
     args = Get.arguments;
 
+    if (kDebugMode) {
+      debugPrint('[VideoDetailController-${hashCode}] onInit called, '
+          'bvid=${args['bvid']}, cid=${args['cid']}, heroTag=${args['heroTag']}');
+    }
+
     // 开启新视频时，如果存在前代播放器的应用内小窗，则按播放上下文决定是否重置旧状态
     // 避免不同视频/分P之间 SponsorBlock 片段状态污染，同时保留同上下文无缝恢复能力
     if (PipOverlayService.isInPipMode) {
@@ -484,6 +489,11 @@ class VideoDetailController extends GetxController
       vsync: this,
       initialIndex: Pref.defaultShowComment ? 1 : 0,
     );
+
+    if (kDebugMode) {
+      debugPrint('[VideoDetailController-${hashCode}] TabController created '
+          '(length=2, initialIndex=${Pref.defaultShowComment ? 1 : 0})');
+    }
 
     // 进入全屏时切换到全屏默认画质
     if (PlatformUtils.isMobile) {
@@ -1643,10 +1653,23 @@ class VideoDetailController extends GetxController
 
   @override
   void onClose() {
+    if (kDebugMode) {
+      debugPrint('[VideoDetailController-$hashCode] onClose called, '
+          'isEnteringPip=$isEnteringPip, isClosed=$isClosed');
+    }
+
     if (isEnteringPip) {
       // 正在进入小窗，保留资源
+      if (kDebugMode) {
+        debugPrint('[VideoDetailController-$hashCode] Skipping cleanup due to PiP entry');
+      }
       return;
     }
+
+    if (kDebugMode) {
+      debugPrint('[VideoDetailController-$hashCode] Performing full cleanup');
+    }
+
     plPlayerController.pause();
     cancelBlockListener();
     _dmTrendTaskId++;
@@ -1656,6 +1679,12 @@ class VideoDetailController extends GetxController
     }
     introScrollCtr?.dispose();
     introScrollCtr = null;
+
+    if (kDebugMode) {
+      debugPrint('[VideoDetailController-$hashCode] Disposing TabController '
+          '(length=${tabCtr.length}, index=${tabCtr.index})');
+    }
+
     tabCtr.dispose();
     _scrollCtr
       ?..removeListener(scrollListener)
