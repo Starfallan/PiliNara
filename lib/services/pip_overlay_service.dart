@@ -71,8 +71,14 @@ class PipOverlayService {
   static String? get savedVideoContextKey => _savedVideoContextKey;
   static final Map<String, dynamic> _savedControllers = {};
 
-  static bool _isVideoLikeRoute(String route) {
+  static bool isVideoLikeRoute(String route) {
     return route.startsWith('/video') || route.startsWith('/liveRoom');
+  }
+
+  static void _setEnteringPipFlag(dynamic controller, bool value) {
+    try {
+      controller.isEnteringPip = value;
+    } catch (_) {}
   }
 
   static void _setSystemAutoPipEnabled(
@@ -262,13 +268,20 @@ class PipOverlayService {
       );
     }
 
-    // 旧 controller 进 PiP 时 onClose 跳过了清理，需在丢弃时补调完整的 onClose。
-    // 将 isEnteringPip 重置为 false 后再调用 onClose，使其执行完整清理流程
-    // （包括 cancelBlockListener、dispose 各种资源等）。
+    // 旧 controller 仍在路由栈内时，不能完整 onClose：
+    // TabController/ScrollController 仍会被旧页面再次使用。
+    // 若 controller 已由 GetX 关闭，页面已离栈，此时再执行完整清理。
     if (shouldResetState && _savedController is VideoDetailController) {
       final ctrl = _savedController as VideoDetailController;
       ctrl.isEnteringPip = false;
-      ctrl.onClose();
+      if (ctrl.isClosed) {
+        ctrl.onClose();
+      } else {
+        ctrl.cancelBlockListener();
+      }
+      for (final controller in _savedControllers.values) {
+        _setEnteringPipFlag(controller, false);
+      }
     }
 
     _savedController = null;
@@ -281,7 +294,7 @@ class PipOverlayService {
 
     // 小窗结束后，仅在视频/直播详情页中保留系统 Auto-PiP，其余场景立即关闭防止误触发
     final currentRoute = Get.currentRoute;
-    final keepAutoPip = _isVideoLikeRoute(currentRoute);
+    final keepAutoPip = isVideoLikeRoute(currentRoute);
     _setSystemAutoPipEnabled(playerController, keepAutoPip);
 
     // 如果需要清理，先停止播放器

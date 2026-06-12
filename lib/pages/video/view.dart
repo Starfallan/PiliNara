@@ -158,6 +158,21 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
             ((videoDetail.pages?.length ?? 0) > 1));
   }
 
+  void _resetEnteringPipFlags() {
+    _isEnteringPipMode = false;
+    videoDetailController.isEnteringPip = false;
+    if (videoDetailController.showReply) {
+      _videoReplyController.isEnteringPip = false;
+    }
+    if (videoDetailController.isFileSource) {
+      localIntroController.isEnteringPip = false;
+    } else if (videoDetailController.isUgc) {
+      ugcIntroController.isEnteringPip = false;
+    } else {
+      pgcIntroController.isEnteringPip = false;
+    }
+  }
+
   final videoReplyPanelKey = GlobalKey();
   final videoRelatedKey = GlobalKey();
   final videoIntroKey = GlobalKey();
@@ -772,17 +787,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
             videoDetailController.args,
           ),
         );
-        videoDetailController.isEnteringPip = false;
-        // 重置 IntroController 的 isEnteringPip 标志
-        try {
-          if (videoDetailController.isFileSource) {
-            Get.find<LocalIntroController>(tag: heroTag).isEnteringPip = false;
-          } else if (videoDetailController.isUgc) {
-            Get.find<UgcIntroController>(tag: heroTag).isEnteringPip = false;
-          } else {
-            Get.find<PgcIntroController>(tag: heroTag).isEnteringPip = false;
-          }
-        } catch (_) {}
+        _resetEnteringPipFlags();
         // 小窗模式下控制栏可能被隐藏了，恢复它
         plPlayerController?.controls = true;
         // 停止播放器，准备重新初始化（从列表点击视频应该重新开始）
@@ -796,10 +801,12 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         // 当前页面之前可能曾尝试进入小窗（didPushNext 设置了 _isEnteringPipMode = true），
         // 但被其他视频抢占。需要重置该标志，否则 dispose 会跳过播放器清理，
         // 且 PopScope 不在 widget tree 中导致后续返回无法触发新的小窗
-        _isEnteringPipMode = false;
+        _resetEnteringPipFlags();
         // 标记需要重试 PiP：关了别人的 PiP，恢复播放器后应尝试启动自己的 PiP
         _pipRetryPending = true;
       }
+    } else if (_isEnteringPipMode || videoDetailController.isEnteringPip) {
+      _resetEnteringPipFlags();
     }
     // 视频页返回时，若直播小窗仍在运行，也需关闭
     if (LivePipOverlayService.isInPipMode) {
@@ -1855,14 +1862,19 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       if (videoDetailController.showReply) '评论',
       if (_shouldShowSeasonPanel) '播放列表',
     ];
-    if (videoDetailController.tabCtr.length != tabs.length) {
-      videoDetailController.tabCtr.dispose();
+    final oldTabCtr = videoDetailController.tabCtr;
+    final oldTabCtrDisposed = oldTabCtr.animation == null;
+    if (oldTabCtr.length != tabs.length || oldTabCtrDisposed) {
+      final initialIndex = tabs.isEmpty
+          ? 0
+          : oldTabCtr.index.clamp(0, tabs.length - 1);
+      if (!oldTabCtrDisposed) {
+        oldTabCtr.dispose();
+      }
       videoDetailController.tabCtr = TabController(
         vsync: videoDetailController,
         length: tabs.length,
-        initialIndex: tabs.isEmpty
-            ? 0
-            : videoDetailController.tabCtr.index.clamp(0, tabs.length - 1),
+        initialIndex: initialIndex,
       );
     }
 
@@ -2653,7 +2665,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       plPlayerController?.disableAutoEnterPip();
     }
     if (didPop) {
-      _startInAppPipIfNeeded();
+      _startInAppPipIfNeeded(fromPop: true);
       // 消费 didPopNext else 分支设的重试标志（用户真的继续 pop 了）。
       // 立即调用通常足够（didPopNext 已同步关闭其他 PiP，playerInit 多半已完成）；
       // 若立即失败（rapid back press 时 playerInit 还在 await，playerStatus 不是 playing），
@@ -2663,7 +2675,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         _pipRetryPending = false;
         if (needDeferredRetry) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            _startInAppPipIfNeeded();
+            _startInAppPipIfNeeded(fromPop: true);
           });
         }
       }
@@ -2675,7 +2687,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     );
   }
 
-  bool _shouldStartInAppPip() {
+  bool _shouldStartInAppPip({bool fromPop = false}) {
     _logSponsorBlock(
       'Checking PiP: count=${VideoStackManager.getCount()}, previousRoute=${Get.previousRoute}',
     );
@@ -2713,6 +2725,12 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       _logSponsorBlock('Reject PiP: Navigating to audio page');
       return false;
     }
+    if (!fromPop && PipOverlayService.isVideoLikeRoute(Get.currentRoute)) {
+      _logSponsorBlock(
+        'Reject PiP: navigating to video/live route (${Get.currentRoute})',
+      );
+      return false;
+    }
 
     final prevRoute = Get.previousRoute;
     if (VideoStackManager.isReturningToVideo()) {
@@ -2732,8 +2750,8 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     return true;
   }
 
-  void _startInAppPipIfNeeded() {
-    if (!_shouldStartInAppPip()) {
+  void _startInAppPipIfNeeded({bool fromPop = false}) {
+    if (!_shouldStartInAppPip(fromPop: fromPop)) {
       return;
     }
 
