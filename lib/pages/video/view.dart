@@ -985,8 +985,8 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     final minVideoHeight = shortestSide / Style.aspectRatio16x9;
     final maxVideoHeight = max(size.longestSide * 0.65, shortestSide);
 
-    final oldIsPortrait = isPortrait;
     final newIsPortrait = maxHeight >= maxWidth;
+    final oldIsPortrait = isPortrait;
 
     videoDetailController
       ..isPortrait = isPortrait = newIsPortrait
