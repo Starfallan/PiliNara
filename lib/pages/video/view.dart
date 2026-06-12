@@ -242,6 +242,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
           _logSponsorBlock('Refreshing videoState and cid after return');
+          if (kDebugMode) {
+            debugPrint('[VideoPage] Calling update() to trigger rebuild after PiP restore');
+          }
           videoDetailController.videoState.refresh();
           videoDetailController.cid.refresh();
           videoDetailController.update();
@@ -981,13 +984,22 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     final shortestSide = size.shortestSide;
     final minVideoHeight = shortestSide / Style.aspectRatio16x9;
     final maxVideoHeight = max(size.longestSide * 0.65, shortestSide);
+
+    final oldIsPortrait = isPortrait;
+    final newIsPortrait = maxHeight >= maxWidth;
+
     videoDetailController
-      ..isPortrait = isPortrait = maxHeight >= maxWidth
+      ..isPortrait = isPortrait = newIsPortrait
       ..minVideoHeight = minVideoHeight
       ..maxVideoHeight = maxVideoHeight
       ..videoHeight = videoDetailController.isVertical.value
           ? maxVideoHeight
           : minVideoHeight;
+
+    if (kDebugMode && oldIsPortrait != newIsPortrait) {
+      debugPrint('[VideoPage] Orientation changed: $oldIsPortrait -> $newIsPortrait, '
+          'size: ${maxWidth}x${maxHeight}, shouldShowSeasonPanel: $_shouldShowSeasonPanel');
+    }
 
     themeData = videoDetailController.plPlayerController.darkVideoPage
         ? ThemeUtils.darkTheme

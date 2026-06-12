@@ -915,6 +915,13 @@ class VideoDetailController extends GetxController
     Volume? volume,
     bool autoFullScreenFlag = false,
   }) async {
+    if (kDebugMode) {
+      debugPrint('[VideoDetailController-$hashCode] playerInit called, '
+          'isClosed=$isClosed, isFileSource=$isFileSource, '
+          'video=${video?.substring(0, min(50, video.length))}, '
+          'autoplay=$autoplay');
+    }
+
     // 如果播放器单例已被外部销毁（例如在二级页面关闭了小窗），重新获取一个新实例
     if (plPlayerController.videoPlayerController == null) {
       plPlayerController = PlPlayerController.getInstance();
