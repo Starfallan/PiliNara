@@ -984,22 +984,13 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     final shortestSide = size.shortestSide;
     final minVideoHeight = shortestSide / Style.aspectRatio16x9;
     final maxVideoHeight = max(size.longestSide * 0.65, shortestSide);
-
-    final newIsPortrait = maxHeight >= maxWidth;
-    final oldIsPortrait = isPortrait;
-
     videoDetailController
-      ..isPortrait = isPortrait = newIsPortrait
+      ..isPortrait = isPortrait = maxHeight >= maxWidth
       ..minVideoHeight = minVideoHeight
       ..maxVideoHeight = maxVideoHeight
       ..videoHeight = videoDetailController.isVertical.value
           ? maxVideoHeight
           : minVideoHeight;
-
-    if (kDebugMode && oldIsPortrait != newIsPortrait) {
-      debugPrint('[VideoPage] Orientation changed: $oldIsPortrait -> $newIsPortrait, '
-          'size: ${maxWidth}x${maxHeight}, shouldShowSeasonPanel: $_shouldShowSeasonPanel');
-    }
 
     themeData = videoDetailController.plPlayerController.darkVideoPage
         ? ThemeUtils.darkTheme
