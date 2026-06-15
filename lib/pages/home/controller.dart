@@ -64,6 +64,11 @@ class HomeController extends GetxController
     });
   }
 
+  @override
+  void toTopAndRefresh() {
+    controller.toTopAndRefresh();
+  }
+
   void setTabConfig() {
     final tabs = GStorage.setting.get(SettingBoxKey.tabBarSort) as List?;
     if (tabs != null) {

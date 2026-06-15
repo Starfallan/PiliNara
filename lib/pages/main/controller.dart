@@ -9,6 +9,7 @@ import 'package:PiliPlus/models/common/msg/msg_unread_type.dart';
 import 'package:PiliPlus/models/common/nav_bar_config.dart';
 import 'package:PiliPlus/pages/dynamics/controller.dart';
 import 'package:PiliPlus/pages/home/controller.dart';
+import 'package:PiliPlus/pages/mine/controller.dart';
 import 'package:PiliPlus/pages/mine/view.dart';
 import 'package:PiliPlus/services/account_service.dart';
 import 'package:PiliPlus/utils/extension/get_ext.dart';
@@ -19,7 +20,6 @@ import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/update.dart';
 import 'package:collection/collection.dart';
-import 'package:easy_debounce/easy_throttle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -67,7 +67,6 @@ class MainController extends GetxController
   late bool isPlaying = false;
 
   static const _period = 5 * 60 * 1000;
-  late int _lastSelectTime = 0;
 
   @override
   void onInit() {
@@ -302,27 +301,18 @@ class MainController extends GetxController
         setDynCount();
       }
     } else {
-      int now = DateTime.now().millisecondsSinceEpoch;
-      if (now - _lastSelectTime < 500) {
-        EasyThrottle.throttle(
-          'topOrRefresh',
-          const Duration(milliseconds: 500),
-          () {
-            if (currentNav == NavigationBarType.home) {
-              homeController.onRefresh();
-            } else if (currentNav == NavigationBarType.dynamics) {
-              dynamicController.onRefresh();
-            }
-          },
-        );
-      } else {
-        if (currentNav == NavigationBarType.home) {
-          homeController.toTopOrRefresh();
-        } else if (currentNav == NavigationBarType.dynamics) {
-          dynamicController.toTopOrRefresh();
-        }
-      }
-      _lastSelectTime = now;
+      _refreshCurrentNav(currentNav);
+    }
+  }
+
+  void _refreshCurrentNav(NavigationBarType currentNav) {
+    switch (currentNav) {
+      case NavigationBarType.home:
+        homeController.toTopAndRefresh();
+      case NavigationBarType.dynamics:
+        dynamicController.toTopAndRefresh();
+      case NavigationBarType.mine:
+        Get.putOrFind(MineController.new).toTopAndRefresh();
     }
   }
 

@@ -66,6 +66,7 @@ class _DynamicsTabPageState extends State<DynamicsTabPage>
   Widget build(BuildContext context) {
     super.build(context);
     return refreshIndicator(
+      key: controller.refreshKey,
       onRefresh: () {
         dynamicsController.queryFollowUp();
         return controller.onRefresh();

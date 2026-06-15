@@ -53,7 +53,7 @@ class _HomePageState extends CommonPageState<HomePage>
             onTap: (_) {
               feedBack();
               if (!_homeController.tabController.indexIsChanging) {
-                _homeController.animateToTop();
+                _homeController.toTopAndRefresh();
               }
             },
           ),

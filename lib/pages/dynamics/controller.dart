@@ -204,9 +204,11 @@ class DynamicsController extends GetxController
   }
 
   @override
-  void animateToTop() {
-    controller?.animateToTop();
-    scrollController.animToTop();
+  Future<void> animateToTop() {
+    return Future.wait([
+      if (controller case final ctr?) ctr.animateToTop(),
+      scrollController.animToTop(),
+    ]);
   }
 
   @override
@@ -229,6 +231,27 @@ class DynamicsController extends GetxController
     } else {
       super.toTopOrRefresh();
     }
+  }
+
+  @override
+  void toTopAndRefresh() {
+    EasyThrottle.throttle(
+      'topAndRefresh',
+      const Duration(milliseconds: 500),
+      () async {
+        final ctr = controller;
+        final shouldScrollChild =
+            ctr?.scrollController.hasClients == true &&
+            ctr!.scrollController.position.pixels != 0;
+        final shouldScrollParent =
+            scrollController.hasClients &&
+            scrollController.position.pixels != 0;
+        if (shouldScrollChild || shouldScrollParent) {
+          await animateToTop();
+        }
+        await (ctr?.refreshKey.currentState?.show() ?? onRefresh());
+      },
+    );
   }
 
   @override
