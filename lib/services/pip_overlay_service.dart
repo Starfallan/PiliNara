@@ -344,10 +344,14 @@ class PipOverlayService {
         },
       );
       ctrl.isEnteringPip = false;
+      ctrl.cancelBlockListener();
       if (ctrl.isClosed) {
-        ctrl.onClose();
-      } else {
-        ctrl.cancelBlockListener();
+        _trace(
+          'stopPip:skipClosedControllerOnClose',
+          data: {
+            'controllerHash': ctrl.hashCode,
+          },
+        );
       }
       for (final controller in _savedControllers.values) {
         _setEnteringPipFlag(controller, false);
