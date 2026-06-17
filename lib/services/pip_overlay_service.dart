@@ -7,6 +7,7 @@ import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/services/media_trace.dart';
 import 'package:PiliPlus/services/logger.dart';
+import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/device_utils.dart';
 import 'package:flutter/foundation.dart';
@@ -123,6 +124,48 @@ class PipOverlayService {
         plPlayerController.disableAutoEnterPip();
       }
     }
+  }
+
+  static void releaseSavedVideoOwner({
+    bool clearMediaSession = true,
+    bool disposePlayer = true,
+  }) {
+    final savedController = _savedController;
+    final savedPlayerController = _savedPlayerController;
+
+    _trace(
+      'releaseSavedVideoOwner:start',
+      data: {
+        'clearMediaSession': clearMediaSession,
+        'disposePlayer': disposePlayer,
+        'savedControllerHash': savedController?.hashCode,
+        'savedPlayerHash': savedPlayerController?.hashCode,
+      },
+    );
+
+    if (savedController is! VideoDetailController) {
+      _trace(
+        'releaseSavedVideoOwner:skip',
+        data: {
+          'reason': 'savedControllerNotVideoDetail',
+        },
+      );
+      return;
+    }
+
+    savedController.isEnteringPip = false;
+    savedController.cancelBlockListener();
+
+    if (clearMediaSession) {
+      videoPlayerServiceHandler?.onVideoDetailDispose(savedController.heroTag);
+    }
+
+    if (disposePlayer && savedPlayerController != null) {
+      savedController.makeHeartBeat();
+      savedPlayerController.dispose();
+    }
+
+    _trace('releaseSavedVideoOwner:done');
   }
 
   static String _keyPart(Object? value) => value?.toString() ?? '';

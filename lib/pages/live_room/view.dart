@@ -164,6 +164,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     if (PipOverlayService.isInPipMode) {
       _trace('initState:stopExistingVideoPip');
       PipOverlayService.stopPip(callOnClose: false);
+      PipOverlayService.releaseSavedVideoOwner();
     }
 
     _liveRoomController = Get.put(
