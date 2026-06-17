@@ -51,6 +51,7 @@ import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
 import 'package:PiliPlus/plugin/pl_player/view/view.dart';
+import 'package:PiliPlus/services/media_trace.dart';
 import 'package:PiliPlus/services/live_pip_overlay_service.dart';
 import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/services/pip_overlay_service.dart';
@@ -125,6 +126,30 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     logger.i('[${videoDetailController.hashCode}] [SponsorBlock] $message');
   }
 
+  void _trace(
+    String event, {
+    Object? message,
+    Map<String, Object?>? data,
+  }) {
+    mediaTrace(
+      'VideoPage',
+      event,
+      message: message,
+      data: {
+        'heroTag': heroTag,
+        'route': Get.currentRoute,
+        'fromPipArg': Get.arguments?['fromPip'],
+        'isEnteringPipMode': _isEnteringPipMode,
+        'inAppPip': PipOverlayService.isInPipMode,
+        'livePip': LivePipOverlayService.isInPipMode,
+        'pipRetryPending': _pipRetryPending,
+        'playerHash': plPlayerController?.hashCode,
+        'playerStatus': plPlayerController?.playerStatus.value.name,
+        ...?data,
+      },
+    );
+  }
+
   bool get autoExitFullscreen =>
       videoDetailController.plPlayerController.autoExitFullscreen;
 
@@ -181,9 +206,18 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     final String? targetContextKey = PipOverlayService.contextKeyFromArgs(
       Get.arguments is Map ? Get.arguments as Map : null,
     );
+    _trace(
+      'initState:start',
+      data: {
+        'fromPip': fromPip,
+        'targetContextKey': targetContextKey,
+        'videoStackCount': VideoStackManager.getCount(),
+      },
+    );
 
     // 如果有直播间 PiP 在运行，关闭它（采用非销毁式，避免干扰视频播放器单例）
     if (LivePipOverlayService.isInPipMode && !fromPip) {
+      _trace('initState:stopLivePipForVideoEntry');
       LivePipOverlayService.stopLivePip(callOnClose: false);
     }
 
@@ -191,9 +225,16 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
     // 如果从 PiP 返回，尝试恢复保存的控制器
     if (fromPip && PipOverlayService.isInPipMode) {
+      _trace('initState:restoreFromVideoPip');
       final savedController =
           PipOverlayService.getSavedController<VideoDetailController>();
       if (savedController != null) {
+        _trace(
+          'initState:restoreSavedController',
+          data: {
+            'savedControllerHash': savedController.hashCode,
+          },
+        );
         // 必须在 stopPip 之前取出所有 additional controllers，
         // 因为 stopPip 会调用 _savedControllers.clear() 清空缓存
         final savedReplyControllerFromPip =
@@ -231,6 +272,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
           videoDetailController.update();
         });
       } else {
+        _trace('initState:noSavedControllerFromPip');
         // 没有保存的控制器，创建新的
         PipOverlayService.stopPip(
           callOnClose: false,
@@ -242,6 +284,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     } else {
       // 非 PiP 返回，正常流程（包括原页面还留在栈中或由于某些原因被销毁重构）
       if (PipOverlayService.isInPipMode) {
+        _trace('initState:takeOverOtherVideoPip');
         // 关闭小窗并停止播放器（从列表点击视频应该停止旧的播放）
         final savedController =
             PipOverlayService.getSavedController<VideoDetailController>();
@@ -261,6 +304,13 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
           targetContextKey: targetContextKey,
         );
         // stopPip 不会调用 onClose，手动停止播放器
+        _trace(
+          'initState:pauseSavedControllerAfterTakeOver',
+          data: {
+            'savedControllerHash': savedController?.hashCode,
+            'savedWasPlaying': savedWasPlaying,
+          },
+        );
         savedController?.plPlayerController.pause();
       }
       videoDetailController = Get.put(VideoDetailController(), tag: heroTag);
@@ -647,9 +697,18 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   void dispose() {
     VideoStackManager.decrement(); // 减少视频页面层级追踪
     final isInAppPip = PipOverlayService.isInPipMode;
+    _trace(
+      'dispose:start',
+      data: {
+        'isInAppPip': isInAppPip,
+        'isEnteringPipMode': _isEnteringPipMode,
+        'pipRetryPending': _pipRetryPending,
+      },
+    );
     // 如果 _pipRetryPending=true 但用户没有继续 pop（_onPopInvokedWithResult 未触发），
     // 说明用户通过其他方式离开（点导航栏、Get.offAll 等），需要主动暂停播放器。
     if (_pipRetryPending && !isInAppPip && !_isEnteringPipMode) {
+      _trace('dispose:pauseForRetryPending');
       plPlayerController?.pause();
       _pipRetryPending = false;
     }
@@ -680,17 +739,21 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
     if (!videoDetailController.plPlayerController.isCloseAll) {
       if (isInAppPip || _isEnteringPipMode) {
+        _trace('dispose:keepPlayerForPip');
         videoDetailController.makeHeartBeat();
       } else {
+        _trace('dispose:clearSessionAndDisposePlayer');
         videoPlayerServiceHandler?.onVideoDetailDispose(heroTag);
         if (plPlayerController != null) {
           videoDetailController.makeHeartBeat();
           plPlayerController!.dispose();
         } else {
+          _trace('dispose:updatePlayCountFallback');
           PlPlayerController.updatePlayCount();
         }
       }
     }
+    _trace('dispose:done');
     removeObserverMobile(this);
 
     super.dispose();
@@ -786,6 +849,16 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       final isSameVideo =
           PipOverlayService.savedVideoContextKey ==
           PipOverlayService.contextKeyFromArgs(videoDetailController.args);
+      _trace(
+        'didPopNext:handleExistingPip',
+        data: {
+          'isSameVideo': isSameVideo,
+          'savedVideoContextKey': PipOverlayService.savedVideoContextKey,
+          'currentVideoContextKey': PipOverlayService.contextKeyFromArgs(
+            videoDetailController.args,
+          ),
+        },
+      );
       if (isSameVideo) {
         _logSponsorBlock(
           'Returning to video page with matching active PiP, closing PiP overlay',
@@ -2686,40 +2759,93 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   }
 
   bool _shouldStartInAppPip({bool fromPop = false}) {
+    _trace(
+      '_shouldStartInAppPip:start',
+      data: {
+        'fromPop': fromPop,
+        'videoStackCount': VideoStackManager.getCount(),
+        'previousRoute': Get.previousRoute,
+      },
+    );
     _logSponsorBlock(
       'Checking PiP: count=${VideoStackManager.getCount()}, previousRoute=${Get.previousRoute}',
     );
     if (!Pref.enableInAppPip) {
+      _trace(
+        '_shouldStartInAppPip:reject',
+        data: {
+          'reason': 'disabledInSettings',
+        },
+      );
       _logSponsorBlock('Reject PiP: in-app PiP is disabled in settings');
       return false;
     }
     if (PipOverlayService.isInPipMode) {
+      _trace(
+        '_shouldStartInAppPip:reject',
+        data: {
+          'reason': 'alreadyInPip',
+        },
+      );
       _logSponsorBlock('Reject PiP: already in PiP mode');
       return false;
     }
     plPlayerController ??= videoDetailController.plPlayerController;
     final controller = plPlayerController;
     if (controller == null || controller.videoController == null) {
+      _trace(
+        '_shouldStartInAppPip:reject',
+        data: {
+          'reason': 'playerMissing',
+        },
+      );
       _logSponsorBlock('Reject PiP: controller or videoController is null');
       return false;
     }
     if (controller.isDesktopPip || controller.isPipMode) {
+      _trace(
+        '_shouldStartInAppPip:reject',
+        data: {
+          'reason': 'nativeOrDesktopPipActive',
+          'isDesktopPip': controller.isDesktopPip,
+          'isPipMode': controller.isPipMode,
+        },
+      );
       _logSponsorBlock(
         'Reject PiP: isDesktopPip=${controller.isDesktopPip}, isPipMode=${controller.isPipMode}',
       );
       return false;
     }
     if (controller.playerStatus.value != PlayerStatus.playing) {
+      _trace(
+        '_shouldStartInAppPip:reject',
+        data: {
+          'reason': 'playerNotPlaying',
+          'playerStatus': controller.playerStatus.value.name,
+        },
+      );
       _logSponsorBlock('Reject PiP: video is paused');
       return false;
     }
     if (!videoDetailController.autoPlay) {
+      _trace(
+        '_shouldStartInAppPip:reject',
+        data: {
+          'reason': 'autoPlayFalse',
+        },
+      );
       _logSponsorBlock('Reject PiP: autoPlay is false');
       return false;
     }
 
     // 如果即将进入听视频界面，不开启小窗
     if (Get.currentRoute == '/audio') {
+      _trace(
+        '_shouldStartInAppPip:reject',
+        data: {
+          'reason': 'navigatingToAudio',
+        },
+      );
       _logSponsorBlock('Reject PiP: Navigating to audio page');
       return false;
     }
@@ -2732,22 +2858,47 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
           'Allowing PiP: Returning to non-video page ($prevRoute)',
         );
       } else {
+        _trace(
+          '_shouldStartInAppPip:reject',
+          data: {
+            'reason': 'returningToVideo',
+            'previousRoute': prevRoute,
+          },
+        );
         _logSponsorBlock(
           'Reject PiP: isReturningToVideo is true (Stack Count = ${VideoStackManager.getCount()}, Previous = $prevRoute)',
         );
         return false;
       }
     }
+    _trace(
+      '_shouldStartInAppPip:allow',
+      data: {
+        'fromPop': fromPop,
+      },
+    );
     return true;
   }
 
   void _startInAppPipIfNeeded({bool fromPop = false}) {
     if (!_shouldStartInAppPip(fromPop: fromPop)) {
+      _trace(
+        '_startInAppPipIfNeeded:skip',
+        data: {
+          'fromPop': fromPop,
+        },
+      );
       return;
     }
 
     // 设置标志，防止 didPushNext 清理 SponsorBlock 数据
     _isEnteringPipMode = true;
+    _trace(
+      '_startInAppPipIfNeeded:start',
+      data: {
+        'fromPop': fromPop,
+      },
+    );
     _logSponsorBlock(
       'Starting PiP mode, segmentList.length: ${videoDetailController.segmentList.length}',
     );
@@ -2786,6 +2937,12 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     _logSponsorBlock(
       'Saved ${additionalControllers.length} additional controllers',
     );
+    _trace(
+      '_startInAppPipIfNeeded:preparedControllers',
+      data: {
+        'additionalControllersCount': additionalControllers.length,
+      },
+    );
 
     PipOverlayService.startPip(
       plPlayerController: plPlayerController!,
@@ -2799,6 +2956,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       ),
       onClose: () {
         _isEnteringPipMode = false;
+        _trace('_startInAppPipIfNeeded:onClose');
         _logSponsorBlock('PiP closed by user');
         _handleInAppPipCloseCleanup();
       },
@@ -2819,6 +2977,12 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
         // 重置标志
         _isEnteringPipMode = false;
+        _trace(
+          '_startInAppPipIfNeeded:onTapToReturn',
+          data: {
+            'progressMs': progress,
+          },
+        );
         _logSponsorBlock(
           'Tap to return from PiP, args contains: bvid=${args['bvid']}, cid=${args['cid']}, heroTag=${args['heroTag']}, title=${args['title']}, segmentList.length: ${videoDetailController.segmentList.length}',
         );
@@ -2830,10 +2994,18 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     // 不需要重新初始化 SponsorBlock，因为 positionSubscription 已经存在并在工作
     // 重新调用 initSkip() 会取消并重新创建 subscription，可能导致失效
     _logSponsorBlock('PiP started, positionSubscription preserved');
+    _trace('_startInAppPipIfNeeded:done');
   }
 
   void _handleInAppPipCloseCleanup() {
+    _trace('_handleInAppPipCloseCleanup:start');
     if (videoDetailController.plPlayerController.isCloseAll) {
+      _trace(
+        '_handleInAppPipCloseCleanup:skip',
+        data: {
+          'reason': 'closeAll',
+        },
+      );
       return;
     }
     if (Platform.isAndroid && !videoDetailController.setSystemBrightness) {
@@ -2843,11 +3015,14 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     videoPlayerServiceHandler?.onVideoDetailDispose(heroTag);
     plPlayerController ??= videoDetailController.plPlayerController;
     if (plPlayerController != null) {
+      _trace('_handleInAppPipCloseCleanup:disposePlayer');
       videoDetailController.makeHeartBeat();
       plPlayerController!.dispose();
     } else {
+      _trace('_handleInAppPipCloseCleanup:updatePlayCountFallback');
       PlPlayerController.updatePlayCount();
     }
+    _trace('_handleInAppPipCloseCleanup:done');
   }
 
   void onShowMemberPage(int? mid) {

@@ -16,6 +16,7 @@ import 'package:PiliPlus/models_new/video/video_detail/data.dart';
 import 'package:PiliPlus/models_new/video/video_detail/page.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
+import 'package:PiliPlus/services/media_trace.dart';
 import 'package:PiliPlus/utils/android/bindings.g.dart';
 import 'package:PiliPlus/utils/image_utils.dart';
 import 'package:PiliPlus/utils/path_utils.dart';
@@ -51,7 +52,44 @@ class VideoPlayerServiceHandler extends BaseAudioHandler with SeekHandler {
   Future<void>? Function()? onSkipToPrevious;
   String? currentHeroTag;
 
+  String _describeMediaStack() {
+    if (_item.isEmpty) {
+      return '[]';
+    }
+    return '[${_item.map((item) => item.id).join(', ')}]';
+  }
+
+  void _trace(
+    String event, {
+    Object? message,
+    Map<String, Object?>? data,
+  }) {
+    mediaTrace(
+      'AudioHandler',
+      event,
+      message: message,
+      data: {
+        'currentHeroTag': currentHeroTag,
+        'enableBackgroundPlay': enableBackgroundPlay,
+        'mediaItemClosed': mediaItem.isClosed,
+        'stackSize': _item.length,
+        'stack': _describeMediaStack(),
+        ...?data,
+      },
+    );
+  }
+
   void _clearCallbacks() {
+    _trace(
+      'clearCallbacks',
+      data: {
+        'hasOnPlay': onPlay != null,
+        'hasOnPause': onPause != null,
+        'hasOnSeek': onSeek != null,
+        'hasOnSkipNext': onSkipToNext != null,
+        'hasOnSkipPrev': onSkipToPrevious != null,
+      },
+    );
     onPlay = null;
     onPause = null;
     onSeek = null;
@@ -60,6 +98,13 @@ class VideoPlayerServiceHandler extends BaseAudioHandler with SeekHandler {
   }
 
   void _emitIdleState() {
+    _trace(
+      'emitIdleState:start',
+      data: {
+        'processingState': playbackState.value.processingState.name,
+        'playing': playbackState.value.playing,
+      },
+    );
     if (playbackState.value.processingState == AudioProcessingState.idle) {
       playbackState.add(
         PlaybackState(
@@ -74,9 +119,22 @@ class VideoPlayerServiceHandler extends BaseAudioHandler with SeekHandler {
         playing: false,
       ),
     );
+    _trace(
+      'emitIdleState:done',
+      data: {
+        'processingState': playbackState.value.processingState.name,
+        'playing': playbackState.value.playing,
+      },
+    );
   }
 
   void _clearCurrentSession({bool clearItems = true}) {
+    _trace(
+      'clearCurrentSession:start',
+      data: {
+        'clearItems': clearItems,
+      },
+    );
     if (!mediaItem.isClosed) {
       mediaItem.add(null);
     }
@@ -86,10 +144,22 @@ class VideoPlayerServiceHandler extends BaseAudioHandler with SeekHandler {
     currentHeroTag = null;
     _clearCallbacks();
     _emitIdleState();
+    _trace(
+      'clearCurrentSession:done',
+      data: {
+        'clearItems': clearItems,
+      },
+    );
   }
 
   @override
   Future<void> skipToNext() async {
+    _trace(
+      'skipToNext',
+      data: {
+        'hasCustomCallback': onSkipToNext != null,
+      },
+    );
     if (onSkipToNext != null) {
       await onSkipToNext?.call();
       return;
@@ -117,6 +187,12 @@ class VideoPlayerServiceHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> skipToPrevious() async {
+    _trace(
+      'skipToPrevious',
+      data: {
+        'hasCustomCallback': onSkipToPrevious != null,
+      },
+    );
     if (onSkipToPrevious != null) {
       await onSkipToPrevious?.call();
       return;
@@ -144,6 +220,12 @@ class VideoPlayerServiceHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> play() {
+    _trace(
+      'play',
+      data: {
+        'hasCustomCallback': onPlay != null,
+      },
+    );
     return onPlay?.call() ??
         PlPlayerController.playIfExists() ??
         Future.syncValue(null);
@@ -152,12 +234,25 @@ class VideoPlayerServiceHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> pause() {
+    _trace(
+      'pause',
+      data: {
+        'hasCustomCallback': onPause != null,
+      },
+    );
     return onPause?.call() ?? PlPlayerController.pauseIfExists();
     // player.pause();
   }
 
   @override
   Future<void> seek(Duration position) {
+    _trace(
+      'seek',
+      data: {
+        'positionMs': position.inMilliseconds,
+        'hasCustomCallback': onSeek != null,
+      },
+    );
     playbackState.add(
       playbackState.value.copyWith(
         updatePosition: position,
@@ -169,13 +264,31 @@ class VideoPlayerServiceHandler extends BaseAudioHandler with SeekHandler {
   }
 
   void setMediaItem(MediaItem newMediaItem) {
-    if (!enableBackgroundPlay) return;
+    if (!enableBackgroundPlay) {
+      _trace(
+        'setMediaItem:skip',
+        data: {
+          'reason': 'backgroundPlayDisabled',
+          'mediaId': newMediaItem.id,
+        },
+      );
+      return;
+    }
     // if (kDebugMode) {
     //   debugPrint("此时调用栈为：");
     //   debugPrint(newMediaItem);
     //   debugPrint(newMediaItem.title);
     //   debugPrint(StackTrace.current.toString());
     // }
+    _trace(
+      'setMediaItem',
+      data: {
+        'mediaId': newMediaItem.id,
+        'title': newMediaItem.title,
+        'artist': newMediaItem.artist,
+        'isLive': newMediaItem.isLive,
+      },
+    );
     if (!mediaItem.isClosed) mediaItem.add(newMediaItem);
   }
 
@@ -213,6 +326,19 @@ class VideoPlayerServiceHandler extends BaseAudioHandler with SeekHandler {
     if (!enableBackgroundPlay ||
         _item.isEmpty ||
         !PlPlayerController.instanceExists()) {
+      _trace(
+        'setPlaybackState:skip',
+        data: {
+          'status': status.name,
+          'isBuffering': isBuffering,
+          'isLive': isLive,
+          'reason': !enableBackgroundPlay
+              ? 'backgroundPlayDisabled'
+              : _item.isEmpty
+              ? 'emptyMediaStack'
+              : 'playerMissing',
+        },
+      );
       return;
     }
 
@@ -283,6 +409,18 @@ class VideoPlayerServiceHandler extends BaseAudioHandler with SeekHandler {
         },
       ),
     );
+    _trace(
+      'setPlaybackState',
+      data: {
+        'status': status.name,
+        'isBuffering': isBuffering,
+        'isLive': isLive,
+        'processingState': processingState.name,
+        'playing': playing,
+        'hasEpisodes': hasEpisodes,
+        'controlsCount': controls.length,
+      },
+    );
     if (Platform.isAndroid &&
         (AndroidHelper.isPipMode ||
             PlPlayerController.instance?.isAutoEnterPip == true)) {
@@ -295,9 +433,39 @@ class VideoPlayerServiceHandler extends BaseAudioHandler with SeekHandler {
   }
 
   void onStatusChange(PlayerStatus status, bool isBuffering, isLive) {
-    if (!enableBackgroundPlay) return;
+    if (!enableBackgroundPlay) {
+      _trace(
+        'onStatusChange:skip',
+        data: {
+          'status': status.name,
+          'isBuffering': isBuffering,
+          'isLive': isLive,
+          'reason': 'backgroundPlayDisabled',
+        },
+      );
+      return;
+    }
 
-    if (_item.isEmpty) return;
+    if (_item.isEmpty) {
+      _trace(
+        'onStatusChange:skip',
+        data: {
+          'status': status.name,
+          'isBuffering': isBuffering,
+          'isLive': isLive,
+          'reason': 'emptyMediaStack',
+        },
+      );
+      return;
+    }
+    _trace(
+      'onStatusChange',
+      data: {
+        'status': status.name,
+        'isBuffering': isBuffering,
+        'isLive': isLive,
+      },
+    );
     setPlaybackState(status, isBuffering, isLive);
   }
 
@@ -308,14 +476,44 @@ class VideoPlayerServiceHandler extends BaseAudioHandler with SeekHandler {
     String? artist,
     String? cover,
   }) {
-    if (!enableBackgroundPlay) return;
+    if (!enableBackgroundPlay) {
+      _trace(
+        'onVideoDetailChange:skip',
+        data: {
+          'cid': cid,
+          'heroTag': herotag,
+          'reason': 'backgroundPlayDisabled',
+        },
+      );
+      return;
+    }
     currentHeroTag = herotag;
     // if (kDebugMode) {
     //   debugPrint('当前调用栈为：');
     //   debugPrint(StackTrace.current);
     // }
-    if (!PlPlayerController.instanceExists()) return;
-    if (data == null) return;
+    if (!PlPlayerController.instanceExists()) {
+      _trace(
+        'onVideoDetailChange:skip',
+        data: {
+          'cid': cid,
+          'heroTag': herotag,
+          'reason': 'playerMissingBeforeBuild',
+        },
+      );
+      return;
+    }
+    if (data == null) {
+      _trace(
+        'onVideoDetailChange:skip',
+        data: {
+          'cid': cid,
+          'heroTag': herotag,
+          'reason': 'dataNull',
+        },
+      );
+      return;
+    }
 
     Uri getUri(String? cover) => Uri.parse(ImageUtils.safeThumbnailUrl(cover));
 
@@ -390,28 +588,96 @@ class VideoPlayerServiceHandler extends BaseAudioHandler with SeekHandler {
           artUri: uri,
         );
       default:
+        _trace(
+          'onVideoDetailChange:skip',
+          data: {
+            'cid': cid,
+            'heroTag': herotag,
+            'reason': 'unsupportedDataType',
+            'dataType': data.runtimeType.toString(),
+          },
+        );
         return;
     }
     // if (kDebugMode) debugPrint("exist: ${PlPlayerController.instanceExists()}");
-    if (!PlPlayerController.instanceExists()) return;
+    if (!PlPlayerController.instanceExists()) {
+      _trace(
+        'onVideoDetailChange:skip',
+        data: {
+          'cid': cid,
+          'heroTag': herotag,
+          'reason': 'playerMissingAfterBuild',
+          'mediaId': id,
+        },
+      );
+      return;
+    }
     _item
       ..removeWhere((item) => item.id == id || item.id.endsWith(herotag))
       ..add(mediaItem);
+    _trace(
+      'onVideoDetailChange',
+      data: {
+        'cid': cid,
+        'heroTag': herotag,
+        'mediaId': mediaItem.id,
+        'title': mediaItem.title,
+        'artist': mediaItem.artist,
+        'dataType': data.runtimeType.toString(),
+      },
+    );
     setMediaItem(mediaItem);
   }
 
   void onVideoDetailDispose(String herotag) {
-    if (!enableBackgroundPlay) return;
+    if (!enableBackgroundPlay) {
+      _trace(
+        'onVideoDetailDispose:skip',
+        data: {
+          'heroTag': herotag,
+          'reason': 'backgroundPlayDisabled',
+        },
+      );
+      return;
+    }
 
+    _trace(
+      'onVideoDetailDispose:start',
+      data: {
+        'heroTag': herotag,
+      },
+    );
     _item.removeWhere((item) => item.id.endsWith(herotag));
     if (currentHeroTag != herotag) {
+      _trace(
+        'onVideoDetailDispose:skip',
+        data: {
+          'heroTag': herotag,
+          'reason': 'notCurrentHeroTag',
+        },
+      );
       return;
     }
     _clearCurrentSession(clearItems: false);
+    _trace(
+      'onVideoDetailDispose:done',
+      data: {
+        'heroTag': herotag,
+      },
+    );
   }
 
   void clear() {
-    if (!enableBackgroundPlay) return;
+    if (!enableBackgroundPlay) {
+      _trace(
+        'clear:skip',
+        data: {
+          'reason': 'backgroundPlayDisabled',
+        },
+      );
+      return;
+    }
+    _trace('clear');
     _clearCurrentSession();
   }
 
@@ -419,9 +685,26 @@ class VideoPlayerServiceHandler extends BaseAudioHandler with SeekHandler {
     if (!enableBackgroundPlay ||
         _item.isEmpty ||
         !PlPlayerController.instanceExists()) {
+      _trace(
+        'onPositionChange:skip',
+        data: {
+          'positionMs': position.inMilliseconds,
+          'reason': !enableBackgroundPlay
+              ? 'backgroundPlayDisabled'
+              : _item.isEmpty
+              ? 'emptyMediaStack'
+              : 'playerMissing',
+        },
+      );
       return;
     }
 
+    _trace(
+      'onPositionChange',
+      data: {
+        'positionMs': position.inMilliseconds,
+      },
+    );
     playbackState.add(
       playbackState.value.copyWith(
         updatePosition: position,

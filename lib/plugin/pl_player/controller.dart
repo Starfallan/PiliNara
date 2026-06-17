@@ -31,6 +31,7 @@ import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/plugin/pl_player/models/video_fit_type.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
+import 'package:PiliPlus/services/media_trace.dart';
 import 'package:PiliPlus/services/live_pip_overlay_service.dart';
 import 'package:PiliPlus/services/pip_overlay_service.dart';
 import 'package:PiliPlus/services/service_locator.dart';
@@ -109,6 +110,54 @@ class PlPlayerController with BlockConfigMixin {
   final RxInt bufferedSeconds = 0.obs;
 
   int _playerCount = 0;
+
+  static void _traceStatic(
+    String event, {
+    Object? message,
+    Map<String, Object?>? data,
+  }) {
+    final instance = _instance;
+    mediaTrace(
+      'PlPlayer',
+      event,
+      message: message,
+      data: {
+        'hasInstance': instance != null,
+        'instanceHash': instance?.hashCode,
+        'playerCount': instance?._playerCount,
+        'isLive': instance?.isLive,
+        'status': instance?.playerStatus.value.name,
+        'hasVideoController': instance?._videoController != null,
+        'hasPlayer': instance?._videoPlayerController != null,
+        'inVideoPip': PipOverlayService.isInPipMode,
+        'inLivePip': LivePipOverlayService.isInPipMode,
+        ...?data,
+      },
+    );
+  }
+
+  void _trace(
+    String event, {
+    Object? message,
+    Map<String, Object?>? data,
+  }) {
+    mediaTrace(
+      'PlPlayer',
+      event,
+      message: message,
+      data: {
+        'instanceHash': hashCode,
+        'playerCount': _playerCount,
+        'isLive': isLive,
+        'status': playerStatus.value.name,
+        'hasVideoController': _videoController != null,
+        'hasPlayer': _videoPlayerController != null,
+        'inVideoPip': PipOverlayService.isInPipMode,
+        'inLivePip': LivePipOverlayService.isInPipMode,
+        ...?data,
+      },
+    );
+  }
 
   late double lastPlaybackSpeed = 1.0;
   final RxDouble _playbackSpeed = Pref.playSpeedDefault.obs;
@@ -507,12 +556,25 @@ class PlPlayerController with BlockConfigMixin {
   }
 
   static void setPlayCallBack(PlayCallback? playCallBack) {
+    _traceStatic(
+      'setPlayCallBack',
+      data: {
+        'hasCallback': playCallBack != null,
+      },
+    );
     _playCallBack = playCallBack;
   }
 
   static PlayCallback? _playCallBack;
 
   static Future<void>? playIfExists() {
+    _traceStatic(
+      'playIfExists',
+      data: {
+        'willPlayInstance': _instance != null && !(_instance!.playerStatus.isPlaying),
+        'hasFallbackCallback': _playCallBack != null,
+      },
+    );
     if (_instance != null && !(_instance!.playerStatus.isPlaying)) {
       return _instance!.play();
     }
@@ -528,6 +590,14 @@ class PlPlayerController with BlockConfigMixin {
     bool notify = true,
     bool isInterrupt = false,
   }) async {
+    _traceStatic(
+      'pauseIfExists',
+      data: {
+        'notify': notify,
+        'isInterrupt': isInterrupt,
+        'willPause': _instance?.playerStatus.isPlaying ?? false,
+      },
+    );
     if (_instance?.playerStatus.isPlaying ?? false) {
       await _instance?.pause(notify: notify, isInterrupt: isInterrupt);
     }
@@ -537,6 +607,13 @@ class PlPlayerController with BlockConfigMixin {
     Duration position, {
     bool isSeek = true,
   }) async {
+    _traceStatic(
+      'seekToIfExists',
+      data: {
+        'positionMs': position.inMilliseconds,
+        'isSeek': isSeek,
+      },
+    );
     await _instance?.seekTo(position, isSeek: isSeek);
   }
 
@@ -656,13 +733,31 @@ class PlPlayerController with BlockConfigMixin {
   // 获取实例 传参
   static PlPlayerController getInstance({bool isLive = false}) {
     // 如果实例尚未创建，则创建一个新实例
-    return (_instance ??= PlPlayerController._())
+    final created = _instance == null;
+    final controller = (_instance ??= PlPlayerController._())
       ..isLive = isLive
       .._playerCount += 1;
+    _traceStatic(
+      'getInstance',
+      data: {
+        'created': created,
+        'requestedIsLive': isLive,
+      },
+    );
+    return controller;
   }
 
   static PlPlayerController ensureInstance({bool isLive = false}) {
-    return (_instance ??= PlPlayerController._())..isLive = isLive;
+    final created = _instance == null;
+    final controller = (_instance ??= PlPlayerController._())..isLive = isLive;
+    _traceStatic(
+      'ensureInstance',
+      data: {
+        'created': created,
+        'requestedIsLive': isLive,
+      },
+    );
+    return controller;
   }
 
   static bool _isAnimPgcType(int? pgcType) => pgcType == 1 || pgcType == 4;
@@ -1494,6 +1589,13 @@ class PlPlayerController with BlockConfigMixin {
 
   /// duck 事件处理（由 audio_session.dart 调用）
   Future<void> handleDuck(bool begin) async {
+    _trace(
+      'handleDuck',
+      data: {
+        'begin': begin,
+        'enableAppVolume': Pref.enableAppVolume,
+      },
+    );
     if (!PlatformUtils.isMobile) return;
 
     if (Pref.enableAppVolume) {
@@ -1841,11 +1943,23 @@ class PlPlayerController with BlockConfigMixin {
   }
 
   void dispose() {
+    _trace(
+      'dispose:start',
+      data: {
+        'isCloseAll': _isCloseAll,
+      },
+    );
     // 每次减1，最后销毁
     resetScreenRotation();
     cancelLongPressTimer();
     _cancelSubForSeek();
     if (!_isCloseAll && _playerCount > 1) {
+      _trace(
+        'dispose:decrementOnly',
+        data: {
+          'nextPlayerCount': _playerCount - 1,
+        },
+      );
       _playerCount -= 1;
       _heartDuration = 0;
       return;
@@ -1894,20 +2008,30 @@ class PlPlayerController with BlockConfigMixin {
     if (kDebugMode) {
       debugPrint('dispose player');
     }
+    _trace('dispose:releasePlayer');
     _videoPlayerController?.dispose();
     _videoPlayerController = null;
     _videoController = null;
     _activeVideoContextKey = null;
     _instance = null;
+    mediaTrace(
+      'PlPlayer',
+      'dispose:clearAudioHandler',
+      data: {
+        'previousInstanceHash': hashCode,
+      },
+    );
     videoPlayerServiceHandler?.clear();
   }
 
   static void updatePlayCount() {
+    _traceStatic('updatePlayCount:start');
     if (_instance?._playerCount == 1) {
       _instance?.dispose();
     } else {
       _instance?._playerCount -= 1;
     }
+    _traceStatic('updatePlayCount:done');
   }
 
   void setContinuePlayInBackground() {

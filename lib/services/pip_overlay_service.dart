@@ -5,6 +5,7 @@ import 'dart:math' show max;
 import 'package:PiliPlus/pages/video/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
+import 'package:PiliPlus/services/media_trace.dart';
 import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/device_utils.dart';
@@ -70,6 +71,28 @@ class PipOverlayService {
   static String? _savedVideoContextKey;
   static String? get savedVideoContextKey => _savedVideoContextKey;
   static final Map<String, dynamic> _savedControllers = {};
+
+  static void _trace(
+    String event, {
+    Object? message,
+    Map<String, Object?>? data,
+  }) {
+    mediaTrace(
+      'VideoPip',
+      event,
+      message: message,
+      data: {
+        'isInPipMode': isInPipMode,
+        'isNativePip': isNativePip,
+        'savedVideoContextKey': _savedVideoContextKey,
+        'hasOverlay': _overlayEntry != null,
+        'savedControllerType': _savedController?.runtimeType.toString(),
+        'savedPlayerHash': _savedPlayerController?.hashCode,
+        'savedControllersCount': _savedControllers.length,
+        ...?data,
+      },
+    );
+  }
 
   static bool isVideoLikeRoute(String route) {
     return route.startsWith('/video') || route.startsWith('/liveRoom');
@@ -164,9 +187,23 @@ class PipOverlayService {
     Map<String, dynamic>? additionalControllers,
   }) {
     if (isInPipMode) {
+      _trace(
+        'startPip:skip',
+        data: {
+          'reason': 'alreadyInPip',
+        },
+      );
       return;
     }
 
+    _trace(
+      'startPip:start',
+      data: {
+        'controllerType': controller?.runtimeType.toString(),
+        'playerHash': plPlayerController.hashCode,
+        'additionalControllersCount': additionalControllers?.length ?? 0,
+      },
+    );
     isInPipMode = true;
     isVertical = false;
     if (controller is VideoDetailController) {
@@ -208,6 +245,10 @@ class PipOverlayService {
           _setSystemAutoPipEnabled(plPlayerController, true);
         });
       } catch (e) {
+        _trace(
+          'startPip:error',
+          message: e,
+        );
         if (kDebugMode) {
           debugPrint('Error inserting pip overlay: $e');
         }
@@ -234,6 +275,16 @@ class PipOverlayService {
     String? targetContextKey,
   }) {
     if (!isInPipMode && _overlayEntry == null) {
+      _trace(
+        'stopPip:skip',
+        data: {
+          'reason': 'notInPipAndNoOverlay',
+          'callOnClose': callOnClose,
+          'immediate': immediate,
+          'resetState': resetState,
+          'targetContextKey': targetContextKey,
+        },
+      );
       return;
     }
 
@@ -241,11 +292,16 @@ class PipOverlayService {
         ? resetState
         : targetContextKey != _savedVideoContextKey;
 
-    if (kDebugMode) {
-      debugPrint(
-        '[PiP] Stopping PiP mode (immediate: $immediate, callOnClose: $callOnClose, shouldResetState: $shouldResetState, targetContextKey: $targetContextKey, savedContextKey: $_savedVideoContextKey)',
-      );
-    }
+    _trace(
+      'stopPip:start',
+      data: {
+        'callOnClose': callOnClose,
+        'immediate': immediate,
+        'resetState': resetState,
+        'shouldResetState': shouldResetState,
+        'targetContextKey': targetContextKey,
+      },
+    );
 
     isInPipMode = false;
     // isNativePip 是 Rx 变量，不能在 build 阶段（如 initState）同步修改，
@@ -263,6 +319,13 @@ class PipOverlayService {
     // 清理控制器缓存，防止内存泄漏和状态污染
     if (kDebugMode &&
         (_savedController != null || _savedControllers.isNotEmpty)) {
+      _trace(
+        'stopPip:clearCachedControllers',
+        data: {
+          'shouldResetState': shouldResetState,
+          'targetContextKey': targetContextKey,
+        },
+      );
       debugPrint(
         '[PiP] Clearing cached controllers, resetState: $shouldResetState, targetContextKey: $targetContextKey, savedContextKey: $_savedVideoContextKey',
       );
@@ -273,6 +336,13 @@ class PipOverlayService {
     // 若 controller 已由 GetX 关闭，页面已离栈，此时再执行完整清理。
     if (shouldResetState && _savedController is VideoDetailController) {
       final ctrl = _savedController as VideoDetailController;
+      _trace(
+        'stopPip:resetVideoControllerState',
+        data: {
+          'controllerHash': ctrl.hashCode,
+          'controllerClosed': ctrl.isClosed,
+        },
+      );
       ctrl.isEnteringPip = false;
       if (ctrl.isClosed) {
         ctrl.onClose();
@@ -300,9 +370,19 @@ class PipOverlayService {
     // 如果需要清理，先停止播放器
     if (callOnClose && playerController != null) {
       try {
+        _trace(
+          'stopPip:pausePlayer',
+          data: {
+            'playerHash': playerController.hashCode,
+          },
+        );
         // 停止播放但不 dispose，因为其他地方可能还在使用
         playerController.pause();
       } catch (e) {
+        _trace(
+          'stopPip:pausePlayerError',
+          message: e,
+        );
         if (kDebugMode) {
           debugPrint('Error pausing player: $e');
         }
@@ -312,14 +392,30 @@ class PipOverlayService {
     void removeAndCallback() {
       try {
         overlayToRemove?.remove();
+        _trace(
+          'stopPip:overlayRemoved',
+          data: {
+            'callOnClose': callOnClose,
+          },
+        );
         if (kDebugMode) {
           debugPrint('[PiP] Overlay entry removed successfully');
         }
       } catch (e) {
+        _trace(
+          'stopPip:overlayRemoveError',
+          message: e,
+        );
         if (kDebugMode) {
           debugPrint('Error removing pip overlay: $e');
         }
       }
+      _trace(
+        'stopPip:invokeCloseCallback',
+        data: {
+          'hasCloseCallback': closeCallback != null,
+        },
+      );
       closeCallback?.call();
     }
 

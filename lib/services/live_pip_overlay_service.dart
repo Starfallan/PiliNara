@@ -4,6 +4,7 @@ import 'dart:math' show max;
 
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/view/view.dart';
+import 'package:PiliPlus/services/media_trace.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/device_utils.dart';
 import 'package:flutter/foundation.dart';
@@ -37,6 +38,28 @@ class LivePipOverlayService {
   // 保存控制器引用，防止被 GC
   static dynamic _savedController;
   static PlPlayerController? _savedPlayerController;
+
+  static void _trace(
+    String event, {
+    Object? message,
+    Map<String, Object?>? data,
+  }) {
+    mediaTrace(
+      'LivePip',
+      event,
+      message: message,
+      data: {
+        'isInPipMode': _isInPipMode,
+        'isNativePip': isNativePip,
+        'heroTag': _currentLiveHeroTag,
+        'roomId': _currentRoomId,
+        'hasOverlay': _overlayEntry != null,
+        'savedControllerType': _savedController?.runtimeType.toString(),
+        'savedPlayerHash': _savedPlayerController?.hashCode,
+        ...?data,
+      },
+    );
+  }
 
   static bool _isVideoLikeRoute(String route) {
     return route.startsWith('/video') || route.startsWith('/liveRoom');
@@ -77,9 +100,25 @@ class LivePipOverlayService {
     dynamic controller,
   }) {
     if (_isInPipMode) {
+      _trace(
+        'startLivePip:replaceExisting',
+        data: {
+          'newHeroTag': heroTag,
+          'newRoomId': roomId,
+        },
+      );
       stopLivePip(callOnClose: true);
     }
 
+    _trace(
+      'startLivePip:start',
+      data: {
+        'newHeroTag': heroTag,
+        'newRoomId': roomId,
+        'controllerType': controller?.runtimeType.toString(),
+        'playerHash': plPlayerController.hashCode,
+      },
+    );
     _isInPipMode = true;
     isVertical = plPlayerController.isVertical;
     _currentLiveHeroTag = heroTag;
@@ -127,6 +166,10 @@ class LivePipOverlayService {
           _setSystemAutoPipEnabled(plPlayerController, true);
         });
       } catch (e) {
+        _trace(
+          'startLivePip:error',
+          message: e,
+        );
         if (kDebugMode) {
           debugPrint('Error inserting live pip overlay: $e');
         }
@@ -149,9 +192,24 @@ class LivePipOverlayService {
 
   static void stopLivePip({bool callOnClose = true, bool immediate = false}) {
     if (!_isInPipMode && _overlayEntry == null) {
+      _trace(
+        'stopLivePip:skip',
+        data: {
+          'reason': 'notInPipAndNoOverlay',
+          'callOnClose': callOnClose,
+          'immediate': immediate,
+        },
+      );
       return;
     }
 
+    _trace(
+      'stopLivePip:start',
+      data: {
+        'callOnClose': callOnClose,
+        'immediate': immediate,
+      },
+    );
     _isInPipMode = false;
     // isNativePip 是 Rx 变量，不能在 build 阶段（如 initState）同步修改，
     // 否则会触发 Obx rebuild 导致 "setState during build" 错误
@@ -180,11 +238,27 @@ class LivePipOverlayService {
     void removeAndCallback() {
       try {
         overlayToRemove?.remove();
+        _trace(
+          'stopLivePip:overlayRemoved',
+          data: {
+            'callOnClose': callOnClose,
+          },
+        );
       } catch (e) {
+        _trace(
+          'stopLivePip:overlayRemoveError',
+          message: e,
+        );
         if (kDebugMode) {
           debugPrint('Error removing live pip overlay: $e');
         }
       }
+      _trace(
+        'stopLivePip:invokeCloseCallback',
+        data: {
+          'hasCloseCallback': closeCallback != null,
+        },
+      );
       closeCallback?.call();
     }
 
@@ -197,9 +271,19 @@ class LivePipOverlayService {
     // 如果需要清理，先停止播放器
     if (callOnClose && playerController != null) {
       try {
+        _trace(
+          'stopLivePip:pausePlayer',
+          data: {
+            'playerHash': playerController.hashCode,
+          },
+        );
         // 停止播放但不 dispose，因为其他地方可能还在使用
         playerController.pause();
       } catch (e) {
+        _trace(
+          'stopLivePip:pausePlayerError',
+          message: e,
+        );
         if (kDebugMode) {
           debugPrint('Error pausing player: $e');
         }

@@ -37,6 +37,7 @@ import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
 import 'package:PiliPlus/plugin/pl_player/view/view.dart';
 import 'package:PiliPlus/services/live_pip_overlay_service.dart';
 import 'package:PiliPlus/services/logger.dart';
+import 'package:PiliPlus/services/media_trace.dart';
 import 'package:PiliPlus/services/pip_overlay_service.dart';
 import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
@@ -74,6 +75,44 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     with WidgetsBindingObserver, RouteAware, RouteAwareMixin {
   late final fullScreenSCWidth = Pref.fullScreenSCWidth;
   final String heroTag = Utils.generateRandomString(6);
+
+  void _trace(
+    String event, {
+    Object? message,
+    Map<String, Object?>? data,
+  }) {
+    mediaTrace(
+      'LivePage',
+      event,
+      message: message,
+      data: {
+        'heroTag': heroTag,
+        'route': Get.currentRoute,
+        'isEnteringPipMode': _isEnteringPipMode,
+        'videoPip': PipOverlayService.isInPipMode,
+        'livePip': LivePipOverlayService.isInPipMode,
+        'playerHash': _plPlayerControllerOrNull?.hashCode,
+        'playerStatus': _plPlayerControllerOrNull?.playerStatus.value.name,
+        'roomId': _liveRoomControllerOrNull?.roomId,
+        ...?data,
+      },
+    );
+  }
+  LiveRoomController? get _liveRoomControllerOrNull {
+    try {
+      return _liveRoomController;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  PlPlayerController? get _plPlayerControllerOrNull {
+    try {
+      return plPlayerController;
+    } catch (_) {
+      return null;
+    }
+  }
   late final LiveRoomController _liveRoomController;
   late final PlPlayerController plPlayerController;
   bool get isFullScreen => plPlayerController.isFullScreen.value;
@@ -104,10 +143,18 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     final bool isReturningFromPip =
         currentEntryRoomId != null &&
         LivePipOverlayService.isCurrentLiveRoom(currentEntryRoomId);
+    _trace(
+      'initState:start',
+      data: {
+        'isReturningFromPip': isReturningFromPip,
+        'currentEntryRoomId': currentEntryRoomId,
+      },
+    );
 
     // 无论是否是同一个房间，既然进入了直播详情页，就关闭现有的小窗（不销毁播放器）
     if (LivePipOverlayService.isInPipMode) {
       // 使用非销毁式关闭，让新页面接管播放器
+      _trace('initState:stopExistingLivePip');
       WidgetsBinding.instance.addPostFrameCallback((_) {
         LivePipOverlayService.stopLivePip(callOnClose: false);
       });
@@ -115,6 +162,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
 
     // 如果有视频小窗也关闭
     if (PipOverlayService.isInPipMode) {
+      _trace('initState:stopExistingVideoPip');
       PipOverlayService.stopPip(callOnClose: false);
     }
 
@@ -287,6 +335,13 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     final isInLivePip = LivePipOverlayService.isCurrentLiveRoom(
       _liveRoomController.roomId,
     );
+    _trace(
+      'dispose:start',
+      data: {
+        'isInLivePip': isInLivePip,
+        'isEnteringPipMode': _isEnteringPipMode,
+      },
+    );
     if (!isInLivePip && !_isEnteringPipMode) {
       videoPlayerServiceHandler?.onVideoDetailDispose(heroTag);
     }
@@ -299,8 +354,10 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     }
     plPlayerController.removeStatusLister(playerListener);
     if (!isInLivePip && !_isEnteringPipMode) {
+      _trace('dispose:disposePlayer');
       plPlayerController.dispose();
     }
+    _trace('dispose:done');
 
     for (final e in LiveContributionRankType.values) {
       Get.delete<ContributionRankController>(
@@ -543,6 +600,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     _liveRoomController.startLiveMsg();
 
     try {
+      _trace('startLivePip:start');
       LivePipOverlayService.startLivePip(
         context: context,
         heroTag: heroTag,
@@ -552,10 +610,12 @@ class _LiveRoomPageState extends State<LiveRoomPage>
         onClose: () {
           _isEnteringPipMode = false;
           _liveRoomController.isInPipMode.value = false;
+          _trace('startLivePip:onClose');
           _handleLivePipCloseCleanup();
         },
         onReturn: () {
           _isEnteringPipMode = false;
+          _trace('startLivePip:onReturn');
           Get.toNamed(
             '/liveRoom',
             arguments: {
@@ -569,12 +629,20 @@ class _LiveRoomPageState extends State<LiveRoomPage>
       // PiP 启动失败，重置状态
       _isEnteringPipMode = false;
       _liveRoomController.isInPipMode.value = false;
+      _trace('startLivePip:error', message: e);
       logger.e('Failed to start live PiP: $e');
     }
   }
 
   void _handleLivePipCloseCleanup() {
+    _trace('_handleLivePipCloseCleanup:start');
     if (plPlayerController.isCloseAll) {
+      _trace(
+        '_handleLivePipCloseCleanup:skip',
+        data: {
+          'reason': 'closeAll',
+        },
+      );
       return;
     }
     _liveRoomController.isInPipMode.value = false;
@@ -586,9 +654,11 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     plPlayerController
       ..removeStatusLister(playerListener)
       ..dispose();
+    _trace('_handleLivePipCloseCleanup:disposedPlayer');
 
     // 彻底清理永久控制器
     Get.delete<LiveRoomController>(tag: heroTag, force: true);
+    _trace('_handleLivePipCloseCleanup:done');
   }
 
   Widget get childWhenDisabled {

@@ -25,6 +25,7 @@ import 'package:PiliPlus/pages/video/widgets/header_control.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/data_source.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/danmaku_options.dart';
+import 'package:PiliPlus/services/media_trace.dart';
 import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/tcp/live.dart';
 import 'package:PiliPlus/utils/accounts.dart';
@@ -66,6 +67,30 @@ class LiveRoomController extends GetxController {
 
   // PiP 模式标志
   RxBool isInPipMode = false.obs;
+
+  void _trace(
+    String event, {
+    Object? message,
+    Map<String, Object?>? data,
+  }) {
+    mediaTrace(
+      'LiveController',
+      event,
+      message: message,
+      data: {
+        'heroTag': heroTag,
+        'hash': hashCode,
+        'roomId': roomId,
+        'fromPip': fromPip,
+        'isReturningFromPip': isReturningFromPip,
+        'isInPipMode': isInPipMode.value,
+        'isClosed': isClosed,
+        'playerHash': plPlayerController.hashCode,
+        'playerStatus': plPlayerController.playerStatus.value.name,
+        ...?data,
+      },
+    );
+  }
 
   Timer? liveTimeTimer;
 
@@ -195,16 +220,37 @@ class LiveRoomController extends GetxController {
     bool autoplay = true,
     bool autoFullScreenFlag = false,
   }) {
+    _trace(
+      'playerInit:start',
+      data: {
+        'autoplay': autoplay,
+        'autoFullScreenFlag': autoFullScreenFlag,
+        'hasVideoController': plPlayerController.videoPlayerController != null,
+      },
+    );
     if (videoUrl == null) {
+      _trace(
+        'playerInit:skip',
+        data: {
+          'reason': 'videoUrlNull',
+        },
+      );
       return null;
     }
     // 如果是从小窗返回，播放器已在播放，跳过初始化
     if (isReturningFromPip) {
+      _trace(
+        'playerInit:skip',
+        data: {
+          'reason': 'returningFromPip',
+        },
+      );
       return null;
     }
 
     // 如果播放器已被彻底销毁（例如在其他页面关闭了小窗），重新获取单例实例
     if (plPlayerController.videoPlayerController == null) {
+      _trace('playerInit:ensureInstance');
       plPlayerController = PlPlayerController.ensureInstance(isLive: true);
     }
 
@@ -221,6 +267,13 @@ class LiveRoomController extends GetxController {
           roomId: roomId,
         )
         .then((_) async {
+          _trace(
+            'playerInit:done',
+            data: {
+              'autoplay': autoplay,
+              'autoFullScreenFlag': autoFullScreenFlag,
+            },
+          );
           if (!autoplay) {
             return;
           }
@@ -467,6 +520,7 @@ class LiveRoomController extends GetxController {
 
   @override
   void onClose() {
+    _trace('onClose:start');
     // 心跳定时器是静态的，无论是否小窗都要取消
     LiveHttp.cancelLiveHeartbeat();
     // 如果在小窗模式，不清理资源
@@ -487,6 +541,7 @@ class LiveRoomController extends GetxController {
       pageController?.dispose();
       danmakuController = null;
     }
+    _trace('onClose:done');
     super.onClose();
   }
 

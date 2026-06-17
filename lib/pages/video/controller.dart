@@ -56,6 +56,7 @@ import 'package:PiliPlus/plugin/pl_player/models/data_source.dart';
 import 'package:PiliPlus/plugin/pl_player/models/heart_beat_type.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/services/download/download_service.dart';
+import 'package:PiliPlus/services/media_trace.dart';
 import 'package:PiliPlus/services/pip_overlay_service.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/connectivity_utils.dart';
@@ -158,6 +159,28 @@ class VideoDetailController extends GetxController
   late final headerCtrKey = GlobalKey<TimeBatteryMixin>();
 
   Box setting = GStorage.setting;
+
+  void _trace(
+    String event, {
+    Object? message,
+    Map<String, Object?>? data,
+  }) {
+    mediaTrace(
+      'VideoController',
+      event,
+      message: message,
+      data: {
+        'heroTag': heroTag,
+        'hash': hashCode,
+        'cid': cid.value,
+        'isEnteringPip': isEnteringPip,
+        'isClosed': isClosed,
+        'playerHash': plPlayerController.hashCode,
+        'playerStatus': plPlayerController.playerStatus.value.name,
+        ...?data,
+      },
+    );
+  }
 
   // 预设的解码格式
   late String cacheDecode = Pref.defaultDecode; // def avc
@@ -903,8 +926,17 @@ class VideoDetailController extends GetxController
     bool? autoplay,
     bool autoFullScreenFlag = false,
   }) async {
+    _trace(
+      'playerInit:start',
+      data: {
+        'autoplayArg': autoplay,
+        'autoFullScreenFlag': autoFullScreenFlag,
+        'hasVideoController': plPlayerController.videoPlayerController != null,
+      },
+    );
     // 如果播放器单例已被外部销毁（例如在二级页面关闭了小窗），重新获取一个新实例
     if (plPlayerController.videoPlayerController == null) {
+      _trace('playerInit:ensureInstance');
       plPlayerController = PlPlayerController.ensureInstance();
     }
     if (isFileSource) {
@@ -948,6 +980,14 @@ class VideoDetailController extends GetxController
       volume: volume,
       autoFullScreenFlag: autoFullScreenFlag,
     );
+    _trace(
+      'playerInit:afterSetDataSource',
+      data: {
+        'seekMs': seek?.inMilliseconds,
+        'autoplayFinal': autoplay ?? _autoPlay.value,
+        'videoType': videoType.name,
+      },
+    );
 
     // 检查 controller 是否已关闭，如果已关闭则跳过后续的资源加载操作
     // （播放信息、弹幕趋势、SponsorBlock 等），避免已销毁的 controller
@@ -979,6 +1019,7 @@ class VideoDetailController extends GetxController
     }
 
     defaultST = null;
+    _trace('playerInit:done');
   }
 
   bool isQuerying = false;
@@ -1632,9 +1673,16 @@ class VideoDetailController extends GetxController
   @override
   void onClose() {
     if (isEnteringPip) {
+      _trace(
+        'onClose:skip',
+        data: {
+          'reason': 'enteringPip',
+        },
+      );
       // 正在进入小窗，保留资源
       return;
     }
+    _trace('onClose:start');
     plPlayerController.pause();
     cancelBlockListener();
     _dmTrendTaskId++;
@@ -1654,6 +1702,7 @@ class VideoDetailController extends GetxController
     subtitles.clear();
     vttSubtitles.clear();
     Get.delete<AiChatController>(tag: heroTag);
+    _trace('onClose:done');
     super.onClose();
   }
 
