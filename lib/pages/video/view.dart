@@ -260,8 +260,8 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
           immediate: true,
           targetContextKey: targetContextKey,
         );
-        // stopPip 不会调用 onClose，手动停止播放器
-        savedController?.plPlayerController.pause();
+        // 旧应用内小窗已被当前页面接管结束，显式释放旧页面 owner 和媒体会话
+        PipOverlayService.releaseSavedVideoOwner();
       }
       videoDetailController = Get.put(VideoDetailController(), tag: heroTag);
     }
