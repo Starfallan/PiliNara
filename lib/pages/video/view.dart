@@ -2733,6 +2733,16 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   }
 
   void _onPopInvokedWithResult(bool didPop, result) {
+    final returningToVideoPage = _isReturningToVideoPageInStack();
+    _trace(
+      '_onPopInvokedWithResult',
+      data: {
+        'didPop': didPop,
+        'returningToVideoPage': returningToVideoPage,
+        'previousRoute': Get.previousRoute,
+        'videoStackCount': VideoStackManager.getCount(),
+      },
+    );
     if (didPop && Platform.isAndroid) {
       // 参考上游逻辑：返回时立即强制清空 Auto-PiP 状态，切断系统自动进入的时机，防止误触
       plPlayerController?.disableAutoEnterPip();
@@ -2756,8 +2766,16 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     videoDetailController.plPlayerController.onPopInvokedWithResult(
       didPop,
       result,
-      pauseOnPop: !_isEnteringPipMode,
+      // 当前页被 pop 掉，但下层仍是另一个视频页时，播放器单例的 owner
+      // 会在 didPopNext 中切回可见页面；这里不能再由旧页面去 pause 共享播放器。
+      pauseOnPop: !_isEnteringPipMode && !returningToVideoPage,
     );
+  }
+
+  bool _isReturningToVideoPageInStack() {
+    final previousRoute = Get.previousRoute;
+    return VideoStackManager.getCount() > 1 &&
+        previousRoute.startsWith('/video');
   }
 
   bool _shouldStartInAppPip({bool fromPop = false}) {
