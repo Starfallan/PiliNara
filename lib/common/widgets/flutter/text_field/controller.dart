@@ -19,7 +19,7 @@ import 'dart:math';
 
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/models/common/image_type.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show debugPrintSynchronously, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -585,7 +585,87 @@ class RichTextEditingController extends TextEditingController {
     return buffer.toString();
   }
 
+  String debugItemsSummary() {
+    if (!kDebugMode) {
+      return '';
+    }
+    if (items.isEmpty) {
+      return '[]';
+    }
+    final buffer = StringBuffer('[');
+    for (int i = 0; i < items.length; i++) {
+      final item = items[i];
+      if (i > 0) {
+        buffer.write(', ');
+      }
+      buffer
+        ..write('#')
+        ..write(i)
+        ..write('{')
+        ..write(item.type.name)
+        ..write(' ')
+        ..write(item.range.start)
+        ..write('-')
+        ..write(item.range.end)
+        ..write(' text="')
+        ..write(item.text)
+        ..write('" raw="')
+        ..write(item.rawText)
+        ..write('"}');
+    }
+    buffer.write(']');
+    return buffer.toString();
+  }
+
+  void _debugLog(String message) {
+    if (kDebugMode) {
+      debugPrintSynchronously('[RichTextIME][Controller] $message');
+    }
+  }
+
+  String _debugDeltaSummary(TextEditingDelta delta) {
+    if (!kDebugMode) {
+      return '';
+    }
+    final buffer = StringBuffer()
+      ..write(delta.runtimeType)
+      ..write(' oldText="')
+      ..write(delta.oldText)
+      ..write('" selection=')
+      ..write(delta.selection)
+      ..write(' composing=')
+      ..write(delta.composing);
+    switch (delta) {
+      case TextEditingDeltaInsertion e:
+        buffer
+          ..write(' inserted="')
+          ..write(e.textInserted)
+          ..write('" insertionOffset=')
+          ..write(e.insertionOffset);
+      case TextEditingDeltaDeletion e:
+        buffer
+          ..write(' deleted="')
+          ..write(e.textDeleted)
+          ..write('" deletedRange=')
+          ..write(e.deletedRange);
+      case TextEditingDeltaReplacement e:
+        buffer
+          ..write(' replacement="')
+          ..write(e.replacementText)
+          ..write('" replacedRange=')
+          ..write(e.replacedRange);
+      case TextEditingDeltaNonTextUpdate():
+        break;
+    }
+    return buffer.toString();
+  }
+
   void syncRichText(TextEditingDelta delta) {
+    if (kDebugMode) {
+      _debugLog('sync-begin delta=${_debugDeltaSummary(delta)} '
+          'plainText="$plainText" newSelection=$newSelection '
+          'items=${debugItemsSummary()}');
+    }
     int? addIndex;
     List<RichTextItem>? toAdd;
 
@@ -686,6 +766,13 @@ class RichTextEditingController extends TextEditingController {
       for (final item in toDel) {
         items.remove(item);
       }
+    }
+    if (kDebugMode) {
+      _debugLog('sync-end addIndex=$addIndex '
+          'toAdd=${toAdd?.map((e) => e.toString()).toList()} '
+          'toDel=${toDel?.map((e) => e.toString()).toList()} '
+          'plainText="$plainText" newSelection=$newSelection '
+          'items=${debugItemsSummary()}');
     }
   }
 

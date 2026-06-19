@@ -3407,6 +3407,71 @@ class EditableTextState extends State<EditableText>
   /// remote value is outdated and needs updating.
   TextEditingValue? _lastKnownRemoteTextEditingValue;
 
+  int _imeDebugSeq = 0;
+
+  static String _debugTextRange(TextRange range) {
+    return '(${range.start}, ${range.end}, valid=${range.isValid})';
+  }
+
+  static String _debugSelection(TextSelection selection) {
+    return '(${selection.baseOffset}, ${selection.extentOffset}, '
+        'start=${selection.start}, end=${selection.end}, '
+        'collapsed=${selection.isCollapsed}, valid=${selection.isValid})';
+  }
+
+  static String _debugTextValue(TextEditingValue value) {
+    return 'text="${value.text}" '
+        'selection=${_debugSelection(value.selection)} '
+        'composing=${_debugTextRange(value.composing)}';
+  }
+
+  static String _debugDelta(TextEditingDelta delta) {
+    final buffer = StringBuffer()
+      ..write(delta.runtimeType)
+      ..write(' oldText="${delta.oldText}"')
+      ..write(' selection=${_debugSelection(delta.selection)}')
+      ..write(' composing=${_debugTextRange(delta.composing)}');
+
+    switch (delta) {
+      case TextEditingDeltaInsertion e:
+        buffer
+          ..write(' inserted="${e.textInserted}"')
+          ..write(' insertionOffset=${e.insertionOffset}');
+      case TextEditingDeltaDeletion e:
+        buffer
+          ..write(' deleted="${e.textDeleted}"')
+          ..write(' deletedRange=${_debugTextRange(e.deletedRange)}');
+      case TextEditingDeltaReplacement e:
+        buffer
+          ..write(' replacement="${e.replacementText}"')
+          ..write(' replacedRange=${_debugTextRange(e.replacedRange)}');
+      case TextEditingDeltaNonTextUpdate():
+        break;
+    }
+    return buffer.toString();
+  }
+
+  void _debugImeLog(String message) {
+    if (kDebugMode) {
+      debugPrintSynchronously('[RichTextIME] $_imeDebugSeq $message');
+    }
+  }
+
+  void _debugImeStep(String label, TextEditingValue value) {
+    if (kDebugMode) {
+      _debugImeLog('$label ${_debugTextValue(value)}');
+    }
+  }
+
+  void _debugImeController(String label) {
+    if (kDebugMode) {
+      _debugImeLog('$label plainText="${widget.controller.plainText}" '
+          'controllerValue=${_debugTextValue(widget.controller.value)} '
+          'newSelection=${_debugSelection(widget.controller.newSelection)} '
+          'items=${widget.controller.debugItemsSummary()}');
+    }
+  }
+
   @override
   TextEditingValue get currentTextEditingValue => _value;
 
@@ -3415,6 +3480,16 @@ class EditableTextState extends State<EditableText>
     TextEditingValue value, {
     TextEditingValue? remoteValue,
   }) {
+    if (kDebugMode) {
+      _imeDebugSeq++;
+      _debugImeLog('updateEditingValue begin');
+      _debugImeStep('incoming', value);
+      if (remoteValue != null) {
+        _debugImeStep('incoming-remote', remoteValue);
+      }
+      _debugImeStep('current-before', _value);
+      _debugImeController('controller-before-updateEditingValue');
+    }
     // This method handles text editing state updates from the platform text
     // input plugin. The [EditableText] may not have the focus or an open input
     // connection, as autofill can update a disconnected [EditableText].
@@ -3422,6 +3497,9 @@ class EditableTextState extends State<EditableText>
     // Since we still have to support keyboard select, this is the best place
     // to disable text updating.
     if (!_shouldCreateInputConnection) {
+      if (kDebugMode) {
+        _debugImeLog('updateEditingValue ignored: no input connection needed');
+      }
       return;
     }
 
@@ -3444,10 +3522,16 @@ class EditableTextState extends State<EditableText>
       // In the read-only case, we only care about selection changes, and reject
       // everything else.
       value = _value.copyWith(selection: value.selection);
+      if (kDebugMode) {
+        _debugImeStep('read-only-adjusted', value);
+      }
     }
     _lastKnownRemoteTextEditingValue = remoteValue ?? value;
 
     if (value == _value) {
+      if (kDebugMode) {
+        _debugImeLog('updateEditingValue no-op');
+      }
       if (remoteValue != null && Platform.isIOS) {
         _updateRemoteEditingValueIfNeeded();
       }
@@ -3458,6 +3542,9 @@ class EditableTextState extends State<EditableText>
     }
 
     if (value.text == _value.text && value.composing == _value.composing) {
+      if (kDebugMode) {
+        _debugImeLog('updateEditingValue selection-only');
+      }
       // `selection` is the only change.
       SelectionChangedCause cause;
       if (_textInputConnection?.scribbleInProgress ?? false) {
@@ -3470,6 +3557,9 @@ class EditableTextState extends State<EditableText>
       }
       _handleSelectionChanged(value.selection, cause);
     } else {
+      if (kDebugMode) {
+        _debugImeLog('updateEditingValue text-or-composing-change');
+      }
       if (value.text != _value.text) {
         // Hide the toolbar if the text was changed, but only hide the toolbar
         // overlay; the selection handle's visibility will be handled
@@ -3558,14 +3648,36 @@ class EditableTextState extends State<EditableText>
 
   @override
   void updateEditingValueWithDeltas(List<TextEditingDelta> textEditingDeltas) {
+    if (kDebugMode) {
+      _imeDebugSeq++;
+      _debugImeLog('begin deltas=${textEditingDeltas.length}');
+      _debugImeStep('current', _value);
+      _debugImeController('controller-before-deltas');
+      for (int i = 0; i < textEditingDeltas.length; i++) {
+        _debugImeLog('delta[$i] ${_debugDelta(textEditingDeltas[i])}');
+      }
+    }
     if (textEditingDeltas.isEmpty) {
+      if (kDebugMode) {
+        _debugImeLog('empty-deltas clear composing');
+      }
       updateEditingValue(_value.copyWith(composing: TextRange.empty));
       return;
     }
     TextEditingValue remoteValue = _value;
     for (final TextEditingDelta delta in textEditingDeltas) {
+      if (kDebugMode) {
+        _debugImeStep('remote-before-apply', remoteValue);
+        _debugImeController('controller-before-sync');
+      }
       widget.controller.syncRichText(delta);
+      if (kDebugMode) {
+        _debugImeController('controller-after-sync');
+      }
       remoteValue = delta.apply(remoteValue);
+      if (kDebugMode) {
+        _debugImeStep('remote-after-apply', remoteValue);
+      }
     }
 
     final newValue = TextEditingValue(
@@ -3573,6 +3685,16 @@ class EditableTextState extends State<EditableText>
       selection: widget.controller.newSelection,
       composing: textEditingDeltas.last.composing,
     );
+
+    if (kDebugMode) {
+      _debugImeStep('final-new-value', newValue);
+      if (remoteValue.text != newValue.text ||
+          remoteValue.selection != newValue.selection ||
+          remoteValue.composing != newValue.composing) {
+        _debugImeLog('mismatch remote=${_debugTextValue(remoteValue)} '
+            'rich=${_debugTextValue(newValue)}');
+      }
+    }
 
     updateEditingValue(newValue, remoteValue: remoteValue);
 
@@ -3764,6 +3886,12 @@ class EditableTextState extends State<EditableText>
 
   @pragma('vm:notify-debugger-on-exception')
   void _finalizeEditing(TextInputAction action, {required bool shouldUnfocus}) {
+    if (kDebugMode) {
+      _imeDebugSeq++;
+      _debugImeLog('finalizeEditing action=$action shouldUnfocus=$shouldUnfocus');
+      _debugImeStep('finalize-before', _value);
+      _debugImeController('controller-before-finalize');
+    }
     // Take any actions necessary now that the user has completed editing.
     if (widget.onEditingComplete != null) {
       try {
@@ -3864,16 +3992,32 @@ class EditableTextState extends State<EditableText>
       _batchEditDepth >= 0,
       'Unbalanced call to endBatchEdit: beginBatchEdit must be called first.',
     );
+    if (kDebugMode) {
+      _debugImeLog('endBatchEdit depth=$_batchEditDepth');
+    }
     _updateRemoteEditingValueIfNeeded();
   }
 
   void _updateRemoteEditingValueIfNeeded() {
     if (_batchEditDepth > 0 || !_hasInputConnection) {
+      if (kDebugMode) {
+        _debugImeLog('skip-setEditingState batchDepth=$_batchEditDepth '
+            'hasInputConnection=$_hasInputConnection');
+      }
       return;
     }
     final TextEditingValue localValue = _value;
     if (localValue == _lastKnownRemoteTextEditingValue) {
+      if (kDebugMode) {
+        _debugImeStep('skip-setEditingState same-local', localValue);
+      }
       return;
+    }
+    if (kDebugMode) {
+      _debugImeStep('setEditingState local', localValue);
+      if (_lastKnownRemoteTextEditingValue != null) {
+        _debugImeStep('last-known-remote', _lastKnownRemoteTextEditingValue!);
+      }
     }
     _textInputConnection!.setEditingState(localValue);
     _lastKnownRemoteTextEditingValue = localValue;
@@ -3881,7 +4025,14 @@ class EditableTextState extends State<EditableText>
 
   TextEditingValue get _value => widget.controller.value;
   set _value(TextEditingValue value) {
+    if (kDebugMode) {
+      _debugImeStep('assign-controller-value', value);
+      _debugImeController('controller-before-assign');
+    }
     widget.controller.value = value;
+    if (kDebugMode) {
+      _debugImeController('controller-after-assign');
+    }
   }
 
   bool get _hasFocus => widget.focusNode.hasFocus;
@@ -3967,10 +4118,18 @@ class EditableTextState extends State<EditableText>
   // See https://github.com/flutter/flutter/issues/126312
   void _openInputConnection() {
     if (!_shouldCreateInputConnection) {
+      if (kDebugMode) {
+        _debugImeLog('openInputConnection ignored');
+      }
       return;
     }
     if (!_hasInputConnection) {
       final TextEditingValue localValue = _value;
+      if (kDebugMode) {
+        _imeDebugSeq++;
+        _debugImeStep('openInputConnection local', localValue);
+        _debugImeController('controller-openInputConnection');
+      }
 
       // When _needsAutofill == true && currentAutofillScope == null, autofill
       // is allowed but saving the user input from the text field is
@@ -4002,12 +4161,20 @@ class EditableTextState extends State<EditableText>
       }
       _lastKnownRemoteTextEditingValue = localValue;
     } else {
+      if (kDebugMode) {
+        _debugImeLog('openInputConnection show existing');
+      }
       _textInputConnection!.show();
     }
   }
 
   void _closeInputConnectionIfNeeded() {
     if (_hasInputConnection) {
+      if (kDebugMode) {
+        _debugImeLog('closeInputConnection');
+        _debugImeStep('close-before', _value);
+        _debugImeController('controller-close-before');
+      }
       _textInputConnection!.close();
       _textInputConnection = null;
       _lastKnownRemoteTextEditingValue = null;
@@ -4602,6 +4769,13 @@ class EditableTextState extends State<EditableText>
     SelectionChangedCause? cause, {
     bool userInteraction = false,
   }) {
+    if (kDebugMode) {
+      _debugImeLog('formatAndSetValue cause=$cause '
+          'userInteraction=$userInteraction');
+      _debugImeStep('format-incoming', value);
+      _debugImeStep('format-old', _value);
+      _debugImeController('controller-before-format');
+    }
     final TextEditingValue oldValue = _value;
     final textChanged = oldValue.text != value.text;
     final bool textCommitted =
@@ -4625,6 +4799,9 @@ class EditableTextState extends State<EditableText>
                   formatter.formatEditUpdate(_value, newValue),
             ) ??
             value;
+        if (kDebugMode) {
+          _debugImeStep('format-after-formatters', value);
+        }
 
         if (spellCheckEnabled &&
             value.text.isNotEmpty &&
@@ -4649,6 +4826,10 @@ class EditableTextState extends State<EditableText>
     // sending multiple `TextInput.updateEditingValue` messages.
     beginBatchEdit();
     _value = value;
+    if (kDebugMode) {
+      _debugImeStep('format-assigned', _value);
+      _debugImeController('controller-after-format-assign');
+    }
     // Changes made by the keyboard can sometimes be "out of band" for listening
     // components, so always send those events, even if we didn't think it
     // changed. Also, the user long pressing should always send a selection change
@@ -4662,6 +4843,9 @@ class EditableTextState extends State<EditableText>
     }
     final String currentText = _value.text;
     if (oldValue.text != currentText) {
+      if (kDebugMode) {
+        _debugImeLog('onChanged currentText="$currentText"');
+      }
       try {
         widget.onChanged?.call(currentText);
       } catch (exception, stack) {
@@ -5084,6 +5268,13 @@ class EditableTextState extends State<EditableText>
     TextEditingValue value,
     SelectionChangedCause? cause,
   ) {
+    if (kDebugMode) {
+      _imeDebugSeq++;
+      _debugImeLog('userUpdateTextEditingValue cause=$cause');
+      _debugImeStep('user-incoming', value);
+      _debugImeStep('user-current', _value);
+      _debugImeController('controller-before-userUpdate');
+    }
     // Compare the current TextEditingValue with the pre-format new
     // TextEditingValue value, in case the formatter would reject the change.
     final shouldShowCaret = widget.readOnly
@@ -5097,6 +5288,9 @@ class EditableTextState extends State<EditableText>
     // the selection overlay. For example, this happens when right clicking an
     // unfocused field that previously had a selection in the same spot.
     if (value == textEditingValue) {
+      if (kDebugMode) {
+        _debugImeLog('userUpdateTextEditingValue no-op');
+      }
       if (!widget.focusNode.hasFocus) {
         _flagInternalFocus();
         widget.focusNode.requestFocus();
@@ -5528,6 +5722,15 @@ class EditableTextState extends State<EditableText>
       CallbackAction<TransposeCharactersIntent>(onInvoke: _transposeCharacters);
 
   void _replaceText(ReplaceTextIntent intent) {
+    if (kDebugMode) {
+      _imeDebugSeq++;
+      _debugImeLog('replaceText cause=${intent.cause} '
+          'replacement="${intent.replacementText}" '
+          'range=${_debugTextRange(intent.replacementRange)}');
+      _debugImeStep('replace-current-intent', intent.currentTextEditingValue);
+      _debugImeStep('replace-current-state', _value);
+      _debugImeController('controller-before-replace');
+    }
     final TextEditingValue oldValue = _value;
     final TextEditingValue newValue;
 
@@ -5546,6 +5749,10 @@ class EditableTextState extends State<EditableText>
         selection: widget.controller.newSelection,
         composing: .empty,
       );
+      if (kDebugMode) {
+        _debugImeStep('replace-delete-newValue', newValue);
+        _debugImeController('controller-after-replace-delete');
+      }
     } else {
       newValue = intent.currentTextEditingValue.replaced(
         intent.replacementRange,
@@ -5560,8 +5767,15 @@ class EditableTextState extends State<EditableText>
           composing: newValue.composing,
         ),
       );
+      if (kDebugMode) {
+        _debugImeStep('replace-replacement-newValue', newValue);
+        _debugImeController('controller-after-replace-replacement');
+      }
     }
 
+    if (kDebugMode) {
+      _debugImeStep('replace-before-userUpdate', newValue);
+    }
     userUpdateTextEditingValue(newValue, intent.cause);
 
     // If there's no change in text and selection (e.g. when selecting and
