@@ -3566,12 +3566,15 @@ class EditableTextState extends State<EditableText>
     for (final TextEditingDelta delta in textEditingDeltas) {
       widget.controller.syncRichText(delta);
       remoteValue = delta.apply(remoteValue);
+      if (widget.controller.plainText != remoteValue.text) {
+        widget.controller.syncPlainText(remoteValue);
+      }
     }
 
     final newValue = TextEditingValue(
       text: widget.controller.plainText,
       selection: widget.controller.newSelection,
-      composing: textEditingDeltas.last.composing,
+      composing: remoteValue.composing,
     );
 
     updateEditingValue(newValue, remoteValue: remoteValue);
