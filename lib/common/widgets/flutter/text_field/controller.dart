@@ -585,6 +585,149 @@ class RichTextEditingController extends TextEditingController {
     return buffer.toString();
   }
 
+  void syncPlainText(TextEditingValue value) {
+    final targetText = value.text;
+    final oldText = plainText;
+    if (oldText == targetText) {
+      _syncSelection(value.selection);
+      return;
+    }
+
+    if (oldText.isEmpty) {
+      _replaceWithPlainText(targetText, value.composing);
+      _syncSelection(value.selection);
+      return;
+    }
+
+    var start = 0;
+    while (start < oldText.length &&
+        start < targetText.length &&
+        oldText.codeUnitAt(start) == targetText.codeUnitAt(start)) {
+      start++;
+    }
+
+    var oldEnd = oldText.length;
+    var targetEnd = targetText.length;
+    while (oldEnd > start &&
+        targetEnd > start &&
+        oldText.codeUnitAt(oldEnd - 1) ==
+            targetText.codeUnitAt(targetEnd - 1)) {
+      oldEnd--;
+      targetEnd--;
+    }
+
+    final replacementText = targetText.substring(start, targetEnd);
+    final replacedRange = TextRange(start: start, end: oldEnd);
+
+    if (replacedRange.isCollapsed) {
+      syncRichText(
+        TextEditingDeltaInsertion(
+          oldText: oldText,
+          textInserted: replacementText,
+          insertionOffset: start,
+          selection: value.selection,
+          composing: value.composing,
+        ),
+      );
+    } else if (replacementText.isEmpty) {
+      syncRichText(
+        TextEditingDeltaDeletion(
+          oldText: oldText,
+          deletedRange: replacedRange,
+          selection: value.selection,
+          composing: value.composing,
+        ),
+      );
+    } else {
+      syncRichText(
+        TextEditingDeltaReplacement(
+          oldText: oldText,
+          replacementText: replacementText,
+          replacedRange: replacedRange,
+          selection: value.selection,
+          composing: value.composing,
+        ),
+      );
+    }
+
+    if (plainText != targetText) {
+      _replaceWithPlainText(targetText, value.composing);
+    }
+    _syncSelection(value.selection);
+  }
+
+  void _replaceWithPlainText(String text, TextRange composing) {
+    items.clear();
+    if (text.isEmpty) {
+      return;
+    }
+
+    if (!composing.isValid ||
+        composing.isCollapsed ||
+        composing.start < 0 ||
+        composing.end > text.length) {
+      items.add(RichTextItem.fromStart(text));
+      return;
+    }
+
+    if (composing.start > 0) {
+      final before = text.substring(0, composing.start);
+      items.add(
+        RichTextItem(
+          text: before,
+          range: TextRange(start: 0, end: before.length),
+        ),
+      );
+    }
+
+    final composingText = composing.textInside(text);
+    items.add(
+      RichTextItem(
+        type: RichTextType.composing,
+        text: composingText,
+        range: TextRange(
+          start: composing.start,
+          end: composing.start + composingText.length,
+        ),
+      ),
+    );
+
+    if (composing.end < text.length) {
+      final after = text.substring(composing.end);
+      items.add(
+        RichTextItem(
+          text: after,
+          range: TextRange(
+            start: composing.end,
+            end: composing.end + after.length,
+          ),
+        ),
+      );
+    }
+  }
+
+  void _syncSelection(TextSelection selection) {
+    newSelection = selection;
+    if (newSelection.isCollapsed) {
+      final newPos = dragOffset(newSelection.base);
+      newSelection = newSelection.copyWith(
+        baseOffset: newPos.offset,
+        extentOffset: newPos.offset,
+      );
+    } else {
+      final isNormalized = newSelection.baseOffset < newSelection.extentOffset;
+      var startOffset = newSelection.start;
+      var endOffset = newSelection.end;
+      final newOffset = longPressOffset(startOffset, endOffset);
+      startOffset = newOffset.startOffset;
+      endOffset = newOffset.endOffset;
+      newSelection = newSelection.copyWith(
+        baseOffset: isNormalized ? startOffset : endOffset,
+        extentOffset: isNormalized ? endOffset : startOffset,
+      );
+    }
+  }
+
   void syncRichText(TextEditingDelta delta) {
     int? addIndex;
     List<RichTextItem>? toAdd;
@@ -657,26 +800,7 @@ class RichTextEditingController extends TextEditingController {
         }
 
       case TextEditingDeltaNonTextUpdate e:
-        newSelection = e.selection;
-        if (newSelection.isCollapsed) {
-          final newPos = dragOffset(newSelection.base);
-          newSelection = newSelection.copyWith(
-            baseOffset: newPos.offset,
-            extentOffset: newPos.offset,
-          );
-        } else {
-          final isNormalized =
-              newSelection.baseOffset < newSelection.extentOffset;
-          var startOffset = newSelection.start;
-          var endOffset = newSelection.end;
-          final newOffset = longPressOffset(startOffset, endOffset);
-          startOffset = newOffset.startOffset;
-          endOffset = newOffset.endOffset;
-          newSelection = newSelection.copyWith(
-            baseOffset: isNormalized ? startOffset : endOffset,
-            extentOffset: isNormalized ? endOffset : startOffset,
-          );
-        }
+        _syncSelection(e.selection);
     }
 
     if (addIndex != null && toAdd != null && toAdd.isNotEmpty) {
