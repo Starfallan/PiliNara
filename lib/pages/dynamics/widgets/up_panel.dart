@@ -10,8 +10,12 @@ import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
+import 'package:PiliPlus/utils/storage.dart';
+import 'package:PiliPlus/utils/storage_key.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hive_ce/hive.dart';
 
 class UpPanel extends StatefulWidget {
   const UpPanel({
@@ -107,17 +111,27 @@ class _UpPanelState extends State<UpPanel> {
         SliverToBoxAdapter(
           child: upItemBuild(theme, UpItem(face: '', uname: '全部动态', mid: -1)),
         ),
-        SliverToBoxAdapter(
-          child: Obx(
-            () => upItemBuild(
-              theme,
-              UpItem(
-                uname: '我',
-                face: accountService.face.value,
-                mid: Accounts.main.mid,
-              ),
-            ),
+        StreamBuilder<BoxEvent>(
+          stream: GStorage.setting.watch().where(
+            (event) => event.key == SettingBoxKey.dynamicsShowSelfUp,
           ),
+          builder: (context, _) {
+            if (!Pref.dynamicsShowSelfUp) {
+              return const SliverToBoxAdapter(child: SizedBox.shrink());
+            }
+            return SliverToBoxAdapter(
+              child: Obx(
+                () => upItemBuild(
+                  theme,
+                  UpItem(
+                    uname: '我',
+                    face: accountService.face.value,
+                    mid: Accounts.main.mid,
+                  ),
+                ),
+              ),
+            );
+          },
         ),
         if (upList.isNotEmpty)
           SliverList.builder(

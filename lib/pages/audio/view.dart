@@ -3,6 +3,7 @@ import 'dart:math' show min;
 import 'package:PiliPlus/common/assets.dart';
 import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/button/icon_button.dart';
+import 'package:PiliPlus/common/widgets/flutter/popup_menu.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/gesture/tap_gesture_recognizer.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
@@ -21,6 +22,8 @@ import 'package:PiliPlus/pages/video/widgets/header_control.dart'
     show HeaderControlState;
 import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
 import 'package:PiliPlus/services/shutdown_timer_service.dart';
+import 'package:PiliPlus/services/pip_overlay_service.dart';
+import 'package:PiliPlus/services/live_pip_overlay_service.dart';
 import 'package:PiliPlus/utils/date_utils.dart';
 import 'package:PiliPlus/utils/duration_utils.dart';
 import 'package:PiliPlus/utils/extension/context_ext.dart';
@@ -46,7 +49,7 @@ class AudioPage extends StatefulWidget {
   @override
   State<AudioPage> createState() => _AudioPageState();
 
-  static void toAudioPage({
+  static Future<void>? toAudioPage({
     int? id,
     required int oid,
     List<int>? subId,
@@ -56,20 +59,23 @@ class AudioPage extends StatefulWidget {
     Duration? start,
     String? audioUrl,
     int? extraId,
-  }) => Get.toNamed(
-    '/audio',
-    arguments: {
-      'id': ?id,
-      'oid': oid,
-      'subId': ?subId,
-      'from': from,
-      'itemType': itemType,
-      'heroTag': ?heroTag,
-      'start': ?start,
-      'audioUrl': ?audioUrl,
-      'extraId': ?extraId,
-    },
-  );
+  }) {
+    heroTag ??= Utils.makeHeroTag(oid);
+    return Get.toNamed(
+      '/audio',
+      arguments: {
+        'id': ?id,
+        'oid': oid,
+        'subId': ?subId,
+        'from': from,
+        'itemType': itemType,
+        'heroTag': heroTag,
+        'start': ?start,
+        'audioUrl': ?audioUrl,
+        'extraId': ?extraId,
+      },
+    );
+  }
 }
 
 extension _ListOrderExt on ListOrder {
@@ -77,10 +83,23 @@ extension _ListOrderExt on ListOrder {
 }
 
 class _AudioPageState extends State<AudioPage> {
-  final _controller = Get.put(
+  late final _controller = Get.put(
     AudioController(),
-    tag: Utils.generateRandomString(8),
+    tag: Get.arguments['heroTag'] ?? Utils.generateRandomString(8),
   );
+
+  @override
+  void initState() {
+    super.initState();
+    // 进入听视频界面时，确保关闭所有应用内小窗
+    if (PipOverlayService.isInPipMode) {
+      PipOverlayService.stopPip(callOnClose: false, immediate: true);
+      PipOverlayService.releaseSavedVideoOwner();
+    }
+    if (LivePipOverlayService.isInPipMode) {
+      LivePipOverlayService.stopLivePip(callOnClose: false);
+    }
+  }
 
   @override
   void didChangeDependencies() {
@@ -110,7 +129,7 @@ class _AudioPageState extends State<AudioPage> {
             }),
           Builder(
             builder: (context) {
-              return PopupMenuButton<ListOrder>(
+              return StaticPopupMenuButton<ListOrder>(
                 tooltip: '排序',
                 icon: const Icon(Icons.sort, size: 22),
                 initialValue: _controller.order,

@@ -7,7 +7,9 @@ import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/danmaku_options.dart';
 import 'package:PiliPlus/utils/danmaku_utils.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:canvas_danmaku/canvas_danmaku.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -42,10 +44,18 @@ class _PlDanmakuState extends State<PlDanmaku> {
   late final PlDanmakuController _plDanmakuController;
   DanmakuController<DanmakuExtra>? _controller;
   int latestAddedPosition = -1;
+  bool _loggedEarlySpecialDanmaku = false;
 
   @override
   void initState() {
     super.initState();
+    if (kDebugMode) {
+      debugPrint(
+        '[PlDanmaku] init state=${identityHashCode(this)} cid=${widget.cid} '
+        'fileSource=${widget.isFileSource} fullScreen=${widget.isFullScreen} '
+        'pip=${widget.isPipMode}',
+      );
+    }
     _plDanmakuController = PlDanmakuController(
       widget.cid,
       playerController,
@@ -116,6 +126,16 @@ class _PlDanmakuState extends State<PlDanmaku> {
       final blockColorful = DanmakuOptions.blockColorful;
       for (DanmakuElem e in currentDanmakuList) {
         if (e.mode == 7) {
+          if (kDebugMode &&
+              !_loggedEarlySpecialDanmaku &&
+              currentPosition <= 10000) {
+            _loggedEarlySpecialDanmaku = true;
+            debugPrint(
+              '[PlDanmaku] early special danmaku state=${identityHashCode(this)} '
+              'cid=${widget.cid} position=$currentPosition progress=${e.progress} '
+              'mode=${e.mode} contentLength=${e.content.length}',
+            );
+          }
           try {
             _controller!.addDanmaku(
               SpecialDanmakuContentItem.fromList(
@@ -131,6 +151,28 @@ class _PlDanmakuState extends State<PlDanmaku> {
             );
           } catch (_) {}
         } else {
+          final displayCount = e.count > Pref.mergeDanmakuMarkThreshold
+              ? e.count
+              : null;
+          final preferredCountPosition = switch (Pref.mergeDanmakuMarkPosition) {
+            0 => DanmakuCountPosition.hidden,
+            2 => DanmakuCountPosition.tail,
+            _ => DanmakuCountPosition.head,
+          };
+          final countPosition = displayCount == null
+              ? DanmakuCountPosition.hidden
+              : preferredCountPosition;
+          // Apply fontSize for merged danmaku (count > 1)
+          // e.fontsize contains base * enlargeRate, multiply by user's scale
+          double? itemFontSize;
+          if (e.fontsize > 0 && e.count > 1) {
+            final scale = !widget.isFullScreen || widget.isPipMode
+                ? DanmakuOptions.danmakuFontScale
+                : DanmakuOptions.danmakuFontScaleFS;
+            itemFontSize = e.fontsize.toDouble() * scale;
+          }
+          // If itemFontSize is null, canvas_danmaku uses global fontSize from DanmakuOption
+          
           _controller!.addDanmaku(
             DanmakuContentItem(
               e.content,
@@ -141,7 +183,9 @@ class _PlDanmakuState extends State<PlDanmaku> {
               isColorful:
                   playerController.showVipDanmaku &&
                   e.colorful == DmColorfulType.VipGradualColor,
-              count: e.count > 1 ? e.count : null,
+              count: displayCount,
+              countPosition: countPosition,
+              fontSize: itemFontSize,
               selfSend: e.isSelf,
               extra: VideoDanmaku(
                 id: e.id.toInt(),
@@ -157,6 +201,11 @@ class _PlDanmakuState extends State<PlDanmaku> {
 
   @override
   void dispose() {
+    if (kDebugMode) {
+      debugPrint(
+        '[PlDanmaku] dispose state=${identityHashCode(this)} cid=${widget.cid}',
+      );
+    }
     playerController
       ..removePositionListener(videoPositionListen)
       ..removeStatusLister(playerListener);
@@ -179,6 +228,12 @@ class _PlDanmakuState extends State<PlDanmaku> {
         duration: const Duration(milliseconds: 100),
         child: DanmakuScreen<DanmakuExtra>(
           createdController: (e) {
+            if (kDebugMode) {
+              debugPrint(
+                '[PlDanmaku] created canvas controller state=${identityHashCode(this)} '
+                'cid=${widget.cid} controller=${identityHashCode(e)}',
+              );
+            }
             playerController.danmakuController = _controller = e;
           },
           option: option,
@@ -187,4 +242,5 @@ class _PlDanmakuState extends State<PlDanmaku> {
       ),
     );
   }
+
 }

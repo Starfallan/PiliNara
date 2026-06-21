@@ -187,6 +187,7 @@ abstract class CommonDynPageState<T extends StatefulWidget> extends State<T>
             isVideoDetail: !showBackBtn,
             replyType: controller.replyType,
             firstFloor: replyItem,
+            heroTag: arguments?['heroTag'],
             upMid: controller.upMid,
           ),
         );

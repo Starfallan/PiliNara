@@ -47,13 +47,15 @@ import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 
 class LiveRoomController extends GetxController {
-  LiveRoomController(this.heroTag);
+  LiveRoomController(this.heroTag, {this.fromPip = false});
   final String heroTag;
+  final bool fromPip;
 
-  int roomId = Get.arguments;
+  late int roomId;
+  bool isReturningFromPip = false;
   int? ruid;
   DanmakuController<DanmakuExtra>? danmakuController;
-  final plPlayerController = PlPlayerController.getInstance(
+  PlPlayerController plPlayerController = PlPlayerController.getInstance(
     isLive: true,
   );
 
@@ -61,6 +63,10 @@ class LiveRoomController extends GetxController {
   final roomInfoH5 = Rxn<RoomInfoH5Data>();
 
   final liveTime = Rxn<int>();
+
+  // PiP 模式标志
+  RxBool isInPipMode = false.obs;
+
   Timer? liveTimeTimer;
 
   void startLiveTimer() {
@@ -128,6 +134,7 @@ class LiveRoomController extends GetxController {
 
   final superChatType = Pref.superChatType;
   late final showSuperChat = superChatType != SuperChatType.disable;
+  final superChatTimeType = Pref.superChatTimeType;
 
   final headerKey = GlobalKey<TimeBatteryMixin>();
 
@@ -152,11 +159,29 @@ class LiveRoomController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+
+    // 从参数中提取 roomId（支持 int 或 Map 格式）
+    final args = Get.arguments;
+    if (args is Map) {
+      roomId = (args['roomId'] as int?) ?? (args['id'] as int? ?? 0);
+    } else {
+      roomId = args as int;
+    }
+
     scrollController = ScrollController()..addListener(listener);
     final account = Accounts.main;
     isLogin = account.isLogin;
     mid = account.mid;
-    queryLiveUrl(autoFullScreenFlag: true);
+
+    // 直接透传构造函数传入的 fromPip 标志，因为它在 view.dart 中已经经过了校验
+    isReturningFromPip = fromPip;
+
+    if (isReturningFromPip) {
+      isPortrait.value = plPlayerController.isVertical;
+      isLoaded.value = true;
+    } else {
+      queryLiveUrl(autoFullScreenFlag: true);
+    }
     queryLiveInfoH5();
     if (Accounts.heartbeat.isLogin && !Pref.historyPause) {
       VideoHttp.roomEntryAction(roomId: roomId);
@@ -173,13 +198,38 @@ class LiveRoomController extends GetxController {
     if (videoUrl == null) {
       return null;
     }
-    return plPlayerController.setDataSource(
-      NetworkSource(videoSource: videoUrl!, audioSource: null),
-      isLive: true,
-      autoplay: autoplay,
-      isVertical: isPortrait.value,
-      autoFullScreenFlag: autoFullScreenFlag,
-    );
+    // 如果是从小窗返回，播放器已在播放，跳过初始化
+    if (isReturningFromPip) {
+      return null;
+    }
+
+    // 如果播放器已被彻底销毁（例如在其他页面关闭了小窗），重新获取单例实例
+    if (plPlayerController.videoPlayerController == null) {
+      plPlayerController = PlPlayerController.ensureInstance(isLive: true);
+    }
+
+    // 确保播放器处于直播模式
+    plPlayerController.isLive = true;
+
+    return plPlayerController
+        .setDataSource(
+          NetworkSource(videoSource: videoUrl!, audioSource: null),
+          isLive: true,
+          autoplay: autoplay,
+          isVertical: isPortrait.value,
+          autoFullScreenFlag: autoFullScreenFlag,
+          roomId: roomId,
+        )
+        .then((_) async {
+          if (!autoplay) {
+            return;
+          }
+          final isActuallyPlaying =
+              plPlayerController.videoPlayerController?.state.playing == true;
+          if (!isActuallyPlaying) {
+            await plPlayerController.play();
+          }
+        });
   }
 
   Future<void> queryLiveUrl({bool autoFullScreenFlag = false}) async {
@@ -207,8 +257,14 @@ class LiveRoomController extends GetxController {
       }
       liveTime.value = response.liveTime;
       startLiveTimer();
+      if (Accounts.heartbeat.isLogin) {
+        LiveHttp.startLiveHeartbeat(roomId, ruid!);
+      }
       isPortrait.value = response.isPortrait ?? false;
       stream = playurl.stream;
+      if (isReturningFromPip) {
+        isReturningFromPip = false;
+      }
       await initLiveUrl(
         streamIndex: streamIndex,
         formatIndex: formatIndex,
@@ -300,6 +356,7 @@ class LiveRoomController extends GetxController {
   }
 
   void scrollToBottom([_]) {
+    if (!scrollController.hasClients) return;
     EasyThrottle.throttle(
       'liveDm',
       const Duration(milliseconds: 500),
@@ -410,21 +467,26 @@ class LiveRoomController extends GetxController {
 
   @override
   void onClose() {
-    closeLiveMsg();
-    cancelLikeTimer();
-    cancelLiveTimer();
-    savedDanmaku?.clear();
-    savedDanmaku = null;
-    messages.clear();
-    if (showSuperChat) {
-      superChatMsg.clear();
-      fsSC.value = null;
+    // 心跳定时器是静态的，无论是否小窗都要取消
+    LiveHttp.cancelLiveHeartbeat();
+    // 如果在小窗模式，不清理资源
+    if (!isInPipMode.value) {
+      closeLiveMsg();
+      cancelLikeTimer();
+      cancelLiveTimer();
+      savedDanmaku?.clear();
+      savedDanmaku = null;
+      messages.clear();
+      if (showSuperChat) {
+        superChatMsg.clear();
+        fsSC.value = null;
+      }
+      scrollController
+        ..removeListener(listener)
+        ..dispose();
+      pageController?.dispose();
+      danmakuController = null;
     }
-    scrollController
-      ..removeListener(listener)
-      ..dispose();
-    pageController?.dispose();
-    danmakuController = null;
     super.onClose();
   }
 

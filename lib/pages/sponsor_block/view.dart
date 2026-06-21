@@ -1,3 +1,4 @@
+import 'package:PiliPlus/common/widgets/flutter/popup_menu.dart';
 import 'package:PiliPlus/common/widgets/pair.dart';
 import 'package:PiliPlus/http/constants.dart';
 import 'package:PiliPlus/http/init.dart';
@@ -566,7 +567,7 @@ class _SponsorBlockPageState extends State<SponsorBlockPage> {
               ),
               Builder(
                 builder: (btnContext) {
-                  return PopupMenuButton<SkipType>(
+                  return StaticPopupMenuButton<SkipType>(
                     initialValue: item.second,
                     onSelected: (e) {
                       final updateItem = isDisable || e == SkipType.disable;

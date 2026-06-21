@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' show pow, sqrt;
 
@@ -6,6 +7,8 @@ import 'package:PiliPlus/common/widgets/gesture/horizontal_drag_gesture_recogniz
 import 'package:PiliPlus/common/widgets/pair.dart';
 import 'package:PiliPlus/http/constants.dart';
 import 'package:PiliPlus/models/common/bar_hide_type.dart';
+import 'package:PiliPlus/models/common/danmaku/danmaku_font_sync_mode.dart';
+import 'package:PiliPlus/models/common/dm_chart_source.dart';
 import 'package:PiliPlus/models/common/dynamic/dynamic_badge_mode.dart';
 import 'package:PiliPlus/models/common/dynamic/dynamics_type.dart';
 import 'package:PiliPlus/models/common/dynamic/up_panel_position.dart';
@@ -13,9 +16,11 @@ import 'package:PiliPlus/models/common/follow_order_type.dart';
 import 'package:PiliPlus/models/common/member/tab_type.dart';
 import 'package:PiliPlus/models/common/msg/msg_unread_type.dart';
 import 'package:PiliPlus/models/common/nav_bar_config.dart';
+import 'package:PiliPlus/models/common/rcmd_mode.dart';
 import 'package:PiliPlus/models/common/reply/reply_sort_type.dart';
 import 'package:PiliPlus/models/common/sponsor_block/segment_type.dart';
 import 'package:PiliPlus/models/common/sponsor_block/skip_type.dart';
+import 'package:PiliPlus/models/common/super_chat_time_type.dart';
 import 'package:PiliPlus/models/common/super_chat_type.dart';
 import 'package:PiliPlus/models/common/super_resolution_type.dart';
 import 'package:PiliPlus/models/common/theme/theme_type.dart';
@@ -36,6 +41,7 @@ import 'package:PiliPlus/plugin/pl_player/models/hwdec_type.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
 import 'package:PiliPlus/utils/device_utils.dart';
 import 'package:PiliPlus/utils/extension/iterable_ext.dart';
+import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/login_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
@@ -64,11 +70,213 @@ abstract final class Pref {
     ),
   );
 
-  static Set<int> get blackMids =>
-      _localCache.get(LocalCacheKey.blackMids, defaultValue: <int>{});
+  static Set<int> get blackMids {
+    final data = _localCache.get(
+      LocalCacheKey.blackMids,
+      defaultValue: <int>{},
+    );
+    // 处理 JSON 导入时可能为 List 的情况
+    if (data is List) {
+      final set = data.whereType<int>().toSet();
+      if (set.isNotEmpty) {
+        _localCache.put(LocalCacheKey.blackMids, set);
+      }
+      return set;
+    }
+    return data is Set<int> ? data : <int>{};
+  }
 
   static set blackMids(Set<int> blackMidsSet) =>
       _localCache.put(LocalCacheKey.blackMids, blackMidsSet);
+
+  static Set<int> get dynamicsBlockedMids {
+    final data = _localCache.get(
+      LocalCacheKey.dynamicsBlockedMids,
+      defaultValue: <int>{},
+    );
+    // 处理 JSON 导入时可能为 List 的情况
+    if (data is List) {
+      final set = data.whereType<int>().toSet();
+      if (set.isNotEmpty) {
+        _localCache.put(LocalCacheKey.dynamicsBlockedMids, set);
+      }
+      return set;
+    }
+    return data is Set<int> ? data : <int>{};
+  }
+
+  static set dynamicsBlockedMids(Set<int> blockedMidsSet) {
+    _localCache.put(LocalCacheKey.dynamicsBlockedMids, blockedMidsSet);
+  }
+
+  static Map<int, String> get whitelistMids {
+    final data = _localCache.get(LocalCacheKey.whitelistMids);
+
+    if (data is Set) {
+      final map = <int, String>{};
+      for (final mid in data) {
+        if (mid is int) {
+          map[mid] = 'UID:$mid';
+        }
+      }
+      _localCache.put(LocalCacheKey.whitelistMids, map);
+      return map;
+    }
+
+    if (data is Map) {
+      final map = <int, String>{};
+      for (final entry in data.entries) {
+        final key = entry.key;
+        final value = entry.value;
+
+        int? uid;
+        if (key is int) {
+          uid = key;
+        } else if (key is String) {
+          uid = int.tryParse(key);
+        }
+
+        if (uid != null && value is String) {
+          map[uid] = value;
+        }
+      }
+
+      if (map.isNotEmpty && data.keys.first is! int) {
+        _localCache.put(LocalCacheKey.whitelistMids, map);
+      }
+
+      return map;
+    }
+
+    return <int, String>{};
+  }
+
+  static set whitelistMids(Map<int, String> whitelistMidsMap) {
+    _localCache.put(LocalCacheKey.whitelistMids, whitelistMidsMap);
+  }
+
+  static Map<int, String> get recommendBlockedMids {
+    final data = _localCache.get(LocalCacheKey.recommendBlockedMids);
+
+    // 向后兼容：如果是旧的 Set<int> 格式，转换为 Map<int, String>
+    if (data is Set) {
+      final map = <int, String>{};
+      for (final mid in data) {
+        if (mid is int) {
+          map[mid] = 'UID:$mid'; // 旧数据使用默认名称
+        }
+      }
+      // 自动迁移数据
+      _localCache.put(LocalCacheKey.recommendBlockedMids, map);
+      return map;
+    }
+
+    // 如果是新格式 Map，需要处理 key 可能是 String 的情况（JSON 导入）
+    if (data is Map) {
+      final map = <int, String>{};
+      for (final entry in data.entries) {
+        final key = entry.key;
+        final value = entry.value;
+
+        // 处理 key：可能是 int 或 String（JSON 导入时）
+        int? uid;
+        if (key is int) {
+          uid = key;
+        } else if (key is String) {
+          uid = int.tryParse(key);
+        }
+
+        // 处理 value：确保是 String
+        if (uid != null && value is String) {
+          map[uid] = value;
+        }
+      }
+
+      // 如果经过转换，保存标准格式
+      if (map.isNotEmpty && data.keys.first is! int) {
+        _localCache.put(LocalCacheKey.recommendBlockedMids, map);
+      }
+
+      return map;
+    }
+
+    // 默认返回空 Map
+    return <int, String>{};
+  }
+
+  static set recommendBlockedMids(Map<int, String> blockedMidsMap) {
+    _localCache.put(LocalCacheKey.recommendBlockedMids, blockedMidsMap);
+  }
+
+  static Map<int, String> get replyBlockedMids {
+    final data = _localCache.get(LocalCacheKey.replyBlockedMids);
+
+    if (data is Set) {
+      final map = <int, String>{};
+      for (final mid in data) {
+        if (mid is int) {
+          map[mid] = 'UID:$mid';
+        }
+      }
+      _localCache.put(LocalCacheKey.replyBlockedMids, map);
+      return map;
+    }
+
+    if (data is Map) {
+      final map = <int, String>{};
+      for (final entry in data.entries) {
+        final key = entry.key;
+        final value = entry.value;
+        int? uid;
+        if (key is int) {
+          uid = key;
+        } else if (key is String) {
+          uid = int.tryParse(key);
+        }
+        if (uid != null && value is String) {
+          map[uid] = value;
+        }
+      }
+      if (map.isNotEmpty && data.keys.first is! int) {
+        _localCache.put(LocalCacheKey.replyBlockedMids, map);
+      }
+      return map;
+    }
+
+    return <int, String>{};
+  }
+
+  static set replyBlockedMids(Map<int, String> blockedMidsMap) {
+    _localCache.put(LocalCacheKey.replyBlockedMids, blockedMidsMap);
+  }
+
+  static Map<int, String> get remarkMids {
+    final data = _localCache.get(LocalCacheKey.remarkMids);
+    if (data is Map) {
+      final map = <int, String>{};
+      for (final entry in data.entries) {
+        final key = entry.key;
+        final value = entry.value;
+        int? uid;
+        if (key is int) {
+          uid = key;
+        } else if (key is String) {
+          uid = int.tryParse(key);
+        }
+        if (uid != null && value is String) {
+          map[uid] = value;
+        }
+      }
+      if (map.isNotEmpty && data.keys.first is! int) {
+        _localCache.put(LocalCacheKey.remarkMids, map);
+      }
+      return map;
+    }
+    return <int, String>{};
+  }
+
+  static set remarkMids(Map<int, String> v) =>
+      _localCache.put(LocalCacheKey.remarkMids, v);
 
   static RuleFilter get danmakuFilterRule => _localCache.get(
     LocalCacheKey.danmakuFilterRules,
@@ -234,6 +442,13 @@ abstract final class Pref {
     defaultValue: VideoQuality.high1080.code,
   );
 
+  /// 半屏默认画质。null = 跟随全屏默认画质
+  static int? get defaultVideoQaHalfScreen {
+    final val = _setting.get(SettingBoxKey.defaultVideoQaHalfScreen);
+    if (val == null || val == -1) return null;
+    return val as int;
+  }
+
   static int get defaultAudioQa => _setting.get(
     SettingBoxKey.defaultAudioQa,
     defaultValue: AudioQuality.hiRes.code,
@@ -287,6 +502,19 @@ abstract final class Pref {
 
   static bool get appRcmd =>
       _setting.get(SettingBoxKey.appRcmd, defaultValue: true);
+
+  /// 推荐流模式，首次读取时从旧 key appRcmd 迁移
+  static RcmdMode get rcmdMode {
+    final index = _setting.get(SettingBoxKey.rcmdMode);
+    if (index != null) {
+      return RcmdMode.values.elementAtOrNull(index) ?? RcmdMode.app;
+    }
+    // 旧版迁移：appRcmd true→App, false→Web
+    return appRcmd ? RcmdMode.app : RcmdMode.web;
+  }
+
+  static bool get removeBlockedRcmd =>
+      _setting.get(SettingBoxKey.removeBlockedRcmd, defaultValue: false);
 
   static String get systemProxyHost =>
       _setting.get(SettingBoxKey.systemProxyHost, defaultValue: '');
@@ -373,6 +601,9 @@ abstract final class Pref {
   static bool get showViewPoints =>
       _setting.get(SettingBoxKey.showViewPoints, defaultValue: true);
 
+  static bool get showViewPointsOverlay =>
+      _setting.get(SettingBoxKey.showViewPointsOverlay, defaultValue: true);
+
   static bool get showRelatedVideo =>
       _setting.get(SettingBoxKey.showRelatedVideo, defaultValue: true);
 
@@ -445,6 +676,12 @@ abstract final class Pref {
   static bool get autoUpdate =>
       _setting.get(SettingBoxKey.autoUpdate, defaultValue: true);
 
+  static bool get preReleaseUpdate =>
+      _setting.get(SettingBoxKey.preReleaseUpdate, defaultValue: false);
+
+  static String get skipVersion =>
+      _setting.get(SettingBoxKey.skipVersion, defaultValue: '');
+
   static bool get horizontalPreview =>
       _setting.get(SettingBoxKey.horizontalPreview, defaultValue: false);
 
@@ -460,8 +697,52 @@ abstract final class Pref {
   static bool get mergeDanmaku =>
       _setting.get(SettingBoxKey.mergeDanmaku, defaultValue: false);
 
+  static int get mergeDanmakuWindowSeconds =>
+      _setting.get(SettingBoxKey.mergeDanmakuWindowSeconds, defaultValue: 20);
+
+  static int get mergeDanmakuMaxDistance =>
+      _setting.get(SettingBoxKey.mergeDanmakuMaxDistance, defaultValue: 5);
+
+  static int get mergeDanmakuMaxCosine =>
+      _setting.get(SettingBoxKey.mergeDanmakuMaxCosine, defaultValue: 45);
+
+  static int get mergeDanmakuRepresentativePercent => _setting.get(
+    SettingBoxKey.mergeDanmakuRepresentativePercent,
+    defaultValue: 20,
+  );
+
+  static bool get mergeDanmakuUsePinyin =>
+      _setting.get(SettingBoxKey.mergeDanmakuUsePinyin, defaultValue: true);
+
+  static bool get mergeDanmakuCrossMode =>
+      _setting.get(SettingBoxKey.mergeDanmakuCrossMode, defaultValue: false);
+
+  static bool get mergeDanmakuSkipSubtitle =>
+      _setting.get(SettingBoxKey.mergeDanmakuSkipSubtitle, defaultValue: true);
+
+  static bool get mergeDanmakuSkipAdvanced =>
+      _setting.get(SettingBoxKey.mergeDanmakuSkipAdvanced, defaultValue: true);
+
+  static bool get mergeDanmakuSkipBottom =>
+      _setting.get(SettingBoxKey.mergeDanmakuSkipBottom, defaultValue: false);
+
+  static int get mergeDanmakuMarkPosition =>
+      _setting.get(SettingBoxKey.mergeDanmakuMarkPosition, defaultValue: 2);
+
+  static int get mergeDanmakuMarkThreshold =>
+      _setting.get(SettingBoxKey.mergeDanmakuMarkThreshold, defaultValue: 1);
+
+  static int get danmakuEnlargeThreshold =>
+      _setting.get(SettingBoxKey.danmakuEnlargeThreshold, defaultValue: 7);
+
+  static int get danmakuEnlargeLogBase =>
+      _setting.get(SettingBoxKey.danmakuEnlargeLogBase, defaultValue: 7);
+
   static bool get showHotRcmd =>
       _setting.get(SettingBoxKey.showHotRcmd, defaultValue: false);
+
+  static bool get mixWithOthers =>
+      _setting.get(SettingBoxKey.mixWithOthers, defaultValue: false);
 
   static String get audioNormalization =>
       _setting.get(SettingBoxKey.audioNormalization, defaultValue: '0');
@@ -493,11 +774,24 @@ abstract final class Pref {
   static bool get showMedal =>
       _setting.get(SettingBoxKey.showMedal, defaultValue: true);
 
+  static bool get showRcmdReason =>
+      _setting.get(SettingBoxKey.showRcmdReason, defaultValue: true);
+
   static bool get enableLivePhoto =>
       _setting.get(SettingBoxKey.enableLivePhoto, defaultValue: true);
 
   static bool get showSeekPreview =>
       _setting.get(SettingBoxKey.showSeekPreview, defaultValue: true);
+
+  static DmChartSource get dmChartSource {
+    final index = _setting.get(SettingBoxKey.dmChartSource);
+    if (index is int) {
+      return DmChartSource.values.elementAtOrNull(index) ??
+          DmChartSource.disabled;
+    }
+    // Backward compatibility with the old boolean switch.
+    return showDmChart ? DmChartSource.officialFirst : DmChartSource.disabled;
+  }
 
   static bool get showDmChart =>
       _setting.get(SettingBoxKey.showDmChart, defaultValue: false);
@@ -521,8 +815,26 @@ abstract final class Pref {
   static bool get antiGoodsDyn =>
       _setting.get(SettingBoxKey.antiGoodsDyn, defaultValue: false);
 
+  static bool get removeBlockedDyn =>
+      _setting.get(SettingBoxKey.removeBlockedDyn, defaultValue: false);
+
+  static bool get removeOnlyFansVideoDyn =>
+      _setting.get(SettingBoxKey.removeOnlyFansVideoDyn, defaultValue: false);
+
   static bool get antiGoodsReply =>
       _setting.get(SettingBoxKey.antiGoodsReply, defaultValue: false);
+
+  static int get replyMinLevel =>
+      _setting.get(SettingBoxKey.replyMinLevel, defaultValue: 0);
+
+  static set replyMinLevel(int v) =>
+      _setting.put(SettingBoxKey.replyMinLevel, v);
+
+  static bool get keepUpLikeReply =>
+      _setting.get(SettingBoxKey.keepUpLikeReply, defaultValue: false);
+
+  static bool get keepUpReplyReply =>
+      _setting.get(SettingBoxKey.keepUpReplyReply, defaultValue: false);
 
   static bool get expandDynLivePanel =>
       _setting.get(SettingBoxKey.expandDynLivePanel, defaultValue: false);
@@ -571,6 +883,50 @@ abstract final class Pref {
   static int get appFontWeight =>
       _setting.get(SettingBoxKey.appFontWeight, defaultValue: -1);
 
+  static String? get customFontPath =>
+      _setting.get(SettingBoxKey.customFontPath);
+
+  static String? get customFontFamily {
+    final value = _setting.get(
+      SettingBoxKey.customFontFamily,
+      defaultValue: '',
+    );
+    return value is String && value.isNotEmpty ? value : null;
+  }
+
+  static String? get customFontName {
+    final value = _setting.get(SettingBoxKey.customFontName, defaultValue: '');
+    return value is String && value.isNotEmpty ? value : null;
+  }
+
+  static DanmakuFontSyncMode get danmakuFontSyncMode =>
+      DanmakuFontSyncMode.values[_setting.get(
+        SettingBoxKey.danmakuFontSyncMode,
+        defaultValue: DanmakuFontSyncMode.global.index,
+      )];
+
+  static bool get enableCustomDanmakuFont =>
+      _setting.get(SettingBoxKey.enableCustomDanmakuFont, defaultValue: false);
+
+  static String? get customDanmakuFontPath =>
+      _setting.get(SettingBoxKey.customDanmakuFontPath);
+
+  static String? get customDanmakuFontFamily {
+    final value = _setting.get(
+      SettingBoxKey.customDanmakuFontFamily,
+      defaultValue: '',
+    );
+    return value is String && value.isNotEmpty ? value : null;
+  }
+
+  static String? get customDanmakuFontName {
+    final value = _setting.get(
+      SettingBoxKey.customDanmakuFontName,
+      defaultValue: '',
+    );
+    return value is String && value.isNotEmpty ? value : null;
+  }
+
   static bool get enableDragSubtitle =>
       _setting.get(SettingBoxKey.enableDragSubtitle, defaultValue: false);
 
@@ -614,6 +970,69 @@ abstract final class Pref {
   static String get banWordForDyn =>
       _setting.get(SettingBoxKey.banWordForDyn, defaultValue: '');
 
+  /// Helper method to parse ban word storage format into regex pattern
+  /// Supports both old (pipe-separated) and new (newline-separated) formats
+  /// Returns a regex pattern string with proper alternation
+  static String parseBanWordToRegex(String stored) {
+    if (stored.isEmpty) return '';
+
+    List<String> items;
+
+    // Check if it's the old pipe-separated format (no newlines)
+    if (!stored.contains('\n') && stored.contains('|')) {
+      // Old format: pipe-separated
+      // Heuristic: if it looks like multiple short items, it's old format
+      final parts = stored
+          .split('|')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+
+      if (parts.length > 1) {
+        final hasComplexRegex = parts.any(
+          (p) =>
+              p.contains('(') ||
+              p.contains('[') ||
+              p.contains('{') ||
+              p.contains('\\') ||
+              p.contains('^') ||
+              p.contains('\$'),
+        );
+
+        if (!hasComplexRegex) {
+          // Old format with simple keywords
+          items = parts;
+        } else {
+          // Single complex regex - use as-is
+          return stored;
+        }
+      } else {
+        // Single item, keep as-is
+        return stored;
+      }
+    } else {
+      // New format: newline-separated
+      items = stored
+          .split('\n')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
+
+    if (items.isEmpty) return '';
+
+    // Build regex by joining all patterns with alternation
+    return items
+        .map((item) {
+          // If the item contains '|' and isn't already grouped, wrap it
+          if (item.contains('|') && !item.startsWith('(')) {
+            return '($item)';
+          }
+          return item;
+        })
+        .join('|');
+  }
+
   static bool get enableLog =>
       _setting.get(SettingBoxKey.enableLog, defaultValue: true);
 
@@ -635,6 +1054,21 @@ abstract final class Pref {
   static bool get applyFilterToRelatedVideos => _setting.get(
     SettingBoxKey.applyFilterToRelatedVideos,
     defaultValue: true,
+  );
+
+  static bool get applyFilterToHotVideos => _setting.get(
+    SettingBoxKey.applyFilterToHotVideos,
+    defaultValue: false,
+  );
+
+  static bool get applyFilterToRankVideos => _setting.get(
+    SettingBoxKey.applyFilterToRankVideos,
+    defaultValue: false,
+  );
+
+  static bool get applyFilterToSearch => _setting.get(
+    SettingBoxKey.applyFilterToSearch,
+    defaultValue: false,
   );
 
   static bool get enableBackgroundPlay =>
@@ -691,9 +1125,21 @@ abstract final class Pref {
   static bool get useSideBar =>
       _setting.get(SettingBoxKey.useSideBar, defaultValue: false);
 
+  static bool get autoSideBar =>
+      _setting.get(SettingBoxKey.autoSideBar, defaultValue: false);
+
+  static double get sideBarThreshold =>
+      (_setting.get(SettingBoxKey.sideBarThreshold, defaultValue: 600.0) as num)
+          .toDouble();
+
   static bool get dynamicsShowAllFollowedUp => _setting.get(
     SettingBoxKey.dynamicsShowAllFollowedUp,
     defaultValue: false,
+  );
+
+  static bool get dynamicsShowSelfUp => _setting.get(
+    SettingBoxKey.dynamicsShowSelfUp,
+    defaultValue: true,
   );
 
   static bool get enableShowDanmaku =>
@@ -753,6 +1199,12 @@ abstract final class Pref {
 
   static bool get autoPiP =>
       _setting.get(SettingBoxKey.autoPiP, defaultValue: false);
+
+  static bool get enableInAppPip =>
+      _setting.get(SettingBoxKey.enableInAppPip, defaultValue: true);
+
+  static bool get enableInAppPipToSystemPip =>
+      _setting.get(SettingBoxKey.enableInAppPipToSystemPip, defaultValue: true);
 
   static bool get enableSponsorBlock =>
       _setting.get(SettingBoxKey.enableSponsorBlock, defaultValue: false);
@@ -831,6 +1283,9 @@ abstract final class Pref {
   static bool get enableAi =>
       _setting.get(SettingBoxKey.enableAi, defaultValue: false);
 
+  static bool get enablePredictiveBack =>
+      _setting.get(SettingBoxKey.enablePredictiveBack, defaultValue: true);
+
   static bool get enableOnlineTotal =>
       _setting.get(SettingBoxKey.enableOnlineTotal, defaultValue: false);
 
@@ -848,6 +1303,9 @@ abstract final class Pref {
 
   static bool get defaultShowComment =>
       _setting.get(SettingBoxKey.defaultShowComment, defaultValue: false);
+
+  static bool get swapReplyLikeDislike =>
+      _setting.get(SettingBoxKey.swapReplyLikeDislike, defaultValue: false);
 
   static bool get enableTrending =>
       _setting.get(SettingBoxKey.enableHotKey, defaultValue: true);
@@ -919,6 +1377,12 @@ abstract final class Pref {
         defaultValue: SuperChatType.valid.index,
       )];
 
+  static SuperChatTimeType get superChatTimeType =>
+      SuperChatTimeType.values[_setting.get(
+        SettingBoxKey.superChatTimeType,
+        defaultValue: SuperChatTimeType.whenPersist.index,
+      )];
+
   static double get fullScreenSCWidth => _setting.get(
     SettingBoxKey.fullScreenSCWidth,
     defaultValue: kFullScreenSCWidth,
@@ -971,6 +1435,18 @@ abstract final class Pref {
   static bool get setSystemBrightness =>
       _setting.get(SettingBoxKey.setSystemBrightness, defaultValue: false);
 
+  static bool get enableAppVolume =>
+      _setting.get(SettingBoxKey.enableAppVolume, defaultValue: false);
+
+  static double get appVolume =>
+      _setting.get(SettingBoxKey.appVolume, defaultValue: 1.0);
+
+  static set appVolume(double value) =>
+      _setting.put(SettingBoxKey.appVolume, value.toPrecision(3));
+
+  static bool get enableVolumeBoost =>
+      _setting.get(SettingBoxKey.enableVolumeBoost, defaultValue: false);
+
   static String? get downloadPath => _setting.get(SettingBoxKey.downloadPath);
 
   static String? get liveCdnUrl => _setting.get(SettingBoxKey.liveCdnUrl);
@@ -1005,6 +1481,55 @@ abstract final class Pref {
 
   static bool get removeSafeArea =>
       _setting.get(SettingBoxKey.removeSafeArea, defaultValue: false);
+
+  // AI 视频分析设置
+  static bool get enableAiChat =>
+      _setting.get(SettingBoxKey.enableAiChat, defaultValue: false);
+
+  static set enableAiChat(bool value) =>
+      _setting.put(SettingBoxKey.enableAiChat, value);
+  static String get aiApiUrl =>
+      _setting.get(SettingBoxKey.aiApiUrl, defaultValue: '');
+
+  static set aiApiUrl(String value) =>
+      _setting.put(SettingBoxKey.aiApiUrl, value);
+
+  static String get aiApiKey =>
+      _setting.get(SettingBoxKey.aiApiKey, defaultValue: '');
+
+  static set aiApiKey(String value) =>
+      _setting.put(SettingBoxKey.aiApiKey, value);
+
+  static String get aiModel =>
+      _setting.get(SettingBoxKey.aiModel, defaultValue: '');
+
+  static set aiModel(String value) =>
+      _setting.put(SettingBoxKey.aiModel, value);
+
+  static List<String> get aiModelListCache {
+    final raw = _setting.get(SettingBoxKey.aiModelListCache, defaultValue: '');
+    if (raw.isEmpty) return [];
+    try {
+      return (jsonDecode(raw) as List).cast<String>();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  static set aiModelListCache(List<String> value) =>
+      _setting.put(SettingBoxKey.aiModelListCache, jsonEncode(value));
+
+  static int get aiModelListCacheTime =>
+      _setting.get(SettingBoxKey.aiModelListCacheTime, defaultValue: 0);
+
+  static set aiModelListCacheTime(int value) =>
+      _setting.put(SettingBoxKey.aiModelListCacheTime, value);
+
+  static String get aiPromptTemplates =>
+      _setting.get(SettingBoxKey.aiPromptTemplates, defaultValue: '');
+
+  static set aiPromptTemplates(String value) =>
+      _setting.put(SettingBoxKey.aiPromptTemplates, value);
 
   static int get angleDegrees =>
       _setting.get(SettingBoxKey.angleDegrees, defaultValue: 30);

@@ -130,6 +130,7 @@ class LiveRoomChatPanel extends StatelessWidget {
                 return SuperChatCard(
                   item: item,
                   persistentSC: true,
+                  superChatTimeType: liveRoomController.superChatTimeType,
                   onReport: () => liveRoomController.reportSC(item),
                 );
               }
@@ -234,13 +235,19 @@ class LiveRoomChatPanel extends StatelessWidget {
   InlineSpan _buildMsg(double devicePixelRatio, DanmakuMsg obj) {
     final uemote = obj.uemote;
     if (uemote != null) {
-      // "room_{{room_id}}_{{int}}" , "upower_[{{emote}}]" , "official_{{int}}"
-      final double width, height;
-      if (uemote.isOfficial) {
+      // "room_{{room_id}}_{{int}}", "official_{{int}}" or "upower_[{{emote}}]"
+      const upowerDefaultPx = 162.0;
+      late final double width;
+      late final double height;
+      if (uemote.isUpower) {
+        width = upowerDefaultPx / devicePixelRatio;
+        height = upowerDefaultPx / devicePixelRatio;
+      } else if (uemote.isOfficial) {
+        width = uemote.width / devicePixelRatio * 1.25;
+        height = uemote.height / devicePixelRatio * 1.25;
+      } else {
         width = uemote.width / devicePixelRatio;
         height = uemote.height / devicePixelRatio;
-      } else {
-        width = height = 162.0 / devicePixelRatio;
       }
       return WidgetSpan(
         child: NetworkImgLayer(

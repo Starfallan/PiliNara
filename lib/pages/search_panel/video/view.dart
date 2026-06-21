@@ -33,6 +33,9 @@ class _SearchVideoPanelState
   late final SearchVideoController controller;
 
   @override
+  String? getTitle(SearchVideoItemModel item) => item.title;
+
+  @override
   void initState() {
     super.initState();
     controller = Get.put(
@@ -88,11 +91,14 @@ class _SearchVideoPanelState
                   padding: WidgetStatePropertyAll(EdgeInsets.zero),
                 ),
                 onPressed: () => controller.onShowFilterDialog(context),
-                icon: Icon(
-                  Icons.filter_list_outlined,
+                icon: Obx(() => Icon(
+                  controller.includeKeywords.isNotEmpty ||
+                          controller.excludeKeywords.isNotEmpty
+                      ? Icons.filter_list
+                      : Icons.filter_list_off,
                   size: 18,
                   color: theme.colorScheme.primary,
-                ),
+                )),
               ),
             ),
           ],

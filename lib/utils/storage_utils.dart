@@ -1,7 +1,7 @@
 import 'dart:io' show File;
 import 'dart:typed_data' show Uint8List;
 
-import 'package:PiliPlus/utils/platform_utils.dart';
+import 'package:PiliPlus/utils/platform_utils.dart' show PlatformUtils;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 

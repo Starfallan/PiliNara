@@ -6,6 +6,179 @@
 
 import 'package:flutter/material.dart' hide PopupMenuItem;
 
+const _kDefaultPopupMenuPadding = EdgeInsets.all(8);
+
+Future<T?> showStaticPositionMenu<T>({
+  required BuildContext context,
+  required List<PopupMenuEntry<T>> items,
+  T? initialValue,
+  double? elevation,
+  Color? shadowColor,
+  Color? surfaceTintColor,
+  ShapeBorder? shape,
+  EdgeInsetsGeometry? menuPadding,
+  Color? color,
+  bool useRootNavigator = false,
+  BoxConstraints? constraints,
+  Clip clipBehavior = Clip.none,
+  RouteSettings? routeSettings,
+  AnimationStyle? popUpAnimationStyle,
+  bool? requestFocus,
+}) {
+  final button = context.findRenderObject();
+  final overlay = Overlay.maybeOf(context)?.context.findRenderObject();
+  if (button is! RenderBox ||
+      overlay is! RenderBox ||
+      !button.attached ||
+      !overlay.attached ||
+      !button.hasSize ||
+      !overlay.hasSize) {
+    return Future<T?>.value();
+  }
+  final position = RelativeRect.fromRect(
+    Rect.fromPoints(
+      button.localToGlobal(Offset.zero, ancestor: overlay),
+      button.localToGlobal(
+        button.size.bottomRight(Offset.zero),
+        ancestor: overlay,
+      ),
+    ),
+    Offset.zero & overlay.size,
+  );
+  return showMenu<T>(
+    context: context,
+    position: position,
+    items: items,
+    initialValue: initialValue,
+    elevation: elevation,
+    shadowColor: shadowColor,
+    surfaceTintColor: surfaceTintColor,
+    shape: shape,
+    menuPadding: menuPadding,
+    color: color,
+    useRootNavigator: useRootNavigator,
+    constraints: constraints,
+    clipBehavior: clipBehavior,
+    routeSettings: routeSettings,
+    popUpAnimationStyle: popUpAnimationStyle,
+    requestFocus: requestFocus,
+  );
+}
+
+class StaticPopupMenuButton<T> extends StatelessWidget {
+  const StaticPopupMenuButton({
+    super.key,
+    required this.itemBuilder,
+    this.initialValue,
+    this.onSelected,
+    this.onCanceled,
+    this.tooltip,
+    this.elevation,
+    this.shadowColor,
+    this.surfaceTintColor,
+    this.padding = _kDefaultPopupMenuPadding,
+    this.child,
+    this.icon,
+    this.iconSize,
+    this.enabled = true,
+    this.borderRadius,
+    this.shape,
+    this.menuPadding,
+    this.color,
+    this.useRootNavigator = false,
+    this.constraints,
+    this.clipBehavior = Clip.none,
+    this.routeSettings,
+    this.popUpAnimationStyle,
+    this.requestFocus,
+  });
+
+  final PopupMenuItemBuilder<T> itemBuilder;
+  final T? initialValue;
+  final PopupMenuItemSelected<T>? onSelected;
+  final PopupMenuCanceled? onCanceled;
+  final String? tooltip;
+  final double? elevation;
+  final Color? shadowColor;
+  final Color? surfaceTintColor;
+  final EdgeInsetsGeometry padding;
+  final Widget? child;
+  final Widget? icon;
+  final double? iconSize;
+  final bool enabled;
+  final BorderRadius? borderRadius;
+  final ShapeBorder? shape;
+  final EdgeInsetsGeometry? menuPadding;
+  final Color? color;
+  final bool useRootNavigator;
+  final BoxConstraints? constraints;
+  final Clip clipBehavior;
+  final RouteSettings? routeSettings;
+  final AnimationStyle? popUpAnimationStyle;
+  final bool? requestFocus;
+
+  Future<void> _showButtonMenu(BuildContext context) async {
+    final value = await showStaticPositionMenu<T>(
+      context: context,
+      items: itemBuilder(context),
+      initialValue: initialValue,
+      elevation: elevation,
+      shadowColor: shadowColor,
+      surfaceTintColor: surfaceTintColor,
+      shape: shape,
+      menuPadding: menuPadding,
+      color: color,
+      useRootNavigator: useRootNavigator,
+      constraints: constraints,
+      clipBehavior: clipBehavior,
+      routeSettings: routeSettings,
+      popUpAnimationStyle: popUpAnimationStyle,
+      requestFocus: requestFocus,
+    );
+    if (value == null) {
+      onCanceled?.call();
+      return;
+    }
+    onSelected?.call(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Builder(
+      builder: (context) {
+        final onPressed = enabled ? () => _showButtonMenu(context) : null;
+        if (child case final child?) {
+          Widget result = child;
+          if (padding != _kDefaultPopupMenuPadding) {
+            result = Padding(
+              padding: padding,
+              child: result,
+            );
+          }
+          if (enabled) {
+            result = InkWell(
+              onTap: onPressed,
+              borderRadius: borderRadius,
+              child: result,
+            );
+          }
+          if (tooltip case final tooltip?) {
+            result = Tooltip(message: tooltip, child: result);
+          }
+          return result;
+        }
+        return IconButton(
+          tooltip: tooltip ?? MaterialLocalizations.of(context).showMenuTooltip,
+          padding: padding,
+          iconSize: iconSize ?? 24,
+          onPressed: onPressed,
+          icon: icon ?? const Icon(Icons.more_vert),
+        );
+      },
+    );
+  }
+}
+
 class CustomPopupMenuItem<T> extends PopupMenuEntry<T> {
   const CustomPopupMenuItem({
     super.key,

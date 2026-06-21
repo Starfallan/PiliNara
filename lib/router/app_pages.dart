@@ -1,4 +1,5 @@
 import 'package:PiliPlus/pages/about/view.dart';
+import 'package:PiliPlus/pages/setting/ai_setting/view.dart';
 import 'package:PiliPlus/pages/article/view.dart';
 import 'package:PiliPlus/pages/article_list/view.dart';
 import 'package:PiliPlus/pages/audio/view.dart';
@@ -53,6 +54,7 @@ import 'package:PiliPlus/pages/popular_series/view.dart';
 import 'package:PiliPlus/pages/search/view.dart';
 import 'package:PiliPlus/pages/search_result/view.dart';
 import 'package:PiliPlus/pages/search_trending/view.dart';
+import 'package:PiliPlus/pages/setting/dynamics_setting.dart';
 import 'package:PiliPlus/pages/setting/extra_setting.dart';
 import 'package:PiliPlus/pages/setting/pages/bar_set.dart';
 import 'package:PiliPlus/pages/setting/pages/color_select.dart';
@@ -118,6 +120,8 @@ class Routes {
     GetPage(name: '/memberSearch', page: () => const MemberSearchPage()),
     // 推荐流设置
     GetPage(name: '/recommendSetting', page: () => const RecommendSetting()),
+    // 动态流设置
+    GetPage(name: '/dynamicsSetting', page: () => const DynamicsSetting()),
     // 音视频设置
     GetPage(name: '/videoSetting', page: () => const VideoSetting()),
     // 播放器设置
@@ -171,6 +175,7 @@ class Routes {
     // 弹幕屏蔽管理
     GetPage(name: '/danmakuBlock', page: () => const DanmakuBlockPage()),
     GetPage(name: '/sponsorBlock', page: () => const SponsorBlockPage()),
+    GetPage(name: '/aiSetting', page: () => const AiSettingPage()),
     GetPage(name: '/createFav', page: () => const CreateFavPage()),
     GetPage(name: '/editProfile', page: () => const EditProfilePage()),
     GetPage(name: '/settingsSearch', page: () => const SettingsSearchPage()),

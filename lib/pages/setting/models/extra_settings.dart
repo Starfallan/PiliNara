@@ -8,10 +8,10 @@ import 'package:PiliPlus/common/widgets/gesture/horizontal_drag_gesture_recogniz
 import 'package:PiliPlus/common/widgets/image_grid/image_grid_view.dart'
     show ImageGridView, ImageModel;
 import 'package:PiliPlus/common/widgets/pendant_avatar.dart';
-import 'package:PiliPlus/grpc/reply.dart';
 import 'package:PiliPlus/http/fav.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/models/common/audio_normalization.dart';
+import 'package:PiliPlus/models/common/dm_chart_source.dart';
 import 'package:PiliPlus/models/common/dynamic/dynamics_type.dart';
 import 'package:PiliPlus/models/common/member/tab_type.dart';
 import 'package:PiliPlus/models/common/reply/reply_sort_type.dart';
@@ -23,6 +23,8 @@ import 'package:PiliPlus/pages/common/slide/common_slide_page.dart';
 import 'package:PiliPlus/pages/home/controller.dart';
 import 'package:PiliPlus/pages/main/controller.dart';
 import 'package:PiliPlus/pages/setting/models/model.dart';
+import 'package:PiliPlus/pages/setting/pages/danmaku_merge_setting.dart';
+import 'package:PiliPlus/pages/setting/reply_setting.dart';
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/slider_dialog.dart';
 import 'package:PiliPlus/pages/video/reply/widgets/reply_item_grpc.dart';
@@ -91,6 +93,12 @@ List<SettingsModel> get extraSettings => [
     onSelected: (value, setState) => GStorage.setting
         .put(SettingBoxKey.pgcSkipType, value.index)
         .whenComplete(setState),
+  ),
+  NormalModel(
+    title: 'AI 视频总结',
+    leading: const Icon(Icons.auto_awesome),
+    getSubtitle: () => '配置 OpenAI 兼容 API 和提示词模板',
+    onTap: (context, _) => Get.toNamed('/aiSetting'),
   ),
   SplitModel(
     normalModel: const NormalModel.split(
@@ -170,6 +178,13 @@ List<SettingsModel> get extraSettings => [
     ),
     onTap: _showReplyLengthDialog,
   ),
+  const SwitchModel(
+    title: '评论点赞/点踩按钮交换位置',
+    subtitle: '交换后：点赞在左，点踩在右（与官方客户端一致）',
+    leading: Icon(Icons.swap_horiz),
+    setKey: SettingBoxKey.swapReplyLikeDislike,
+    defaultVal: false,
+  ),
   NormalModel(
     title: '弹幕行高',
     subtitle: '默认1.6',
@@ -213,21 +228,11 @@ List<SettingsModel> get extraSettings => [
     setKey: SettingBoxKey.continuePlayingPart,
     defaultVal: true,
   ),
-  getBanWordModel(
-    title: '评论关键词过滤',
-    key: SettingBoxKey.banWordForReply,
-    onChanged: (value) {
-      ReplyGrpc.replyRegExp = value;
-      ReplyGrpc.enableFilter = value.pattern.isNotEmpty;
-    },
-  ),
-  getBanWordModel(
-    title: '动态关键词过滤',
-    key: SettingBoxKey.banWordForDyn,
-    onChanged: (value) {
-      DynamicsDataModel.banWordForDyn = value;
-      DynamicsDataModel.enableFilter = value.pattern.isNotEmpty;
-    },
+  NormalModel(
+    title: '评论区过滤设置',
+    leading: const Icon(Icons.comment_outlined),
+    getSubtitle: () => '关键词、用户屏蔽、等级过滤、屏蔽带货评论',
+    onTap: (context, _) => Get.to(() => const ReplySetting()),
   ),
   const SwitchModel(
     title: '使用外部浏览器打开链接',
@@ -259,12 +264,27 @@ List<SettingsModel> get extraSettings => [
     setKey: SettingBoxKey.showVipDanmaku,
     defaultVal: true,
   ),
-  const SwitchModel(
+  NormalModel(
     title: '合并弹幕',
-    subtitle: '合并一段时间内获取到的相同弹幕',
-    leading: Icon(Icons.merge),
-    setKey: SettingBoxKey.mergeDanmaku,
-    defaultVal: false,
+    getSubtitle: () {
+      final enabled = Pref.mergeDanmaku;
+      if (!enabled) return '已关闭';
+      final window = Pref.mergeDanmakuWindowSeconds;
+      final crossMode = Pref.mergeDanmakuCrossMode ? '跨类型' : '同类型';
+      final threshold = Pref.danmakuEnlargeThreshold;
+      return '时间窗: ${window}s, $crossMode, 放大门槛: $threshold';
+    },
+    leading: const Icon(Icons.merge),
+    onTap: (context, setState) async {
+      final result = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (context) => const DanmakuMergeSettingPage(),
+        ),
+      );
+      if (result == true) {
+        setState();
+      }
+    },
   ),
   const SwitchModel(
     title: '显示热门推荐',
@@ -340,6 +360,13 @@ List<SettingsModel> get extraSettings => [
     defaultVal: true,
     onChanged: (value) => GlobalData().showMedal = value,
   ),
+  const SwitchModel(
+    title: '显示视频推荐理由',
+    subtitle: '显示首页视频卡片下方的已关注，x万点赞的标签',
+    leading: Icon(Icons.label_outline),
+    setKey: SettingBoxKey.showRcmdReason,
+    defaultVal: true,
+  ),
   SwitchModel(
     title: '预览 Live Photo',
     subtitle: '开启则以视频形式预览 Live Photo，否则预览静态图片',
@@ -354,12 +381,12 @@ List<SettingsModel> get extraSettings => [
     setKey: SettingBoxKey.showSeekPreview,
     defaultVal: true,
   ),
-  const SwitchModel(
-    title: '显示高能进度条',
-    subtitle: '高能进度条反应了在时域上，单位时间内弹幕发送量的变化趋势',
-    leading: Icon(Icons.show_chart),
-    setKey: SettingBoxKey.showDmChart,
-    defaultVal: false,
+  NormalModel(
+    title: '高能进度条',
+    leading: const Icon(Icons.show_chart),
+    getSubtitle: () =>
+        '当前:「${Pref.dmChartSource.label}」\n显示视频弹幕热度趋势；官方无数据时可使用弹幕密度生成',
+    onTap: _showDmChartSourceDialog,
   ),
   const SwitchModel(
     title: '记录评论',
@@ -398,13 +425,6 @@ List<SettingsModel> get extraSettings => [
     setKey: SettingBoxKey.antiGoodsDyn,
     defaultVal: false,
     onChanged: (value) => DynamicsDataModel.antiGoodsDyn = value,
-  ),
-  SwitchModel(
-    title: '屏蔽带货评论',
-    leading: const Icon(CustomIcons.shopping_bag_not_interested),
-    setKey: SettingBoxKey.antiGoodsReply,
-    defaultVal: false,
-    onChanged: (value) => ReplyGrpc.antiGoodsReply = value,
   ),
   SwitchModel(
     title: '侧滑关闭二级页面',
@@ -622,6 +642,13 @@ List<SettingsModel> get extraSettings => [
         Update.checkUpdate(false);
       }
     },
+  ),
+  const SwitchModel(
+    title: '检测预发布版本更新',
+    subtitle: '检查更新时同时包含 pre-release 版本',
+    leading: Icon(Icons.preview_outlined),
+    setKey: SettingBoxKey.preReleaseUpdate,
+    defaultVal: false,
   ),
 ];
 
@@ -1003,6 +1030,28 @@ Future<void> _showSuperResolutionDialog(
       SettingBoxKey.superResolutionType,
       res.index,
     );
+    setState();
+  }
+}
+
+Future<void> _showDmChartSourceDialog(
+  BuildContext context,
+  VoidCallback setState,
+) async {
+  final res = await showDialog<DmChartSource>(
+    context: context,
+    builder: (context) => SelectDialog<DmChartSource>(
+      title: '高能进度条',
+      value: Pref.dmChartSource,
+      values: DmChartSource.values.map((e) => (e, e.label)).toList(),
+      subtitleBuilder: (context, index) => Text(
+        DmChartSource.values[index].desc,
+        style: TextTheme.of(context).bodySmall,
+      ),
+    ),
+  );
+  if (res != null) {
+    await GStorage.setting.put(SettingBoxKey.dmChartSource, res.index);
     setState();
   }
 }

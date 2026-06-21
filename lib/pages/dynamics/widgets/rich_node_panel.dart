@@ -17,8 +17,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 
-const _linkFoldedText = '网页链接';
-
 // 富文本
 TextSpan? richNode(
   BuildContext context, {
@@ -65,9 +63,6 @@ TextSpan? richNode(
       for (final i in richTextNodes) {
         switch (i.type) {
           case 'RICH_TEXT_NODE_TYPE_TEXT':
-            if (i.origText == _linkFoldedText) {
-              item.linkFolded = true;
-            }
             spanChildren.add(
               TextSpan(
                 text: i.origText,
@@ -108,9 +103,6 @@ TextSpan? richNode(
           // 网页链接
           case 'RICH_TEXT_NODE_TYPE_WEB':
             final hasLink = i.jumpUrl?.isNotEmpty ?? false;
-            if (!hasLink) {
-              item.linkFolded = true;
-            }
             spanChildren
               ..add(
                 WidgetSpan(

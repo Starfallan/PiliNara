@@ -560,6 +560,14 @@ class _GalleryViewerState extends State<GalleryViewer>
             ListTile(
               onTap: () {
                 Get.back();
+                ImageUtils.copyImg(item.url);
+              },
+              dense: true,
+              title: const Text('复制图片', style: TextStyle(fontSize: 14)),
+            ),
+            ListTile(
+              onTap: () {
+                Get.back();
                 ImageUtils.downloadImg([item.url]);
               },
               dense: true,
@@ -619,6 +627,11 @@ class _GalleryViewerState extends State<GalleryViewer>
           height: 42,
           onTap: () => Utils.copyText(item.url),
           child: const Text('复制链接', style: TextStyle(fontSize: 14)),
+        ),
+        PopupMenuItem(
+          height: 42,
+          onTap: () => ImageUtils.copyImg(item.url),
+          child: const Text('复制图片', style: TextStyle(fontSize: 14)),
         ),
         PopupMenuItem(
           height: 42,

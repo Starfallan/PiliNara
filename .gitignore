@@ -149,4 +149,18 @@ pili_release.json
 
 dist
 
+test.dart
+
+docs/*
+!docs/danmaku_font_scaling.md
+!docs/inapp_pip_implementation.md
+test*.dart
+
+AGENTS.md
+
+CLAUDE.md
+
+.claude
 test*
+/pubspec_overrides.yaml
+.mindfs

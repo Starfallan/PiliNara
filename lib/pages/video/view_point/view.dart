@@ -6,6 +6,8 @@ import 'package:PiliPlus/pages/common/slide/common_slide_page.dart';
 import 'package:PiliPlus/pages/video/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/utils/duration_utils.dart';
+import 'package:PiliPlus/utils/storage.dart';
+import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:extended_nested_scroll_view/extended_nested_scroll_view.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -54,8 +56,15 @@ class _ViewPointsPageState extends State<ViewPointsPage>
               scale: 0.8,
               child: Switch(
                 value: videoDetailController.showVP.value,
-                onChanged: (value) =>
-                    videoDetailController.showVP.value = value,
+                onChanged: (value) {
+                  videoDetailController.showVP.value = value;
+                  if (plPlayerController?.tempPlayerConf != true) {
+                    GStorage.setting.put(
+                      SettingBoxKey.showViewPointsOverlay,
+                      value,
+                    );
+                  }
+                },
               ),
             ),
           ),

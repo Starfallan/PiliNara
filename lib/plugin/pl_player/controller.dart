@@ -1,4 +1,4 @@
-import 'dart:async' show StreamSubscription, Timer;
+import 'dart:async' show StreamSubscription, Timer, unawaited;
 import 'dart:convert' show ascii;
 import 'dart:io' show Platform;
 import 'dart:math' show max, min;
@@ -11,6 +11,7 @@ import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/http/video.dart';
 import 'package:PiliPlus/models/common/account_type.dart';
 import 'package:PiliPlus/models/common/audio_normalization.dart';
+import 'package:PiliPlus/models/common/dm_chart_source.dart';
 import 'package:PiliPlus/models/common/super_resolution_type.dart';
 import 'package:PiliPlus/models/common/video/video_type.dart';
 import 'package:PiliPlus/models/user/danmaku_rule.dart';
@@ -30,6 +31,8 @@ import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/plugin/pl_player/models/video_fit_type.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
+import 'package:PiliPlus/services/live_pip_overlay_service.dart';
+import 'package:PiliPlus/services/pip_overlay_service.dart';
 import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/android/android_helper.dart';
@@ -117,6 +120,13 @@ class PlPlayerController with BlockConfigMixin {
   );
   final setSystemBrightness = Pref.setSystemBrightness;
 
+  /// 系统音量（仅在应用内音量模式下用于追踪当前系统音量）
+  final RxDouble systemVolume = RxDouble(1.0);
+
+  /// duck 相关状态
+  bool _isDucked = false;
+  double _preDuckVolume = 1.0;
+
   /// 亮度控制条
   final RxDouble brightness = (-1.0).obs;
 
@@ -134,6 +144,9 @@ class PlPlayerController with BlockConfigMixin {
 
   /// 全屏状态
   final RxBool isFullScreen = false.obs;
+  void Function(bool isFullScreen)? onFullScreenChanged;
+  // 系统原生 PiP 状态
+  final RxBool isNativePip = false.obs;
   // 默认投稿视频格式
   bool isLive = false;
 
@@ -155,6 +168,7 @@ class PlPlayerController with BlockConfigMixin {
   int? _aid;
   String? _bvid;
   int? cid;
+  int? roomId;
   int? _epid;
   int? _seasonId;
   int? _pgcType;
@@ -175,6 +189,14 @@ class PlPlayerController with BlockConfigMixin {
   // final Durations durations;
 
   String get bvid => _bvid!;
+
+  bool isCurrentVideoSource({
+    required String bvid,
+    required int cid,
+  }) =>
+      dataStatus.value == DataStatus.loaded &&
+      _bvid == bvid &&
+      this.cid == cid;
 
   /// 视频播放速度
   double get playbackSpeed => _playbackSpeed.value;
@@ -211,6 +233,7 @@ class PlPlayerController with BlockConfigMixin {
 
   late final bool autoPiP = Pref.autoPiP;
   bool get isPipMode =>
+      isNativePip.value ||
       (Platform.isAndroid && AndroidHelper.isPipMode) ||
       (PlatformUtils.isDesktop && isDesktopPip);
   late bool isDesktopPip = false;
@@ -292,6 +315,10 @@ class PlPlayerController with BlockConfigMixin {
     return routeName == '/videoV' || routeName == '/liveRoom';
   }
 
+  bool get _isInInAppPip {
+    return PipOverlayService.isInPipMode || LivePipOverlayService.isInPipMode;
+  }
+
   void enterPip({bool autoEnter = false}) {
     if (videoPlayerController != null) {
       final state = videoPlayerController!.state;
@@ -304,6 +331,15 @@ class PlPlayerController with BlockConfigMixin {
       );
     }
   }
+
+  // void _disableAutoEnterPipIfNeeded() {
+  //   // 对齐上游逻辑，如果是从视频页返回到非视频页，则切断 Auto-Enter PiP
+  //   if (!_isPreviousVideoPage) {
+  //     _disableAutoEnterPip();
+  //   }
+  // }
+
+  void disableAutoEnterPip() => _disableAutoEnterPip();
 
   void _disableAutoEnterPip() {
     if (_isAutoEnterPip) {
@@ -358,7 +394,8 @@ class PlPlayerController with BlockConfigMixin {
   late final showBangumiReply = Pref.showBangumiReply;
   late final reverseFromFirst = Pref.reverseFromFirst;
   late final horizontalPreview = Pref.horizontalPreview;
-  late final showDmChart = Pref.showDmChart;
+  DmChartSource get dmChartSource => Pref.dmChartSource;
+  bool get showDmChart => dmChartSource.isEnabled;
   late final showViewPoints = Pref.showViewPoints;
   late final showFsScreenshotBtn = Pref.showFsScreenshotBtn;
   late final showFsLockBtn = Pref.showFsLockBtn;
@@ -407,6 +444,7 @@ class PlPlayerController with BlockConfigMixin {
   );
 
   late final Rx<SubtitleViewConfiguration> subtitleConfig = getSubConfig.obs;
+  String? _activeVideoContextKey;
 
   SubtitleViewConfiguration get getSubConfig {
     final subTitleStyle = this.subTitleStyle;
@@ -475,7 +513,9 @@ class PlPlayerController with BlockConfigMixin {
   static PlayCallback? _playCallBack;
 
   static Future<void>? playIfExists() {
-    // await _instance?.play(repeat: repeat, hideControls: hideControls);
+    if (_instance != null && !(_instance!.playerStatus.isPlaying)) {
+      return _instance!.play();
+    }
     return _playCallBack?.call();
   }
 
@@ -581,18 +621,33 @@ class PlPlayerController with BlockConfigMixin {
       enableHeart = false;
     }
 
-    if (Platform.isAndroid && autoPiP) {
-      if (DeviceUtils.sdkInt < 31) {
-        AndroidHelper$ToDart.onUserLeaveHint = Runnable.implement(
-          $Runnable(run: _onUserLeaveHint),
-        );
-      } else {
-        _isAutoEnterPip = true;
+    if (Platform.isAndroid) {
+      Utils.channel.setMethodCallHandler((call) async {
+        if (call.method == 'onPipChanged') {
+          final bool isInPip = call.arguments as bool;
+          isNativePip.value = isInPip;
+          PipOverlayService.isNativePip = isInPip;
+          LivePipOverlayService.isNativePip = isInPip;
+        }
+      });
+
+      if (autoPiP) {
+        if (DeviceUtils.sdkInt < 31) {
+          AndroidHelper$ToDart.onUserLeaveHint = Runnable.implement(
+            $Runnable(run: _onUserLeaveHint),
+          );
+        } else {
+          _isAutoEnterPip = true;
+        }
       }
     }
   }
 
   void _onUserLeaveHint() {
+    if (_isInInAppPip) {
+      enterPip();
+      return;
+    }
     if (playerStatus.isPlaying && _isCurrVideoPage) {
       enterPip();
     }
@@ -604,6 +659,45 @@ class PlPlayerController with BlockConfigMixin {
     return (_instance ??= PlPlayerController._())
       ..isLive = isLive
       .._playerCount += 1;
+  }
+
+  static PlPlayerController ensureInstance({bool isLive = false}) {
+    return (_instance ??= PlPlayerController._())..isLive = isLive;
+  }
+
+  static bool _isAnimPgcType(int? pgcType) => pgcType == 1 || pgcType == 4;
+
+  void resetTempSettings({int? nextPgcType}) {
+    if (!tempPlayerConf) {
+      return;
+    }
+
+    if (kDebugMode) {
+      debugPrint(
+        '[PlPlayer] resetTempSettings (currentContext: $_activeVideoContextKey, nextPgcType: $nextPgcType)',
+      );
+    }
+
+    _enableShowDanmaku.value = Pref.enableShowDanmaku;
+    _enableShowLiveDanmaku.value = Pref.enableShowLiveDanmaku;
+    videoPlayerServiceHandler?.enableBackgroundPlay = Pref.enableBackgroundPlay;
+    continuePlayInBackground.value = Pref.continuePlayInBackground;
+    playRepeat = Pref.playRepeat;
+    cacheVideoQa = PlatformUtils.isMobile ? null : Pref.defaultVideoQa;
+    cacheAudioQa = Pref.defaultAudioQa;
+    if (_playbackSpeed.value != playSpeedDefault) {
+      unawaited(setPlaybackSpeed(playSpeedDefault));
+    }
+
+    final defaultSuperResolutionType = _isAnimPgcType(nextPgcType)
+        ? Pref.superResolutionType
+        : SuperResolutionType.disable;
+    superResolutionType.value = defaultSuperResolutionType;
+    if (_videoPlayerController != null) {
+      unawaited(
+        setShader(defaultSuperResolutionType, _videoPlayerController!),
+      );
+    }
   }
 
   bool _processing = false;
@@ -636,6 +730,7 @@ class PlPlayerController with BlockConfigMixin {
     int? aid,
     String? bvid,
     int? cid,
+    int? roomId,
     int? epid,
     int? seasonId,
     int? pgcType,
@@ -646,6 +741,22 @@ class PlPlayerController with BlockConfigMixin {
   }) async {
     try {
       _processing = true;
+      final nextVideoContextKey = PipOverlayService.buildVideoContextKey(
+        videoType: videoType ?? VideoType.ugc,
+        bvid: bvid,
+        cid: cid,
+        epId: epid,
+        seasonId: seasonId,
+      );
+      final shouldResetTempSettings =
+          tempPlayerConf &&
+          _activeVideoContextKey != null &&
+          nextVideoContextKey != null &&
+          nextVideoContextKey != _activeVideoContextKey;
+      if (shouldResetTempSettings) {
+        resetTempSettings(nextPgcType: pgcType);
+      }
+      _activeVideoContextKey = nextVideoContextKey;
       this.isLive = isLive;
       _videoType = videoType ?? VideoType.ugc;
       this.width = width;
@@ -661,6 +772,7 @@ class PlPlayerController with BlockConfigMixin {
       _aid = aid;
       _bvid = bvid;
       this.cid = cid;
+      this.roomId = roomId;
       _epid = epid;
       _seasonId = seasonId;
       _pgcType = pgcType;
@@ -770,12 +882,19 @@ class PlPlayerController with BlockConfigMixin {
 
   Future<Player> _initPlayer() async {
     assert(_videoPlayerController == null);
+    if (PlatformUtils.isMobile && Pref.enableAppVolume) {
+      // 移动平台应用内音量模式：初始化系统音量
+      systemVolume.value = (await FlutterVolumeController.getVolume()) ?? 1.0;
+      // 从持久化存储读取应用内音量
+      volume.value = Pref.appVolume;
+    }
     final opt = {
       'video-sync': Pref.videoSync,
       if (Platform.isAndroid) 'ao': Pref.audioOutput,
-      'volume':
-          (PlatformUtils.isMobile ? Pref.playerVolume : volume.value * 100)
-              .toString(),
+      'volume': (PlatformUtils.isMobile
+              ? (Pref.enableAppVolume ? volume.value * 100 : Pref.playerVolume)
+              : volume.value * 100)
+          .toString(),
       'volume-max': kMaxVolume.toString(),
     };
     final autosync = Pref.autosync;
@@ -823,7 +942,11 @@ class PlPlayerController with BlockConfigMixin {
     isBuffering.value = false;
     buffered.value = Duration.zero;
     _heartDuration = 0;
-    position = Duration.zero;
+    final initialPosition = seekTo ?? Duration.zero;
+    position = sliderPosition = initialPosition;
+    updatePositionSecond();
+    updateSliderPositionSecond();
+    updateBufferedSecond();
     // 初始化时清空弹幕，防止上次重叠
     danmakuController?.clear();
 
@@ -952,7 +1075,7 @@ class PlPlayerController with BlockConfigMixin {
         WakelockPlus.toggle(enable: event);
         if (event) {
           if (_isAutoEnterPip) {
-            if (_isCurrVideoPage) {
+            if (_isCurrVideoPage || _isInInAppPip) {
               enterPip(autoEnter: true);
             } else {
               _disableAutoEnterPip();
@@ -985,10 +1108,10 @@ class PlPlayerController with BlockConfigMixin {
           for (final element in _statusListeners) {
             element(PlayerStatus.completed);
           }
+          makeHeartBeat(positionSeconds.value, type: HeartBeatType.completed);
         } else {
           // playerStatus.value = PlayerStatus.playing;
         }
-        makeHeartBeat(positionSeconds.value, type: HeartBeatType.completed);
       }),
       stream.position.listen((event) {
         position = event;
@@ -1257,7 +1380,28 @@ class PlPlayerController with BlockConfigMixin {
   Timer? volumeTimer;
   bool volumeInterceptEventStream = false;
 
-  final double maxVolume = PlatformUtils.isDesktop ? Pref.maxVolume : 1.0;
+  double get maxVolume => PlatformUtils.isDesktop
+      ? Pref.maxVolume
+      : (Pref.enableAppVolume && Pref.enableVolumeBoost ? 2.0 : 1.0);
+
+  // 音量增强二次确认：是否已解锁突破 100%（松手后重置）
+  bool volumeBoostUnlocked = false;
+
+  // 手势滑动时的音量上限：未解锁时最大 1.0，解锁后最大 2.0
+  double get gestureVolumeMax {
+    if (Pref.enableAppVolume && Pref.enableVolumeBoost) {
+      return volumeBoostUnlocked ? 2.0 : 1.0;
+    }
+    return maxVolume;
+  }
+
+  // 松手时重置解锁状态
+  void onVolumeGestureEnd() {
+    if (Pref.enableAppVolume && Pref.enableVolumeBoost) {
+      volumeBoostUnlocked = false;
+    }
+  }
+
   Future<void> setVolume(double volume, {bool showIndicator = true}) async {
     if (this.volume.value != volume) {
       this.volume.value = volume;
@@ -1265,8 +1409,15 @@ class PlPlayerController with BlockConfigMixin {
         if (PlatformUtils.isDesktop) {
           await _videoPlayerController!.setVolume(volume * 100);
         } else {
-          FlutterVolumeController.updateShowSystemUI(false);
-          await FlutterVolumeController.setVolume(volume);
+          // 移动平台：根据设置选择音量控制方式
+          if (Pref.enableAppVolume) {
+            // 应用内音量模式：使用 media_kit 控制应用内音量
+            _videoPlayerController?.setVolume(volume * 100);
+          } else {
+            // 默认模式：控制系统音量
+            FlutterVolumeController.updateShowSystemUI(false);
+            await FlutterVolumeController.setVolume(volume);
+          }
         }
       } catch (err) {
         if (kDebugMode) debugPrint(err.toString());
@@ -1282,8 +1433,83 @@ class PlPlayerController with BlockConfigMixin {
       volumeInterceptEventStream = false;
       if (PlatformUtils.isDesktop) {
         setting.put(SettingBoxKey.desktopVolume, volume.toPrecision(3));
+      } else if (Pref.enableAppVolume) {
+        // 移动平台应用内音量模式：保存音量到持久化存储
+        // duck 期间不保存，避免保存临时的减半音量
+        if (!_isDucked) {
+          Pref.appVolume = volume;
+        }
       }
     });
+  }
+
+  /// 处理应用内音量设置变更
+  Future<void> onAppVolumeSettingChanged() async {
+    if (!PlatformUtils.isMobile) return;
+
+    // 如果播放器未初始化，直接返回（设置已保存，下次播放器初始化时生效）
+    if (_videoPlayerController == null) return;
+
+    if (Pref.enableAppVolume) {
+      // 切换到应用内音量模式
+      // 获取当前系统音量
+      final currentSystemVolume =
+          (await FlutterVolumeController.getVolume()) ?? 1.0;
+      systemVolume.value = currentSystemVolume;
+
+      final appVolume = (Pref.playerVolume / 100)
+          .clamp(0.0, maxVolume)
+          .toDouble();
+      volume.value = appVolume;
+      Pref.appVolume = appVolume;
+      volumeBoostUnlocked = false;
+
+      // 关闭上游固定增益，避免和应用内音量叠加
+      _videoPlayerController?.setVolume(appVolume * 100);
+
+      // 显示提示
+      SmartDialog.showToast('已切换到应用内音量模式');
+    } else {
+      // 切换到同步系统音量模式
+      // 恢复上游播放器音量设置，并按增益折算系统音量
+      final currentSystemVolume =
+          (await FlutterVolumeController.getVolume()) ?? 1.0;
+      final playerGain = max(Pref.playerVolume / 100, 0.01);
+      final newSystemVolume = (currentSystemVolume * volume.value / playerGain)
+          .clamp(0.0, 1.0)
+          .toDouble();
+
+      await FlutterVolumeController.updateShowSystemUI(false);
+      await FlutterVolumeController.setVolume(newSystemVolume);
+      await _videoPlayerController?.setVolume(Pref.playerVolume);
+      volumeBoostUnlocked = false;
+
+      // 更新状态
+      systemVolume.value = newSystemVolume;
+      volume.value = newSystemVolume;
+
+      SmartDialog.showToast('已切换到同步系统音量模式');
+    }
+  }
+
+  /// duck 事件处理（由 audio_session.dart 调用）
+  Future<void> handleDuck(bool begin) async {
+    if (!PlatformUtils.isMobile) return;
+
+    if (Pref.enableAppVolume) {
+      // 应用内音量模式：使用临时音量，不影响持久化值
+      if (begin) {
+        _isDucked = true;
+        _preDuckVolume = volume.value;
+        volume.value = volume.value * 0.5;
+        _videoPlayerController?.setVolume(volume.value * 100);
+      } else {
+        _isDucked = false;
+        volume.value = _preDuckVolume;
+        _videoPlayerController?.setVolume(volume.value * 100);
+      }
+    }
+    // 同步模式：使用原有逻辑，直接调用 setVolume 即可
   }
 
   /// Toggle Change the videofit accordingly
@@ -1423,6 +1649,7 @@ class PlPlayerController with BlockConfigMixin {
   void _setFullScreen(bool val) {
     isFullScreen.value = val;
     updateSubtitleStyle();
+    onFullScreenChanged?.call(val);
   }
 
   double screenRatio = 0.0;
@@ -1535,6 +1762,9 @@ class PlPlayerController with BlockConfigMixin {
     dynamic pgcType,
     VideoType? videoType,
   }) {
+    if (!isManual && dataStatus.value != DataStatus.loaded) {
+      return null;
+    }
     if (isLive ||
         !enableHeart ||
         progress == 0 ||
@@ -1667,6 +1897,7 @@ class PlPlayerController with BlockConfigMixin {
     _videoPlayerController?.dispose();
     _videoPlayerController = null;
     _videoController = null;
+    _activeVideoContextKey = null;
     _instance = null;
     videoPlayerServiceHandler?.clear();
   }
@@ -1743,7 +1974,7 @@ class PlPlayerController with BlockConfigMixin {
         context: Get.context!,
         builder: (context) => GestureDetector(
           onTap: () async {
-            final bytes = await image.toByteData(format: .png);
+            final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
             if (bytes != null) {
               ImageUtils.saveByteImg(
                 bytes: bytes.buffer.asUint8List(),
@@ -1782,9 +2013,13 @@ class PlPlayerController with BlockConfigMixin {
     }
   }
 
-  void onPopInvokedWithResult(bool didPop, Object? result) {
+  void onPopInvokedWithResult(
+    bool didPop,
+    Object? result, {
+    bool pauseOnPop = true,
+  }) {
     if (didPop) {
-      if (playerStatus.isPlaying) {
+      if (pauseOnPop && playerStatus.isPlaying) {
         pause();
       }
 

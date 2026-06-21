@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:audio_session/audio_session.dart';
 
 class AudioSessionHandler {
@@ -14,9 +17,32 @@ class AudioSessionHandler {
     initSession();
   }
 
+  Future<void> _configureSession() async {
+    if (Pref.mixWithOthers && Platform.isIOS) {
+      await session.configure(
+        const AudioSessionConfiguration(
+          avAudioSessionCategory: AVAudioSessionCategory.playback,
+          avAudioSessionCategoryOptions:
+              AVAudioSessionCategoryOptions.mixWithOthers,
+          avAudioSessionMode: AVAudioSessionMode.defaultMode,
+          avAudioSessionRouteSharingPolicy:
+              AVAudioSessionRouteSharingPolicy.defaultPolicy,
+          avAudioSessionSetActiveOptions: AVAudioSessionSetActiveOptions.none,
+        ),
+      );
+    } else {
+      await session.configure(const AudioSessionConfiguration.music());
+    }
+  }
+
+  Future<void> reconfigure() async {
+    await session.setActive(false);
+    await _configureSession();
+  }
+
   Future<void> initSession() async {
     session = await AudioSession.instance;
-    session.configure(const AudioSessionConfiguration.music());
+    await _configureSession();
 
     session.interruptionEventStream.listen((event) {
       final playerStatus = PlPlayerController.getPlayerStatusIfExists();
@@ -26,13 +52,11 @@ class AudioSessionHandler {
         // if (!player.playerStatus.playing) return;
         switch (event.type) {
           case AudioInterruptionType.duck:
-            PlPlayerController.setVolumeIfExists(
-              (PlPlayerController.getVolumeIfExists() ?? 0) * 0.5,
-              showIndicator: false,
-            );
-            // player.setVolume(player.volume.value * 0.5);
+            PlPlayerController.instance?.handleDuck(true);
             break;
           case AudioInterruptionType.pause:
+            // 接收到其他 App 播放音频的通知，如果允许了同时播放，就无视
+            if (Pref.mixWithOthers) return;
             PlPlayerController.pauseIfExists(isInterrupt: true);
             // player.pause(isInterrupt: true);
             _playInterrupted = true;
@@ -46,11 +70,7 @@ class AudioSessionHandler {
       } else {
         switch (event.type) {
           case AudioInterruptionType.duck:
-            PlPlayerController.setVolumeIfExists(
-              (PlPlayerController.getVolumeIfExists() ?? 0) * 2,
-              showIndicator: false,
-            );
-            // player.setVolume(player.volume.value * 2);
+            PlPlayerController.instance?.handleDuck(false);
             break;
           case AudioInterruptionType.pause:
             if (_playInterrupted) PlPlayerController.playIfExists();

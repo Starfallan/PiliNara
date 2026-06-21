@@ -17,6 +17,7 @@ class BottomControl extends StatelessWidget {
     required this.controller,
     required this.buildBottomControl,
     required this.videoDetailController,
+    this.isPipMode = false,
   });
 
   final double maxWidth;
@@ -24,6 +25,7 @@ class BottomControl extends StatelessWidget {
   final PlPlayerController controller;
   final ValueGetter<Widget> buildBottomControl;
   final VideoDetailController videoDetailController;
+  final bool isPipMode;
 
   void onDragStart(ThumbDragDetails duration) {
     feedBack();
@@ -102,11 +104,28 @@ class BottomControl extends StatelessWidget {
                           segments: videoDetailController.segmentProgressList,
                         ),
                       ),
-                    if (controller.showViewPoints &&
+                    if (!isPipMode &&
+                        controller.showViewPoints &&
+                        videoDetailController.viewPointList.isNotEmpty &&
+                        !videoDetailController.showVP.value)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 5.25,
+                        child: ViewPointDividerBar(
+                          segments: videoDetailController.viewPointList,
+                          progress: controller.duration.value.inSeconds > 0
+                              ? controller.sliderPositionSeconds.value /
+                                  controller.duration.value.inSeconds
+                              : 0.0,
+                        ),
+                      ),
+                    if (!isPipMode &&
+                        controller.showViewPoints &&
                         videoDetailController.viewPointList.isNotEmpty &&
                         videoDetailController.showVP.value)
                       Padding(
-                        padding: const .only(bottom: 8.75),
+                        padding: const EdgeInsets.only(bottom: 8.75),
                         child: ViewPointSegmentProgressBar(
                           segments: videoDetailController.viewPointList,
                           onSeek: PlatformUtils.isDesktop
@@ -115,7 +134,8 @@ class BottomControl extends StatelessWidget {
                               : null,
                         ),
                       ),
-                    if (videoDetailController.showDmTrendChart.value)
+
+                    if (!isPipMode && videoDetailController.showDmTrendChart.value)
                       if (videoDetailController.dmTrend.value?.dataOrNull
                           case final list?)
                         buildDmChart(primary, list, videoDetailController, 4.5),

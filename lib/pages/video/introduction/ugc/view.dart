@@ -31,11 +31,13 @@ import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/extension/string_ext.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
+import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/id_utils.dart';
 import 'package:PiliPlus/utils/num_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/request_utils.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:expandable/expandable.dart';
 import 'package:flutter/material.dart';
@@ -49,6 +51,7 @@ class UgcIntroPanel extends StatefulWidget {
     super.key,
     required this.heroTag,
     required this.showAiBottomSheet,
+    required this.showAiChatBottomSheet,
     required this.showEpisodes,
     required this.onShowMemberPage,
     required this.isPortrait,
@@ -56,6 +59,7 @@ class UgcIntroPanel extends StatefulWidget {
   });
   final String heroTag;
   final Function showAiBottomSheet;
+  final VoidCallback showAiChatBottomSheet;
   final Function showEpisodes;
   final ValueChanged<int?> onShowMemberPage;
   final bool isPortrait;
@@ -607,6 +611,14 @@ class _UgcIntroPanelState extends State<UgcIntroPanel> {
                 ? NumUtils.numFormat(videoDetail.stat!.share!)
                 : null,
           ),
+          if (Pref.enableAiChat)
+            ActionItem(
+              icon: const Icon(Icons.auto_awesome),
+              onTap: widget.showAiChatBottomSheet,
+              selectStatus: false,
+              semanticsLabel: 'AI分析',
+              text: 'AI',
+            ),
         ],
       ),
     );
@@ -912,29 +924,48 @@ class _UgcIntroPanelState extends State<UgcIntroPanel> {
             officialType: userStat.card?.official?.type,
           ),
           const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                userStat.card?.name ?? "",
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: isVip && userStat.card?.vip?.type == 2
-                      ? theme.colorScheme.vipColor
-                      : null,
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text.rich(
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: userStat.card?.name ?? "",
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isVip && userStat.card?.vip?.type == 2
+                              ? theme.colorScheme.vipColor
+                              : null,
+                        ),
+                      ),
+                      if (GlobalData().remarkMids[int.tryParse(
+                            userStat.card?.mid ?? '',
+                          )]
+                          case final String remark when remark.isNotEmpty)
+                        TextSpan(
+                          text: '（$remark）',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 0),
-              Text(
-                '${NumUtils.numFormat(userStat.follower)}粉丝    ${'${NumUtils.numFormat(userStat.archiveCount)}视频'}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: theme.colorScheme.outline,
+                const SizedBox(height: 0),
+                Text(
+                  '${NumUtils.numFormat(userStat.follower)}粉丝    ${'${NumUtils.numFormat(userStat.archiveCount)}视频'}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: theme.colorScheme.outline,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       );

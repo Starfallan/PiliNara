@@ -106,6 +106,10 @@ class _DynamicsTabPageState extends State<DynamicsTabPage>
                                 controller.onRemove(index, idStr),
                             onBlock: () => controller.onBlock(index),
                             onUnfold: () => controller.onUnfold(item, index),
+                            onUpdate: (newItem) {
+                              response[index] = newItem;
+                              controller.loadingState.refresh();
+                            },
                           );
                         },
                         childCount: response.length,
@@ -123,6 +127,10 @@ class _DynamicsTabPageState extends State<DynamicsTabPage>
                               controller.onRemove(index, idStr),
                           onBlock: () => controller.onBlock(index),
                           onUnfold: () => controller.onUnfold(item, index),
+                          onUpdate: (newItem) {
+                            response[index] = newItem;
+                            controller.loadingState.refresh();
+                          },
                         );
                       },
                       itemCount: response.length,

@@ -51,6 +51,7 @@ import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
+import 'package:PiliPlus/utils/subtitle_utils.dart';
 import 'package:PiliPlus/utils/storage_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:PiliPlus/utils/video_utils.dart';
@@ -485,7 +486,9 @@ class HeaderControlState extends State<HeaderControl>
                         leading: const Icon(Icons.volume_up, size: 20),
                         title: const Text('播放器音量'),
                         subtitle: Text(
-                          '当前: ${Pref.playerVolume.toStringAsFixed(0)}%',
+                          Pref.enableAppVolume
+                              ? '应用内音量开启时不生效'
+                              : '当前: ${Pref.playerVolume.toStringAsFixed(0)}%',
                         ),
                         onTap: () => showPlayerVolumeDialog(
                           context,
@@ -1164,6 +1167,23 @@ class HeaderControlState extends State<HeaderControl>
                     dense: true,
                     onTap: () async {
                       Get.back();
+                      final format = await showDialog<String>(
+                        context: context,
+                        builder: (context) => SimpleDialog(
+                          title: const Text('选择格式'),
+                          children: [
+                            SimpleDialogOption(
+                              onPressed: () => Get.back(result: 'json'),
+                              child: const Text('JSON'),
+                            ),
+                            SimpleDialogOption(
+                              onPressed: () => Get.back(result: 'srt'),
+                              child: const Text('SRT'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (format == null) return;
                       final url = item.subtitleUrl;
                       if (url == null || url.isEmpty) return;
                       try {
@@ -1176,25 +1196,33 @@ class HeaderControlState extends State<HeaderControl>
                           ),
                         );
                         if (res.statusCode == 200) {
-                          final bytes = Uint8List.fromList(
+                          final rawBytes = Uint8List.fromList(
                             Request.responseBytesDecoder(
                               res.data!,
                               res.headers.map,
                             ),
                           );
-                          String name =
-                              '${introController.videoDetail.value.title}-${videoDetailCtr.bvid}-${videoDetailCtr.cid.value}-${item.lanDoc}.json';
-                          if (Platform.isWindows) {
-                            // Reserved characters may not be used in file names. See: https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#naming-conventions
-                            name = name.replaceAll(
-                              RegExp(r'[<>:/\\|?*"]'),
-                              '',
-                            );
+                          Uint8List bytes = rawBytes;
+                          String extension = 'json';
+                          if (format == 'srt') {
+                            final Map<String, dynamic> json =
+                                jsonDecode(utf8.decode(rawBytes))
+                                    as Map<String, dynamic>;
+                            final body = json['body'] as List<dynamic>;
+                            final srtText = SubtitleUtils.bccToSrt(body);
+                            bytes = Uint8List.fromList(utf8.encode(srtText));
+                            extension = 'srt';
                           }
+                          String name =
+                              '${introController.videoDetail.value.title}-${videoDetailCtr.bvid}-${videoDetailCtr.cid.value}-${item.lanDoc}.$extension';
+                          name = name.replaceAll(
+                            RegExp(r'[<>:/\\|?*"]'),
+                            '',
+                          );
                           StorageUtils.saveBytes2File(
                             name: name,
                             bytes: bytes,
-                            allowedExtensions: const ['json'],
+                            allowedExtensions: [extension],
                           );
                         }
                       } catch (e, s) {
@@ -1829,25 +1857,25 @@ class HeaderControlState extends State<HeaderControl>
                       ),
                     ),
                   ),
-                Obx(
-                  () => videoDetailCtr.segmentProgressList.isNotEmpty
-                      ? SizedBox(
-                          width: btnWidth,
-                          height: btnHeight,
-                          child: IconButton(
-                            tooltip: '片段信息',
-                            style: btnStyle,
-                            onPressed: videoDetailCtr.showSBDetail,
-                            icon: const Icon(
-                              MdiIcons.advertisements,
-                              size: 19,
-                              color: Colors.white,
-                            ),
-                          ),
-                        )
-                      : const SizedBox.shrink(),
-                ),
               ],
+              Obx(
+                () => videoDetailCtr.segmentProgressList.isNotEmpty
+                    ? SizedBox(
+                        width: btnWidth,
+                        height: btnHeight,
+                        child: IconButton(
+                          tooltip: '片段信息',
+                          style: btnStyle,
+                          onPressed: videoDetailCtr.showSBDetail,
+                          icon: const Icon(
+                            MdiIcons.advertisements,
+                            size: 19,
+                            color: Colors.white,
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
               if (!isPortrait || isFullScreen || PlatformUtils.isDesktop) ...[
                 SizedBox(
                   width: btnWidth,

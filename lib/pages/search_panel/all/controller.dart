@@ -5,6 +5,7 @@ import 'package:PiliPlus/models/search/result.dart';
 import 'package:PiliPlus/pages/search_panel/controller.dart';
 import 'package:PiliPlus/utils/app_scheme.dart';
 import 'package:PiliPlus/utils/id_utils.dart';
+import 'package:PiliPlus/utils/url_utils.dart';
 
 class SearchAllController
     extends SearchPanelController<SearchAllData, dynamic> {
@@ -61,7 +62,9 @@ class SearchAllController
     } catch (_) {}
   }
 
-  void jump2Video() {
+  static final _b23Regex = RegExp(r'b23\.tv/[A-Za-z0-9]{7}$', caseSensitive: false);
+
+  Future<void> jump2Video() async {
     if (IdUtils.avRegexExact.hasMatch(keyword)) {
       hasJump2Video = true;
       PiliScheme.videoPush(
@@ -72,6 +75,18 @@ class SearchAllController
     } else if (IdUtils.bvRegexExact.hasMatch(keyword)) {
       hasJump2Video = true;
       PiliScheme.videoPush(null, keyword, showDialog: false);
+    } else if (_b23Regex.hasMatch(keyword)) {
+      hasJump2Video = true;
+      final redirectUrl = await UrlUtils.parseRedirectUrl(keyword);
+      if (redirectUrl != null) {
+        final matchRes = IdUtils.matchAvorBv(input: redirectUrl);
+        final aid = matchRes.av;
+        String? bvid = matchRes.bv;
+        if (aid != null || bvid != null) {
+          bvid ??= IdUtils.av2bv(aid!);
+          PiliScheme.videoPush(aid, bvid, showDialog: false);
+        }
+      }
     }
   }
 }

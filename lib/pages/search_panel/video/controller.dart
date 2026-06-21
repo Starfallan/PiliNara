@@ -7,6 +7,8 @@ import 'package:PiliPlus/models/search/result.dart';
 import 'package:PiliPlus/pages/search/widgets/search_text.dart';
 import 'package:PiliPlus/pages/search_panel/controller.dart';
 import 'package:PiliPlus/utils/app_scheme.dart';
+import 'package:PiliPlus/utils/url_utils.dart';
+import 'package:PiliPlus/utils/recommend_filter.dart';
 import 'package:PiliPlus/utils/date_utils.dart';
 import 'package:PiliPlus/utils/extension/context_ext.dart';
 import 'package:PiliPlus/utils/id_utils.dart';
@@ -45,9 +47,15 @@ class SearchVideoController
   bool customHandleResponse(bool isRefresh, Success<SearchVideoData> response) {
     searchResultController?.count[searchType.index] =
         response.response.numResults ?? 0;
+    final list = response.response.list;
+    if (list != null) {
+      list.removeWhere(
+        (item) => RecommendFilter.searchShouldRemove(item.owner.mid, item.title),
+      );
+    }
     if (searchType == SearchType.video && !hasJump2Video && isRefresh) {
       hasJump2Video = true;
-      onPushDetail(response.response.list);
+      onPushDetail(list);
     }
     return false;
   }
@@ -61,7 +69,9 @@ class SearchVideoController
     } catch (_) {}
   }
 
-  void jump2Video() {
+  static final _b23Regex = RegExp(r'b23\.tv/[A-Za-z0-9]{7}$', caseSensitive: false);
+
+  Future<void> jump2Video() async {
     if (IdUtils.avRegexExact.hasMatch(keyword)) {
       hasJump2Video = true;
       PiliScheme.videoPush(
@@ -72,6 +82,18 @@ class SearchVideoController
     } else if (IdUtils.bvRegexExact.hasMatch(keyword)) {
       hasJump2Video = true;
       PiliScheme.videoPush(null, keyword, showDialog: false);
+    } else if (_b23Regex.hasMatch(keyword)) {
+      hasJump2Video = true;
+      final redirectUrl = await UrlUtils.parseRedirectUrl(keyword);
+      if (redirectUrl != null) {
+        final matchRes = IdUtils.matchAvorBv(input: redirectUrl);
+        final aid = matchRes.av;
+        String? bvid = matchRes.bv;
+        if (aid != null || bvid != null) {
+          bvid ??= IdUtils.av2bv(aid!);
+          PiliScheme.videoPush(aid, bvid, showDialog: false);
+        }
+      }
     }
   }
 
@@ -279,6 +301,7 @@ class SearchVideoController
                     },
                   ).toList(),
                 ),
+                buildKeywordFilterSection(context, theme, setState),
               ],
             ),
           );

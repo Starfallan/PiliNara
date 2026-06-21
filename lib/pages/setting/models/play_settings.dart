@@ -1,12 +1,14 @@
 import 'dart:io' show Platform;
 
 import 'package:PiliPlus/common/widgets/custom_icon.dart';
+import 'package:PiliPlus/models/common/super_chat_time_type.dart';
 import 'package:PiliPlus/models/common/super_chat_type.dart';
 import 'package:PiliPlus/models/common/video/subtitle_pref_type.dart';
 import 'package:PiliPlus/pages/main/controller.dart';
 import 'package:PiliPlus/pages/setting/models/model.dart';
 import 'package:PiliPlus/pages/setting/pages/fullscreen_sc_size.dart';
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
+import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/pages/setting/widgets/slider_dialog.dart';
 import 'package:PiliPlus/plugin/pl_player/models/bottom_progress_behavior.dart';
 import 'package:PiliPlus/plugin/pl_player/models/fullscreen_mode.dart';
@@ -96,17 +98,32 @@ List<SettingsModel> get playSettings => [
       setKey: SettingBoxKey.setSystemBrightness,
       defaultVal: false,
     ),
-  const SwitchModel(
-    title: '中间滑动进入/退出全屏',
-    leading: Icon(MdiIcons.panVertical),
-    setKey: SettingBoxKey.enableSlideFS,
-    defaultVal: true,
-  ),
+  if (PlatformUtils.isMobile)
+    SwitchModel(
+      title: '应用内音量',
+      subtitle: '开启后在应用内调节音量不会改变系统音量',
+      leading: const Icon(Icons.volume_up_outlined),
+      setKey: SettingBoxKey.enableAppVolume,
+      defaultVal: false,
+      onChanged: (value) async {
+        await PlPlayerController.instance?.onAppVolumeSettingChanged();
+      },
+    ),
+  if (PlatformUtils.isMobile && Pref.enableAppVolume)
+    const SwitchModel(
+      title: '音量增强',
+      subtitle: '在应用内音量模式下允许放大至 200%',
+      leading: Icon(Icons.volume_up_outlined),
+      setKey: SettingBoxKey.enableVolumeBoost,
+      defaultVal: false,
+    ),
   if (PlatformUtils.isMobile)
     NormalModel(
       title: '播放器音量',
       leading: const Icon(Icons.volume_up),
-      getSubtitle: () => '当前:「${Pref.playerVolume.toStringAsFixed(0)}%」',
+      getSubtitle: () =>
+          '当前:「${Pref.playerVolume.toStringAsFixed(0)}%」\n'
+          '在系统音量基础上增益；开启应用内音量后不生效',
       onTap: showPlayerVolumeDialog,
     )
   else
@@ -116,6 +133,12 @@ List<SettingsModel> get playSettings => [
       getSubtitle: () => '当前:「${(Pref.maxVolume * 100).toStringAsFixed(0)}%」',
       onTap: _showMaxVolumeDialog,
     ),
+  const SwitchModel(
+    title: '中间滑动进入/退出全屏',
+    leading: Icon(MdiIcons.panVertical),
+    setKey: SettingBoxKey.enableSlideFS,
+    defaultVal: true,
+  ),
   getVideoFilterSelectModel(
     title: '双击快进/快退时长',
     suffix: 's',
@@ -170,6 +193,12 @@ List<SettingsModel> get playSettings => [
     onTap: _showSuperChatDialog,
   ),
   NormalModel(
+    title: 'SuperChat 发送时间显示',
+    leading: const Icon(Icons.access_time_outlined),
+    getSubtitle: () => '当前:「${Pref.superChatTimeType.title}」',
+    onTap: _showSuperChatTimeDialog,
+  ),
+  NormalModel(
     title: '全屏 SC 大小',
     subtitle: 'SuperChat (醒目留言) 大小设置',
     leading: const Icon(Icons.open_in_full),
@@ -211,6 +240,13 @@ List<SettingsModel> get playSettings => [
       setKey: SettingBoxKey.continuePlayInBackground,
       defaultVal: false,
     ),
+  const SwitchModel(
+    title: '应用内画中画',
+    subtitle: '支持在应用内以小窗形式播放视频',
+    leading: Icon(Icons.picture_in_picture_alt_outlined),
+    setKey: SettingBoxKey.enableInAppPip,
+    defaultVal: true,
+  ),
   if (Platform.isAndroid) ...[
     SwitchModel(
       title: '后台画中画',
@@ -223,6 +259,13 @@ List<SettingsModel> get playSettings => [
           SmartDialog.showToast('建议开启后台音频服务');
         }
       },
+    ),
+    const SwitchModel(
+      title: '应用内小窗转后台画中画（实验性）',
+      subtitle: '实验性功能：应用内小窗存在时，退到后台自动切换为系统 PiP；可能因系统差异出现异常',
+      leading: Icon(Icons.science_outlined),
+      setKey: SettingBoxKey.enableInAppPipToSystemPip,
+      defaultVal: true,
     ),
     const SwitchModel(
       title: '画中画不加载弹幕',
@@ -313,6 +356,24 @@ Future<void> _showSubtitleDialog(
   }
 }
 
+Future<void> _showSuperChatTimeDialog(
+  BuildContext context,
+  VoidCallback setState,
+) async {
+  final res = await showDialog<SuperChatTimeType>(
+    context: context,
+    builder: (context) => SelectDialog<SuperChatTimeType>(
+      title: 'SuperChat 发送时间显示',
+      value: Pref.superChatTimeType,
+      values: SuperChatTimeType.values.map((e) => (e, e.title)).toList(),
+    ),
+  );
+  if (res != null) {
+    await GStorage.setting.put(SettingBoxKey.superChatTimeType, res.index);
+    setState();
+  }
+}
+
 Future<void> _showSuperChatDialog(
   BuildContext context,
   VoidCallback setState,
@@ -397,6 +458,10 @@ Future<void> showPlayerVolumeDialog(
   VoidCallback setState, {
   ValueChanged<double>? onChanged,
 }) {
+  if (Pref.enableAppVolume) {
+    SmartDialog.showToast('应用内音量开启时，播放器音量设置不生效');
+    return Future.value();
+  }
   return showVolumeDialog(
     context,
     title: const Text('播放器音量'),

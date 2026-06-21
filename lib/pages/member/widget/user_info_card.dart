@@ -49,6 +49,8 @@ class UserInfoCard extends StatelessWidget {
     required this.images,
     required this.relation,
     required this.onFollow,
+    required this.remark,
+    required this.onEditRemark,
     this.live,
     this.silence,
     required this.headerControllerBuilder,
@@ -61,6 +63,8 @@ class UserInfoCard extends StatelessWidget {
 
   final bool isOwner;
   final int relation;
+  final String remark;
+  final VoidCallback onEditRemark;
   final SpaceCard card;
   final SpaceImages images;
   final VoidCallback onFollow;
@@ -153,6 +157,7 @@ class UserInfoCard extends StatelessWidget {
       if (card.officialVerify?.desc?.isNotEmpty ?? false)
         _buildVerify(colorScheme),
       if (card.sign?.isNotEmpty ?? false) _buildSign(),
+      _buildRemarkRow(colorScheme),
       ?_buildChargeAndGuard(colorScheme, isPortrait),
       if (card.followingsFollowedUpper?.items?.isNotEmpty ?? false)
         _buildFollowedUp(colorScheme, card.followingsFollowedUpper!),
@@ -313,6 +318,24 @@ class UserInfoCard extends StatelessWidget {
       child: SelectableText(
         card.sign!.trim().replaceAll(RegExp(r'\n{2,}'), '\n'),
         style: const TextStyle(fontSize: 14),
+      ),
+    );
+  }
+
+  Widget _buildRemarkRow(ColorScheme colorScheme) {
+    return GestureDetector(
+      onTap: onEditRemark,
+      child: Padding(
+        padding: const .only(left: 20, top: 6, right: 20),
+        child: remark.isNotEmpty
+            ? Text(
+                '备注：$remark',
+                style: TextStyle(fontSize: 13, color: colorScheme.primary),
+              )
+            : Text(
+                '添加备注',
+                style: TextStyle(fontSize: 13, color: colorScheme.outline),
+              ),
       ),
     );
   }

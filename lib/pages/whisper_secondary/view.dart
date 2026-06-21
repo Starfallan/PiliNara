@@ -1,4 +1,5 @@
 import 'package:PiliPlus/common/skeleton/whisper_item.dart';
+import 'package:PiliPlus/common/widgets/flutter/popup_menu.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
 import 'package:PiliPlus/grpc/bilibili/app/im/v1.pb.dart';
@@ -45,7 +46,7 @@ class _WhisperSecPageState extends State<WhisperSecPage> {
           Obx(() {
             final threeDotItems = _controller.threeDotItems.value;
             if (threeDotItems != null && threeDotItems.isNotEmpty) {
-              return PopupMenuButton(
+              return StaticPopupMenuButton(
                 itemBuilder: (context) {
                   return threeDotItems
                       .map(

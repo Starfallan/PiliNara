@@ -1,5 +1,7 @@
 import 'dart:async';
-import 'dart:math' show min;
+import 'dart:convert' show jsonDecode;
+import 'dart:io';
+import 'dart:math' show Random, min;
 import 'dart:ui';
 
 import 'package:PiliPlus/common/style.dart';
@@ -13,6 +15,7 @@ import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/http/user.dart';
 import 'package:PiliPlus/http/video.dart';
 import 'package:PiliPlus/models/common/account_type.dart';
+import 'package:PiliPlus/models/common/list_order.dart';
 import 'package:PiliPlus/models/common/sponsor_block/action_type.dart';
 import 'package:PiliPlus/models/common/sponsor_block/post_segment_model.dart';
 import 'package:PiliPlus/models/common/sponsor_block/segment_model.dart';
@@ -25,14 +28,17 @@ import 'package:PiliPlus/models/common/video/video_quality.dart';
 import 'package:PiliPlus/models/common/video/video_type.dart';
 import 'package:PiliPlus/models/video/play/url.dart';
 import 'package:PiliPlus/models_new/download/bili_download_entry_info.dart';
+import 'package:PiliPlus/models_new/download/playback_meta.dart';
 import 'package:PiliPlus/models_new/media_list/media_list.dart';
 import 'package:PiliPlus/models_new/pgc/pgc_info_model/result.dart';
+import 'package:PiliPlus/models_new/sponsor_block/segment_item.dart';
 import 'package:PiliPlus/models_new/video/video_detail/data.dart';
 import 'package:PiliPlus/models_new/video/video_detail/episode.dart' as ugc;
 import 'package:PiliPlus/models_new/video/video_detail/page.dart';
 import 'package:PiliPlus/models_new/video/video_pbp/data.dart';
 import 'package:PiliPlus/models_new/video/video_play_info/subtitle.dart';
 import 'package:PiliPlus/models_new/video/video_stein_edgeinfo/data.dart';
+import 'package:PiliPlus/pages/ai_chat/controller.dart';
 import 'package:PiliPlus/pages/audio/view.dart';
 import 'package:PiliPlus/pages/common/publish/publish_route.dart';
 import 'package:PiliPlus/pages/search/widgets/search_text.dart';
@@ -50,13 +56,16 @@ import 'package:PiliPlus/plugin/pl_player/models/data_source.dart';
 import 'package:PiliPlus/plugin/pl_player/models/heart_beat_type.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/services/download/download_service.dart';
+import 'package:PiliPlus/services/pip_overlay_service.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/connectivity_utils.dart';
+import 'package:PiliPlus/utils/danmaku_density_trend.dart';
 import 'package:PiliPlus/utils/extension/context_ext.dart';
 import 'package:PiliPlus/utils/extension/iterable_ext.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/extension/size_ext.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
+import 'package:PiliPlus/utils/path_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
@@ -72,6 +81,7 @@ import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:get/get.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:media_kit/media_kit.dart' hide Subtitle;
+import 'package:path/path.dart' as path;
 
 class VideoDetailController extends GetxController
     with GetTickerProviderStateMixin, BlockMixin {
@@ -97,9 +107,16 @@ class VideoDetailController extends GetxController
   late SourceType sourceType;
   late BiliDownloadEntryInfo entry;
   late bool isFileSource;
-  late bool _mediaDesc = false;
+  late ListOrder _listOrder = ListOrder.asc;
+  ListOrder get listOrder => _listOrder;
+  static final _random = Random();
+  List<int> _shuffledPages = [];
+  int _shufflePageIdx = 0;
   late final RxList<MediaListItemModel> mediaList = <MediaListItemModel>[].obs;
   late String watchLaterTitle;
+
+  // 是否正在进入应用内小窗
+  bool isEnteringPip = false;
 
   /// tabs相关配置
   late TabController tabCtr;
@@ -119,7 +136,7 @@ class VideoDetailController extends GetxController
   final videoPlayerKey = GlobalKey();
   final childKey = GlobalKey<ScaffoldState>();
 
-  final plPlayerController = PlPlayerController.getInstance()
+  PlPlayerController plPlayerController = PlPlayerController.getInstance()
     ..brightness.value = -1;
   bool get setSystemBrightness => plPlayerController.setSystemBrightness;
   bool get removeSafeArea => plPlayerController.removeSafeArea;
@@ -375,10 +392,63 @@ class VideoDetailController extends GetxController
     _setVideoHeight();
   }
 
+  /// 注册全屏画质切换回调。
+  /// 必须在 onInit 和 didPopNext 中调用，因为 PlPlayerController 是单例，
+  /// 新视频页面的 onInit 会覆盖回调为新 controller 的闭包，返回后需重新注册。
+  void setupFullScreenQualitySwitch() {
+    plPlayerController.onFullScreenChanged = (bool fs) async {
+      if (!fs || plPlayerController.isLive) return;
+      if (isQuerying) return;
+      PlayUrlModel data;
+      try {
+        data = this.data;
+      } catch (_) {
+        return;
+      }
+      if (data.dash == null) return;
+      final halfScreenQa = Pref.defaultVideoQaHalfScreen;
+      if (halfScreenQa == null) return;
+      final isWiFi = await ConnectivityUtils.isWiFi;
+      final fsQa = isWiFi ? Pref.defaultVideoQa : Pref.defaultVideoQaCellular;
+      final curHighestVideoQa = data.dash!.video!.first.quality.code;
+      int targetQa = curHighestVideoQa;
+      if (data.acceptQuality?.isNotEmpty == true &&
+          fsQa <= curHighestVideoQa) {
+        targetQa = data.acceptQuality!.findClosestTarget(
+          (e) => e <= fsQa,
+          (a, b) => a > b ? a : b,
+        );
+      }
+      if (plPlayerController.cacheVideoQa != targetQa) {
+        plPlayerController.cacheVideoQa = targetQa;
+        currentVideoQa.value = VideoQuality.fromCode(targetQa);
+        updatePlayer();
+      }
+    };
+  }
+
   @override
   void onInit() {
     super.onInit();
     args = Get.arguments;
+
+    // 开启新视频时，如果存在前代播放器的应用内小窗，则按播放上下文决定是否重置旧状态
+    // 避免不同视频/分P之间 SponsorBlock 片段状态污染，同时保留同上下文无缝恢复能力
+    if (PipOverlayService.isInPipMode) {
+      if (kDebugMode) {
+        debugPrint(
+          '[VideoDetailController] Active PiP detected, closing before new video initialization with context-aware reset',
+        );
+      }
+      PipOverlayService.stopPip(
+        immediate: true,
+        targetContextKey: PipOverlayService.contextKeyFromArgs(args),
+      );
+      // 同步清理旧视频的 SponsorBlock 状态，避免污染新视频
+      // 不能放在 stopPip 里异步执行，否则会与新视频初始化竞态
+      resetBlock();
+    }
+
     videoType = args['videoType'];
     if (videoType == VideoType.pgc) {
       if (!isLoginVideo) {
@@ -405,7 +475,7 @@ class VideoDetailController extends GetxController
       initFileSource(args['entry']);
     } else if (isPlayAll) {
       watchLaterTitle = args['favTitle'];
-      _mediaDesc = args['desc'];
+      _listOrder = args['desc'] == true ? ListOrder.desc : ListOrder.asc;
       getMediaList();
     }
 
@@ -414,22 +484,38 @@ class VideoDetailController extends GetxController
       vsync: this,
       initialIndex: Pref.defaultShowComment ? 1 : 0,
     );
+
+    // 进入全屏时切换到全屏默认画质
+    if (PlatformUtils.isMobile) {
+      setupFullScreenQualitySwitch();
+    }
   }
 
   Future<void> getMediaList({
     bool isReverse = false,
     bool isLoadPrevious = false,
+    int? pn,
   }) async {
     final count = args['count'];
-    if (!isReverse && count != null && mediaList.length >= count) {
-      return;
+    if (!isReverse && !isLoadPrevious) {
+      if (_listOrder.isShuffle && pn == null) {
+        // shuffle mode load-more: use next page from shuffled sequence
+        pn = _nextShufflePage();
+        if (pn == null) return;
+      } else if (count != null && mediaList.length >= count) {
+        return;
+      }
     }
+    final isShufflePn = pn != null;
     final res = await UserHttp.getMediaList(
       type: args['mediaType'] ?? sourceType.mediaType,
       bizId: args['mediaId'] ?? -1,
       ps: 20,
       direction: isLoadPrevious ? true : false,
-      oid: isReverse
+      pn: pn,
+      oid: isShufflePn
+          ? null
+          : isReverse
           ? null
           : mediaList.isEmpty
           ? args['isContinuePlaying'] == true
@@ -438,14 +524,16 @@ class VideoDetailController extends GetxController
           : isLoadPrevious
           ? mediaList.first.aid
           : mediaList.last.aid,
-      otype: isReverse
+      otype: isShufflePn
+          ? null
+          : isReverse
           ? null
           : mediaList.isEmpty
           ? null
           : isLoadPrevious
           ? mediaList.first.type
           : mediaList.last.type,
-      desc: _mediaDesc,
+      desc: _listOrder.isDesc,
       sortField: args['sortField'] ?? 1,
       withCurrent: mediaList.isEmpty && args['isContinuePlaying'] == true
           ? true
@@ -455,6 +543,9 @@ class VideoDetailController extends GetxController
       if (response.mediaList.isNotEmpty) {
         if (isReverse) {
           mediaList.value = response.mediaList;
+          if (_listOrder.isShuffle) {
+            mediaList.shuffle();
+          }
           for (final item in mediaList) {
             if (item.cid != null) {
               try {
@@ -467,6 +558,8 @@ class VideoDetailController extends GetxController
           }
         } else if (isLoadPrevious) {
           mediaList.insertAll(0, response.mediaList);
+        } else if (_listOrder.isShuffle) {
+          _shuffleInsert(response.mediaList);
         } else {
           mediaList.addAll(response.mediaList);
         }
@@ -476,6 +569,59 @@ class VideoDetailController extends GetxController
     }
   }
 
+  void _shuffleInsert(List<MediaListItemModel> newItems) {
+    if (newItems.isEmpty) return;
+    final currentIdx = mediaList.indexWhere((e) => e.bvid == bvid);
+    final insertStart = currentIdx < 0 ? 0 : currentIdx + 1;
+    // Positions: insertStart..mediaList.length (inclusive, "append" is valid)
+    final available = mediaList.length - insertStart + 1;
+    final pickCount = newItems.length.clamp(0, available);
+    final range = List.generate(available, (i) => insertStart + i);
+    // Fisher-Yates partial shuffle for unique positions
+    for (int i = 0; i < pickCount; i++) {
+      final j = i + _random.nextInt(range.length - i);
+      final temp = range[i];
+      range[i] = range[j];
+      range[j] = temp;
+    }
+    final positions = range.sublist(0, pickCount)..sort();
+    // Insert back-to-front to preserve earlier indices
+    for (int i = pickCount - 1; i >= 0; i--) {
+      mediaList.insert(positions[i], newItems[i]);
+    }
+  }
+
+  void _initShufflePages() {
+    final count = args['count'];
+    if (count == null || count <= 0) {
+      _shuffledPages = [1];
+      _shufflePageIdx = 0;
+      return;
+    }
+    final totalPages = (count / 20).ceil();
+    _shuffledPages = List.generate(totalPages, (i) => i + 1);
+    _shuffledPages.shuffle(_random);
+    // Ensure first page has enough items to trigger load-more
+    final firstPageLastItem = count - (totalPages - 1) * 20;
+    if (_shuffledPages[0] == totalPages && firstPageLastItem < 2) {
+      for (int i = 1; i < _shuffledPages.length; i++) {
+        if (_shuffledPages[i] != totalPages) {
+          final temp = _shuffledPages[0];
+          _shuffledPages[0] = _shuffledPages[i];
+          _shuffledPages[i] = temp;
+          break;
+        }
+      }
+    }
+    _shufflePageIdx = 0;
+  }
+
+  int? _nextShufflePage() {
+    if (_shufflePageIdx >= _shuffledPages.length) return null;
+    return _shuffledPages[_shufflePageIdx++];
+  }
+
+  // 稍后再看面板展开
   void showMediaListPanel(BuildContext context) {
     if (mediaList.isNotEmpty) {
       Widget panel() => MediaListPanel(
@@ -489,10 +635,18 @@ class VideoDetailController extends GetxController
         bvid: bvid,
         count: args['count'],
         loadMoreMedia: getMediaList,
-        desc: _mediaDesc,
+        listOrder: _listOrder,
         onReverse: () {
-          _mediaDesc = !_mediaDesc;
-          getMediaList(isReverse: true);
+          _listOrder = _listOrder.next;
+          if (_listOrder.isShuffle) {
+            _initShufflePages();
+            final pn = _nextShufflePage();
+            getMediaList(isReverse: true, pn: pn);
+          } else {
+            _shuffledPages = [];
+            _shufflePageIdx = 0;
+            getMediaList(isReverse: true);
+          }
         },
         loadPrevious: args['isContinuePlaying'] == true
             ? () => getMediaList(isLoadPrevious: true)
@@ -671,7 +825,14 @@ class VideoDetailController extends GetxController
 
   VideoItem findVideoByQa(int qa) {
     /// 根据currentVideoQa和currentDecodeFormats 重新设置videoUrl
-    final videoList = data.dash!.video!.where((i) => i.id == qa).toList();
+    final allVideos = data.dash!.video!;
+    final videoList = allVideos.where((i) => i.id == qa).toList();
+
+    if (videoList.isEmpty) {
+      final fallback = allVideos.first;
+      currentVideoQa.value = VideoQuality.fromCode(fallback.id!);
+      return fallback;
+    }
 
     final currentDecodeFormats = this.currentDecodeFormats.codes;
     final defaultDecodeFormats = VideoDecodeFormatType.fromString(
@@ -742,6 +903,13 @@ class VideoDetailController extends GetxController
     bool? autoplay,
     bool autoFullScreenFlag = false,
   }) async {
+    // 如果播放器单例已被外部销毁（例如在二级页面关闭了小窗），重新获取一个新实例
+    if (plPlayerController.videoPlayerController == null) {
+      plPlayerController = PlPlayerController.ensureInstance();
+    }
+    if (isFileSource) {
+      await _loadLocalPlaybackMeta();
+    }
     Duration? seek = defaultST ?? playedTime;
     if (seek == null || seek == Duration.zero) {
       seek = getFirstSegment();
@@ -781,13 +949,18 @@ class VideoDetailController extends GetxController
       autoFullScreenFlag: autoFullScreenFlag,
     );
 
-    if (isClosed) return;
-
-    if (!isFileSource) {
-      if (plPlayerController.enableBlock) {
-        initSkip();
+    // 检查 controller 是否已关闭，如果已关闭则跳过后续的资源加载操作
+    // （播放信息、弹幕趋势、SponsorBlock 等），避免已销毁的 controller
+    // 触发不必要的异步操作和 UI 更新
+    if (isClosed) {
+      if (kDebugMode) {
+        debugPrint('[VideoDetail] playerInit: controller is closed, skipping resource loading');
       }
+      return;
+    }
 
+    // 需要活跃资源的操作
+    if (!isFileSource) {
       if (vttSubtitlesIndex.value == -1) {
         _queryPlayInfo();
       }
@@ -795,12 +968,23 @@ class VideoDetailController extends GetxController
       if (plPlayerController.showDmChart && dmTrend.value == null) {
         _getDmTrend();
       }
+
+      if (plPlayerController.enableBlock) {
+        initSkip();
+      }
+    } else {
+      if (vttSubtitlesIndex.value == -1) {
+        unawaited(_loadFileSubtitles());
+      }
     }
 
     defaultST = null;
   }
 
   bool isQuerying = false;
+
+  String? _lastQueryBvid;
+  int? _lastQueryCid;
 
   final languages = Rxn<List<LanguageItem>>();
   final currLang = Rxn<String>();
@@ -819,6 +1003,7 @@ class VideoDetailController extends GetxController
   // 视频链接
   Future<void> queryVideoUrl({
     bool fromReset = false,
+    bool reinitializePlayer = true,
     bool autoFullScreenFlag = false,
   }) async {
     if (isFileSource) {
@@ -828,15 +1013,30 @@ class VideoDetailController extends GetxController
       return;
     }
     isQuerying = true;
+    try {
+    if (_lastQueryBvid != bvid || _lastQueryCid != cid.value) {
+      // 跨视频/分P时重置画质缓存，确保根据半屏/全屏设置重新选择默认画质。
+      // resetTempSettings 在 setDataSource 中执行（HTTP 请求之后），
+      // 此处提前重置使得 cacheVideoQa == null 分支能正确初始化。
+      if (PlatformUtils.isMobile) {
+        plPlayerController.cacheVideoQa = null;
+      }
+      _lastQueryBvid = bvid;
+      _lastQueryCid = cid.value;
+    }
     if (plPlayerController.enableSponsorBlock && isBlock && !fromReset) {
       querySponsorBlock(bvid: bvid, cid: cid.value);
     }
     if (plPlayerController.cacheVideoQa == null) {
       final isWiFi = await ConnectivityUtils.isWiFi;
+      final halfScreenQa = Pref.defaultVideoQaHalfScreen;
       plPlayerController
-        ..cacheVideoQa = isWiFi
-            ? Pref.defaultVideoQa
-            : Pref.defaultVideoQaCellular
+        ..cacheVideoQa = !plPlayerController.isFullScreen.value &&
+                halfScreenQa != null
+            ? halfScreenQa
+            : isWiFi
+                ? Pref.defaultVideoQa
+                : Pref.defaultVideoQaCellular
         ..cacheAudioQa = isWiFi
             ? Pref.defaultAudioQa
             : Pref.defaultAudioQaCellular;
@@ -863,10 +1063,16 @@ class VideoDetailController extends GetxController
 
       if (!fromReset) {
         final progress = args.remove('progress');
+        final playUrlStartTime = defaultST == null
+            ? _resolvePlayUrlStartTime(
+                lastPlayTime: data.lastPlayTime,
+                lastPlayCid: data.lastPlayCid,
+              )
+            : null;
         if (progress != null) {
           defaultST = Duration(milliseconds: progress);
-        } else {
-          defaultST = Duration(milliseconds: data.lastPlayTime);
+        } else if (playUrlStartTime != null) {
+          defaultST = playUrlStartTime;
         }
       }
 
@@ -899,7 +1105,16 @@ class VideoDetailController extends GetxController
         _setVideoHeight();
         currentDecodeFormats = VideoDecodeFormatType.fromString('avc1');
         currentVideoQa.value = videoQuality;
-        await _initPlayerIfNeeded(autoFullScreenFlag);
+        if (reinitializePlayer) {
+          await _initPlayerIfNeeded(autoFullScreenFlag);
+        } else {
+          // 从 PiP 返回时，重新初始化 SponsorBlock
+          if (plPlayerController.enableSponsorBlock && segmentList.isNotEmpty) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              initSkip();
+            });
+          }
+        }
         isQuerying = false;
         return;
       }
@@ -998,7 +1213,17 @@ class VideoDetailController extends GetxController
       } else {
         audioUrl = '';
       }
-      await _initPlayerIfNeeded(autoFullScreenFlag);
+      if (reinitializePlayer) {
+        await _initPlayerIfNeeded(autoFullScreenFlag);
+      } else {
+        // 从 PiP 返回时，播放器已在运行，但需要重新初始化 SponsorBlock 的跳过监听器
+        if (plPlayerController.enableSponsorBlock && segmentList.isNotEmpty) {
+          // 等待播放器就绪
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            initSkip();
+          });
+        }
+      }
     } else {
       _autoPlay.value = false;
       videoState.value = false;
@@ -1007,7 +1232,9 @@ class VideoDetailController extends GetxController
       }
       result.toast();
     }
-    isQuerying = false;
+    } finally {
+      isQuerying = false;
+    }
   }
 
   late final List<PostSegmentModel> postList = <PostSegmentModel>[];
@@ -1051,8 +1278,136 @@ class VideoDetailController extends GetxController
   RxList<Subtitle> subtitles = RxList<Subtitle>();
   final Map<int, ({bool isData, String id})> vttSubtitles = {};
   late final RxInt vttSubtitlesIndex = (-1).obs;
-  late final RxBool showVP = true.obs;
+  late final RxBool showVP = Pref.showViewPointsOverlay.obs;
   late final RxList<ViewPointSegment> viewPointList = <ViewPointSegment>[].obs;
+
+  ({
+    List<SegmentItemModel> items,
+    bool useBlockConfig,
+    bool isBlockSource,
+  })?
+  _resolveLocalSkipSegments(DownloadPlaybackMeta meta) {
+    final clipInfo = meta.clipInfo;
+    if (entry.ep != null &&
+        plPlayerController.enablePgcSkip &&
+        clipInfo != null &&
+        clipInfo.items.isNotEmpty) {
+      return (
+        items: clipInfo.toSegmentItemModels(),
+        useBlockConfig: false,
+        isBlockSource: false,
+      );
+    }
+    final sponsorBlock = meta.sponsorBlock;
+    if (plPlayerController.enableSponsorBlock &&
+        sponsorBlock != null &&
+        sponsorBlock.items.isNotEmpty) {
+      return (
+        items: sponsorBlock.toSegmentItemModels(),
+        useBlockConfig: true,
+        isBlockSource: true,
+      );
+    }
+    return null;
+  }
+
+  Future<void> _loadLocalPlaybackMeta() async {
+    viewPointList.clear();
+    resetBlock();
+    final metaFile = File(
+      path.join(entry.entryDirPath, PathUtils.playbackMetaName),
+    );
+    if (!metaFile.existsSync()) {
+      return;
+    }
+    try {
+      final meta = DownloadPlaybackMeta.fromJson(
+        (jsonDecode(await metaFile.readAsString()) as Map)
+            .cast<String, dynamic>(),
+      );
+      final durationMs = data.timeLength ?? entry.totalTimeMilli;
+      final chapters = meta.chapters;
+      if (plPlayerController.showViewPoints &&
+          durationMs > 0 &&
+          chapters != null) {
+        viewPointList.assignAll(
+          chapters.items.where((item) => item.toMs != null).map((item) {
+            final toMs = item.toMs!;
+            return ViewPointSegment(
+              end: (toMs / durationMs).clamp(0.0, 1.0),
+              title: item.content,
+              url: item.imgUrl,
+              from: item.fromMs == null ? null : item.fromMs! ~/ 1000,
+              to: toMs ~/ 1000,
+            );
+          }).toList(),
+        );
+      }
+      if (_resolveLocalSkipSegments(meta) case final resolved?) {
+        await handleSBData(
+          resolved.items,
+          useBlockConfig: resolved.useBlockConfig,
+          isBlockSource: resolved.isBlockSource,
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('load local playback meta failed: $e');
+      }
+    }
+  }
+
+  Future<void> _loadFileSubtitles() async {
+    final indexFile = File(
+      path.join(
+        entry.entryDirPath,
+        PathUtils.subtitlesDirName,
+        PathUtils.subtitleIndexName,
+      ),
+    );
+    if (!indexFile.existsSync()) return;
+
+    List<Subtitle> loaded;
+    try {
+      final jsonList = (jsonDecode(await indexFile.readAsString()) as List)
+          .cast<Map<String, dynamic>>();
+      loaded = jsonList.map(Subtitle.fromJson).toList();
+    } catch (e) {
+      if (kDebugMode) debugPrint('_loadFileSubtitles parse failed: $e');
+      return;
+    }
+
+    final validSubs = <Subtitle>[];
+    for (final sub in loaded) {
+      final vttPath = path.join(
+        entry.entryDirPath,
+        PathUtils.subtitlesDirName,
+        PathUtils.subtitleVttName(sub.lan),
+      );
+      if (File(vttPath).existsSync()) {
+        vttSubtitles[validSubs.length] = (isData: false, id: vttPath);
+        validSubs.add(sub);
+      }
+    }
+    if (validSubs.isEmpty) return;
+    if (isClosed) return;
+
+    subtitles.value = validSubs;
+
+    final idx = switch (Pref.subtitlePreferenceV2) {
+      SubtitlePrefType.off => 0,
+      SubtitlePrefType.on => 1,
+      SubtitlePrefType.withoutAi =>
+        subtitles.first.lan.startsWith('ai') ? 0 : 1,
+      SubtitlePrefType.auto =>
+        !subtitles.first.lan.startsWith('ai') ||
+                (PlatformUtils.isMobile &&
+                    (await FlutterVolumeController.getVolume() ?? 0.0) <= 0.0)
+            ? 1
+            : 0,
+    };
+    if (!isClosed) await setSubtitle(idx);
+  }
 
   // 设定字幕轨道
   Future<void> setSubtitle(int index) async {
@@ -1122,6 +1477,26 @@ class VideoDetailController extends GetxController
 
   late bool continuePlayingPart = Pref.continuePlayingPart;
 
+  Duration? _resolvePlayUrlStartTime({
+    required int lastPlayTime,
+    required int? lastPlayCid,
+  }) {
+    if (lastPlayTime <= 0) {
+      return Duration.zero;
+    }
+    return _canUseLastPlayTime(lastPlayCid)
+        ? Duration(milliseconds: lastPlayTime)
+        : Duration.zero;
+  }
+
+  bool _canUseLastPlayTime(int? lastPlayCid) {
+    if (lastPlayCid != null && lastPlayCid != 0) {
+      return lastPlayCid == cid.value;
+    }
+    // PGC/PUGV progress can come from watch_progress without last_play_cid.
+    return (_actualVideoType ?? videoType) != VideoType.ugc;
+  }
+
   Future<void> _queryPlayInfo() async {
     vttSubtitles.clear();
     vttSubtitlesIndex.value = 0;
@@ -1135,6 +1510,20 @@ class VideoDetailController extends GetxController
       epId: epId,
     );
     if (res case Success(:final response)) {
+      if (response.lastPlayTime != null &&
+          response.lastPlayTime! > 0 &&
+          _canUseLastPlayTime(response.lastPlayCid)) {
+        if (Accounts.get(AccountType.video).mid !=
+            Accounts.get(AccountType.heartbeat).mid) {
+          if (plPlayerController.position.inSeconds <= 3) {
+            plPlayerController.seekTo(
+              Duration(milliseconds: response.lastPlayTime!),
+            );
+            SmartDialog.showToast('已跳转至上次观看位置');
+          }
+        }
+      }
+
       // interactive video
       if (isUgc && graphVersion == null) {
         try {
@@ -1208,7 +1597,7 @@ class VideoDetailController extends GetxController
   void updateMediaListHistory(int aid) {
     if (args['sortField'] != null) {
       VideoHttp.medialistHistory(
-        desc: _mediaDesc ? 1 : 0,
+        desc: _listOrder.isDesc ? 1 : 0,
         oid: aid,
         upperMid: args['mediaId'],
       );
@@ -1242,6 +1631,13 @@ class VideoDetailController extends GetxController
 
   @override
   void onClose() {
+    if (isEnteringPip) {
+      // 正在进入小窗，保留资源
+      return;
+    }
+    plPlayerController.pause();
+    cancelBlockListener();
+    _dmTrendTaskId++;
     cid.close();
     if (isFileSource) {
       cacheLocalProgress();
@@ -1257,6 +1653,7 @@ class VideoDetailController extends GetxController
       ..dispose();
     subtitles.clear();
     vttSubtitles.clear();
+    Get.delete<AiChatController>(tag: heroTag);
     super.onClose();
   }
 
@@ -1266,6 +1663,7 @@ class VideoDetailController extends GetxController
     }
 
     playedTime = null;
+    _dmTrendTaskId++;
     defaultST = null;
     videoUrl = null;
     audioUrl = null;
@@ -1282,6 +1680,13 @@ class VideoDetailController extends GetxController
     vttSubtitlesIndex.value = -1;
     vttSubtitles.clear();
 
+    if (plPlayerController.showViewPoints) {
+      viewPointList.clear();
+    }
+    if (!PipOverlayService.isInPipMode) {
+      resetBlock();
+    }
+
     if (!isFileSource) {
       // language
       languages.value = null;
@@ -1290,16 +1695,6 @@ class VideoDetailController extends GetxController
       // dm trend
       if (plPlayerController.showDmChart) {
         dmTrend.value = null;
-      }
-
-      // view point
-      if (plPlayerController.showViewPoints) {
-        viewPointList.clear();
-      }
-
-      // sponsor block
-      if (blockConfig.enableBlock) {
-        resetBlock();
       }
 
       // interactive video
@@ -1314,9 +1709,46 @@ class VideoDetailController extends GetxController
   late final Rx<LoadingState<List<double>>?> dmTrend =
       Rx<LoadingState<List<double>>?>(null);
   late final RxBool showDmTrendChart = true.obs;
+  int _dmTrendTaskId = 0;
 
   Future<void> _getDmTrend() async {
+    final source = plPlayerController.dmChartSource;
+    if (!source.isEnabled) {
+      dmTrend.value = null;
+      return;
+    }
+
+    final taskId = ++_dmTrendTaskId;
+    bool shouldCancel() => taskId != _dmTrendTaskId || isClosed;
+
     dmTrend.value = LoadingState<List<double>>.loading();
+
+    if (source.enableOfficial) {
+      final official = await _tryGetOfficialDmTrend();
+      if (shouldCancel()) return;
+      if (official?.isNotEmpty == true) {
+        dmTrend.value = Success(official!);
+        return;
+      }
+      if (!source.enableLocalDensity) {
+        dmTrend.value = const Error(null);
+        return;
+      }
+    }
+
+    if (source.enableLocalDensity) {
+      final local = await _tryBuildLocalDmTrend(shouldCancel);
+      if (shouldCancel()) return;
+      if (local?.isNotEmpty == true) {
+        dmTrend.value = Success(local!);
+        return;
+      }
+    }
+
+    dmTrend.value = const Error(null);
+  }
+
+  Future<List<double>?> _tryGetOfficialDmTrend() async {
     try {
       final res = await Request().get(
         'https://bvc.bilivideo.com/pbp/data',
@@ -1328,13 +1760,29 @@ class VideoDetailController extends GetxController
       PbpData data = PbpData.fromJson(res.data);
       int stepSec = data.stepSec ?? 0;
       if (stepSec != 0 && data.events?.eDefault?.isNotEmpty == true) {
-        dmTrend.value = Success(data.events!.eDefault!);
-        return;
+        return data.events!.eDefault!;
       }
-      dmTrend.value = const Error(null);
     } catch (e) {
-      dmTrend.value = const Error(null);
-      if (kDebugMode) debugPrint('_getDmTrend: $e');
+      if (kDebugMode) debugPrint('_tryGetOfficialDmTrend: $e');
+    }
+    return null;
+  }
+
+  Future<List<double>?> _tryBuildLocalDmTrend(
+    bool Function() shouldCancel,
+  ) async {
+    try {
+      final durationMs = data.timeLength ??
+          plPlayerController.duration.value.inMilliseconds;
+      return await DanmakuDensityTrend.build(
+        cid: cid.value,
+        durationMs: durationMs,
+        shouldCancel: shouldCancel,
+      );
+    } catch (e, s) {
+      if (kDebugMode) debugPrint('_tryBuildLocalDmTrend: $e');
+      Utils.reportError(e, s);
+      return null;
     }
   }
 
@@ -1557,6 +2005,8 @@ class VideoDetailController extends GetxController
       ),
     );
   }
+
+  ThemeData get theme => ThemeUtils.theme;
 
   @pragma('vm:notify-debugger-on-exception')
   Future<void> onCast() async {

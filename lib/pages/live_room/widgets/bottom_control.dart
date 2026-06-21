@@ -1,4 +1,5 @@
 import 'package:PiliPlus/common/widgets/custom_icon.dart';
+import 'package:PiliPlus/common/widgets/flutter/popup_menu.dart';
 import 'package:PiliPlus/pages/live_room/controller.dart';
 import 'package:PiliPlus/pages/video/widgets/header_mixin.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
@@ -127,7 +128,7 @@ class _BottomControlState extends State<BottomControl> with HeaderMixin {
             onTap: () => showSetDanmaku(isLive: true),
           ),
           Obx(
-            () => PopupMenuButton<VideoFitType>(
+            () => StaticPopupMenuButton<VideoFitType>(
               tooltip: '画面比例',
               initialValue: plPlayerController.videoFit.value,
               color: Colors.black.withValues(alpha: 0.8),
@@ -160,7 +161,7 @@ class _BottomControlState extends State<BottomControl> with HeaderMixin {
             ),
           ),
           Obx(
-            () => PopupMenuButton<int>(
+            () => StaticPopupMenuButton<int>(
               tooltip: '画质',
               padding: EdgeInsets.zero,
               initialValue: liveRoomCtr.currentQn,

@@ -108,6 +108,7 @@ class _ReplyPageState extends CommonRichTextPubPageState<LiveSendDmPanel> {
               maxLines: 2,
               autofocus: false,
               readOnly: readOnly.value,
+              textInputAction: TextInputAction.send,
               onChanged: onChanged,
               onSubmitted: onSubmitted,
               focusNode: focusNode,

@@ -44,6 +44,7 @@ import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:PiliPlus/utils/video_utils.dart';
 import 'package:fixnum/fixnum.dart' show Int64;
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
@@ -62,6 +63,7 @@ class AudioController extends GetxController
   late int itemType;
   Int64? extraId;
   late final PlaylistSource from;
+  late final String heroTag;
   @override
   late final bool isUgc = itemType == 1;
 
@@ -137,6 +139,7 @@ class AudioController extends GetxController
     subId = (args['subId'] as List<int>?)?.map(Int64.new).toList() ?? [oid];
     itemType = args['itemType'];
     from = args['from'];
+    heroTag = args['heroTag'];
     _start = args['start'];
     final int? extraId = args['extraId'];
     if (extraId != null) {
@@ -192,6 +195,7 @@ class AudioController extends GetxController
   }
 
   Future<void>? onSeek(Duration duration) {
+    if (kDebugMode) debugPrint('AudioController: onSeek to $duration');
     return player?.seek(duration);
   }
 
@@ -203,7 +207,7 @@ class AudioController extends GetxController
     videoPlayerServiceHandler?.onVideoDetailChange(
       item,
       (subId.firstOrNull ?? oid).toInt(),
-      hashCode.toString(),
+      heroTag,
     );
   }
 
@@ -334,7 +338,7 @@ class AudioController extends GetxController
         options: {
           'volume': PlatformUtils.isDesktop
               ? (desktopVolume.value * 100).toString()
-              : Pref.playerVolume.toString(),
+              : (Pref.enableAppVolume ? 100.0 : Pref.playerVolume).toString(),
           'volume-max': kMaxVolume.toString(),
           ...Pref.initBuffer(),
         },
@@ -524,6 +528,7 @@ class AudioController extends GetxController
     MainReplyPage.toMainReplyPage(
       oid: oid.toInt(),
       replyType: isUgc ? 1 : 14,
+      heroTag: heroTag,
     );
   }
 
@@ -793,7 +798,7 @@ class AudioController extends GetxController
       ?..onPlay = null
       ..onPause = null
       ..onSeek = null
-      ..onVideoDetailDispose(hashCode.toString());
+      ..onVideoDetailDispose(heroTag);
     _subscriptions?.forEach((e) => e.cancel());
     _subscriptions?.clear();
     _subscriptions = null;

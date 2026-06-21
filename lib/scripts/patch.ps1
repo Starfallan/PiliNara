@@ -109,3 +109,10 @@ foreach ($patch in $patches) {
         Write-Host "$patch applied"
     }
 }
+
+# TODO: remove
+if ($platform.ToLower() -eq "android") {
+    "df67bb3b55323961184ae7117cc91c054f36a42c" | Set-Content -Path .\bin\internal\engine.version
+    Remove-Item -Path ".\bin\cache" -Recurse -Force
+    flutter --version
+}

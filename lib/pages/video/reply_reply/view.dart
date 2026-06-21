@@ -34,6 +34,7 @@ class VideoReplyReplyPanel extends CommonSlidePage {
     required this.isVideoDetail,
     required this.replyType,
     this.isNested = false,
+    this.heroTag,
     this.upMid,
   });
   final int? id;
@@ -44,6 +45,7 @@ class VideoReplyReplyPanel extends CommonSlidePage {
   final bool isVideoDetail;
   final int replyType;
   final bool isNested;
+  final String? heroTag;
   final Int64? upMid;
 
   @override
@@ -54,6 +56,7 @@ class VideoReplyReplyPanel extends CommonSlidePage {
     required int rootId,
     String? rpIdStr,
     required int type,
+    String? heroTag,
     Uri? uri,
   }) {
     final rpId = rpIdStr == null ? null : int.tryParse(rpIdStr);
@@ -63,6 +66,7 @@ class VideoReplyReplyPanel extends CommonSlidePage {
         'rpid': rootId,
         'id': ?rpId,
         'type': type,
+        'heroTag': heroTag,
         'enterUri': ?uri?.toString(), // save panel
       },
       () => Scaffold(
@@ -88,6 +92,7 @@ class VideoReplyReplyPanel extends CommonSlidePage {
             replyType: type,
             firstFloor: null,
             id: rpId,
+            heroTag: heroTag,
           ),
         ).constraintWidth(),
       ),
@@ -227,6 +232,7 @@ class _VideoReplyReplyPanelState extends State<VideoReplyReplyPanel>
             needDivider: false,
             onReply: (replyItem) => _controller.onReply(replyItem, index: -1),
             upMid: widget.upMid ?? _controller.upMid,
+            getTag: () => widget.heroTag,
             onCheckReply: (item) =>
                 _controller.onCheckReply(item, isManual: true),
           ),
@@ -349,6 +355,7 @@ class _VideoReplyReplyPanelState extends State<VideoReplyReplyPanel>
           replyType: widget.replyType,
           isVideoDetail: true,
           isNested: widget.isNested,
+          heroTag: widget.heroTag,
         ),
       ),
       jumpToDialogue: () {
@@ -357,6 +364,7 @@ class _VideoReplyReplyPanelState extends State<VideoReplyReplyPanel>
         }
       },
       onCheckReply: (item) => _controller.onCheckReply(item, isManual: true),
+      getTag: () => widget.heroTag,
     );
   }
 }

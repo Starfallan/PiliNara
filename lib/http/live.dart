@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
+
 import 'package:PiliPlus/common/constants.dart';
 import 'package:PiliPlus/http/api.dart';
 import 'package:PiliPlus/http/browser_ua.dart';
@@ -29,7 +33,9 @@ import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/accounts/account.dart';
 import 'package:PiliPlus/utils/app_sign.dart';
 import 'package:PiliPlus/utils/wbi_sign.dart';
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
+import 'package:hashlib/hashlib.dart' show sha3_384, sha3_512, blake2b512;
 
 abstract final class LiveHttp {
   static Account get recommend => Accounts.get(AccountType.recommend);
@@ -484,9 +490,10 @@ abstract final class LiveHttp {
       'type': type.name,
     };
     AppSign.appSign(params);
+    // 绕过 Dio 的 queryParameters 编码（会把空格变成 +）
+    // 复用 AppSign.makeQuery 保证排序、编码与签名计算完全一致（空格→%20）
     final res = await Request().get(
-      Api.liveSearch,
-      queryParameters: params,
+      '${Api.liveSearch}?${AppSign.makeQuery(params)}',
     );
     if (res.data['code'] == 0) {
       return Success(LiveSearchData.fromJson(res.data['data']));
@@ -763,6 +770,136 @@ abstract final class LiveHttp {
       return Success(MedalWallData.fromJson(res.data['data']));
     } else {
       return Error(res.data['message']);
+    }
+  }
+
+  // 直播心跳 - 使用 Constants 中的 appKey/appSec
+
+  // 会话级标识，每次进入直播间生成
+  static String? _hbUuid;
+  static String? _hbClickId;
+  static int _hbSeqId = 0;
+  static Timer? _heartbeatTimer;
+
+  static void startLiveHeartbeat(int roomId, int upId) {
+    cancelLiveHeartbeat();
+    _hbUuid = _generateUuidV4();
+    _hbClickId = _generateUuidV4();
+    _hbSeqId = 0;
+    _mobileHeartBeat(roomId: roomId, upId: upId);
+    _heartbeatTimer = Timer.periodic(
+      const Duration(seconds: 60),
+      (_) => _mobileHeartBeat(roomId: roomId, upId: upId),
+    );
+  }
+
+  static void cancelLiveHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+    _hbUuid = null;
+    _hbClickId = null;
+    _hbSeqId = 0;
+  }
+
+  static String _generateUuidV4() {
+    final random = Random();
+    return '${_hex(random, 8)}-${_hex(random, 4)}-4${_hex(random, 3)}-'
+        '${_hexVariant(random)}${_hex(random, 3)}-${_hex(random, 12)}';
+  }
+
+  static String _hex(Random random, int length) {
+    return List.generate(length, (_) => random.nextInt(16).toRadixString(16)).join();
+  }
+
+  static String _hexVariant(Random random) {
+    return (8 + random.nextInt(4)).toRadixString(16);
+  }
+
+  static String _randomString(int length) {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final random = Random();
+    return List.generate(length, (_) => chars[random.nextInt(chars.length)]).join();
+  }
+
+  static String _clientSign(Map<String, dynamic> data) {
+    var d = jsonEncode(data);
+    // SHA-512 -> SHA3-512 -> SHA-384 -> SHA3-384 -> BLAKE2b-512
+    d = sha512.convert(utf8.encode(d)).toString();
+    d = sha3_512.hex(utf8.encode(d));
+    d = sha384.convert(utf8.encode(d)).toString();
+    d = sha3_384.hex(utf8.encode(d));
+    d = blake2b512.hex(utf8.encode(d));
+    return d;
+  }
+
+  static Future<LoadingState<void>> _mobileHeartBeat({
+    required int roomId,
+    required int upId,
+  }) async {
+    final uuid = _hbUuid;
+    final clickId = _hbClickId;
+    if (uuid == null || clickId == null) return const Error('heartbeat not initialized');
+
+    _hbSeqId++;
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+    final data = <String, dynamic>{
+      'platform': 'android',
+      'uuid': uuid,
+      'buvid': _randomString(37).toUpperCase(),
+      'seq_id': '$_hbSeqId',
+      'room_id': '$roomId',
+      'parent_id': '6',
+      'area_id': '283',
+      'timestamp': '${now - 60}',
+      'secret_key': 'axoaadsffcazxksectbbb',
+      'watch_time': '60',
+      'up_id': '$upId',
+      'up_level': '40',
+      'jump_from': '30000',
+      'gu_id': _randomString(43).toLowerCase(),
+      'play_type': '0',
+      'play_url': '',
+      's_time': '0',
+      'data_behavior_id': '',
+      'data_source_id': '',
+      'up_session': 'l:one:live:record:$roomId:${now - 88888}',
+      'visit_id': _randomString(32).toLowerCase(),
+      'watch_status': '',
+      'click_id': clickId,
+      'session_id': '',
+      'player_type': '0',
+      'client_ts': '$now',
+    };
+
+    // client_sign: 固定哈希链
+    final cs = _clientSign(Map<String, dynamic>.from(data));
+    data['client_sign'] = cs;
+
+    // AppSign
+    final accessKey = Accounts.heartbeat.accessKey;
+    if (accessKey != null) {
+      data['access_key'] = accessKey;
+    }
+    data['actionKey'] = 'appkey';
+    AppSign.appSign(data);
+
+    try {
+      final res = await Request().post(
+        Api.mobileHeartBeat,
+        data: data,
+        options: Options(
+          contentType: Headers.formUrlEncodedContentType,
+          extra: {'account': Accounts.heartbeat},
+          headers: {'user-agent': Constants.userAgent},
+        ),
+      );
+      if (res.data?['code'] == 0) {
+        return const Success(null);
+      }
+      return Error(res.data?['message'] ?? 'heartbeat failed');
+    } catch (e) {
+      return Error(e.toString());
     }
   }
 }

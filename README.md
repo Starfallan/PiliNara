@@ -5,14 +5,11 @@
 
 
 <div align="center">
-    <h1>PiliPlus</h1>
+    <h1>PiliNara</h1>
 <div align="center">
     
-![GitHub repo size](https://img.shields.io/github/repo-size/bggRGjQaUbCoE/PiliPlus) 
-![GitHub Repo stars](https://img.shields.io/github/stars/bggRGjQaUbCoE/PiliPlus) 
-![GitHub all releases](https://img.shields.io/github/downloads/bggRGjQaUbCoE/PiliPlus/total) 
 </div>
-    <p>使用Flutter开发的BiliBili第三方客户端</p>
+    <p>基于PiliPlus做了一些自用修改</p>
     
 <img src="assets/screenshots/510shots_so.png" width="32%" alt="home" />
 <img src="assets/screenshots/174shots_so.png" width="32%" alt="home" />
@@ -24,6 +21,78 @@
 
 
 <br/>
+
+## 项目说明
+- 本项目PiliNara是基于[PiliPlus](https://github.com/bggRGjQaUbCoE/PiliPlus)进行修改的,做了一些自用的改动.
+- 本仓库保留了PiliPlus的所有功能,并在此基础上进行了部分自用的优化和调整.支持导入PiliPlus的设置和数据，也应该支持了导出设置和数据到PiliPlus.
+- 本项目会定期同步PiliPlus的更新,并在此基础上进行修改和优化.
+- 本项目仅供个人学习和测试使用，目前只打包了安卓版本,如有需要请自行Fork后编译.
+- 有啥需要的功能或者想法欢迎提issue或者PR,我会尽量抽时间进行开发和完善.
+- 本人开发水平有限，可能存在一些bug和不完善的地方，欢迎提交issue和PR.
+
+在此致敬原作者和上游作者的无私奉献。如有侵权请联系删除。
+
+## 改动说明(未来计划？)
+
+Fork特性：
+
+**基础适配与界面**
+- [x] 应用名称由PiliPlus更改为PiliNara，做了各平台相应替换以实现共存
+- [x] 修复Flutter在澎湃小窗下无法正常显示的问题，参考Flutter官方issue [#161086](https://github.com/flutter/flutter/issues/161086)，该问题似乎在HyperOS3上被修复
+   修复方案参考了[venera/pull/467](https://github.com/venera-app/venera/pull/467)
+- [x] 支持自定义「我的」页面卡片顺序和显示数量
+- [x] 「我的」页面新增历史记录卡片预览和「稍后再看」卡片板块
+- [x] 支持自定义修改应用字体和弹幕字体，可以手动选择本地字体文件
+- [x] 支持自动侧边栏切换，并可配置触发宽度
+- [x] Android 支持预测性返回动画
+- [x] 图片长按/右键菜单支持复制图片
+
+- [x] 优化了部分界面UI？
+
+**播放、小窗与画质**
+- [x] 实现了类似于[Pilipro](https://github.com/naaammme/pilipro)的应用内小窗功能，感谢原作者naaammme的无私奉献,在实现时参考了其逻辑
+- [x] 应用内小窗支持拖动、双击调整大小、横竖屏比例自适应和仿官方控制栏操作
+- [x] 应用内小窗支持SponsorBlock跳过片段，支持从应用内小窗返回桌面自动进入系统小窗(有待优化)
+
+  演示图片:![应用内小窗演示](https://r2.170529.xyz/PicList/2026/02/IMG_20260222_194923.avif)
+- [x] 实现了可以和其他应用同时播放音频的功能
+- [x] 播放器新增应用内音量控制功能，并支持在应用内音量模式下增强至 200%
+- [x] 支持半屏和全屏独立选择默认画质
+- [x] 收藏夹/分P/合集支持随机播放
+- [x] 增强系统媒体控制（通知栏/锁屏）可根据多P/合集/播放列表动态显示上一集/下一集按钮
+- [x] 在听视频界面的评论中也实现了根据评论时间戳快速跳转的功能
+- [x] 直播超级聊天（SC）卡片支持显示发送时间
+- [x] 尝试支持直播心跳功能，用于粉丝团亲密度积累
+
+**字幕、AI 与离线缓存**
+- [x] 新增 AI 字幕分析功能，支持自定义 OpenAI 兼容 API 地址和模型、时间戳跳转、模板预设和对话持久化
+- [x] 在保存字幕的功能中添加了选择保存为原始WEBVTT格式和SRT格式的选项,转换逻辑参考了BiliRoamingx项目中的实现
+- [x] 离线缓存新增“全部视频 / 文件夹”双视图，支持文件夹管理、手动排序、批量归类和按文件夹顺序播放
+- [x] 离线缓存视频支持 CC 字幕下载与离线播放
+- [x] 离线缓存播放支持元数据持久化，播放本地缓存时可恢复章节进度条与 SponsorBlock
+- [x] 下载页支持导出离线缓存视频到公共 Download 目录，支持单个导出和批量多选（仅 Android）
+
+**弹幕与屏蔽**
+- [x] 增强合并弹幕功能，添加类[Pakku.js](https://github.com/xmcp/pakku.js)实现，重复弹幕字体随数量而增大,可设置放大阈值和放大速度
+
+  演示图片:![合并弹幕演示](https://r2.170529.xyz/PicList/2026/02/Pakku_Life.avif)
+- [x] 增强原有的弹幕屏蔽功能，使用列表式可视化菜单替换了原有的|分割正则，尝试支持了更复杂的正则
+- [x] 弹幕屏蔽列表支持导入/导出，方便跨设备迁移、备份或使用 AI 辅助编辑
+
+**推荐、动态与评论过滤**
+  对于推荐流、动态流和评论的过滤功能，在原有的基础上基于个人习惯和社区反馈进行了增强和调整，增加了更多的过滤条件和应用场景，并优化了过滤列表的编辑体验。
+- [x] 推荐流过滤支持标题关键词、分区关键词、屏蔽用户、视频时长、播放量、点赞率和已关注 UP 豁免，首页 app 端推荐还支持屏蔽无权查看视频（如充电专属视频）
+- [x] 推荐流过滤器拓展到可选择应用到相关视频、热门视频、分区视频和搜索结果，搜索结果中仅过滤标题关键词和屏蔽用户
+- [x] 动态流过滤支持关键词、屏蔽用户、、带货动态、无权查看动态和充电专属视频动态
+- [x] 评论过滤支持关键词、屏蔽用户、低等级用户、带货评论、UP 主点赞评论豁免和 UP 主参与回复评论豁免
+
+**动态、搜索与用户信息**
+- [x] UP 主空间页和关注列表新增自定义备注功能，并支持在动态页和视频详情页作者名称后显示备注
+- [x] 搜索结果新增客户端本地关键词过滤，支持包含关键词和排除关键词（以增强B站比较难用的搜索功能）
+- [x] 首页 App 端推荐视频卡片新增充电专属角标
+- [x] 新增“显示视频推荐理由”设置项，可关闭首页视频卡片的“已关注”等推荐理由显示
+- [x] 投币页面支持显示当天已获取经验数与经验上限
+
 
 ## 适配平台
 
@@ -41,8 +110,8 @@
 - [x] 用户界面
 - [x] 其他
 
-## feat
 
+## feat
 - [x] 编辑动态
 - [x] DLNA 投屏
 - [x] 离线缓存/播放
@@ -83,7 +152,6 @@
 - [x] Live Photo
 - [x] 复制/移动/排序收藏夹/稍后再看视频
 - [x] 超分辨率
-- [x] 合并弹幕
 - [x] 会员彩色弹幕
 - [x] 播放全部/继续播放/倒序播放
 - [x] Cookie登录
@@ -219,11 +287,12 @@
 
 ## 声明
 
-此项目（PiliPlus）是个人为了兴趣而开发，仅用于学习和测试，请于下载后24小时内删除。
+此项目（PiliNara）是个人为了兴趣而开发，仅用于学习和测试，请于下载后24小时内删除。
 所用API皆从官方网站收集，不提供任何破解内容。
 在此致敬原作者：[guozhigq/pilipala](https://github.com/guozhigq/pilipala)
 在此致敬上游作者：[orz12/PiliPalaX](https://github.com/orz12/PiliPalaX)
-本仓库做了更激进的修改，感谢原作者的开源精神。
+在此致敬上游作者：[bggRGjQaUbCoE/PiliPlus](https://github.com/bggRGjQaUbCoE/PiliPlus)
+本仓库做了一些自用修改，感谢原作者的开源精神。
 
 感谢使用
 
@@ -241,13 +310,3 @@
 <br/>
 <br/>
 <br/>
-
-## Star History
-
-<a href="https://www.star-history.com/#bggRGjQaUbCoE/PiliPlus&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=bggRGjQaUbCoE/PiliPlus&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=bggRGjQaUbCoE/PiliPlus&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=bggRGjQaUbCoE/PiliPlus&type=Date" />
- </picture>
-</a>

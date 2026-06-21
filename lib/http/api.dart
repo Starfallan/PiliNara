@@ -278,6 +278,9 @@ abstract final class Api {
   static const String roomEntryAction =
       '${HttpString.liveBaseUrl}/xlive/web-room/v1/index/roomEntryAction';
 
+  static const String mobileHeartBeat =
+      'https://live-trace.bilibili.com/xlive/data-interface/v1/heartbeat/mobileHeartBeat';
+
   static const String mediaListHistory = '/x/v1/medialist/history';
 
   // 查询视频分P列表 (avid/bvid转cid)
@@ -411,7 +414,7 @@ abstract final class Api {
 
   // github 获取最新版
   static const String latestApp =
-      'https://api.github.com/repos/bggRGjQaUbCoE/PiliPlus/releases';
+      'https://api.github.com/repos/Starfallan/PiliNara/releases';
 
   // 多少人在看
   // https://api.bilibili.com/x/player/online/total?aid=913663681&cid=1203559746&bvid=BV1MM4y1s7NZ&ts=56427838
@@ -882,6 +885,8 @@ abstract final class Api {
   static const String vipExpAdd = '/x/vip/experience/add';
 
   static const String coinLog = '/x/member/web/coin/log';
+
+  static const String coinTodayExp = '/x/web-interface/coin/today/exp';
 
   static const String dynTopicRcmd = '/x/topic/web/dynamic/rcmd';
 

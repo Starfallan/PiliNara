@@ -10,6 +10,7 @@ import 'package:PiliPlus/pages/setting/widgets/ordered_multi_select_dialog.dart'
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
 import 'package:PiliPlus/plugin/pl_player/models/audio_output_type.dart';
 import 'package:PiliPlus/plugin/pl_player/models/hwdec_type.dart';
+import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/utils/filtering_text.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
@@ -83,15 +84,28 @@ List<SettingsModel> get videoSettings => [
     defaultVal: false,
     onChanged: (value) => VideoUtils.disableAudioCDN = value,
   ),
+  if (Platform.isAndroid || Platform.isIOS)
+    NormalModel(
+      title: '半屏默认画质',
+      leading: const Icon(Icons.video_settings_outlined),
+      getSubtitle: () {
+        final qa = Pref.defaultVideoQaHalfScreen;
+        if (qa == null) {
+          return '跟随全屏默认画质（${VideoQuality.fromCode(Pref.defaultVideoQa).desc}）';
+        }
+        return '当前画质：${VideoQuality.fromCode(qa).desc}';
+      },
+      onTap: _showVideoQaHalfScreenDialog,
+    ),
   NormalModel(
-    title: '默认画质',
+    title: '全屏默认画质',
     leading: const Icon(Icons.video_settings_outlined),
     getSubtitle: () =>
         '当前画质：${VideoQuality.fromCode(Pref.defaultVideoQa).desc}',
     onTap: _showVideoQaDialog,
   ),
   NormalModel(
-    title: '蜂窝网络画质',
+    title: '全屏蜂窝网络画质',
     leading: const Icon(Icons.video_settings_outlined),
     getSubtitle: () =>
         '当前画质：${VideoQuality.fromCode(Pref.defaultVideoQaCellular).desc}',
@@ -145,6 +159,18 @@ List<SettingsModel> get videoSettings => [
       getSubtitle: () => '当前：${Pref.audioOutput}',
       onTap: _showAudioOutputDialog,
     ),
+  SwitchModel(
+    title: '允许与其他应用同时播放',
+    subtitle:
+        '开启后支持与其他应用的音频同时播放。'
+        '${Platform.isIOS ? '\n开启后锁屏/通知栏/控制中心/车载不会显示正在播放的歌曲且不支持线控和Siri切歌（测试功能）' : ''}',
+    leading: const Icon(Icons.compare_arrows_outlined),
+    setKey: SettingBoxKey.mixWithOthers,
+    defaultVal: false,
+    onChanged: (value) {
+      audioSessionHandler?.reconfigure();
+    },
+  ),
   NormalModel(
     title: '缓冲大小',
     leading: const Icon(Icons.storage_outlined),
@@ -242,13 +268,35 @@ Future<void> _showVideoQaDialog(
   final res = await showDialog<int>(
     context: context,
     builder: (context) => SelectDialog<int>(
-      title: '默认画质',
+      title: '全屏默认画质',
       value: Pref.defaultVideoQa,
       values: VideoQuality.values.map((e) => (e.code, e.desc)).toList(),
     ),
   );
   if (res != null) {
     await GStorage.setting.put(SettingBoxKey.defaultVideoQa, res);
+    setState();
+  }
+}
+
+Future<void> _showVideoQaHalfScreenDialog(
+  BuildContext context,
+  VoidCallback setState,
+) async {
+  final currentQa = Pref.defaultVideoQaHalfScreen;
+  final res = await showDialog<int>(
+    context: context,
+    builder: (context) => SelectDialog<int>(
+      title: '半屏默认画质',
+      value: currentQa ?? -1,
+      values: [
+        (-1, '跟随全屏默认画质'),
+        ...VideoQuality.values.map((e) => (e.code, e.desc)),
+      ],
+    ),
+  );
+  if (res != null) {
+    await GStorage.setting.put(SettingBoxKey.defaultVideoQaHalfScreen, res);
     setState();
   }
 }
@@ -260,7 +308,7 @@ Future<void> _showVideoCellularQaDialog(
   final res = await showDialog<int>(
     context: context,
     builder: (context) => SelectDialog<int>(
-      title: '蜂窝网络画质',
+      title: '全屏蜂窝网络画质',
       value: Pref.defaultVideoQaCellular,
       values: VideoQuality.values.map((e) => (e.code, e.desc)).toList(),
     ),

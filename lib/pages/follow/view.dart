@@ -1,4 +1,5 @@
 import 'package:PiliPlus/common/widgets/dialog/dialog.dart';
+import 'package:PiliPlus/common/widgets/flutter/popup_menu.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/loading_widget.dart';
 import 'package:PiliPlus/common/widgets/scroll_physics.dart';
 import 'package:PiliPlus/common/widgets/view_safe_area.dart';
@@ -94,7 +95,7 @@ class _FollowPageState extends State<FollowPage> {
               icon: const Icon(Icons.search_outlined),
               tooltip: '搜索',
             ),
-            PopupMenuButton(
+            StaticPopupMenuButton(
               icon: const Icon(Icons.more_vert),
               itemBuilder: (context) => [
                 PopupMenuItem(

@@ -6,20 +6,25 @@ import 'package:PiliPlus/common/widgets/flutter/list_tile.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/http/loading_state.dart';
+import 'package:PiliPlus/models/common/mine_card_type.dart';
 import 'package:PiliPlus/models/common/nav_bar_config.dart';
 import 'package:PiliPlus/models_new/fav/fav_folder/list.dart';
+import 'package:PiliPlus/models_new/later/list.dart';
 import 'package:PiliPlus/pages/common/common_page.dart';
 import 'package:PiliPlus/pages/home/view.dart';
 import 'package:PiliPlus/pages/login/controller.dart';
 import 'package:PiliPlus/pages/main/controller.dart';
 import 'package:PiliPlus/pages/mine/controller.dart';
+import 'package:PiliPlus/pages/mine/widgets/history_card_item.dart';
 import 'package:PiliPlus/pages/mine/widgets/item.dart';
+import 'package:PiliPlus/pages/mine/widgets/to_view_card_item.dart';
 import 'package:PiliPlus/utils/bili_utils.dart';
 import 'package:PiliPlus/utils/extension/get_ext.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
+import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/material.dart' hide ListTile;
 import 'package:get/get.dart';
@@ -38,6 +43,24 @@ class _MediaPageState extends CommonPageState<MinePage>
     with AutomaticKeepAliveClientMixin {
   final MineController controller = Get.putOrFind(MineController.new);
   late final MainController _mainController = Get.find<MainController>();
+  late final List<MineCardType> _mineCards = _loadMineCards();
+
+  static List<MineCardType> _loadMineCards() {
+    final List? cache = GStorage.setting.get(SettingBoxKey.mineCardSort);
+    if (cache == null || cache.isEmpty) {
+      const defaults = [MineCardType.history, MineCardType.fav];
+      GStorage.setting.put(
+        SettingBoxKey.mineCardSort,
+        defaults.map((e) => e.index).toList(),
+      );
+      return defaults;
+    }
+    return cache
+        .whereType<int>()
+        .where((i) => i < MineCardType.values.length)
+        .map((i) => MineCardType.values[i])
+        .toList();
+  }
 
   @override
   bool get wantKeepAlive => true;
@@ -86,11 +109,24 @@ class _MediaPageState extends CommonPageState<MinePage>
                   children: [
                     _buildUserInfo(theme, secondary),
                     _buildActions(secondary),
-                    Obx(
-                      () => controller.loadingState.value is Loading
-                          ? const SizedBox.shrink()
-                          : _buildFav(theme, secondary),
-                    ),
+                    for (final card in _mineCards)
+                      switch (card) {
+                        MineCardType.history => Obx(
+                          () => controller.historyLoadingState.value is Loading
+                              ? const SizedBox.shrink()
+                              : _buildHistory(theme, secondary),
+                        ),
+                        MineCardType.fav => Obx(
+                          () => controller.loadingState.value is Loading
+                              ? const SizedBox.shrink()
+                              : _buildFav(theme, secondary),
+                        ),
+                        MineCardType.toView => Obx(
+                          () => controller.toViewLoadingState.value is Loading
+                              ? const SizedBox.shrink()
+                              : _buildToView(theme, secondary),
+                        ),
+                      },
                   ],
                 ),
               ),
@@ -448,6 +484,226 @@ class _MediaPageState extends CommonPageState<MinePage>
     () => controller.onRefresh(isManual: false),
   );
 
+  Widget _buildToView(ThemeData theme, Color secondary) {
+    return Column(
+      children: [
+        Divider(
+          height: 20,
+          color: theme.dividerColor.withValues(alpha: 0.1),
+        ),
+        ListTile(
+          onTap: () => Get.toNamed('/later'),
+          dense: true,
+          title: Padding(
+            padding: const EdgeInsets.only(left: 10),
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: '稍后再看  ',
+                    style: TextStyle(
+                      fontSize: theme.textTheme.titleMedium!.fontSize,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  WidgetSpan(
+                    child: Icon(
+                      Icons.arrow_forward_ios,
+                      size: 18,
+                      color: secondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          trailing: IconButton(
+            tooltip: '刷新',
+            onPressed: controller.queryToView,
+            icon: const Icon(Icons.refresh, size: 20),
+          ),
+        ),
+        _buildToViewBody(theme, secondary, controller.toViewLoadingState.value),
+      ],
+    );
+  }
+
+  Widget _buildToViewBody(
+    ThemeData theme,
+    Color secondary,
+    LoadingState loadingState,
+  ) {
+    return switch (loadingState) {
+      Loading() => const SizedBox.shrink(),
+      Success(:final response) => Builder(
+        builder: (context) {
+          final list = response as List?;
+          if (list == null || list.isEmpty) {
+            return const SizedBox.shrink();
+          }
+          return SizedBox(
+            height: 173,
+            child: ListView.separated(
+              padding: const EdgeInsets.only(left: 20, top: 10, right: 20),
+              itemCount: list.length + 1,
+              scrollDirection: Axis.horizontal,
+              itemBuilder: (context, index) {
+                if (index == list.length) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 46),
+                    child: Center(
+                      child: IconButton(
+                        tooltip: '查看更多',
+                        style: ButtonStyle(
+                          padding: const WidgetStatePropertyAll(EdgeInsets.zero),
+                          backgroundColor: WidgetStatePropertyAll(
+                            theme.colorScheme.secondaryContainer.withValues(
+                              alpha: 0.5,
+                            ),
+                          ),
+                        ),
+                        onPressed: () => Get.toNamed('/later'),
+                        icon: Icon(
+                          Icons.arrow_forward_ios,
+                          size: 18,
+                          color: secondary,
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                return ToViewCardItem(item: list[index] as LaterItemModel);
+              },
+              separatorBuilder: (_, _) => const SizedBox(width: 14),
+            ),
+          );
+        },
+      ),
+      Error(:final errMsg) => SizedBox(
+        height: 80,
+        child: Center(
+          child: Text(
+            errMsg ?? '',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    };
+  }
+
+  Widget _buildHistory(ThemeData theme, Color secondary) {
+    return Column(
+      children: [
+        Divider(
+          height: 20,
+          color: theme.dividerColor.withValues(alpha: 0.1),
+        ),
+        ListTile(
+          onTap: () => Get.toNamed('/history'),
+          dense: true,
+          title: Padding(
+            padding: const EdgeInsets.only(left: 10),
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: '观看记录  ',
+                    style: TextStyle(
+                      fontSize: theme.textTheme.titleMedium!.fontSize,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  WidgetSpan(
+                    child: Icon(
+                      Icons.arrow_forward_ios,
+                      size: 18,
+                      color: secondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          trailing: IconButton(
+            tooltip: '刷新',
+            onPressed: controller.queryHistory,
+            icon: const Icon(Icons.refresh, size: 20),
+          ),
+        ),
+        _buildHistoryBody(
+          theme,
+          secondary,
+          controller.historyLoadingState.value,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHistoryBody(
+    ThemeData theme,
+    Color secondary,
+    LoadingState loadingState,
+  ) {
+    return switch (loadingState) {
+      Loading() => const SizedBox.shrink(),
+      Success(:final response) => Builder(
+        builder: (context) {
+          final list = response as List?;
+          if (list == null || list.isEmpty) {
+            return const SizedBox.shrink();
+          }
+          return SizedBox(
+            height: 173,
+            child: ListView.separated(
+              padding: const EdgeInsets.only(left: 20, top: 10, right: 20),
+              itemCount: list.length + 1,
+              scrollDirection: Axis.horizontal,
+              itemBuilder: (context, index) {
+                if (index == list.length) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 46),
+                    child: Center(
+                      child: IconButton(
+                        tooltip: '查看更多',
+                        style: ButtonStyle(
+                          padding: const WidgetStatePropertyAll(
+                            EdgeInsets.zero,
+                          ),
+                          backgroundColor: WidgetStatePropertyAll(
+                            theme.colorScheme.secondaryContainer.withValues(
+                              alpha: 0.5,
+                            ),
+                          ),
+                        ),
+                        onPressed: () => Get.toNamed('/history'),
+                        icon: Icon(
+                          Icons.arrow_forward_ios,
+                          size: 18,
+                          color: secondary,
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                return HistoryCardItem(item: list[index]);
+              },
+              separatorBuilder: (_, _) => const SizedBox(width: 14),
+            ),
+          );
+        },
+      ),
+      Error(:final errMsg) => SizedBox(
+        height: 80,
+        child: Center(
+          child: Text(
+            errMsg ?? '',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    };
+  }
+
   Widget _buildFav(ThemeData theme, Color secondary) {
     return Column(
       children: [
@@ -515,7 +771,7 @@ class _MediaPageState extends CommonPageState<MinePage>
           }
           bool flag = (controller.favFolderCount ?? 0) > favFolderList.length;
           return SizedBox(
-            height: 200,
+            height: 173,
             child: ListView.separated(
               controller: controller.scrollController,
               padding: const .only(left: 20, top: 10, right: 20),
@@ -523,7 +779,7 @@ class _MediaPageState extends CommonPageState<MinePage>
               itemBuilder: (context, index) {
                 if (flag && index == favFolderList.length) {
                   return Padding(
-                    padding: const .only(bottom: 35),
+                    padding: const .only(bottom: 46),
                     child: Center(
                       child: IconButton(
                         tooltip: '查看更多',
