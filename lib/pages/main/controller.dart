@@ -309,10 +309,13 @@ class MainController extends GetxController
     switch (currentNav) {
       case NavigationBarType.home:
         homeController.toTopAndRefresh();
+        break;
       case NavigationBarType.dynamics:
         dynamicController.toTopAndRefresh();
+        break;
       case NavigationBarType.mine:
         Get.putOrFind(MineController.new).toTopAndRefresh();
+        break;
     }
   }
 
