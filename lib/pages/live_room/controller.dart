@@ -314,6 +314,78 @@ class LiveRoomController extends GetxController {
     return playerInit();
   }
 
+  // 直播投屏时，优先选择 HLS 协议的播放地址，且不使用 AV1 编码
+  // 实测发现http_stream协议在投屏时会报版权问题，导致无法播放，HLS协议则没有这个问题
+  String? _preferredCastUrl() {
+    final currentCastUrl = _currentCastUrl();
+    if (currentCastUrl != null) {
+      return currentCastUrl;
+    }
+
+    final candidates = <({String url, int score})>[];
+    for (final streamItem in stream) {
+      final protocolName = streamItem.protocolName?.toLowerCase() ?? '';
+      for (final formatItem in streamItem.format) {
+        final formatName = formatItem.formatName?.toLowerCase() ?? '';
+        for (final codecItem in formatItem.codec) {
+          final codecName = codecItem.codecName?.toLowerCase() ?? '';
+          for (final urlInfo in codecItem.urlInfo.indexed) {
+            final url = VideoUtils.getLiveCdnUrl(codecItem, index: urlInfo.$1);
+            final lowerUrl = url.toLowerCase();
+            final isHls =
+                protocolName.contains('hls') || lowerUrl.contains('.m3u8');
+            if (!isHls) {
+              continue;
+            }
+            var score = 0;
+            if (formatName.contains('ts')) {
+              score += 40;
+            }
+            if (formatName.contains('fmp4')) {
+              score += 20;
+            }
+            if (codecName.contains('avc') || codecName.contains('h264')) {
+              score += 30;
+            }
+            if (codecName.contains('hevc') || codecName.contains('h265')) {
+              score -= 20;
+            }
+            if (codecName.contains('av1')) {
+              score -= 30;
+            }
+            if (codecItem.currentQn == currentQn) {
+              score += 10;
+            }
+            if (urlInfo.$1 == liveUrlIndex) {
+              score += 5;
+            }
+            candidates.add((url: url, score: score));
+          }
+        }
+      }
+    }
+    if (candidates.isEmpty) {
+      return null;
+    }
+    candidates.sort((a, b) => b.score.compareTo(a.score));
+    return candidates.first.url;
+  }
+
+  String? _currentCastUrl() {
+    final streamItem = stream.getOrFirst(streamIndex);
+    final formatItem = streamItem.format.getOrFirst(formatIndex);
+    final codecItem = formatItem.codec.getOrFirst(codecIndex);
+    final url = VideoUtils.getLiveCdnUrl(codecItem, index: liveUrlIndex);
+    final protocolName = streamItem.protocolName?.toLowerCase() ?? '';
+    final codecName = codecItem.codecName?.toLowerCase() ?? '';
+    final lowerUrl = url.toLowerCase();
+    final isHls = protocolName.contains('hls') || lowerUrl.contains('.m3u8');
+    if (!isHls || codecName.contains('av1')) {
+      return null;
+    }
+    return url;
+  }
+
   Future<void> queryLiveInfoH5() async {
     final res = await LiveHttp.liveRoomInfoH5(roomId: roomId);
     if (res case Success(:final response)) {
@@ -327,7 +399,8 @@ class LiveRoomController extends GetxController {
   }
 
   Future<void> onCast() async {
-    final url = videoUrl;
+    final currentUrl = videoUrl;
+    final url = _preferredCastUrl() ?? currentUrl;
     if (url == null || url.isEmpty) {
       SmartDialog.showToast('播放地址未就绪');
       return;
