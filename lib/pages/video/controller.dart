@@ -433,11 +433,14 @@ class VideoDetailController extends GetxController
           (a, b) => a > b ? a : b,
         );
       }
-      if (plPlayerController.cacheVideoQa != targetQa) {
+      // 同一视频里，半屏/全屏预设值可能都会回落到同一个可用画质。
+      if (currentVideoQa.value?.code == targetQa) {
         plPlayerController.cacheVideoQa = targetQa;
-        currentVideoQa.value = VideoQuality.fromCode(targetQa);
-        updatePlayer();
+        return;
       }
+      plPlayerController.cacheVideoQa = targetQa;
+      currentVideoQa.value = VideoQuality.fromCode(targetQa);
+      updatePlayer();
     };
   }
 
