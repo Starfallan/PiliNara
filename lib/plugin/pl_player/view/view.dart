@@ -208,6 +208,9 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
   StreamSubscription? _controlsListener;
   void _onControlChanged(bool val) {
     final visible = val && !plPlayerController.controlsLock.value;
+    if (!visible && PlatformUtils.isDesktop) {
+      plPlayerController.hideDesktopProgressPreview();
+    }
 
     if ((widget.headerControl.key as GlobalKey<TimeBatteryMixin>).currentState
         case final state?) {
@@ -561,7 +564,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
 
               // Use TextPainter to manually truncate the string to ensure the Text widget
               // tight-wraps the text, avoiding the layout padding caused by TextOverflow.ellipsis
-              final textStyle = const TextStyle(
+              const textStyle = TextStyle(
                 color: Colors.white,
                 fontSize: 12,
               );
@@ -1571,20 +1574,21 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
 
         /// 时间进度 toast
         if (!isLive)
-          IgnorePointer(
-            ignoring: true,
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: FractionalTranslation(
-                translation: isFullScreen
-                    ? const Offset(0.0, 1.2)
-                    : const Offset(0.0, 0.8),
-                child: Obx(
-                  () => AnimatedOpacity(
+          Positioned.fill(
+            child: IgnorePointer(
+              ignoring: true,
+              child: Obx(
+                () {
+                  final desktopPreview = PlatformUtils.isDesktop &&
+                      plPlayerController.showDesktopProgressFeedback.value;
+                  final opacity = desktopPreview ||
+                          (!PlatformUtils.isDesktop &&
+                              plPlayerController.isSliderMoving.value)
+                      ? 1.0
+                      : 0.0;
+                  Widget child = AnimatedOpacity(
                     curve: Curves.easeInOut,
-                    opacity: plPlayerController.isSliderMoving.value
-                        ? 1.0
-                        : 0.0,
+                    opacity: opacity,
                     duration: const Duration(milliseconds: 150),
                     child: Container(
                       decoration: const BoxDecoration(
@@ -1600,33 +1604,52 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                         mainAxisSize: MainAxisSize.min,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Obx(() {
-                            return Text(
-                              DurationUtils.formatDuration(
-                                plPlayerController
-                                    .sliderTempPosition
-                                    .value
-                                    .inSeconds,
-                              ),
-                              style: textStyle,
-                            );
-                          }),
+                          Text(
+                            DurationUtils.formatDuration(
+                              plPlayerController
+                                  .sliderTempPosition
+                                  .value
+                                  .inSeconds,
+                            ),
+                            style: textStyle,
+                          ),
                           const Text('/', style: textStyle),
-                          Obx(
-                            () {
-                              return Text(
-                                DurationUtils.formatDuration(
-                                  plPlayerController.duration.value.inSeconds,
-                                ),
-                                style: textStyle,
-                              );
-                            },
+                          Text(
+                            DurationUtils.formatDuration(
+                              plPlayerController.duration.value.inSeconds,
+                            ),
+                            style: textStyle,
                           ),
                         ],
                       ),
                     ),
-                  ),
-                ),
+                  );
+
+                  final previewValue =
+                      plPlayerController.desktopProgressPreviewValue.value;
+                  if (desktopPreview && previewValue != null) {
+                    return _DesktopProgressPreviewLayout(
+                      maxWidth: maxWidth,
+                      previewValue: previewValue,
+                      anchorWidth: desktopSeekPreviewWidth(
+                        plPlayerController,
+                        maxHeight,
+                      ),
+                      bottom: 38,
+                      child: child,
+                    );
+                  }
+
+                  return Align(
+                    alignment: Alignment.topCenter,
+                    child: FractionalTranslation(
+                      translation: isFullScreen
+                          ? const Offset(0.0, 1.2)
+                          : const Offset(0.0, 0.8),
+                      child: child,
+                    ),
+                  );
+                },
               ),
             ),
           ),
@@ -1964,12 +1987,17 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
             ),
           ),
 
-        if (!isLive && plPlayerController.showSeekPreview)
-          buildSeekPreviewWidget(
-            plPlayerController,
-            maxWidth,
-            maxHeight,
-            () => mounted,
+        if (!isLive)
+          Obx(
+            () => plPlayerController.showSeekPreview &&
+                    plPlayerController.showPreview.value
+                ? buildSeekPreviewWidget(
+                    plPlayerController,
+                    maxWidth,
+                    maxHeight,
+                    () => mounted,
+                  )
+                : const SizedBox.shrink(),
           ),
 
         if (isFullScreen || plPlayerController.isDesktopPip) ...[

@@ -782,6 +782,7 @@ class PlPlayerController with BlockConfigMixin {
       if (showSeekPreview) {
         _clearPreview();
       }
+      hideDesktopProgressPreview();
       cancelLongPressTimer();
       if (_videoPlayerController != null &&
           _videoPlayerController!.state.playing) {
@@ -1375,6 +1376,10 @@ class PlPlayerController with BlockConfigMixin {
     cancelSeek = null;
     hasToast = null;
     isSliderMoving.value = false;
+    if (PlatformUtils.isDesktop) {
+      requireDesktopProgressHoverReenter = _desktopProgressPointerInside;
+      hideDesktopProgressPreview();
+    }
     hideTaskControls();
   }
 
@@ -1539,6 +1544,9 @@ class PlPlayerController with BlockConfigMixin {
   }
 
   set controls(bool visible) {
+    if (!visible && PlatformUtils.isDesktop) {
+      hideDesktopProgressPreview();
+    }
     showControls.value = visible;
     _timer?.cancel();
     if (visible) {
@@ -1642,6 +1650,9 @@ class PlPlayerController with BlockConfigMixin {
   void onLockControl(bool val) {
     feedBack();
     controlsLock.value = val;
+    if (val) {
+      hideDesktopProgressPreview();
+    }
     if (!val && showControls.value) {
       showControls.refresh();
     }
@@ -1862,6 +1873,7 @@ class PlPlayerController with BlockConfigMixin {
     _disableAutoEnterPip();
     setPlayCallBack(null);
     dmState.clear();
+    hideDesktopProgressPreview();
     if (showSeekPreview) {
       _clearPreview();
     }
@@ -1934,11 +1946,105 @@ class PlPlayerController with BlockConfigMixin {
   late final RxBool showPreview = false.obs;
   late final showSeekPreview = Pref.showSeekPreview;
   late final previewIndex = RxnInt();
+  final RxBool showDesktopProgressFeedback = false.obs;
+  final Rx<double?> desktopProgressHoverValue = Rx<double?>(null);
+  final Rx<double?> desktopProgressPreviewValue = Rx<double?>(null);
+  final RxInt desktopProgressPreviewLayoutVersion = 0.obs;
+  bool _desktopProgressPointerInside = false;
+  bool requireDesktopProgressHoverReenter = false;
+
+  void refreshDesktopProgressPreviewLayout() {
+    desktopProgressPreviewLayoutVersion.value++;
+  }
+
+  double _progressValueFromDuration(Duration value) {
+    final totalMilliseconds = duration.value.inMilliseconds;
+    if (totalMilliseconds <= 0) {
+      return 0.0;
+    }
+    return (value.inMilliseconds / totalMilliseconds).clamp(0.0, 1.0);
+  }
+
+  void _setDesktopProgressPreviewState(Duration value) {
+    final progressValue = _progressValueFromDuration(value);
+    sliderTempPosition.value = value;
+    desktopProgressHoverValue.value = progressValue;
+    desktopProgressPreviewValue.value = progressValue;
+  }
+
+  void updateDesktopProgressPreviewFromDrag(Duration value) {
+    if (!PlatformUtils.isDesktop) {
+      return;
+    }
+    _setDesktopProgressPreviewState(value);
+    showDesktopProgressFeedback.value = true;
+    if (!isFileSource && showSeekPreview) {
+      updatePreviewIndex(value.inSeconds);
+    }
+  }
+
+  void onDesktopProgressDragStart(Duration value) {
+    _desktopProgressPointerInside = true;
+    requireDesktopProgressHoverReenter = false;
+    updateDesktopProgressPreviewFromDrag(value);
+  }
+
+  void onDesktopProgressHoverStart(Duration value) {
+    _desktopProgressPointerInside = true;
+    if (controlsLock.value || isSliderMoving.value) {
+      return;
+    }
+    if (requireDesktopProgressHoverReenter) {
+      return;
+    }
+    _setDesktopProgressPreviewState(value);
+    showDesktopProgressFeedback.value = true;
+    if (!isFileSource && showSeekPreview) {
+      updatePreviewIndex(value.inSeconds);
+    }
+  }
+
+  void onDesktopProgressHoverUpdate(Duration value) {
+    _desktopProgressPointerInside = true;
+    if (controlsLock.value || isSliderMoving.value) {
+      return;
+    }
+    if (requireDesktopProgressHoverReenter) {
+      return;
+    }
+    _setDesktopProgressPreviewState(value);
+    showDesktopProgressFeedback.value = true;
+    if (!isFileSource && showSeekPreview) {
+      updatePreviewIndex(value.inSeconds);
+    }
+  }
+
+  void onDesktopProgressHoverEnd() {
+    _desktopProgressPointerInside = false;
+    requireDesktopProgressHoverReenter = false;
+    if (!isSliderMoving.value) {
+      hideDesktopProgressPreview();
+    }
+  }
+
+  void hideDesktopProgressPreview() {
+    showDesktopProgressFeedback.value = false;
+    desktopProgressHoverValue.value = null;
+    desktopProgressPreviewValue.value = null;
+    if (showSeekPreview) {
+      showPreview.value = false;
+    }
+  }
 
   void updatePreviewIndex(int seconds) {
     if (videoShot == null) {
       videoShot = LoadingState.loading();
+      showPreview.value = true;
       getVideoShot();
+      return;
+    }
+    if (videoShot is Loading) {
+      showPreview.value = true;
       return;
     }
     if (videoShot case Success(:final response)) {
@@ -1947,6 +2053,9 @@ class PlPlayerController with BlockConfigMixin {
         0,
         (response.index.where((item) => item <= seconds).length - 2),
       );
+    } else {
+      showPreview.value = false;
+      previewIndex.value = null;
     }
   }
 
@@ -1962,6 +2071,15 @@ class PlPlayerController with BlockConfigMixin {
 
   Future<void> getVideoShot() async {
     videoShot = await VideoHttp.videoshot(bvid: bvid, cid: cid!);
+    if (!showPreview.value) {
+      return;
+    }
+    if (videoShot case Success()) {
+      updatePreviewIndex(sliderTempPosition.value.inSeconds);
+    } else {
+      showPreview.value = false;
+      previewIndex.value = null;
+    }
   }
 
   Future<void> takeScreenshot() async {

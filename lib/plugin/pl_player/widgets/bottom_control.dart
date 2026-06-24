@@ -29,24 +29,30 @@ class BottomControl extends StatelessWidget {
 
   void onDragStart(ThumbDragDetails duration) {
     feedBack();
-    controller.onChangedSliderStart(duration.timeStamp);
+    controller
+      ..onDesktopProgressDragStart(duration.timeStamp)
+      ..onChangedSliderStart(duration.timeStamp);
   }
 
   void onDragUpdate(ThumbDragDetails duration) {
-    if (!controller.isFileSource && controller.showSeekPreview) {
-      controller.updatePreviewIndex(duration.timeStamp.inSeconds);
-    }
-    controller.onUpdatedSliderProgress(duration.timeStamp);
+    controller
+      ..updateDesktopProgressPreviewFromDrag(duration.timeStamp)
+      ..onUpdatedSliderProgress(duration.timeStamp);
   }
 
   void onSeek(Duration duration) {
-    if (controller.showSeekPreview) {
-      controller.showPreview.value = false;
-    }
     controller
       ..onChangedSliderEnd()
       ..onChangedSlider(duration.inSeconds)
       ..seekTo(Duration(seconds: duration.inSeconds), isSeek: false);
+  }
+
+  void onHoverStart(ThumbDragDetails duration) {
+    controller.onDesktopProgressHoverStart(duration.timeStamp);
+  }
+
+  void onHoverUpdate(ThumbDragDetails duration) {
+    controller.onDesktopProgressHoverUpdate(duration.timeStamp);
   }
 
   @override
@@ -92,6 +98,15 @@ class BottomControl extends StatelessWidget {
                         onDragStart: onDragStart,
                         onDragUpdate: onDragUpdate,
                         onSeek: onSeek,
+                        onHoverStart: PlatformUtils.isDesktop
+                            ? onHoverStart
+                            : null,
+                        onHoverUpdate: PlatformUtils.isDesktop
+                            ? onHoverUpdate
+                            : null,
+                        onHoverEnd: PlatformUtils.isDesktop
+                            ? controller.onDesktopProgressHoverEnd
+                            : null,
                       );
                     }),
                     if (controller.enableBlock &&
@@ -139,6 +154,34 @@ class BottomControl extends StatelessWidget {
                       if (videoDetailController.dmTrend.value?.dataOrNull
                           case final list?)
                         buildDmChart(primary, list, videoDetailController, 4.5),
+
+                    if (PlatformUtils.isDesktop)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: Obx(() {
+                            final duration =
+                                controller.duration.value.inMilliseconds;
+                            final progress = duration > 0
+                                ? controller.sliderPositionSeconds.value *
+                                      1000 /
+                                      duration
+                                : 0.0;
+                            final hoverValue =
+                                controller.showDesktopProgressFeedback.value
+                                ? controller.desktopProgressHoverValue.value
+                                : null;
+                            return CustomPaint(
+                              painter: _DesktopProgressHoverPainter(
+                                hoverValue: hoverValue,
+                                progressValue: progress,
+                                color: primary,
+                                thumbGlowColor: thumbGlowColor,
+                                isDragging: controller.isSliderMoving.value,
+                              ),
+                            );
+                          }),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -148,5 +191,97 @@ class BottomControl extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _DesktopProgressHoverPainter extends CustomPainter {
+  const _DesktopProgressHoverPainter({
+    required this.hoverValue,
+    required this.progressValue,
+    required this.color,
+    required this.thumbGlowColor,
+    required this.isDragging,
+  });
+
+  static const double _barHeight = 3.5;
+  static const double _thumbRadius = 7.0;
+  static const double _thumbGlowRadius = 25.0;
+
+  final double? hoverValue;
+  final double progressValue;
+  final Color color;
+  final Color thumbGlowColor;
+  final bool isDragging;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final value = hoverValue;
+    if (value == null) {
+      return;
+    }
+
+    const capRadius = _barHeight / 2;
+    final availableWidth = size.width - _barHeight;
+    final centerY = size.height - _thumbRadius;
+    final hoverDx = value * availableWidth + capRadius;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    const triangleHalfWidth = 6.0;
+    const triangleHeight = 8.0;
+    const gap = 4.0;
+
+    canvas
+      ..drawPath(
+        Path()
+          ..moveTo(
+            hoverDx - triangleHalfWidth,
+            centerY - gap - triangleHeight,
+          )
+          ..lineTo(
+            hoverDx + triangleHalfWidth,
+            centerY - gap - triangleHeight,
+          )
+          ..lineTo(hoverDx, centerY - gap)
+          ..close(),
+        paint,
+      )
+      ..drawPath(
+        Path()
+          ..moveTo(
+            hoverDx - triangleHalfWidth,
+            centerY + gap + triangleHeight,
+          )
+          ..lineTo(
+            hoverDx + triangleHalfWidth,
+            centerY + gap + triangleHeight,
+          )
+          ..lineTo(hoverDx, centerY + gap)
+          ..close(),
+        paint,
+      );
+
+    final progressDx = progressValue.clamp(0.0, 1.0).toDouble() *
+            availableWidth +
+        capRadius;
+    final center = Offset(progressDx, centerY);
+    if (isDragging) {
+      canvas.drawCircle(
+        center,
+        _thumbGlowRadius,
+        Paint()..color = thumbGlowColor,
+      );
+    }
+    canvas.drawCircle(center, _thumbRadius, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _DesktopProgressHoverPainter oldDelegate) {
+    return oldDelegate.hoverValue != hoverValue ||
+        oldDelegate.progressValue != progressValue ||
+        oldDelegate.color != color ||
+        oldDelegate.thumbGlowColor != thumbGlowColor ||
+        oldDelegate.isDragging != isDragging;
   }
 }

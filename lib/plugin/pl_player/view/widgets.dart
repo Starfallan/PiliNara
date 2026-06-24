@@ -64,30 +64,72 @@ Widget buildSeekPreviewWidget(
       }
 
       try {
-        final data = plPlayerController.videoShot!.data;
+        final height = desktopSeekPreviewHeight(
+          plPlayerController,
+          maxHeight,
+        );
 
-        final double scale =
-            plPlayerController.isFullScreen.value &&
-                (PlatformUtils.isDesktop || !plPlayerController.isVertical)
-            ? 4
-            : 3;
-        double height = 27 * scale;
-        final compatHeight = maxHeight - 140;
-        if (compatHeight > 50) {
-          height = math.min(height, compatHeight);
+        Widget positionPreview(Widget child, double width) {
+          final previewValue =
+              plPlayerController.desktopProgressPreviewValue.value;
+          if (PlatformUtils.isDesktop &&
+              plPlayerController.showDesktopProgressFeedback.value &&
+              previewValue != null) {
+            return Positioned.fill(
+              child: _DesktopProgressPreviewLayout(
+                maxWidth: maxWidth,
+                previewValue: previewValue,
+                anchorWidth: width,
+                bottom: 78,
+                child: child,
+              ),
+            );
+          }
+          return Align(
+            alignment: Alignment.center,
+            child: child,
+          );
         }
 
+        final videoShot = plPlayerController.videoShot;
+        final data = videoShot?.dataOrNull;
+        if (data == null) {
+          final width = desktopSeekPreviewWidth(
+            plPlayerController,
+            maxHeight,
+          );
+          return positionPreview(
+            _SeekPreviewPlaceholder(
+              width: width,
+              height: height,
+            ),
+            width,
+          );
+        }
+
+        if (data.image.isEmpty) {
+          return const SizedBox.shrink();
+        }
         final int imgXLen = data.imgXLen;
         final int imgYLen = data.imgYLen;
         final int totalPerImage = data.totalPerImage;
         double imgXSize = data.imgXSize;
         double imgYSize = data.imgYSize;
+        final width = desktopSeekPreviewWidth(
+          plPlayerController,
+          maxHeight,
+        );
 
-        return Align(
-          alignment: Alignment.center,
-          child: Obx(
+        return positionPreview(
+          Obx(
             () {
-              final index = plPlayerController.previewIndex.value!;
+              final index = plPlayerController.previewIndex.value;
+              if (index == null) {
+                return _SeekPreviewPlaceholder(
+                  width: width,
+                  height: height,
+                );
+              }
               int pageIndex = (index ~/ totalPerImage).clamp(
                 0,
                 data.image.length - 1,
@@ -107,14 +149,21 @@ Widget buildSeekPreviewWidget(
                   imgYSize: imgYSize,
                   height: height,
                   imageCache: plPlayerController.previewCache,
-                  onSetSize: (xSize, ySize) => data
-                    ..imgXSize = imgXSize = xSize
-                    ..imgYSize = imgYSize = ySize,
+                  onSetSize: (xSize, ySize) {
+                    if (imgXSize == xSize && imgYSize == ySize) {
+                      return;
+                    }
+                    data
+                      ..imgXSize = imgXSize = xSize
+                      ..imgYSize = imgYSize = ySize;
+                    plPlayerController.refreshDesktopProgressPreviewLayout();
+                  },
                   isMounted: isMounted,
                 ),
               );
             },
           ),
+          width,
         );
       } catch (e) {
         if (kDebugMode) rethrow;
@@ -122,6 +171,185 @@ Widget buildSeekPreviewWidget(
       }
     },
   );
+}
+
+double desktopSeekPreviewHeight(
+  PlPlayerController plPlayerController,
+  double maxHeight,
+) {
+  final double scale =
+      plPlayerController.isFullScreen.value &&
+          (PlatformUtils.isDesktop || !plPlayerController.isVertical)
+      ? 4
+      : 3;
+  double height = 27 * scale;
+  final compatHeight = maxHeight - 140;
+  if (compatHeight > 50) {
+    height = math.min(height, compatHeight);
+  }
+  return height;
+}
+
+double desktopSeekPreviewWidth(
+  PlPlayerController plPlayerController,
+  double maxHeight,
+) {
+  plPlayerController.desktopProgressPreviewLayoutVersion.value;
+  final data = plPlayerController.videoShot?.dataOrNull;
+  if (data == null) {
+    return desktopSeekPreviewHeight(plPlayerController, maxHeight) * 16 / 9;
+  }
+  return desktopSeekPreviewWidthFromSize(
+    height: desktopSeekPreviewHeight(plPlayerController, maxHeight),
+    imgXSize: data.imgXSize,
+    imgYSize: data.imgYSize,
+  );
+}
+
+double desktopSeekPreviewWidthFromSize({
+  required double height,
+  required double imgXSize,
+  required double imgYSize,
+}) {
+  if (imgXSize <= 0 || imgYSize <= 0) {
+    return height * 16 / 9;
+  }
+  return height * imgXSize / imgYSize;
+}
+
+class _DesktopProgressPreviewLayout extends StatelessWidget {
+  const _DesktopProgressPreviewLayout({
+    required this.maxWidth,
+    required this.previewValue,
+    required this.anchorWidth,
+    required this.bottom,
+    required this.child,
+  });
+
+  static const double _margin = 12.0;
+
+  final double maxWidth;
+  final double previewValue;
+  final double anchorWidth;
+  final double bottom;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomSingleChildLayout(
+      delegate: _DesktopProgressPreviewLayoutDelegate(
+        maxWidth: maxWidth,
+        previewValue: previewValue,
+        anchorWidth: anchorWidth,
+        bottom: bottom,
+        margin: _margin,
+      ),
+      child: child,
+    );
+  }
+}
+
+class _DesktopProgressPreviewLayoutDelegate extends SingleChildLayoutDelegate {
+  const _DesktopProgressPreviewLayoutDelegate({
+    required this.maxWidth,
+    required this.previewValue,
+    required this.anchorWidth,
+    required this.bottom,
+    required this.margin,
+  });
+
+  final double maxWidth;
+  final double previewValue;
+  final double anchorWidth;
+  final double bottom;
+  final double margin;
+
+  @override
+  Size getSize(BoxConstraints constraints) {
+    final width = constraints.maxWidth.isFinite
+        ? constraints.maxWidth
+        : maxWidth;
+    final height = constraints.maxHeight.isFinite ? constraints.maxHeight : 0.0;
+    return Size(width, height);
+  }
+
+  @override
+  Offset getPositionForChild(Size size, Size childSize) {
+    final anchorCenter = _desktopPreviewAnchorCenter(
+      maxWidth: size.width,
+      previewValue: previewValue,
+      anchorWidth: anchorWidth,
+      margin: margin,
+    );
+    final maxLeft = math.max(margin, size.width - childSize.width - margin);
+    final left = (anchorCenter - childSize.width / 2)
+        .clamp(margin, maxLeft)
+        .toDouble();
+    return Offset(left, size.height - bottom - childSize.height);
+  }
+
+  @override
+  bool shouldRelayout(
+    covariant _DesktopProgressPreviewLayoutDelegate oldDelegate,
+  ) {
+    return oldDelegate.maxWidth != maxWidth ||
+        oldDelegate.previewValue != previewValue ||
+        oldDelegate.anchorWidth != anchorWidth ||
+        oldDelegate.bottom != bottom ||
+        oldDelegate.margin != margin;
+  }
+}
+
+double _desktopPreviewAnchorCenter({
+  required double maxWidth,
+  required double previewValue,
+  required double anchorWidth,
+  required double margin,
+}) {
+  final availableWidth = math.max(0.0, maxWidth - margin * 2);
+  final width = anchorWidth.clamp(0.0, availableWidth).toDouble();
+  final maxLeft = math.max(margin, maxWidth - width - margin);
+  final left = (maxWidth * previewValue - width / 2)
+      .clamp(margin, maxLeft)
+      .toDouble();
+  return left + width / 2;
+}
+
+class _SeekPreviewPlaceholder extends StatelessWidget {
+  const _SeekPreviewPlaceholder({
+    required this.width,
+    required this.height,
+  });
+
+  final double width;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = ColorScheme.of(context);
+    return ClipRRect(
+      borderRadius: Style.mdRadius,
+      child: Container(
+        width: width,
+        height: height,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.58),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.45),
+            width: 1.5,
+          ),
+        ),
+        child: SizedBox.square(
+          dimension: math.min(24, height * 0.28),
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: colorScheme.primary,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class VideoShotImage extends StatefulWidget {
