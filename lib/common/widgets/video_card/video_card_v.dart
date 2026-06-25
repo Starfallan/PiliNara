@@ -25,11 +25,13 @@ import 'package:intl/intl.dart';
 class VideoCardV extends StatelessWidget {
   final BaseRcmdVideoItemModel videoItem;
   final VoidCallback? onRemove;
+  final double aspectRatio;
 
   const VideoCardV({
     super.key,
     required this.videoItem,
     this.onRemove,
+    this.aspectRatio = Style.aspectRatio,
   });
 
   Future<void> onPushDetail() async {
@@ -101,7 +103,7 @@ class VideoCardV extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 AspectRatio(
-                  aspectRatio: Style.aspectRatio,
+                  aspectRatio: aspectRatio,
                   child: LayoutBuilder(
                     builder: (context, boxConstraints) {
                       double maxWidth = boxConstraints.maxWidth;

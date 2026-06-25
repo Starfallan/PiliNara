@@ -10,11 +10,13 @@ import 'package:flutter/material.dart';
 class LiveCardVApp extends StatelessWidget {
   final CardLiveItem item;
   final bool showFirstFrame;
+  final double aspectRatio;
 
   const LiveCardVApp({
     super.key,
     required this.item,
     this.showFirstFrame = false,
+    this.aspectRatio = Style.aspectRatio,
   });
 
   @override
@@ -32,7 +34,7 @@ class LiveCardVApp extends StatelessWidget {
         child: Column(
           children: [
             AspectRatio(
-              aspectRatio: Style.aspectRatio,
+              aspectRatio: aspectRatio,
               child: LayoutBuilder(
                 builder: (context, boxConstraints) {
                   double maxWidth = boxConstraints.maxWidth;

@@ -55,7 +55,7 @@ class _RcmdPageState extends State<RcmdPage>
     mainAxisSpacing: Style.cardSpace,
     crossAxisSpacing: Style.cardSpace,
     maxCrossAxisExtent: Pref.recommendCardWidth,
-    childAspectRatio: Style.aspectRatio,
+    childAspectRatio: Style.aspectRatio4x3,
     mainAxisExtent: MediaQuery.textScalerOf(context).scale(90),
   );
 
@@ -99,6 +99,7 @@ class _RcmdPageState extends State<RcmdPage>
                         : index;
                     return VideoCardV(
                       videoItem: response[actualIndex],
+                      aspectRatio: Style.aspectRatio4x3,
                       onRemove: () {
                         if (controller.lastRefreshAt != null &&
                             actualIndex < controller.lastRefreshAt!) {
@@ -113,6 +114,7 @@ class _RcmdPageState extends State<RcmdPage>
                   } else {
                     return VideoCardV(
                       videoItem: response[index],
+                      aspectRatio: Style.aspectRatio4x3,
                       onRemove: () => controller.loadingState
                         ..value.data!.removeAt(index)
                         ..refresh(),
@@ -133,7 +135,9 @@ class _RcmdPageState extends State<RcmdPage>
 
   Widget get _buildSkeleton => SliverGrid.builder(
     gridDelegate: gridDelegate,
-    itemBuilder: (context, index) => const VideoCardVSkeleton(),
+    itemBuilder: (context, index) => const VideoCardVSkeleton(
+      aspectRatio: Style.aspectRatio4x3,
+    ),
     itemCount: 10,
   );
 }

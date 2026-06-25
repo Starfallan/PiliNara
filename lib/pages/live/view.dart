@@ -180,7 +180,7 @@ class _LivePageState extends State<LivePage>
     mainAxisSpacing: Style.cardSpace,
     crossAxisSpacing: Style.cardSpace,
     maxCrossAxisExtent: Grid.smallCardWidth,
-    childAspectRatio: Style.aspectRatio,
+    childAspectRatio: Style.aspectRatio4x3,
     mainAxisExtent: textScaler.scale(90),
   );
 
@@ -188,7 +188,9 @@ class _LivePageState extends State<LivePage>
     return switch (loadingState) {
       Loading() => SliverGrid.builder(
         gridDelegate: gridDelegate,
-        itemBuilder: (context, index) => const VideoCardVSkeleton(),
+        itemBuilder: (context, index) => const VideoCardVSkeleton(
+          aspectRatio: Style.aspectRatio4x3,
+        ),
         itemCount: 10,
       ),
       Success(:final response) => SliverMainAxisGroup(
@@ -241,11 +243,13 @@ class _LivePageState extends State<LivePage>
                       return LiveCardVApp(
                         item: item.cardData!.smallCardV1!,
                         showFirstFrame: controller.showFirstFrame,
+                        aspectRatio: Style.aspectRatio4x3,
                       );
                     }
                     return LiveCardVApp(
                       item: item,
                       showFirstFrame: controller.showFirstFrame,
+                      aspectRatio: Style.aspectRatio4x3,
                     );
                   },
                   itemCount: response.length,
