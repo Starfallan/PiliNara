@@ -123,6 +123,9 @@ class PipOverlayService {
 
     if (disposePlayer && savedPlayerController != null) {
       savedController.makeHeartBeat();
+      if (savedPlayerController.playerStatus.isPlaying) {
+        savedPlayerController.pause();
+      }
       savedPlayerController.dispose();
     }
 

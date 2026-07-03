@@ -95,6 +95,10 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   late final VideoReplyController _videoReplyController;
   PlPlayerController? plPlayerController;
 
+  PlayerStatus? _playerStatusBeforePush;
+  bool _pausedByRoutePush = false;
+  Future<void>? _routePauseFuture;
+
   // 标志位：是否正在进入 PiP 模式（用于防止 dispose/didPushNext 时清理播放器状态）
   bool _isEnteringPipMode = false;
 
@@ -164,6 +168,22 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     } else {
       pgcIntroController.isEnteringPip = false;
     }
+  }
+
+  Future<void> _restoreRoutePausedPlaybackIfNeeded() async {
+    if (!_pausedByRoutePush) {
+      return;
+    }
+    await _routePauseFuture;
+    _routePauseFuture = null;
+    final shouldResume =
+        _playerStatusBeforePush?.isPlaying ??
+        videoDetailController.playerStatus?.isPlaying ??
+        false;
+    if (shouldResume && !(plPlayerController?.playerStatus.isPlaying ?? false)) {
+      await plPlayerController?.play();
+    }
+    _pausedByRoutePush = false;
   }
 
   final videoReplyPanelKey = GlobalKey();
@@ -252,13 +272,14 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         if (savedWasPlaying) {
           savedController!.playerStatus = PlayerStatus.playing;
         }
+        // 旧应用内小窗已被当前页面接管结束，先释放旧页面 owner 和媒体会话。
+        // stopPip 会清空 saved controller，释放动作必须在它之前完成。
+        PipOverlayService.releaseSavedVideoOwner();
         PipOverlayService.stopPip(
           callOnClose: false,
           immediate: true,
           targetContextKey: targetContextKey,
         );
-        // 旧应用内小窗已被当前页面接管结束，显式释放旧页面 owner 和媒体会话
-        PipOverlayService.releaseSavedVideoOwner();
       }
       videoDetailController = Get.put(VideoDetailController(), tag: heroTag);
     }
@@ -703,6 +724,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
     // 2. 计算小窗触发状态
     final playerStatusBeforePush = plPlayerController?.playerStatus.value;
+    _playerStatusBeforePush = playerStatusBeforePush;
+    _pausedByRoutePush = false;
+    _routePauseFuture = null;
     final bool willStartPip =
         plPlayerController != null &&
         playerStatusBeforePush?.isPlaying == true &&
@@ -747,7 +771,8 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         _startInAppPipIfNeeded();
       } else if (!shouldKeepAlive) {
         // 只有在确定不进入小窗时才暂停播放
-        plPlayerController!.pause();
+        _pausedByRoutePush = playerStatusBeforePush?.isPlaying == true;
+        _routePauseFuture = plPlayerController!.pause();
       }
     }
   }
@@ -793,8 +818,6 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         _resetEnteringPipFlags();
         // 小窗模式下控制栏可能被隐藏了，恢复它
         plPlayerController?.controls = true;
-        // 停止播放器，准备重新初始化（从列表点击视频应该重新开始）
-        plPlayerController?.pause();
       } else {
         // 小窗里播放的是其他视频，返回到新的视频页面时必须关闭小窗，否则会同时播放两个视频
         _logSponsorBlock(
@@ -828,6 +851,8 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
           videoDetailController.segmentList.isNotEmpty) {
         videoDetailController.initSkip();
       }
+
+      await _restoreRoutePausedPlaybackIfNeeded();
 
       // didPushNext 时 videoState 被置为 false，需要在这里恢复
       // 场景：fromPip 页面（如听视频）返回时，播放器已在运行但 videoState 未恢复
@@ -891,6 +916,8 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         autoplay: videoDetailController.playerStatus?.isPlaying ?? false,
       );
       plPlayerController = videoDetailController.plPlayerController;
+      _pausedByRoutePush = false;
+      _routePauseFuture = null;
     } else {
       // 场景 3：直接恢复关联的小窗/后台播放器，确保界面正常显示
       // 由于小窗可能刚刚被关闭（OverlayEntry 移除），我们需要延迟一个帧再显示主页播放器
@@ -900,6 +927,8 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       if (plPlayerController?.playerStatus.isPlaying ?? false) {
         videoDetailController.autoPlay = true;
       }
+      await _restoreRoutePausedPlaybackIfNeeded();
+      _routePauseFuture = null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         videoDetailController.videoState.value = true;
