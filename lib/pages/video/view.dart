@@ -170,20 +170,28 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     }
   }
 
+  void _clearRoutePauseRestoreState() {
+    _playerStatusBeforePush = null;
+    _pausedByRoutePush = false;
+    _routePauseFuture = null;
+  }
+
   Future<void> _restoreRoutePausedPlaybackIfNeeded() async {
     if (!_pausedByRoutePush) {
       return;
     }
-    await _routePauseFuture;
+    final routePauseFuture = _routePauseFuture;
+    final playerStatusBeforePush = _playerStatusBeforePush;
+    await routePauseFuture;
     _routePauseFuture = null;
     final shouldResume =
-        _playerStatusBeforePush?.isPlaying ??
+        playerStatusBeforePush?.isPlaying ??
         videoDetailController.playerStatus?.isPlaying ??
         false;
     if (shouldResume && !(plPlayerController?.playerStatus.isPlaying ?? false)) {
       await plPlayerController?.play();
     }
-    _pausedByRoutePush = false;
+    _clearRoutePauseRestoreState();
   }
 
   final videoReplyPanelKey = GlobalKey();
@@ -724,9 +732,11 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
     // 2. 计算小窗触发状态
     final playerStatusBeforePush = plPlayerController?.playerStatus.value;
+    final isPushingPlayerRoute =
+        PipOverlayService.isVideoLikeRoute(Get.currentRoute) ||
+        Get.currentRoute == '/audio';
+    _clearRoutePauseRestoreState();
     _playerStatusBeforePush = playerStatusBeforePush;
-    _pausedByRoutePush = false;
-    _routePauseFuture = null;
     final bool willStartPip =
         plPlayerController != null &&
         playerStatusBeforePush?.isPlaying == true &&
@@ -770,9 +780,17 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       if (willStartPip) {
         _startInAppPipIfNeeded();
       } else if (!shouldKeepAlive) {
-        // 只有在确定不进入小窗时才暂停播放
-        _pausedByRoutePush = playerStatusBeforePush?.isPlaying == true;
-        _routePauseFuture = plPlayerController!.pause();
+        // 只有普通子页面返回才直接恢复；播放器页面会在 didPopNext 重新绑定视频源。
+        final shouldRestoreAfterPop =
+            playerStatusBeforePush?.isPlaying == true &&
+            !isPushingPlayerRoute;
+        final pauseFuture = plPlayerController!.pause();
+        if (shouldRestoreAfterPop) {
+          _pausedByRoutePush = true;
+          _routePauseFuture = pauseFuture;
+        } else {
+          unawaited(pauseFuture);
+        }
       }
     }
   }
@@ -916,8 +934,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         autoplay: videoDetailController.playerStatus?.isPlaying ?? false,
       );
       plPlayerController = videoDetailController.plPlayerController;
-      _pausedByRoutePush = false;
-      _routePauseFuture = null;
+      _clearRoutePauseRestoreState();
     } else {
       // 场景 3：直接恢复关联的小窗/后台播放器，确保界面正常显示
       // 由于小窗可能刚刚被关闭（OverlayEntry 移除），我们需要延迟一个帧再显示主页播放器
@@ -928,7 +945,6 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         videoDetailController.autoPlay = true;
       }
       await _restoreRoutePausedPlaybackIfNeeded();
-      _routePauseFuture = null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         videoDetailController.videoState.value = true;
