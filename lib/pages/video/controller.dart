@@ -1391,9 +1391,18 @@ class VideoDetailController extends GetxController
   // 设定字幕轨道
   Future<void> setSubtitle(int index) async {
     if (index <= 0) {
+      // 关闭主字幕时第二字幕一并关闭
+      if (vttSecondarySubtitlesIndex.value > 0) {
+        await _clearSecondarySubtitle();
+      }
       await plPlayerController.videoPlayerController?.setSubtitleTrack(.no());
       vttSubtitlesIndex.value = index;
       return;
+    }
+
+    // 主副不能同轨:主字幕选到第二字幕所在轨时,先取消第二字幕
+    if (index == vttSecondarySubtitlesIndex.value) {
+      await _clearSecondarySubtitle();
     }
 
     Future<void> setSub(({bool isData, String id}) subtitle) async {
@@ -1421,6 +1430,95 @@ class VideoDetailController extends GetxController
         vttSubtitles[index - 1] = subtitle;
         await setSub(subtitle);
       }
+    }
+  }
+
+  // 第二字幕(双语字幕 demo):0 表示未启用,>0 对应 subtitles[index - 1]
+  late final RxInt vttSecondarySubtitlesIndex = 0.obs;
+
+  Future<void> _clearSecondarySubtitle() async {
+    vttSecondarySubtitlesIndex.value = 0;
+    final player = plPlayerController.videoPlayerController;
+    if (player == null) return;
+    if (kDebugMode) debugPrint('[secondary-sub] clear: secondary-sid=no');
+    player.setProperty('secondary-sid', 'no');
+  }
+
+  // 设定第二字幕轨道(demo:sub-add auto + 查轨 + secondary-sid)
+  Future<void> setSecondarySubtitle(int index) async {
+    if (index <= 0 || index == vttSubtitlesIndex.value) {
+      await _clearSecondarySubtitle();
+      return;
+    }
+
+    final player = plPlayerController.videoPlayerController;
+    if (player == null) return;
+
+    ({bool isData, String id})? subtitle = vttSubtitles[index - 1];
+    if (subtitle == null) {
+      final result = await VideoHttp.vttSubtitles(
+        subtitles[index - 1].subtitleUrl!,
+      );
+      if (isClosed || result == null) return;
+      subtitle = (isData: true, id: result);
+      vttSubtitles[index - 1] = subtitle;
+    }
+
+    final sub = subtitles[index - 1];
+    final subUri = subtitle.isData ? 'memory://${subtitle.id}' : subtitle.id;
+    final title = sub.lanDoc ?? sub.lan;
+
+    final oldIds = player.state.tracks.subtitle.map((e) => e.id).toSet();
+    if (kDebugMode) {
+      debugPrint('[secondary-sub] before sub-add, tracks: $oldIds');
+    }
+
+    // auto:添加但不选中,不顶掉主字幕轨
+    await player.command(['sub-add', subUri, 'auto', title, sub.lan]);
+
+    // 等 tracks 事件上报新轨,拿到 mpv track id
+    String? newId;
+    try {
+      final tracks = await player.stream.tracks
+          .firstWhere(
+            (t) => t.subtitle.any((e) => !oldIds.contains(e.id)),
+          )
+          .timeout(const Duration(seconds: 3));
+      newId = tracks.subtitle
+          .firstWhere((e) => !oldIds.contains(e.id))
+          .id;
+    } on TimeoutException {
+      // 兜底:事件没等到,直接读当前 state
+      newId = player.state.tracks.subtitle
+          .map((e) => e.id)
+          .firstWhereOrNull((id) => !oldIds.contains(id));
+      if (kDebugMode) {
+        debugPrint(
+          '[secondary-sub] tracks event timeout, fallback state: $newId',
+        );
+      }
+    }
+
+    if (isClosed) return;
+    if (newId == null) {
+      if (kDebugMode) debugPrint('[secondary-sub] new track not found');
+      return;
+    }
+
+    if (kDebugMode) {
+      debugPrint('[secondary-sub] set secondary-sid=$newId ($title)');
+    }
+    player.setProperty('secondary-sid', newId);
+    vttSecondarySubtitlesIndex.value = index;
+
+    if (kDebugMode) {
+      // demo 验证:确认 secondary-sub-text 有推送(只记录前几条)
+      player.stream.subtitle
+          .where((s) => s.second.isNotEmpty)
+          .take(3)
+          .listen(
+            (s) => debugPrint('[secondary-sub] text: "${s.second}"'),
+          );
     }
   }
 
@@ -1477,6 +1575,7 @@ class VideoDetailController extends GetxController
   Future<void> _queryPlayInfo() async {
     vttSubtitles.clear();
     vttSubtitlesIndex.value = 0;
+    vttSecondarySubtitlesIndex.value = 0;
     if (plPlayerController.showViewPoints) {
       viewPointList.clear();
     }

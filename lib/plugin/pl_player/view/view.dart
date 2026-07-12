@@ -821,15 +821,32 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                     ),
                   ),
                   ...videoDetailController.subtitles.mapIndexed((i, e) {
+                    final isSecondary =
+                        videoDetailController.vttSecondarySubtitlesIndex.value ==
+                        i + 1;
                     return PopupMenuItem<int>(
                       value: i + 1,
                       height: 35,
                       onTap: () => videoDetailController.setSubtitle(i + 1),
-                      child: Text(
-                        e.lanDoc ?? e.lan,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const .new(color: Colors.white, fontSize: 13),
+                      child: GestureDetector(
+                        // demo: 长按设为/取消第二字幕(双语字幕)
+                        onLongPress: () {
+                          Navigator.of(context).pop();
+                          videoDetailController.setSecondarySubtitle(
+                            isSecondary ? 0 : i + 1,
+                          );
+                        },
+                        child: Text(
+                          isSecondary ? '${e.lanDoc ?? e.lan} ②' : e.lanDoc ?? e.lan,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: isSecondary
+                                ? Colors.tealAccent
+                                : Colors.white,
+                            fontSize: 13,
+                          ),
+                        ),
                       ),
                     );
                   }),
