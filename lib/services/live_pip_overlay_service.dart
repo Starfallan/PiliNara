@@ -444,14 +444,36 @@ class _LivePipWidgetState extends State<LivePipWidget>
     if ((next - _scale).abs() < 0.05) {
       next = PipWindowMemory.clampScaleContinuous(1.0, screenSize);
     }
+    // 双击档位切换:按缩放前窗口距屏幕四边的距离,选较近的一对边作为锚定,
+    // 缩放后保持该边缘到屏幕边缘的距离不变。
+    // 否则贴右窗口放大→缩小会"跑到左边":放大时钳制把 _left 顶到
+    // screenW-w2(贴右);缩小时 _left=screenW-w2 落在合法区间内不变,
+    // 但右边缘变成 screenW-w2+w3 < screenW,视觉上窗口向左缩。
+    final oldLeft = _left ?? 0.0;
+    final oldTop = _top ?? 0.0;
+    final oldWidth = _width;
+    final oldHeight = _height;
+    final distLeft = oldLeft;
+    final distRight = screenSize.width - oldLeft - oldWidth;
+    final distTop = oldTop;
+    final distBottom = screenSize.height - oldTop - oldHeight;
+
     setState(() {
       _scale = next;
 
-      // 缩放后立即计算并约束位置，防止按钮或部分窗口超出屏幕
-      _left = (_left ?? 0.0)
+      // 水平:距左≤距右则左锚定(_left 不变),否则右锚定(右边缘到屏距离不变)
+      final double newLeft = distLeft <= distRight
+          ? oldLeft
+          : screenSize.width - distRight - _width;
+      // 垂直:距上≤距下则上锚定(_top 不变),否则下锚定(下边缘到屏距离不变)
+      final double newTop = distTop <= distBottom
+          ? oldTop
+          : screenSize.height - distBottom - _height;
+      // 兜底钳制,防极端窗口/旋转后越界
+      _left = newLeft
           .clamp(0.0, max(0.0, screenSize.width - _width))
           .toDouble();
-      _top = (_top ?? 0.0)
+      _top = newTop
           .clamp(0.0, max(0.0, screenSize.height - _height))
           .toDouble();
     });
@@ -538,7 +560,17 @@ class _LivePipWidgetState extends State<LivePipWidget>
               phase == PipPhase.entering || phase == PipPhase.restoring;
           final bool interactive = phase == PipPhase.active && !_isClosing;
 
-          return Positioned(
+          // AnimatedPositioned 与下方 AnimatedContainer 共用相同的
+          // duration/curve 条件:双击档位切换时位置与尺寸同步 250ms 过渡,
+          // 否则右边缘双击放大时"位置先瞬移、尺寸后长大"地抽搐
+          // (左边缘因 _left 钳制后仍为 0 不受影响,故仅右侧显现)。
+          // inTransition(收起/归位)与 _instantResize(捏合/滚轮)期间归零,
+          // 与 AnimatedContainer 行为一致。
+          return AnimatedPositioned(
+            duration: inTransition || _instantResize
+                ? Duration.zero
+                : const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
             left: rect.left,
             top: rect.top,
             child: IgnorePointer(
