@@ -95,7 +95,7 @@ class VideoDetailPageV extends StatefulWidget {
 
 class _VideoDetailPageVState extends State<VideoDetailPageV>
     with RouteAware, RouteAwareMixin, WidgetsBindingObserver {
-  final heroTag = Get.arguments['heroTag'];
+  late final String heroTag;
 
   late final VideoDetailController videoDetailController;
   late final VideoReplyController _videoReplyController;
@@ -254,6 +254,28 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     final String? targetContextKey = PipOverlayService.contextKeyFromArgs(
       Get.arguments is Map ? Get.arguments as Map : null,
     );
+    // 同视频复用：从推荐流/动态等入口点开 PiP 中正在播放的同一视频
+    // （videoType|bvid|cid|epId|seasonId 完全匹配）时，走与 fromPip
+    // 相同的 controller 恢复路径，避免重新加载。cid 不同则正常加载。
+    final bool isSameVideo =
+        !fromPip &&
+        targetContextKey != null &&
+        targetContextKey == PipOverlayService.savedVideoContextKey;
+    final bool shouldRestoreFromPip = fromPip || isSameVideo;
+    final restoredController =
+        shouldRestoreFromPip && PipOverlayService.isInPipMode
+        ? PipOverlayService.getSavedController<VideoDetailController>()
+        : null;
+    final bool restoringFromPip = restoredController != null;
+
+    // heroTag 是这组 GetX controller 的作用域标识。复用已有 controller
+    // 时必须沿用其原 tag；这里只在页面初始化时决定一次，之后保持不变。
+    heroTag = restoredController?.heroTag ?? Get.arguments['heroTag'];
+    if (restoredController != null && Get.arguments is Map) {
+      // 附属 controller 的 onInit 仍从 Get.arguments 读取 heroTag，需在创建
+      // 它们之前同步为同一作用域，避免主/附属 controller 的 tag 分裂。
+      (Get.arguments as Map)['heroTag'] = heroTag;
+    }
 
     // 如果有直播间 PiP 在运行，关闭它（采用非销毁式，避免干扰视频播放器单例）
     if (LivePipOverlayService.isInPipMode && !fromPip) {
@@ -262,10 +284,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
     PlPlayerController.setPlayCallBack(playCallBack);
 
-    // 如果从 PiP 返回，尝试恢复保存的控制器
-    if (fromPip && PipOverlayService.isInPipMode) {
-      final savedController =
-          PipOverlayService.getSavedController<VideoDetailController>();
+    // 如果从 PiP 返回或从外部入口点开同视频，尝试恢复保存的控制器
+    if (shouldRestoreFromPip && PipOverlayService.isInPipMode) {
+      final savedController = restoredController;
       if (savedController != null) {
         // 必须在 stopPip 之前取出所有 additional controllers，
         // 因为 stopPip 会调用 _savedControllers.clear() 清空缓存
@@ -361,7 +382,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       // 注意：_savedReplyControllerFromPip 在 stopPip 之前已提前取出
       final savedReplyController =
           _savedReplyControllerFromPip ??
-          (fromPip
+          (restoringFromPip
               ? PipOverlayService.getAdditionalController<VideoReplyController>(
                   'reply',
                 )
@@ -387,7 +408,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     // 注意：_savedIntroControllerFromPip 在 stopPip 之前已提前取出
     final savedIntroController =
         _savedIntroControllerFromPip ??
-        (fromPip ? PipOverlayService.getAdditionalController('intro') : null);
+        (restoringFromPip
+            ? PipOverlayService.getAdditionalController('intro')
+            : null);
 
     if (videoDetailController.isFileSource) {
       if (savedIntroController != null &&
@@ -428,7 +451,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       Get.put(AiChatController(heroTag: heroTag), tag: heroTag);
     }
 
-    if (fromPip) {
+    if (restoringFromPip) {
       plPlayerController = videoDetailController.plPlayerController;
       final wasPlaying = plPlayerController!.playerStatus.isPlaying;
 
