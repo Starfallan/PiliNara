@@ -1241,9 +1241,15 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
       if (cumulativeDy > threshold) {
         _gestureType = .center_down;
         if (isFullScreen ^ plPlayerController.fullScreenGestureReverse) {
+          if (isFullScreen == plPlayerController.fullScreenGestureReverse) {
+            plPlayerController.triggerFullScreen(status: !isFullScreen);
+          }
           fullScreenTrigger(
             plPlayerController.fullScreenGestureReverse,
           );
+        } else if (!isFullScreen &&
+            plPlayerController.reverseGestureEnterInAppPip) {
+          _startInAppPipIfNeeded();
         }
       } else if (cumulativeDy < -threshold) {
         _gestureType = .center_up;
@@ -1251,6 +1257,9 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
           fullScreenTrigger(
             !plPlayerController.fullScreenGestureReverse,
           );
+        } else if (!isFullScreen &&
+            plPlayerController.reverseGestureEnterInAppPip) {
+          _startInAppPipIfNeeded();
         }
       }
     } else if (_gestureType == .right) {
@@ -1550,8 +1559,8 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
           size: 20,
           color: Colors.white,
         ),
-        onLongPress: (Platform.isAndroid || kDebugMode) &&
-                !plPlayerController.isLive
+        onLongPress:
+            (Platform.isAndroid || kDebugMode) && !plPlayerController.isLive
             ? screenshotWebp
             : null,
         onTap: plPlayerController.takeScreenshot,
@@ -1576,7 +1585,8 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
     final isLive = plPlayerController.isLive;
     // 锁定按钮显示在右侧：与截图按钮同组垂直居中
     final lockBtnOnRight =
-        plPlayerController.showFsLockBtnRight && plPlayerController.showFsLockBtn;
+        plPlayerController.showFsLockBtnRight &&
+        plPlayerController.showFsLockBtn;
 
     final child = Stack(
       fit: StackFit.passthrough,
@@ -1718,9 +1728,11 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
               ignoring: true,
               child: Obx(
                 () {
-                  final desktopPreview = PlatformUtils.isDesktop &&
+                  final desktopPreview =
+                      PlatformUtils.isDesktop &&
                       plPlayerController.showDesktopProgressFeedback.value;
-                  final opacity = desktopPreview ||
+                  final opacity =
+                      desktopPreview ||
                           (!PlatformUtils.isDesktop &&
                               plPlayerController.isSeeking.value)
                       ? 1.0
@@ -2356,8 +2368,8 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
               minScale: plPlayerController.enableShrinkVideoSize ? 0.75 : 1,
               maxScale: 2.0,
               boundaryMargin: plPlayerController.enableShrinkVideoSize
-                            ? const .all(double.infinity)
-                            : .zero,
+                  ? const .all(double.infinity)
+                  : .zero,
               panAxis: .aligned,
               transformationController: _transformationController,
               childKey: _videoKey,

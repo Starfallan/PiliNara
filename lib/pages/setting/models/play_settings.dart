@@ -297,6 +297,13 @@ List<SettingsModel> get playSettings => [
     defaultVal: false,
   ),
   const SwitchModel(
+    title: '反向全屏手势进入应用内小窗',
+    subtitle: '非全屏状态下，使用反向全屏手势进入应用内小窗',
+    leading: Icon(Icons.picture_in_picture_alt_outlined),
+    setKey: SettingBoxKey.reverseGestureEnterInAppPip,
+    defaultAsset: false,
+  )
+  const SwitchModel(
     title: '全屏展示点赞/投币/收藏等操作按钮',
     leading: Icon(MdiIcons.dotsHorizontalCircleOutline),
     setKey: SettingBoxKey.showFSActionItem,

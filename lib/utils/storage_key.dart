@@ -49,6 +49,7 @@ abstract final class SettingBoxKey {
       sliderDuration = 'sliderOffset',
       enableQuickDouble = 'enableQuickDouble',
       fullScreenGestureReverse = 'fullScreenGestureReverse',
+      reverseGestureEnterInAppPip = 'reverseGestureEnterInAppPip',
       enableBackgroundPlay = 'enableBackgroundPlay',
       continuePlayInBackground = 'continuePlayInBackground',
       appRcmd = 'appRcmd',

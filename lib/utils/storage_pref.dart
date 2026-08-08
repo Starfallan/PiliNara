@@ -1257,6 +1257,11 @@ abstract final class Pref {
   static bool get fullScreenGestureReverse =>
       _setting.get(SettingBoxKey.fullScreenGestureReverse, defaultValue: false);
 
+  static bool get reverseGestureEnterInAppPip => _setting.get(
+    SettingBoxKey.reverseGestureEnterInAppPip,
+    defaultValue: false,
+  );
+
   static bool get autoPiP =>
       _setting.get(SettingBoxKey.autoPiP, defaultValue: false);
 
