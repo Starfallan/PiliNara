@@ -76,7 +76,7 @@ jobs:
         with:
           archive: false
           name: Windows-file-x64-release
-          path: PiliPlus_windows_*.zip
+          path: PiliNara_windows_*.zip
 
       - name: Upload windows setup release
         uses: actions/upload-artifact@v7
