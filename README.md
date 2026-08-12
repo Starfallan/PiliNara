@@ -102,7 +102,7 @@ Fork特性：
 - [x] Windows
 - [x] Linux
 
-[![Packaging status](https://repology.org/badge/vertical-allrepos/piliplus.svg)](https://repology.org/project/piliplus/versions)
+[![Packaging status](https://repology.org/badge/vertical-allrepos/pilinara.svg)](https://repology.org/project/pilinara/versions)
 
 ## refactor
 
@@ -282,6 +282,23 @@ Fork特性：
 ## 下载
 
 可以通过右侧release进行下载或拉取代码到本地进行编译
+
+### Arch Linux (AUR)
+
+Arch Linux 用户可通过 AUR 安装：
+
+- `pilinara`（源码构建）
+- `pilinara-bin`（官方 Release 二进制）
+
+```bash
+# 使用 paru 安装二进制版
+paru -S pilinara-bin
+```
+
+```bash
+# 使用 yay 安装二进制版
+yay -S pilinara-bin
+```
 
 <br/>
 
