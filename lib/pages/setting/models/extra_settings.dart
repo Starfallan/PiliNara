@@ -601,6 +601,13 @@ List<SettingsModel> get extraSettings => [
     defaultVal: true,
     onChanged: (val) => ItemModulesModel.showDynInteraction = val,
   ),
+  const SwitchModel(
+    title: '动态长按快捷评论',
+    subtitle: '在动态列表长按评论按钮快速弹出评论输入框',
+    leading: Icon(Icons.comment_outlined),
+    setKey: SettingBoxKey.enableQuickReplyDyn,
+    defaultVal: true,
+  ),
   NormalModel(
     title: '用户页默认展示TAB',
     leading: const Icon(Icons.tab),
