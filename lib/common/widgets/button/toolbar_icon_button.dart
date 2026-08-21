@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class ToolbarIconButton extends StatelessWidget {
   final VoidCallback? onPressed;
-  final Icon icon;
+  final Widget icon;
   final bool selected;
   final String? tooltip;
 
