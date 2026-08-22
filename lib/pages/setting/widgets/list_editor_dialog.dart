@@ -252,7 +252,10 @@ class _ListEditorDialogState extends State<ListEditorDialog> {
         FilledButton(
           onPressed: () {
             // A focus-loss validation may run before this button callback.
-            if (_invalidEditIndexes.isNotEmpty) return;
+            if (_invalidEditIndexes.isNotEmpty) {
+              SmartDialog.showToast('存在未修正的编辑项');
+              return;
+            }
             // Commit any in-progress edits before saving
             for (int i = 0; i < _items.length; i++) {
               if (!_commitEdit(i)) return;
