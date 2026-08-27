@@ -426,8 +426,11 @@ class PlPlayerController with BlockConfigMixin {
       enableHDR && _canHDR == true ? 'mediacodec,auto' : Pref.hardwareDecoding;
   String? get vo =>
       enableHDR && _canHDR == true ? 'mediacodec_embed,gpu' : Pref.videoOutput;
-  bool get platformView => Pref.platformView || (enableHDR && _canHDR == true);
-  late final bool platformViewHCPP = Pref.platformViewHCPP;
+  // 注: pilinara 用 Starfallan media_kit fork, 不支持 usePlatformView/useHCPP。
+  // 若日后要启用 Android PlatformView 渲染 HDR,需切到 chenx-dust/media-kit PiliPlus-1.2.5。
+  bool get _unusedPlatformView =>
+      Pref.platformView || (enableHDR && _canHDR == true);
+  late final bool _unusedPlatformViewHCPP = Pref.platformViewHCPP;
 
   late final progressType = Pref.btmProgressBehavior;
   late final enableQuickDouble = Pref.enableQuickDouble;

@@ -350,21 +350,23 @@ List<SettingsModel> get playSettings => [
   if (Platform.isAndroid) ...[
     const SwitchModel(
       title: '启用 HDR 视频',
-      subtitle: '在 HDR 视频中覆盖设置，启用平台视图渲染，调用合适的解码与输出参数',
+      subtitle: '在 HDR 视频中覆盖解码与输出参数；pilinara 当前用 Starfallan media-kit，Android HDR 渲染需手动切换到 chenx-dust fork 后生效',
       leading: Icon(Icons.settings_brightness_outlined),
       setKey: SettingBoxKey.enableHDR,
       defaultVal: true,
     ),
+    // 注: '使用平台视图'/'平台视图使用 HCPP 渲染' 这两个开关在 pilinara 当前 media-kit
+    // (Starfallan fork) 中尚未实现，留着无副作用，但不会真正生效。
     const SwitchModel(
       title: '使用平台视图',
-      subtitle: '使用平台视图渲染播放器，支持 HDR 视频',
+      subtitle: '使用平台视图渲染播放器，支持 HDR 视频（需要 chenx-dust media-kit，本仓库暂未启用）',
       leading: Icon(Icons.draw_outlined),
       setKey: SettingBoxKey.platformView,
       defaultVal: false,
     ),
     const SwitchModel(
       title: '平台视图使用 HCPP 渲染',
-      subtitle: '使用性能与效果更优的 HCPP 渲染平台视图，要求设备 Android 14 (SDK 34) 及以上且支持 Vulkan，如不匹配会导致崩溃',
+      subtitle: '使用性能与效果更优的 HCPP 渲染平台视图，要求设备 Android 14 (SDK 34) 及以上且支持 Vulkan，如不匹配会导致崩溃（需要 chenx-dust media-kit，本仓库暂未启用）',
       leading: Icon(Icons.extension_outlined),
       setKey: SettingBoxKey.platformViewHCPP,
       defaultVal: true,
