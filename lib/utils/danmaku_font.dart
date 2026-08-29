@@ -11,6 +11,7 @@ import 'package:path/path.dart' as path;
 abstract final class DanmakuFont {
   static const List<String> allowedExtensions = ['ttf', 'otf'];
   static const String _fontDirName = 'danmaku_fonts';
+  static final _loadedFonts = <String>{};
 
   static String? get currentFontName => Pref.customDanmakuFontName;
 
@@ -97,6 +98,7 @@ abstract final class DanmakuFont {
     await GStorage.setting.delete(SettingBoxKey.customDanmakuFontPath);
     await GStorage.setting.delete(SettingBoxKey.customDanmakuFontFamily);
     await GStorage.setting.delete(SettingBoxKey.customDanmakuFontName);
+    _loadedFonts.clear();
     if (fontPath != null && fontPath.isNotEmpty) {
       final file = File(fontPath);
       if (file.existsSync()) {
@@ -113,10 +115,14 @@ abstract final class DanmakuFont {
     required String fontPath,
     required String fontFamily,
   }) async {
-    final bytes = await File(fontPath).readAsBytes();
-    await (FontLoader(fontFamily)
-          ..addFont(Future.value(ByteData.sublistView(bytes))))
-        .load();
+    if (_loadedFonts.contains(fontFamily)) return;
+    try {
+      _loadedFonts.add(fontFamily);
+      final bytes = await File(fontPath).readAsBytes();
+      await (FontLoader(fontFamily)
+            ..addFont(Future.value(ByteData.sublistView(bytes))))
+          .load();
+    } catch (_) {}
   }
 
   static Future<bool> _cleanupFontDir({String? excludePath}) async {

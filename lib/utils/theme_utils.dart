@@ -107,7 +107,7 @@ abstract final class ThemeUtils {
             fontSize: 14,
             letterSpacing: 0.1,
             fontWeight: FontWeight.w500,
-            fontFamily: font,
+            fontFamily: fontFamily,
           ),
         ),
       ),
@@ -191,10 +191,12 @@ abstract final class ThemeUtils {
         },
       ),
     );
-    if (font != null) {
+    if (fontFamily != null) {
       theme = theme.copyWith(
-        textTheme: theme.textTheme.apply(fontFamily: font),
-        primaryTextTheme: theme.primaryTextTheme.apply(fontFamily: font),
+        textTheme: theme.textTheme.apply(fontFamily: fontFamily),
+        primaryTextTheme: theme.primaryTextTheme.apply(
+          fontFamily: fontFamily,
+        ),
       );
     }
     if (isDark && Pref.isPureBlackTheme) {

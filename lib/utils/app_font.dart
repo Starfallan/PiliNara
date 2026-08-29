@@ -5,152 +5,203 @@ import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 
 abstract final class AppFont {
-  static const List<String> allowedExtensions = ['ttf', 'otf'];
-  static const String _fontDirName = 'fonts';
+  static const _kFontExts = ['ttf', 'otf'];
+  static final _kFontDir = path.join(appSupportDirPath, 'font');
+  static final _loadedFonts = <String>{};
 
-  static String? get currentFontName => Pref.customFontName;
+  /// 所有已导入的字体 Map: { fontFamily: filePath }
+  static Map<String, String> get customFonts => Pref.customAppFont;
 
-  static Future<void> init() async {
-    final fontPath = Pref.customFontPath;
-    final fontFamily = Pref.customFontFamily;
-    if (fontPath == null || fontFamily == null) {
-      await _cleanupFontDir();
+  // ── 迁移 ──────────────────────────────────────────
+
+  static Future<void> _migrateIfNeeded() async {
+    final oldPath = Pref.customFontPath;
+    final oldFamily = Pref.customFontFamily;
+    if (oldPath == null || oldFamily == null) return;
+
+    // 如果已经迁移过（customAppFont 有数据），只清理残留旧 key
+    if (customFonts.isNotEmpty) {
+      await GStorage.setting.delete(SettingBoxKey.customFontPath);
+      await GStorage.setting.delete(SettingBoxKey.customFontFamily);
+      await GStorage.setting.delete(SettingBoxKey.customFontName);
       return;
     }
 
-    final file = File(fontPath);
-    if (!file.existsSync()) {
-      await clear();
+    final oldFile = File(oldPath);
+    if (!oldFile.existsSync()) {
+      // 文件已丢失，直接清理旧 Hive key
+      await GStorage.setting.delete(SettingBoxKey.customFontPath);
+      await GStorage.setting.delete(SettingBoxKey.customFontFamily);
+      await GStorage.setting.delete(SettingBoxKey.customFontName);
+      if (Pref.appFont == oldFamily) {
+        await GStorage.setting.put(SettingBoxKey.appFont, null);
+      }
       return;
     }
 
+    final oldName = Pref.customFontName;
+    // "custom_font_17283920" → "17283920"
+    final ts = oldFamily.replaceFirst(RegExp(r'^custom_font_'), '');
+    // "MyFont.ttf" → "MyFont"
+    final display = oldName != null
+        ? oldName.replaceAll(RegExp(r'\.[^.]+$'), '')
+        : 'imported';
+    final newKey = '$ts/$display';
+
+    // 新目录 + 新路径
+    final newDir = Directory(_kFontDir);
+    if (!newDir.existsSync()) await newDir.create(recursive: true);
+    final ext = path.extension(oldPath);
+    final newPath = path.join(_kFontDir, '$ts-$display$ext');
+
+    // 移动物理文件（同分区 rename 零开销）
     try {
-      await _loadFont(fontPath: fontPath, fontFamily: fontFamily);
-      await _cleanupFontDir(excludePath: fontPath);
+      await oldFile.rename(newPath);
     } catch (_) {
-      await clear();
-    }
-  }
-
-  static Future<bool> pickAndApply() async {
-    final picked = await FilePicker.pickFile(
-      type: FileType.custom,
-      allowedExtensions: allowedExtensions,
-    );
-    if (picked == null) {
-      return false;
+      // 跨分区 rename 失败，fallback: copy + delete
+      await oldFile.copy(newPath);
+      try {
+        await oldFile.delete();
+      } catch (_) {}
     }
 
-    final extension = picked.extension?.toLowerCase();
-    if (extension == null || !allowedExtensions.contains(extension)) {
-      throw UnsupportedError('unsupported font file: $extension');
+    final map = <String, String>{newKey: newPath};
+    await GStorage.setting.put(SettingBoxKey.customAppFont, map);
+
+    if (Pref.appFont == oldFamily) {
+      await GStorage.setting.put(SettingBoxKey.appFont, newKey);
     }
 
-    final fontDir = Directory(path.join(appSupportDirPath, _fontDirName));
-    if (!fontDir.existsSync()) {
-      await fontDir.create(recursive: true);
-    }
-
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final targetPath = path.join(fontDir.path, 'custom_font_$timestamp.$extension');
-    final targetFile = File(targetPath);
-    await targetFile.writeAsBytes(await picked.readAsBytes(), flush: true);
-
-    final fontFamily = 'custom_font_$timestamp';
-    try {
-      await _loadFont(fontPath: targetPath, fontFamily: fontFamily);
-      final previousFontPath = Pref.customFontPath;
-      final previousFamily = Pref.customFontFamily;
-      await GStorage.setting.put(SettingBoxKey.customFontPath, targetPath);
-      await GStorage.setting.put(SettingBoxKey.customFontFamily, fontFamily);
-      await GStorage.setting.put(
-        SettingBoxKey.customFontName,
-        path.basename(picked.path ?? picked.name),
-      );
-      // 替换旧导入文件时，若正在使用旧导入字体，选择顺延到新文件
-      if (Pref.appFont != null && Pref.appFont == previousFamily) {
-        await GStorage.setting.put(SettingBoxKey.appFont, fontFamily);
-      }
-      if (previousFontPath != null && previousFontPath != targetPath) {
-        final previousFile = File(previousFontPath);
-        if (previousFile.existsSync()) {
-          try {
-            await previousFile.delete();
-          } catch (_) {}
-        }
-      }
-      await _cleanupFontDir(excludePath: targetPath);
-      return true;
-    } catch (_) {
-      if (targetFile.existsSync()) {
-        await targetFile.delete();
-      }
-      rethrow;
-    }
-  }
-
-  static Future<bool> clear() async {
-    final fontPath = Pref.customFontPath;
-    final fontFamily = Pref.customFontFamily;
-    final hadCustomFont =
-        (fontPath != null && fontPath.isNotEmpty) ||
-        fontFamily != null ||
-        Pref.customFontName != null;
     await GStorage.setting.delete(SettingBoxKey.customFontPath);
     await GStorage.setting.delete(SettingBoxKey.customFontFamily);
     await GStorage.setting.delete(SettingBoxKey.customFontName);
-    if (fontFamily != null && Pref.appFont == fontFamily) {
-      await GStorage.setting.put(SettingBoxKey.appFont, null);
-    }
-    if (fontPath != null && fontPath.isNotEmpty) {
-      final file = File(fontPath);
-      if (file.existsSync()) {
-        try {
-          await file.delete();
-        } catch (_) {}
-      }
-    }
-    final deletedFiles = await _cleanupFontDir();
-    return hadCustomFont || deletedFiles;
-  }
 
-  static Future<void> _loadFont({
-    required String fontPath,
-    required String fontFamily,
-  }) async {
-    final bytes = await File(fontPath).readAsBytes();
-    await (FontLoader(fontFamily)
-          ..addFont(Future.value(ByteData.sublistView(bytes))))
-        .load();
-  }
-
-  static Future<bool> _cleanupFontDir({String? excludePath}) async {
-    final fontDir = Directory(path.join(appSupportDirPath, _fontDirName));
-    if (!fontDir.existsSync()) {
-      return false;
-    }
-
-    var deletedAny = false;
-    await for (final entity in fontDir.list()) {
-      if (entity is! File) {
-        continue;
-      }
-      if (excludePath != null && path.equals(entity.path, excludePath)) {
-        continue;
-      }
-      final extension = path.extension(entity.path).replaceFirst('.', '').toLowerCase();
-      if (!allowedExtensions.contains(extension)) {
-        continue;
-      }
+    // 清理旧 fonts/ 目录
+    final oldDir = Directory(path.join(appSupportDirPath, 'fonts'));
+    if (oldDir.existsSync()) {
       try {
-        await entity.delete();
-        deletedAny = true;
+        await oldDir.delete(recursive: true);
       } catch (_) {}
     }
-    return deletedAny;
+  }
+
+  // ── 初始化 ────────────────────────────────────────
+
+  static Future<void> init() async {
+    await _migrateIfNeeded();
+    final family = Pref.appFont;
+    if (family != null && customFonts.containsKey(family)) {
+      await loadFontIfNecessary(family);
+    }
+  }
+
+  // ── 加载 ──────────────────────────────────────────
+
+  static Future<void>? loadFontIfNecessary(String fontFamily) {
+    if (_loadedFonts.contains(fontFamily)) return null;
+    return _loadFont(fontFamily);
+  }
+
+  static Future<void> _loadFont(String fontFamily) async {
+    try {
+      _loadedFonts.add(fontFamily);
+      final bytes = await File(customFonts[fontFamily]!).readAsBytes();
+      await (FontLoader(fontFamily)
+            ..addFont(Future.value(ByteData.sublistView(bytes))))
+          .load();
+    } catch (_) {
+      if (kDebugMode) rethrow;
+    }
+  }
+
+  // ── 导入（多文件） ────────────────────────────────
+
+  static Future<String?> pickFonts() async {
+    try {
+      final files = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: _kFontExts,
+      );
+      if (files.isEmpty) return null;
+
+      final dir = Directory(_kFontDir);
+      if (!dir.existsSync()) await dir.create(recursive: true);
+
+      final futures = <Future<void>>[];
+      final newFonts = <String, String>{};
+      for (final file in files) {
+        final ts = DateTime.now().millisecondsSinceEpoch.toString();
+        final name = file.name;
+        final saveTo = path.join(_kFontDir, '$ts-$name');
+
+        futures.add(file.xFile.saveTo(saveTo));
+        final displayName = name.replaceAll(RegExp(r'\.[^.]+$'), '');
+        newFonts['$ts/$displayName'] = saveTo;
+      }
+      await Future.wait(futures);
+      customFonts.addAll(newFonts);
+      await GStorage.setting.put(SettingBoxKey.customAppFont, customFonts);
+
+      final first = newFonts.keys.first;
+      await loadFontIfNecessary(first);
+      return first;
+    } catch (_) {
+      if (kDebugMode) rethrow;
+    }
+    return null;
+  }
+
+  // ── 移除单个 ──────────────────────────────────────
+
+  static void removeFont(String fontFamily) {
+    final filePath = customFonts.remove(fontFamily);
+    if (filePath != null) {
+      final file = File(filePath);
+      if (file.existsSync()) {
+        try {
+          file.delete();
+        } catch (_) {}
+      }
+      GStorage.setting.put(SettingBoxKey.customAppFont, customFonts);
+    }
+    _loadedFonts.remove(fontFamily);
+  }
+
+  // ── 清空全部 ──────────────────────────────────────
+
+  static Future<void> clearFonts() async {
+    for (final p in customFonts.values) {
+      try {
+        File(p).delete();
+      } catch (_) {}
+    }
+    customFonts.clear();
+    _loadedFonts.clear();
+    await Future.wait([
+      GStorage.setting.deleteAll({
+        SettingBoxKey.appFont,
+        SettingBoxKey.customAppFont,
+      }),
+    ]);
+  }
+
+  // ── 兼容旧 API ────────────────────────────────────
+
+  /// 保留单文件导入兼容接口，内部转调多文件版本
+  static Future<bool> pickAndApply() async {
+    final font = await pickFonts();
+    return font != null;
+  }
+
+  /// 保留清空兼容接口
+  static Future<bool> clear() async {
+    final hadCustom = customFonts.isNotEmpty;
+    await clearFonts();
+    return hadCustom;
   }
 }

@@ -12,6 +12,7 @@ import 'package:PiliPlus/utils/font_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
@@ -100,33 +101,44 @@ class _FontSettingPageState extends State<FontSettingPage> {
       ..updateMyAppTheme();
   }
 
+  /// ref [Typography._withPlatform]
+  static final String? _kFontFamily = (switch (defaultTargetPlatform) {
+    .iOS => Typography.whiteCupertino,
+    .android || .fuchsia => Typography.whiteMountainView,
+    .windows => Typography.whiteRedmond,
+    .macOS => Typography.whiteRedwoodCity,
+    .linux => Typography.whiteHelsinki,
+  }).bodyMedium?.fontFamily;
+
   Future<void> _importAppFont() async {
+    SmartDialog.showLoading();
     try {
-      if (await AppFont.pickAndApply()) {
-        setState(() => _selectedFont = Pref.customFontFamily);
+      final font = await AppFont.pickFonts();
+      if (font != null) {
+        setState(() => _selectedFont = font);
       }
     } catch (e) {
       SmartDialog.showToast('字体加载失败: $e');
+    } finally {
+      SmartDialog.dismiss();
     }
   }
 
   Future<void> _deleteAppFont() async {
-    final family = Pref.customFontFamily;
-    await AppFont.clear();
-    setState(() {
-      if (_selectedFont == family || family == null) {
-        _selectedFont = null;
-      }
-    });
+    await AppFont.clearFonts();
+    setState(() => _selectedFont = null);
   }
 
   Future<void> _importDanmakuFont() async {
+    SmartDialog.showLoading();
     try {
       if (await DanmakuFont.pickAndApply()) {
         setState(() => _selectedDanmaku = Pref.customDanmakuFontFamily);
       }
     } catch (e) {
       SmartDialog.showToast('字体加载失败: $e');
+    } finally {
+      SmartDialog.dismiss();
     }
   }
 
@@ -142,7 +154,7 @@ class _FontSettingPageState extends State<FontSettingPage> {
 
   @override
   Widget build(BuildContext context) {
-    final importedFamily = Pref.customFontFamily;
+    final hasCustomFonts = AppFont.customFonts.isNotEmpty;
     final danmakuImportedFamily = Pref.customDanmakuFontFamily;
     return SimpleScaffold(
       appBar: AppBar(
@@ -182,7 +194,7 @@ class _FontSettingPageState extends State<FontSettingPage> {
                           : "我能吞下玻璃而不伤身体"}\n\n'
                       '注：部分字体可能无法应用',
                       style: TextStyle(
-                        fontFamily: _selectedFont,
+                        fontFamily: _selectedFont ?? _kFontFamily,
                         fontWeight: _selectedWeight == -1
                             ? null
                             : FontWeight.values[_selectedWeight],
@@ -211,19 +223,36 @@ class _FontSettingPageState extends State<FontSettingPage> {
                       initialValue: _selectedFont ?? _systemFontSentinel,
                       borderRadius: BorderRadius.circular(8),
                       itemBuilder: (context) => [
-                        if (importedFamily != null) ...[
+                        for (final entry in AppFont.customFonts.entries)
                           PopupMenuItem<String>(
-                            value: importedFamily,
+                            value: entry.key,
                             height: 40,
-                            child: Text(
-                              '${AppFont.currentFontName ?? importedFamily}（导入）',
-                              style: TextStyle(fontFamily: importedFamily),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    entry.key.split('/').last,
+                                    style: TextStyle(fontFamily: entry.key),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                _actionIcon(
+                                  tooltip: '移除字体',
+                                  icon: Icons.clear,
+                                  onPressed: () {
+                                    AppFont.removeFont(entry.key);
+                                    if (_selectedFont == entry.key) {
+                                      _selectedFont = null;
+                                    }
+                                    setState(() {});
+                                  },
+                                ),
+                              ],
                             ),
                           ),
+                        if (hasCustomFonts)
                           const CustomPopupMenuDivider(height: 8),
-                        ],
                         PopupMenuItem<String>(
                           value: _systemFontSentinel,
                           height: 40,
@@ -258,9 +287,9 @@ class _FontSettingPageState extends State<FontSettingPage> {
                     icon: Icons.file_open_outlined,
                     onPressed: _importAppFont,
                   ),
-                  if (importedFamily != null)
+                  if (hasCustomFonts)
                     _actionIcon(
-                      tooltip: '删除已导入字体',
+                      tooltip: '删除所有已导入字体',
                       icon: Icons.delete_outline,
                       onPressed: _deleteAppFont,
                     ),

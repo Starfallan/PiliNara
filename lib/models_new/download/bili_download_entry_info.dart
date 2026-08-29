@@ -39,6 +39,9 @@ class BiliDownloadEntryInfo with MultiSelectData {
   final SourceInfo? source;
   EpInfo? ep;
 
+  final String? autoFolderTitle;
+  final String? autoFolderSourceKey;
+
   late String pageDirPath;
   late String entryDirPath;
   late DownloadStatus status = .wait;
@@ -169,6 +172,8 @@ class BiliDownloadEntryInfo with MultiSelectData {
     this.seasonId,
     this.source,
     this.ep,
+    this.autoFolderTitle,
+    this.autoFolderSourceKey,
   });
 
   factory BiliDownloadEntryInfo.fromJson(Map<String, dynamic> json) =>
@@ -207,6 +212,8 @@ class BiliDownloadEntryInfo with MultiSelectData {
         ep: json['ep'] != null
             ? EpInfo.fromJson(json['ep'] as Map<String, dynamic>)
             : null,
+        autoFolderTitle: json['auto_folder_title'] as String?,
+        autoFolderSourceKey: json['auto_folder_source_key'] as String?,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -237,6 +244,8 @@ class BiliDownloadEntryInfo with MultiSelectData {
     'season_id': ?seasonId,
     'source': ?source?.toJson(),
     'ep': ?ep?.toJson(),
+    'auto_folder_title': autoFolderTitle,
+    'auto_folder_source_key': autoFolderSourceKey,
   };
 
   @override
