@@ -2216,6 +2216,22 @@ class HeaderControlState extends State<HeaderControl>
               ),
             ],
           ),
+        // 计入人数行的高度，收起顶部控制栏时避免溢出内容残留。
+        if (introController.isShowOnlineTotal)
+          const Visibility(
+            visible: false,
+            maintainAnimation: true,
+            maintainState: true,
+            maintainSize: true,
+            child: Text(
+              '0人正在看',
+              maxLines: 1,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+              ),
+            ),
+          ),
       ],
     );
   }
