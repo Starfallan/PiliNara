@@ -1635,6 +1635,26 @@ abstract final class Pref {
   static double get maxVolume => // desktop
       _setting.get(SettingBoxKey.maxVolume, defaultValue: 2.0);
 
+  static int _videoPictureParameter(String key) {
+    final value = _setting.get(key, defaultValue: 0);
+    final number = value is num ? value.round() : int.tryParse('$value') ?? 0;
+    return number.clamp(-100, 100).toInt();
+  }
+
+  static int get videoBrightness =>
+      _videoPictureParameter(SettingBoxKey.videoBrightness);
+
+  static int get videoContrast =>
+      _videoPictureParameter(SettingBoxKey.videoContrast);
+
+  static int get videoSaturation =>
+      _videoPictureParameter(SettingBoxKey.videoSaturation);
+
+  static int get videoGamma =>
+      _videoPictureParameter(SettingBoxKey.videoGamma);
+
+  static int get videoHue => _videoPictureParameter(SettingBoxKey.videoHue);
+
   static List? get liveStream => _setting.get(SettingBoxKey.liveStream);
 
   static String? get appFont => _setting.get(SettingBoxKey.appFont);

@@ -461,6 +461,150 @@ mixin HeaderMixin<T extends StatefulWidget> on State<T> {
       () => DanmakuOptions.save(plPlayerController.danmakuOpacity.value),
     );
   }
+
+  /// 视频画面参数
+  void showVideoPictureParameters() {
+    const parameters = [
+      (property: 'brightness', label: '亮度'),
+      (property: 'contrast', label: '对比度'),
+      (property: 'saturation', label: '饱和度'),
+      (property: 'gamma', label: '伽马（中间调）'),
+      (property: 'hue', label: '色相'),
+    ];
+
+    showBottomSheet(
+      (context, setState) {
+        final theme = Theme.of(context);
+        final sliderTheme = SliderThemeData(
+          trackHeight: 10,
+          padding: const .symmetric(horizontal: 6),
+          trackShape: const MSliderTrackShape(),
+          thumbColor: theme.colorScheme.primary,
+          activeTrackColor: theme.colorScheme.primary,
+          inactiveTrackColor: theme.colorScheme.onInverseSurface,
+          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
+          tickMarkShape: SliderTickMarkShape.noTickMark,
+        );
+
+        void update(String property, double value) {
+          plPlayerController.setVideoPictureParameter(property, value);
+          setState(() {});
+        }
+
+        Widget buildParameter({
+          required String property,
+          required String label,
+          required int value,
+        }) {
+          return Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('$label ${value > 0 ? '+' : ''}$value'),
+                  resetBtn(
+                    theme,
+                    0,
+                    () {
+                      plPlayerController.resetVideoPictureParameter(property);
+                      setState(() {});
+                    },
+                  ),
+                ],
+              ),
+              Padding(
+                padding: const .symmetric(vertical: 16),
+                child: Slider(
+                  min: PlPlayerController.videoPictureParameterMin.toDouble(),
+                  max: PlPlayerController.videoPictureParameterMax.toDouble(),
+                  divisions: 200,
+                  value: value.toDouble(),
+                  label: value > 0 ? '+$value' : '$value',
+                  onChanged: (value) => update(property, value),
+                ),
+              ),
+            ],
+          );
+        }
+
+        final values = {
+          'brightness': plPlayerController.videoBrightness.value,
+          'contrast': plPlayerController.videoContrast.value,
+          'saturation': plPlayerController.videoSaturation.value,
+          'gamma': plPlayerController.videoGamma.value,
+          'hue': plPlayerController.videoHue.value,
+        };
+        final allDefault = values.values.every((value) => value == 0);
+
+        return Padding(
+          padding: const EdgeInsets.all(12),
+          child: Material(
+            clipBehavior: Clip.hardEdge,
+            color: theme.colorScheme.surface,
+            borderRadius: const BorderRadius.all(Radius.circular(12)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: SliderTheme(
+                data: sliderTheme,
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    SizedBox(
+                      height: 45,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            '视频画面参数',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          iconButton(
+                            tooltip: '全部重置',
+                            icon: const Icon(Icons.refresh),
+                            onPressed: allDefault
+                                ? null
+                                : () {
+                                    plPlayerController
+                                        .resetAllVideoPictureParameters();
+                                    setState(() {});
+                                  },
+                            iconColor: theme.colorScheme.outline,
+                            size: 24,
+                            iconSize: 24,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        '修改即时生效',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                    ...parameters.map(
+                      (parameter) => buildParameter(
+                        property: parameter.property,
+                        label: parameter.label,
+                        value: values[parameter.property]!,
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 4, bottom: 14),
+                      child: Text(
+                        '部分设备或视频输出驱动可能不支持画面调节',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    )?.whenComplete(plPlayerController.persistVideoPictureSettings);
+  }
 }
 
 class MSliderTrackShape extends RoundedRectSliderTrackShape {

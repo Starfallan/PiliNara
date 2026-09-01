@@ -852,6 +852,17 @@ class HeaderControlState extends State<HeaderControl>
                     leading: const Icon(Icons.download_outlined, size: 20),
                     title: const Text('保存字幕', style: titleStyle),
                   ),
+                if (plPlayerController.videoPlayerController != null &&
+                    !plPlayerController.onlyPlayAudio.value)
+                  ListTile(
+                    dense: true,
+                    title: const Text('视频画面参数', style: titleStyle),
+                    leading: const Icon(Icons.tune, size: 20),
+                    onTap: () {
+                      Get.back();
+                      showVideoPictureParameters();
+                    },
+                  ),
                 if (plPlayerController.videoPlayerController case final player?)
                   ListTile(
                     dense: true,

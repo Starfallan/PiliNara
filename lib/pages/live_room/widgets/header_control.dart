@@ -10,6 +10,7 @@ import 'package:PiliPlus/pages/live_room/controller.dart';
 import 'package:PiliPlus/pages/setting/models/play_settings.dart'
     show showPlayerVolumeDialog;
 import 'package:PiliPlus/pages/video/widgets/header_control.dart';
+import 'package:PiliPlus/pages/video/widgets/header_mixin.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/widgets/common_btn.dart';
 import 'package:PiliPlus/services/shutdown_timer_service.dart'
@@ -54,7 +55,7 @@ class LiveHeaderControl extends StatefulWidget {
 }
 
 class _LiveHeaderControlState extends State<LiveHeaderControl>
-    with TimeBatteryMixin {
+    with HeaderMixin, TimeBatteryMixin {
   @override
   late final plPlayerController = widget.plPlayerController;
 
@@ -303,6 +304,18 @@ class _LiveHeaderControlState extends State<LiveHeaderControl>
                       player: player,
                     ),
                   ),
+                  if (!plPlayerController.onlyPlayAudio.value)
+                    PopupMenuItem(
+                      height: 42,
+                      onTap: showVideoPictureParameters,
+                      child: const Row(
+                        spacing: 8,
+                        children: [
+                          Icon(Icons.tune, size: 20),
+                          Text('视频画面参数', style: TextStyle(fontSize: 14)),
+                        ],
+                      ),
+                    ),
                   if (PlatformUtils.isMobile)
                     PopupMenuItem(
                       height: 42,
