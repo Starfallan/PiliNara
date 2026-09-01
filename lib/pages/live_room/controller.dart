@@ -118,6 +118,9 @@ class LiveRoomController extends GetxController {
   final disableAutoScroll = false.obs;
   bool autoScroll = true;
   LiveMessageStream? _msgStream;
+  Future<void>? _blockRulesFuture;
+  List<String> keywordList = const [];
+  Set<int> shieldUids = const {};
   late final ScrollController scrollController;
   late final RxInt pageIndex = 0.obs;
   PageController? pageController;
@@ -563,7 +566,9 @@ class LiveRoomController extends GetxController {
     final res = await LiveHttp.liveRoomDmPrefetch(roomId: roomId);
     if (res case Success(:final response)) {
       if (response != null && response.isNotEmpty) {
-        messages.addAll(response);
+        messages.addAll(
+          response.where((item) => !isBlocked(item.text, item.extra.mid)),
+        );
         scrollToBottom();
       }
     } else {
@@ -584,24 +589,47 @@ class LiveRoomController extends GetxController {
     superChatMsg.removeWhere((e) => e.expired);
   }
 
+  Future<void> fetchBlockRules() async {
+    final res = await LiveHttp.getLiveInfoByUser(roomId);
+    if (res case Success(:final response)) {
+      keywordList = response?.keywordList ?? const [];
+      shieldUids = {
+        for (final item in response?.shieldUserList ?? const [])
+          if (item.uid != null) item.uid!,
+      };
+    }
+  }
+
+  void updateBlockRules(Iterable<String> keywords, Iterable<int> uids) {
+    keywordList = keywords.toList();
+    shieldUids = uids.toSet();
+  }
+
+  bool isBlocked(String text, Object uid) {
+    return keywordList.any(text.contains) || shieldUids.contains(uid);
+  }
+
   void startLiveMsg() {
-    if (messages.isEmpty) {
-      prefetch();
-      if (showSuperChat) {
-        getSuperChatMsg();
+    _blockRulesFuture ??= fetchBlockRules();
+    _blockRulesFuture!.then((_) {
+      if (messages.isEmpty) {
+        prefetch();
+        if (showSuperChat) {
+          getSuperChatMsg();
+        }
       }
-    }
-    if (_msgStream != null) {
-      return;
-    }
-    if (dmInfo != null) {
-      initDm(dmInfo!);
-      return;
-    }
-    LiveHttp.liveRoomGetDanmakuToken(roomId: roomId).then((res) {
-      if (res case Success(:final response)) {
-        initDm(dmInfo = response);
+      if (_msgStream != null) {
+        return;
       }
+      if (dmInfo != null) {
+        initDm(dmInfo!);
+        return;
+      }
+      LiveHttp.liveRoomGetDanmakuToken(roomId: roomId).then((res) {
+        if (res case Success(:final response)) {
+          initDm(dmInfo = response);
+        }
+      });
     });
   }
 
@@ -710,6 +738,9 @@ class LiveRoomController extends GetxController {
           final uid = user['uid'];
           final name = user['base']['name'];
           final msg = info[1];
+          if (isBlocked(msg, uid)) {
+            return;
+          }
           BaseEmote? uemote;
           if (first[13] case Map<String, dynamic> map) {
             uemote = BaseEmote.fromJson(map);
