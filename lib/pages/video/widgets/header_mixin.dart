@@ -552,11 +552,14 @@ mixin HeaderMixin<T extends StatefulWidget> on State<T> {
                     SizedBox(
                       height: 45,
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            '视频画面参数',
-                            style: TextStyle(fontSize: 14),
+                          const Expanded(
+                            child: Center(
+                              child: Text(
+                                '视频画面参数',
+                                style: TextStyle(fontSize: 14),
+                              ),
+                            ),
                           ),
                           iconButton(
                             tooltip: '全部重置',
@@ -575,13 +578,7 @@ mixin HeaderMixin<T extends StatefulWidget> on State<T> {
                         ],
                       ),
                     ),
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 12),
-                      child: Text(
-                        '修改即时生效',
-                        style: TextStyle(fontSize: 12),
-                      ),
-                    ),
+                    const SizedBox(height: 12),
                     ...parameters.map(
                       (parameter) => buildParameter(
                         property: parameter.property,
