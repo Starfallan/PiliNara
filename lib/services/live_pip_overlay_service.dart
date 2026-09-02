@@ -647,40 +647,7 @@ class _LivePipWidgetState extends State<LivePipWidget>
                     if (_showControls) _startHideTimer();
                   }
                 },
-                child: GestureDetector(
-                  onTap: _onTap,
-                  onDoubleTap: _onDoubleTap,
-                  // 单指拖动 + 双指捏合缩放统一走 onScale(两者互斥于 onPan)
-                  onScaleStart: (_) {
-                    _hideTimer?.cancel();
-                    _scaleStart = _scale;
-                    _instantResize = true;
-                  },
-                  onScaleUpdate: (details) {
-                    setState(() {
-                      // 平移:单指拖动 / 双指整体移动(focalPointDelta)
-                      _left = _left! + details.focalPointDelta.dx;
-                      _top = _top! + details.focalPointDelta.dy;
-                      // 缩放:双指时 scale≠1;单指恒为 1,仅钳位置
-                      if (details.scale != 1.0) {
-                        _applyScaleAroundCenter(
-                          _scaleStart * details.scale,
-                          screenSize,
-                        );
-                      } else {
-                        _clampPositionInScreen(screenSize);
-                      }
-                    });
-                    PipWindowMemory.position = Offset(_left!, _top!);
-                    PipWindowMemory.scale = _scale;
-                  },
-                  onScaleEnd: (_) {
-                    setState(() => _instantResize = false);
-                    if (_showControls) {
-                      _startHideTimer();
-                    }
-                  },
-                  child: MouseRegion(
+                child: MouseRegion(
                     onEnter: _onHoverEnter,
                     onExit: _onHoverExit,
                     child: FadeTransition(
@@ -718,20 +685,58 @@ class _LivePipWidgetState extends State<LivePipWidget>
                             child: Stack(
                               children: [
                                 Positioned.fill(
-                                  child: AbsorbPointer(
-                                    child: PipMiniVideoContent(
-                                      plPlayerController:
-                                          widget.plPlayerController,
-                                      transition:
-                                          LivePipOverlayService.transition,
+                                  child: GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: _onTap,
+                                    onDoubleTap: _onDoubleTap,
+                                    // 仅视频区域处理小窗移动/缩放，避免与控制按钮竞争手势。
+                                    onScaleStart: (_) {
+                                      _hideTimer?.cancel();
+                                      _scaleStart = _scale;
+                                      _instantResize = true;
+                                    },
+                                    onScaleUpdate: (details) {
+                                      setState(() {
+                                        // 平移:单指拖动 / 双指整体移动(focalPointDelta)
+                                        _left = _left! + details.focalPointDelta.dx;
+                                        _top = _top! + details.focalPointDelta.dy;
+                                        // 缩放:双指时 scale≠1;单指恒为 1,仅钳位置
+                                        if (details.scale != 1.0) {
+                                          _applyScaleAroundCenter(
+                                            _scaleStart * details.scale,
+                                            screenSize,
+                                          );
+                                        } else {
+                                          _clampPositionInScreen(screenSize);
+                                        }
+                                      });
+                                      PipWindowMemory.position =
+                                          Offset(_left!, _top!);
+                                      PipWindowMemory.scale = _scale;
+                                    },
+                                    onScaleEnd: (_) {
+                                      setState(() => _instantResize = false);
+                                      if (_showControls) {
+                                        _startHideTimer();
+                                      }
+                                    },
+                                    child: AbsorbPointer(
+                                      child: PipMiniVideoContent(
+                                        plPlayerController:
+                                            widget.plPlayerController,
+                                        transition:
+                                            LivePipOverlayService.transition,
+                                      ),
                                     ),
                                   ),
                                 ),
                                 if (interactive && _showControls) ...[
                                   Positioned.fill(
-                                    child: Container(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.4,
+                                    child: IgnorePointer(
+                                      child: Container(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.4,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -843,7 +848,6 @@ class _LivePipWidgetState extends State<LivePipWidget>
                       ),
                     ),
                   ),
-                ),
               ),
             ),
           );
