@@ -70,6 +70,7 @@ import 'package:path/path.dart' as path;
 import 'package:screen_brightness_platform_interface/screen_brightness_platform_interface.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:PiliPlus/plugin/pl_player/models/auto_audio_only_state.dart';
 
 typedef PlayCallback = Future<void>? Function();
 
@@ -205,6 +206,15 @@ class PlPlayerController with BlockConfigMixin {
 
   /// 听视频
   late final RxBool onlyPlayAudio = false.obs;
+
+  /// 后台自动只听音频状态机
+  AutoAudioOnlyState _autoAudioState = AutoAudioOnlyState.idle;
+  Timer? _autoAudioOnlyTimer;
+  bool _audioReopened = false;
+  AppLifecycleState? _lastAppLifecycleState;
+
+  /// 自动恢复需要重初始化的回调（视频→playerInit，直播→queryLiveUrl）
+  VoidCallback? onNeedsPlayerInit;
 
   /// 镜像
   late final RxBool flipX = false.obs;
@@ -661,6 +671,7 @@ class PlPlayerController with BlockConfigMixin {
           isNativePip.value = isInPip;
           PipOverlayService.isNativePip = isInPip;
           LivePipOverlayService.isNativePip = isInPip;
+          handleAutoAudioOnlyPipChanged(isInPip);
         }
       });
 
@@ -879,6 +890,13 @@ class PlPlayerController with BlockConfigMixin {
         resetTempSettings(nextPgcType: pgcType);
       }
       _activeVideoContextKey = nextVideoContextKey;
+
+      // 换视频上下文时取消自动只听定时器，状态保持
+      _cancelAutoAudioOnlyTimer();
+      _fallbackTimer?.cancel();
+      if (_autoAudioState == AutoAudioOnlyState.autoAudioOnly) {
+        _audioReopened = true;
+      }
       this.isLive = isLive;
       _videoType = videoType ?? VideoType.ugc;
       this.width = width;
@@ -1207,7 +1225,8 @@ class PlPlayerController with BlockConfigMixin {
       stream.playing.listen((bool playing) {
         WakelockPlus.toggle(enable: playing);
         if (playing) {
-          if (_isAutoEnterPip) {
+          if (_isAutoEnterPip &&
+              _autoAudioState != AutoAudioOnlyState.autoAudioOnly) {
             if (_isCurrVideoPage || _isInInAppPip) {
               enterPip(autoEnter: true);
             } else {
@@ -2102,7 +2121,234 @@ class PlPlayerController with BlockConfigMixin {
     Get.until((route) => route.isFirst);
   }
 
+  // ──────────────────────────────────────────────
+  // 后台自动只听音频 — 状态机
+  // ──────────────────────────────────────────────
+
+  /// 手动听视频/仅播放音频标记，由三点菜单或直播按钮调用
+  void markManualOnlyPlayAudio(bool enabled) {
+    if (enabled) {
+      _autoAudioState = AutoAudioOnlyState.manualAudioOnly;
+    } else {
+      if (_autoAudioState == AutoAudioOnlyState.manualAudioOnly ||
+          _autoAudioState == AutoAudioOnlyState.autoAudioOnly) {
+        _autoAudioState = AutoAudioOnlyState.idle;
+      }
+    }
+  }
+
+  /// 设置项变更时调用
+  void onAutoAudioOnlySettingChanged() {
+    if (!Pref.autoAudioOnlyInBackground || !continuePlayInBackground.value) {
+      if (_autoAudioState == AutoAudioOnlyState.arm ||
+          _autoAudioState == AutoAudioOnlyState.pipHold) {
+        _cancelAutoAudioOnlyTimer();
+        _autoAudioState = AutoAudioOnlyState.idle;
+      } else if (_autoAudioState == AutoAudioOnlyState.autoAudioOnly) {
+        _cancelAutoAudioOnlyTimer();
+        restoreFromAutoAudioOnly();
+      }
+    }
+  }
+
+  void _cancelAutoAudioOnlyTimer() {
+    _autoAudioOnlyTimer?.cancel();
+    _autoAudioOnlyTimer = null;
+  }
+
+  /// 自动只听准入检查
+  bool _canEnterAutoAudioOnly() {
+    if (!PlatformUtils.isMobile) return false;
+    if (!Pref.autoAudioOnlyInBackground) return false;
+    if (!continuePlayInBackground.value) return false;
+    if (_videoPlayerController == null) return false;
+    if (!playerStatus.isPlaying) return false;
+    if (isPipMode) return false;
+    if (_autoAudioState == AutoAudioOnlyState.manualAudioOnly) return false;
+    if (_autoAudioState == AutoAudioOnlyState.autoAudioOnly) return false;
+    if (Get.currentRoute == '/audio') return false;
+    // 点播有独立音轨才可切；直播没有音轨限制
+    if (!isLive && !_hasIndependentAudioTrack) return false;
+    return true;
+  }
+
+  bool get _hasIndependentAudioTrack {
+    if (dataSource is FileSource) {
+      return !(dataSource as FileSource).isMp4;
+    }
+    return dataSource.audioSource?.isNotEmpty == true;
+  }
+
+  /// 后台 10 秒到点，切到只听
+  Future<void> applyAutoAudioOnly() async {
+    if (!_canEnterAutoAudioOnly()) {
+      _autoAudioState = AutoAudioOnlyState.idle;
+      return;
+    }
+
+    onlyPlayAudio.value = true;
+
+    if (isLive) {
+      // 直播：重拉 only_audio=1
+      _autoAudioState = AutoAudioOnlyState.autoAudioOnly;
+      onNeedsPlayerInit?.call();
+    } else {
+      // 点播：vid=no
+      try {
+        _videoPlayerController?.setProperty(
+          'file-local-options/vid',
+          'no',
+        );
+      } catch (_) {
+        onlyPlayAudio.value = false;
+        _autoAudioState = AutoAudioOnlyState.idle;
+        return;
+      }
+      _audioReopened = false;
+      _autoAudioState = AutoAudioOnlyState.autoAudioOnly;
+    }
+  }
+
+  /// 回到前台，恢复画面
+  Future<void> restoreFromAutoAudioOnly() async {
+    if (_autoAudioState != AutoAudioOnlyState.autoAudioOnly) return;
+
+    _cancelAutoAudioOnlyTimer();
+
+    if (_audioReopened) {
+      // 自动只听期间重开过 Media，vid=auto 恢复不了画面，直接保底
+      _fullRestore();
+      return;
+    }
+
+    onlyPlayAudio.value = false;
+
+    if (isLive) {
+      _autoAudioState = AutoAudioOnlyState.idle;
+      onNeedsPlayerInit?.call();
+      return;
+    }
+
+    // 点播主路径：vid=auto
+    try {
+      _videoPlayerController?.setProperty(
+        'file-local-options/vid',
+        'auto',
+      );
+    } catch (_) {
+      _fullRestore();
+      return;
+    }
+
+    applyVideoPictureParameters();
+    _autoAudioState = AutoAudioOnlyState.idle;
+
+    // 4 秒保底检查
+    _scheduleFallbackCheck();
+  }
+
+  /// 保底重开
+  void _fullRestore() {
+    onlyPlayAudio.value = false;
+    _autoAudioState = AutoAudioOnlyState.idle;
+    onNeedsPlayerInit?.call();
+  }
+
+  Timer? _fallbackTimer;
+
+  void _scheduleFallbackCheck() {
+    _fallbackTimer?.cancel();
+    _fallbackTimer = Timer(const Duration(seconds: 4), () {
+      if (_autoAudioState != AutoAudioOnlyState.idle) return;
+      if (_videoPlayerController == null) return;
+      if (!playerStatus.isPlaying) return;
+
+      final isStuck = (isBuffering.value && buffered.value == 0) ||
+          _videoPlayerController!.state.tracks.video.length <= 1;
+      if (isStuck) {
+        _fullRestore();
+      }
+    });
+  }
+
+  /// 生命周期变化 — 由 view 转发
+  void handleAutoAudioOnlyLifecycle(AppLifecycleState state) {
+    _lastAppLifecycleState = state;
+
+    switch (state) {
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+        _cancelAutoAudioOnlyTimer();
+        _fallbackTimer?.cancel();
+        // 已在只听/手动听视频时，保持状态不退出
+        if (_autoAudioState == AutoAudioOnlyState.autoAudioOnly ||
+            _autoAudioState == AutoAudioOnlyState.manualAudioOnly) {
+          break;
+        }
+        if (isPipMode) {
+          _autoAudioState = AutoAudioOnlyState.pipHold;
+        } else if (_canEnterAutoAudioOnly()) {
+          _autoAudioOnlyTimer = Timer(
+            const Duration(seconds: 10),
+            applyAutoAudioOnly,
+          );
+          _autoAudioState = AutoAudioOnlyState.arm;
+        }
+        break;
+      case AppLifecycleState.resumed:
+        _cancelAutoAudioOnlyTimer();
+        // 不取消 _fallbackTimer（4s 保底）；刚设的保底若画面已恢复自会跳过
+        if (_autoAudioState == AutoAudioOnlyState.autoAudioOnly) {
+          restoreFromAutoAudioOnly();
+        }
+        // manualAudioOnly / pipHold / arm / idle：保持状态不重置
+        break;
+      case AppLifecycleState.inactive:
+        // 过渡状态，忽略
+        break;
+      case AppLifecycleState.detached:
+        _cancelAutoAudioOnlyTimer();
+        _fallbackTimer?.cancel();
+        break;
+    }
+  }
+
+  /// 系统 PiP 变化时由 onPipChanged 调用
+  void handleAutoAudioOnlyPipChanged(bool isInPip) {
+    if (isInPip) {
+      _cancelAutoAudioOnlyTimer();
+      if (_autoAudioState == AutoAudioOnlyState.arm) {
+        _autoAudioState = AutoAudioOnlyState.pipHold;
+      }
+    } else {
+      // PiP 关闭
+      _cancelAutoAudioOnlyTimer();
+      if (_lastAppLifecycleState == AppLifecycleState.resumed) {
+        if (_autoAudioState == AutoAudioOnlyState.autoAudioOnly) {
+          restoreFromAutoAudioOnly();
+        }
+        // manualAudioOnly 保持不动
+      } else {
+        // 仍在后台：仅当不在只听/手动听时重新 arm
+        if (_autoAudioState == AutoAudioOnlyState.autoAudioOnly ||
+            _autoAudioState == AutoAudioOnlyState.manualAudioOnly) {
+          return;
+        }
+        _autoAudioState = AutoAudioOnlyState.arm;
+        _autoAudioOnlyTimer = Timer(
+          const Duration(seconds: 10),
+          applyAutoAudioOnly,
+        );
+      }
+    }
+  }
+
   void dispose() {
+    _cancelAutoAudioOnlyTimer();
+    _fallbackTimer?.cancel();
+    _autoAudioState = AutoAudioOnlyState.idle;
+    _audioReopened = false;
+    _lastAppLifecycleState = null;
     // 每次减1，最后销毁
     resetScreenRotation();
     cancelLongPressTimer();
@@ -2185,6 +2431,10 @@ class PlPlayerController with BlockConfigMixin {
         SettingBoxKey.continuePlayInBackground,
         continuePlayInBackground.value,
       );
+    }
+    // 关掉后台播放时，停止自动只听状态机
+    if (!continuePlayInBackground.value) {
+      onAutoAudioOnlySettingChanged();
     }
   }
 

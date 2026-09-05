@@ -58,6 +58,7 @@ abstract final class SettingBoxKey {
       fullScreenGestureReverse = 'fullScreenGestureReverse',
       enableBackgroundPlay = 'enableBackgroundPlay',
       continuePlayInBackground = 'continuePlayInBackground',
+      autoAudioOnlyInBackground = 'autoAudioOnlyInBackground',
       appRcmd = 'appRcmd',
       rcmdMode = 'rcmdMode',
       enableSaveLastData = 'enableSaveLastData',

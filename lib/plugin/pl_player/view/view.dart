@@ -382,7 +382,11 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
           player?.play();
         }
       }
+      // 后台播放关了，本功能不运行，转发生命周期以取消定时器
+      plPlayerController.handleAutoAudioOnlyLifecycle(state);
+      return;
     }
+    plPlayerController.handleAutoAudioOnlyLifecycle(state);
   }
 
   Future<void> setBrightness(double value) async {

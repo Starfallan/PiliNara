@@ -207,6 +207,8 @@ class _LiveHeaderControlState extends State<LiveHeaderControl>
               tooltip: '仅播放音频',
               onTap: () {
                 plPlayerController.onlyPlayAudio.toggle();
+                plPlayerController.markManualOnlyPlayAudio(
+                    plPlayerController.onlyPlayAudio.value);
                 widget.onPlayAudio();
               },
               icon: plPlayerController.onlyPlayAudio.value

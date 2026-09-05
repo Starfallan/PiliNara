@@ -250,12 +250,28 @@ List<SettingsModel> get playSettings => [
     defaultVal: false,
   ),
   if (PlatformUtils.isMobile)
-    const SwitchModel(
+    SwitchModel(
       title: '后台播放',
       subtitle: '进入后台时继续播放',
-      leading: Icon(Icons.motion_photos_pause_outlined),
+      leading: const Icon(Icons.motion_photos_pause_outlined),
       setKey: SettingBoxKey.continuePlayInBackground,
       defaultVal: false,
+      onChanged: (value) {
+        if (!value) {
+          PlPlayerController.instance?.onAutoAudioOnlySettingChanged();
+        }
+      },
+    ),
+  if (PlatformUtils.isMobile)
+    SwitchModel(
+      title: '后台只听音频',
+      subtitle: '需开启「后台播放」后才生效。进入后台或息屏一段时间后停止视频流，只保留声音；回到前台恢复画面',
+      leading: const Icon(Icons.headphones_outlined),
+      setKey: SettingBoxKey.autoAudioOnlyInBackground,
+      defaultVal: false,
+      onChanged: (value) {
+        PlPlayerController.instance?.onAutoAudioOnlySettingChanged();
+      },
     ),
   const SwitchModel(
     title: '应用内画中画',

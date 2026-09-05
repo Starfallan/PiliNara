@@ -447,6 +447,7 @@ class VideoDetailController extends GetxController
   void onInit() {
     super.onInit();
     args = Get.arguments;
+    plPlayerController.onNeedsPlayerInit = playerInit;
 
     // 开启新视频时，如果存在前代播放器的应用内小窗，则按播放上下文决定是否重置旧状态
     // 避免不同视频/分P之间 SponsorBlock 片段状态污染，同时保留同上下文无缝恢复能力
@@ -1702,6 +1703,7 @@ class VideoDetailController extends GetxController
 
   @override
   void onClose() {
+    plPlayerController.onNeedsPlayerInit = null;
     if (isEnteringPip) {
       // 正在进入小窗，保留资源
       return;

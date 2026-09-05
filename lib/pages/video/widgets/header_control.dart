@@ -661,6 +661,8 @@ class HeaderControlState extends State<HeaderControl>
                               onTap: () {
                                 plPlayerController.onlyPlayAudio.value =
                                     !onlyPlayAudio;
+                                plPlayerController.markManualOnlyPlayAudio(
+                                    !onlyPlayAudio);
                                 final player =
                                     plPlayerController.videoPlayerController!;
                                 if (onlyPlayAudio &&

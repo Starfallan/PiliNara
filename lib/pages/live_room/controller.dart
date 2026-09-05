@@ -198,6 +198,7 @@ class LiveRoomController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    plPlayerController.onNeedsPlayerInit = queryLiveUrl;
 
     // 从参数中提取 roomId（支持 int 或 Map 格式）
     final args = Get.arguments;
@@ -656,6 +657,7 @@ class LiveRoomController extends GetxController {
 
   @override
   void onClose() {
+    plPlayerController.onNeedsPlayerInit = null;
     _stopSizeSub();
     // 心跳定时器是静态的，无论是否小窗都要取消
     LiveHttp.cancelLiveHeartbeat();

@@ -1418,6 +1418,9 @@ abstract final class Pref {
   static bool get continuePlayInBackground =>
       _setting.get(SettingBoxKey.continuePlayInBackground, defaultValue: false);
 
+  static bool get autoAudioOnlyInBackground =>
+      _setting.get(SettingBoxKey.autoAudioOnlyInBackground, defaultValue: false);
+
   static bool get directExitOnBack =>
       _setting.get(SettingBoxKey.directExitOnBack, defaultValue: false);
 
