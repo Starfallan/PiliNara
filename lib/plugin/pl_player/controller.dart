@@ -893,7 +893,6 @@ class PlPlayerController with BlockConfigMixin {
 
       // 换视频上下文时取消自动只听定时器，状态保持
       _cancelAutoAudioOnlyTimer();
-      _fallbackTimer?.cancel();
       if (_autoAudioState == AutoAudioOnlyState.autoAudioOnly) {
         _audioReopened = true;
       }
@@ -2214,61 +2213,15 @@ class PlPlayerController with BlockConfigMixin {
     if (_autoAudioState != AutoAudioOnlyState.autoAudioOnly) return;
 
     _cancelAutoAudioOnlyTimer();
-
-    if (_audioReopened) {
-      // 自动只听期间重开过 Media，vid=auto 恢复不了画面，直接保底
-      _fullRestore();
-      return;
-    }
-
-    onlyPlayAudio.value = false;
-
-    if (isLive) {
-      _autoAudioState = AutoAudioOnlyState.idle;
-      onNeedsPlayerInit?.call();
-      return;
-    }
-
-    // 点播主路径：vid=auto
-    try {
-      _videoPlayerController?.setProperty(
-        'file-local-options/vid',
-        'auto',
-      );
-    } catch (_) {
-      _fullRestore();
-      return;
-    }
-
-    applyVideoPictureParameters();
-    _autoAudioState = AutoAudioOnlyState.idle;
-
-    // 4 秒保底检查
-    _scheduleFallbackCheck();
+    _fullRestore();
   }
 
-  /// 保底重开
+  /// 点播 playerInit / 直播 queryLiveUrl。vid=auto 对已打开的 EDL 不能稳定拉回视频轨。
   void _fullRestore() {
     onlyPlayAudio.value = false;
     _autoAudioState = AutoAudioOnlyState.idle;
+    _audioReopened = false;
     onNeedsPlayerInit?.call();
-  }
-
-  Timer? _fallbackTimer;
-
-  void _scheduleFallbackCheck() {
-    _fallbackTimer?.cancel();
-    _fallbackTimer = Timer(const Duration(seconds: 4), () {
-      if (_autoAudioState != AutoAudioOnlyState.idle) return;
-      if (_videoPlayerController == null) return;
-      if (!playerStatus.isPlaying) return;
-
-      final isStuck = (isBuffering.value && buffered.value == 0) ||
-          _videoPlayerController!.state.tracks.video.length <= 1;
-      if (isStuck) {
-        _fullRestore();
-      }
-    });
   }
 
   /// 生命周期变化 — 由 view 转发
@@ -2279,7 +2232,6 @@ class PlPlayerController with BlockConfigMixin {
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:
         _cancelAutoAudioOnlyTimer();
-        _fallbackTimer?.cancel();
         // 已在只听/手动听视频时，保持状态不退出
         if (_autoAudioState == AutoAudioOnlyState.autoAudioOnly ||
             _autoAudioState == AutoAudioOnlyState.manualAudioOnly) {
@@ -2297,7 +2249,6 @@ class PlPlayerController with BlockConfigMixin {
         break;
       case AppLifecycleState.resumed:
         _cancelAutoAudioOnlyTimer();
-        // 不取消 _fallbackTimer（4s 保底）；刚设的保底若画面已恢复自会跳过
         if (_autoAudioState == AutoAudioOnlyState.autoAudioOnly) {
           restoreFromAutoAudioOnly();
         }
@@ -2308,7 +2259,6 @@ class PlPlayerController with BlockConfigMixin {
         break;
       case AppLifecycleState.detached:
         _cancelAutoAudioOnlyTimer();
-        _fallbackTimer?.cancel();
         break;
     }
   }
@@ -2345,7 +2295,6 @@ class PlPlayerController with BlockConfigMixin {
 
   void dispose() {
     _cancelAutoAudioOnlyTimer();
-    _fallbackTimer?.cancel();
     _autoAudioState = AutoAudioOnlyState.idle;
     _audioReopened = false;
     _lastAppLifecycleState = null;
