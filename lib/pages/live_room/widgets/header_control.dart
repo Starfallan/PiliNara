@@ -314,7 +314,7 @@ class _LiveHeaderControlState extends State<LiveHeaderControl>
                         spacing: 8,
                         children: [
                           Icon(Icons.tune, size: 20),
-                          Text('视频画面参数', style: TextStyle(fontSize: 14)),
+                          Text('视频参数', style: TextStyle(fontSize: 14)),
                         ],
                       ),
                     ),

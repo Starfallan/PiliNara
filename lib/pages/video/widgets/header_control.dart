@@ -865,7 +865,7 @@ class HeaderControlState extends State<HeaderControl>
                     !plPlayerController.onlyPlayAudio.value)
                   ListTile(
                     dense: true,
-                    title: const Text('视频画面参数', style: titleStyle),
+                    title: const Text('视频参数', style: titleStyle),
                     leading: const Icon(Icons.tune, size: 20),
                     onTap: () {
                       Get.back();

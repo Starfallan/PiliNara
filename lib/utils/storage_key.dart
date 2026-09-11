@@ -38,7 +38,8 @@ abstract final class SettingBoxKey {
       videoContrast = 'videoContrast',
       videoSaturation = 'videoSaturation',
       videoGamma = 'videoGamma',
-      videoHue = 'videoHue';
+      videoHue = 'videoHue',
+      audioDelayMs = 'audioDelayMs';
 
   static const String enableVerticalExpand = 'enableVerticalExpand',
       feedBackEnable = 'feedBackEnable',

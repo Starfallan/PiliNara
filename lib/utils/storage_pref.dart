@@ -1656,6 +1656,12 @@ abstract final class Pref {
 
   static int get videoHue => _videoPictureParameter(SettingBoxKey.videoHue);
 
+  static int get audioDelayMs {
+    final value = _setting.get(SettingBoxKey.audioDelayMs, defaultValue: 0);
+    final number = value is num ? value.round() : int.tryParse('$value') ?? 0;
+    return number.clamp(-1000, 1000).toInt();
+  }
+
   static List? get liveStream => _setting.get(SettingBoxKey.liveStream);
 
   static String? get appFont => _setting.get(SettingBoxKey.appFont);

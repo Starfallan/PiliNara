@@ -435,6 +435,9 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
 
   static const int videoPictureParameterMin = -100;
   static const int videoPictureParameterMax = 100;
+  static const int audioDelayMin = -1000;
+  static const int audioDelayMax = 1000;
+  static const int audioDelayStep = 10;
   static const Duration _videoPictureSaveDelay = Duration(milliseconds: 300);
 
   late final RxInt videoBrightness =
@@ -445,6 +448,8 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
       (tempPlayerConf ? 0 : Pref.videoSaturation).obs;
   late final RxInt videoGamma = (tempPlayerConf ? 0 : Pref.videoGamma).obs;
   late final RxInt videoHue = (tempPlayerConf ? 0 : Pref.videoHue).obs;
+  late final RxInt audioDelayMs =
+      (tempPlayerConf ? 0 : Pref.audioDelayMs).obs;
   Timer? _videoPictureSaveTimer;
 
   late int? cacheVideoQa = PlatformUtils.isMobile ? null : Pref.defaultVideoQa;
@@ -784,12 +789,29 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     setVideoPictureParameter(property, 0);
   }
 
+  void setAudioDelay(int value) {
+    audioDelayMs.value = value.clamp(audioDelayMin, audioDelayMax).toInt();
+    _applyAudioDelay();
+    _scheduleVideoPictureSettingsSave();
+  }
+
+  void resetAudioDelay() => setAudioDelay(0);
+
+  void _applyAudioDelay() {
+    final player = _videoPlayerController;
+    if (player == null || onlyPlayAudio.value) return;
+    try {
+      player.setProperty('audio-delay', (audioDelayMs.value / 1000).toString());
+    } catch (_) {}
+  }
+
   void resetAllVideoPictureParameters({bool persist = true}) {
     videoBrightness.value = 0;
     videoContrast.value = 0;
     videoSaturation.value = 0;
     videoGamma.value = 0;
     videoHue.value = 0;
+    audioDelayMs.value = 0;
     applyVideoPictureParameters();
     if (persist) {
       _scheduleVideoPictureSettingsSave();
@@ -813,7 +835,8 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
         ..setProperty('contrast', videoContrast.value.toString())
         ..setProperty('saturation', videoSaturation.value.toString())
         ..setProperty('gamma', videoGamma.value.toString())
-        ..setProperty('hue', videoHue.value.toString());
+        ..setProperty('hue', videoHue.value.toString())
+        ..setProperty('audio-delay', (audioDelayMs.value / 1000).toString());
     } catch (_) {}
   }
 
@@ -836,6 +859,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
       SettingBoxKey.videoSaturation: videoSaturation.value,
       SettingBoxKey.videoGamma: videoGamma.value,
       SettingBoxKey.videoHue: videoHue.value,
+      SettingBoxKey.audioDelayMs: audioDelayMs.value,
     });
   }
 
