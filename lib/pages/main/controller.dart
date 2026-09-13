@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:PiliPlus/common/widgets/view_safe_area.dart';
 import 'package:PiliPlus/grpc/dyn.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/http/msg.dart';
 import 'package:PiliPlus/models/common/dynamic/dynamic_badge_mode.dart';
+import 'package:PiliPlus/models/common/home_tab_type.dart';
 import 'package:PiliPlus/models/common/msg/msg_unread_type.dart';
 import 'package:PiliPlus/models/common/nav_bar_config.dart';
 import 'package:PiliPlus/pages/dynamics/controller.dart';
@@ -21,8 +23,8 @@ import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/update.dart';
 import 'package:collection/collection.dart';
 import 'package:easy_debounce/easy_throttle.dart';
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:material_ui/material_ui.dart';
 
 class MainController extends GetxController
     with GetSingleTickerProviderStateMixin, AccountMixin {
@@ -52,7 +54,7 @@ class MainController extends GetxController
 
   late DynamicBadgeMode msgBadgeMode = Pref.msgBadgeMode;
   late Set<MsgUnReadType> msgUnReadTypes = Pref.msgUnReadTypeV2;
-  late final RxString msgUnReadCount = ''.obs;
+  late final RxnString msgUnReadCount = RxnString(null);
   late int lastCheckUnreadAt = 0;
 
   final enableMYBar = Pref.enableMYBar;
@@ -164,12 +166,16 @@ class MainController extends GetxController
     return count;
   }
 
+  void clearUnreadMsg() {
+    msgUnReadCount.value = null;
+  }
+
   Future<void> queryUnreadMsg([bool isChangeType = false]) async {
     if (!accountService.isLogin.value ||
         !hasHome ||
         msgUnReadTypes.isEmpty ||
         msgBadgeMode == DynamicBadgeMode.hidden) {
-      msgUnReadCount.value = '';
+      clearUnreadMsg();
       return;
     }
 
@@ -178,7 +184,7 @@ class MainController extends GetxController
     final count = res.sum;
 
     final countStr = count == 0
-        ? ''
+        ? null
         : count > 99
         ? '99+'
         : count.toString();
@@ -229,12 +235,12 @@ class MainController extends GetxController
       navigationBars = NavigationBarType.values;
     } else {
       navigationBars = navBarSort
-          .map((i) => NavigationBarType.values[i])
+          .map(NavigationBarType.values.elementAt)
           .toList();
     }
     this.navigationBars = navigationBars;
     final defPage = Pref.defaultHomePage;
-    selectedIndex.value = navigationBars.indexOf(defPage);
+    selectedIndex.value = math.max(0, navigationBars.indexOf(defPage));
   }
 
   void checkDefaultSearch([bool shouldCheck = false]) {
@@ -367,6 +373,16 @@ class MainController extends GetxController
     }
   }
 
+  bool refreshRecommendations() {
+    if (navigationBars[selectedIndex.value] == NavigationBarType.home &&
+        homeController.tabs[homeController.tabController.index] ==
+            HomeTabType.rcmd) {
+      homeController.onRefresh();
+      return true;
+    }
+    return false;
+  }
+
   @override
   void onClose() {
     barOffset?.close();
@@ -377,6 +393,7 @@ class MainController extends GetxController
   @override
   void onChangeAccount(bool isLogin) {
     if (isLogin) {
+      queryUnreadMsg();
       getUnreadDynamic();
     } else {
       setDynCount();

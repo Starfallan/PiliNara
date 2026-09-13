@@ -22,6 +22,7 @@ import 'package:PiliPlus/models_new/video/video_play_info/subtitle.dart';
 import 'package:PiliPlus/pages/danmaku/controller.dart';
 import 'package:PiliPlus/services/download/download_manager.dart';
 import 'package:PiliPlus/utils/cache_manager.dart';
+import 'package:PiliPlus/utils/danmaku_utils.dart';
 import 'package:PiliPlus/utils/extension/file_ext.dart';
 import 'package:PiliPlus/utils/extension/string_ext.dart';
 import 'package:PiliPlus/utils/id_utils.dart';
@@ -37,8 +38,13 @@ import 'package:synchronized/synchronized.dart';
 class DownloadService extends GetxService {
   static const _entryFile = 'entry.json';
   static const _indexFile = 'index.json';
+  static const _maxDanmakuConcurrency = 4;
 
   final _lock = Lock();
+
+  /// 弹幕下载锁：批量更新时外层 Future.wait 会并发调用多次 downloadDanmaku，
+  /// 此锁确保同一时间只有一个视频在下载弹幕，避免总并发超过 _maxDanmakuConcurrency。
+  final _danmakuLock = Lock();
 
   final flagNotifier = SetNotifier();
   final completedEntryNotifier = Set<ValueChanged<BiliDownloadEntryInfo>>();
@@ -315,6 +321,7 @@ class DownloadService extends GetxService {
     if (cid == null) {
       return false;
     }
+    return _danmakuLock.synchronized<bool>(() async {
     final danmakuFile = File(
       path.join(entry.entryDirPath, PathUtils.danmakuName),
     );
@@ -323,21 +330,26 @@ class DownloadService extends GetxService {
         if (!isUpdate) {
           _updateCurStatus(DownloadStatus.getDanmaku);
         }
-        final seg = (entry.totalTimeMilli / PlDanmakuController.segmentLength)
-            .ceil();
-
-        final res = await Future.wait([
-          for (var i = 1; i <= seg; i++)
-            DmGrpc.dmSegMobile(cid: cid, segmentIndex: i),
-        ]);
-
-        final danmaku = res.removeAt(0).data;
-        for (final i in res) {
-          if (i case Success(:final response)) {
-            danmaku.elems.addAll(response.elems);
-          }
+        final seg = (entry.totalTimeMilli / DmUtils.segLength).ceil();
+        if (seg <= 0) {
+          throw StateError('Invalid danmaku segment count: $seg');
         }
-        res.clear();
+
+        final danmaku = (await DmGrpc.dmSegMobile(
+          cid: cid,
+          segmentIndex: 1,
+        )).data;
+        for (var start = 2; start <= seg; start += _maxDanmakuConcurrency) {
+          final end = start + _maxDanmakuConcurrency - 1;
+          final responses = await Future.wait([
+            for (var index = start; index <= seg && index <= end; index++)
+              DmGrpc.dmSegMobile(cid: cid, segmentIndex: index),
+          ]);
+          for (final response in responses) {
+            danmaku.elems.addAll(response.data.elems);
+          }
+          responses.clear();
+        }
         await danmakuFile.writeAsBytes(danmaku.writeToBuffer());
 
         return true;
@@ -350,6 +362,7 @@ class DownloadService extends GetxService {
       }
     }
     return true;
+    });
   }
 
   Future<void> _downloadSubtitles({
@@ -377,7 +390,7 @@ class DownloadService extends GetxService {
         subtitleList.map((sub) async {
           if (sub.subtitleUrl?.isNotEmpty != true) return null;
           try {
-            return await VideoHttp.vttSubtitles(sub.subtitleUrl!);
+            return await VideoHttp.getSubtitles(sub.subtitleUrl!);
           } catch (_) {
             return null;
           }

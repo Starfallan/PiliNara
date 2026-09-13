@@ -43,11 +43,11 @@ import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/request_utils.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
+import 'package:material_ui/material_ui.dart';
 
 class UgcIntroPanel extends StatefulWidget {
   const UgcIntroPanel({
@@ -872,7 +872,10 @@ class _UgcIntroPanelState extends State<UgcIntroPanel> {
             crossAxisAlignment: .start,
             children: [
               Text(
-                item.name!,
+                remarkedName(
+                  item.mid is int ? item.mid : int.tryParse('${item.mid}'),
+                  item.name!,
+                ),
                 maxLines: 1,
                 overflow: .ellipsis,
                 style: TextStyle(
@@ -908,6 +911,7 @@ class _UgcIntroPanelState extends State<UgcIntroPanel> {
       () {
         final userStat = introController.userStat.value;
         final isVip = (userStat.card?.vip?.status ?? 0) > 0;
+        final ownerMid = int.tryParse(userStat.card?.mid ?? '');
         return Row(
           spacing: 10,
           mainAxisSize: .min,
@@ -929,7 +933,10 @@ class _UgcIntroPanelState extends State<UgcIntroPanel> {
                     TextSpan(
                       children: [
                         TextSpan(
-                          text: userStat.card?.name ?? '',
+                          text: remarkedName(
+                            ownerMid,
+                            userStat.card?.name ?? '',
+                          ),
                           style: TextStyle(
                             fontSize: 13,
                             color: isVip && userStat.card?.vip?.type == 2
@@ -937,12 +944,10 @@ class _UgcIntroPanelState extends State<UgcIntroPanel> {
                                 : null,
                           ),
                         ),
-                        if (GlobalData().remarkMids[int.tryParse(
-                              userStat.card?.mid ?? '',
-                            )]
-                            case final String remark when remark.isNotEmpty)
+                        if (!GlobalData().remarkReplaceName &&
+                            remarkOf(ownerMid) != null)
                           TextSpan(
-                            text: '（$remark）',
+                            text: '（${remarkOf(ownerMid)}）',
                             style: TextStyle(
                               fontSize: 12,
                               color: colorScheme.primary,

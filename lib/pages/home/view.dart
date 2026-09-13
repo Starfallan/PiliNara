@@ -4,18 +4,21 @@ import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/scroll_physics.dart' show tabBarView;
 import 'package:PiliPlus/pages/common/common_page.dart';
 import 'package:PiliPlus/pages/home/controller.dart';
+import 'package:PiliPlus/pages/home/home_preview_scope.dart';
 import 'package:PiliPlus/pages/main/controller.dart';
 import 'package:PiliPlus/pages/mine/controller.dart';
 import 'package:PiliPlus/utils/extension/get_ext.dart';
 import 'package:PiliPlus/utils/extension/size_ext.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
+import 'package:material_ui/material_ui.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({super.key, this.preview = false});
+
+  final bool preview;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -80,21 +83,24 @@ class _HomePageState extends CommonPageState<HomePage>
     } else {
       tabBar = const SizedBox(height: 6);
     }
-    return Column(
-      children: [
-        if (!_mainController.useSideBar &&
-            MediaQuery.sizeOf(context).isPortrait)
-          customAppBar(),
-        tabBar,
-        Expanded(
-          child: onBuild(
-            tabBarView(
-              controller: _homeController.tabController,
-              children: _homeController.tabs.map((e) => e.page).toList(),
+    return HomePreviewScope(
+      enabled: widget.preview,
+      child: Column(
+        children: [
+          if (!_mainController.useSideBar &&
+              MediaQuery.sizeOf(context).isPortrait)
+            customAppBar(),
+          tabBar,
+          Expanded(
+            child: onBuild(
+              tabBarView(
+                controller: _homeController.tabController,
+                children: _homeController.tabs.map((e) => e.page).toList(),
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -284,17 +290,17 @@ Widget msgBadge(MainController mainController) {
           tooltip: '消息',
           onPressed: () {
             mainController
-              ..msgUnReadCount.value = ''
+              ..clearUnreadMsg()
               ..lastCheckUnreadAt = DateTime.now().millisecondsSinceEpoch;
             Get.toNamed('/whisper');
           },
           icon: Badge(
             isLabelVisible:
-                mainController.msgBadgeMode != .hidden && count.isNotEmpty,
+                mainController.msgBadgeMode != .hidden && count != null,
             alignment: isNumBadge
                 ? const Alignment(0.0, -0.85)
                 : const Alignment(1.0, -0.85),
-            label: isNumBadge && count.isNotEmpty ? Text(count) : null,
+            label: isNumBadge && count != null ? Text(count) : null,
             child: const Icon(Icons.notifications_none),
           ),
         );

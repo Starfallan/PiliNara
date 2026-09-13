@@ -38,9 +38,6 @@ abstract final class ApiType {
       Api.mobileHeartBeat,
       Api.liveRoomDmPrefetch,
       Api.superChatMsg,
-      Api.searchByType,
-      Api.dynSearch,
-      Api.searchArchive,
 
       // Api.memberInfo,
       // Api.bgmDetail,
@@ -68,9 +65,6 @@ abstract final class ApiType {
       Api.feedDislikeCancel,
       Api.hotList,
       Api.relatedList,
-      Api.hotSearchList, // 不同账号搜索结果可能不一样
-      Api.searchDefault,
-      Api.searchSuggest,
       Api.liveList,
       Api.searchTrending,
       Api.searchRecommend,
@@ -85,12 +79,19 @@ abstract final class ApiType {
       Api.liveFeedIndex,
       Api.liveSecondList,
       Api.liveRoomAreaList,
-      Api.liveSearch,
       Api.bgmRecommend,
       Api.dynTopicRcmd,
       Api.topicFeed,
       Api.topicTop,
       Api.liveFeedback,
+      // 不同账号搜索结果可能不一样
+      Api.hotSearchList,
+      Api.searchDefault,
+      Api.searchSuggest,
+      Api.searchByType,
+      Api.dynSearch,
+      Api.searchArchive,
+      Api.liveSearch,
     },
     // progress
     AccountType.video: {

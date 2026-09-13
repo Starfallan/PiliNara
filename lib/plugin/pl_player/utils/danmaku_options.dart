@@ -32,7 +32,7 @@ abstract final class DanmakuOptions {
     if (!Pref.enableCustomDanmakuFont || Pref.danmakuFontSyncMode == DanmakuFontSyncMode.system) {
       fontFamily = null;
     } else if (Pref.danmakuFontSyncMode == DanmakuFontSyncMode.global) {
-      fontFamily = Pref.customFontFamily;
+      fontFamily = Pref.appFont;
     } else {
       fontFamily = Pref.customDanmakuFontFamily;
     }

@@ -23,9 +23,9 @@ import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show SystemUiOverlayStyle;
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:win32/win32.dart' as kernel32;
 import 'package:window_manager/window_manager.dart';
@@ -57,6 +57,9 @@ class _MainAppState extends PopScopeState<MainApp>
   void initState() {
     super.initState();
     addObserverMobile(this);
+    if (Platform.isMacOS) {
+      HardwareKeyboard.instance.addHandler(_handleKeyEvent);
+    }
     if (PlatformUtils.isDesktop) {
       windowManager
         ..addListener(this)
@@ -123,6 +126,9 @@ class _MainAppState extends PopScopeState<MainApp>
 
   @override
   void dispose() {
+    if (Platform.isMacOS) {
+      HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
+    }
     if (PlatformUtils.isDesktop) {
       trayManager.removeListener(this);
       windowManager.removeListener(this);
@@ -131,6 +137,13 @@ class _MainAppState extends PopScopeState<MainApp>
     PiliScheme.listener?.cancel();
     GStorage.close();
     super.dispose();
+  }
+
+  bool _handleKeyEvent(KeyEvent event) {
+    return event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.keyR &&
+        HardwareKeyboard.instance.isMetaPressed &&
+        _mainController.refreshRecommendations();
   }
 
   @override
@@ -167,7 +180,7 @@ class _MainAppState extends PopScopeState<MainApp>
   @override
   void onWindowClose() {
     if (_mainController.showTrayIcon && _mainController.minimizeOnExit) {
-      windowManager.hide();
+      _hide();
       _onHideWindow();
     } else {
       _onClose();
@@ -217,14 +230,39 @@ class _MainAppState extends PopScopeState<MainApp>
     }
   }
 
+  double? _opacity;
+
+  Future<void>? _setOpacity(double opacity) {
+    if (Platform.isWindows && _opacity != opacity) {
+      _opacity = opacity;
+      return windowManager.setOpacity(opacity);
+    }
+    return null;
+  }
+
+  @override
+  Future<void>? onWindowFocus() {
+    return _setOpacity(1.0);
+  }
+
+  /// https://github.com/leanflutter/window_manager/issues/571
+  Future<void> _hide() async {
+    await _setOpacity(0.0);
+    await windowManager.hide();
+  }
+
+  Future<void> _show() {
+    return windowManager.show();
+  }
+
   @override
   Future<void> onTrayIconMouseDown() async {
     if (await windowManager.isVisible()) {
       _onHideWindow();
-      windowManager.hide();
+      _hide();
     } else {
       _onShowWindow();
-      windowManager.show();
+      _show();
     }
   }
 
@@ -238,7 +276,7 @@ class _MainAppState extends PopScopeState<MainApp>
   void onTrayMenuItemClick(MenuItem menuItem) {
     switch (menuItem.key) {
       case 'show':
-        windowManager.show();
+        _show();
       case 'exit':
         _onClose();
     }

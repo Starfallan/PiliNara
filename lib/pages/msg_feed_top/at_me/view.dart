@@ -1,4 +1,5 @@
 import 'package:PiliPlus/common/skeleton/msg_feed_top.dart';
+import 'package:PiliPlus/common/sliver_single_child_delegate.dart';
 import 'package:PiliPlus/common/widgets/dialog/dialog.dart';
 import 'package:PiliPlus/common/widgets/flutter/list_tile.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
@@ -15,8 +16,8 @@ import 'package:PiliPlus/pages/whisper_settings/view.dart';
 import 'package:PiliPlus/utils/app_scheme.dart';
 import 'package:PiliPlus/utils/date_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
-import 'package:flutter/material.dart' hide ListTile;
 import 'package:get/get.dart';
+import 'package:material_ui/material_ui.dart' hide ListTile;
 
 class AtMePage extends StatefulWidget {
   const AtMePage({super.key});
@@ -75,9 +76,12 @@ class _AtMePageState extends State<AtMePage> {
   ) {
     switch (loadingState) {
       case Loading():
-        return SliverList.builder(
-          itemCount: 12,
-          itemBuilder: (context, index) => const MsgFeedTopSkeleton(),
+        return const SliverPrototypeExtentList(
+          prototypeItem: MsgFeedTopSkeleton(),
+          delegate: SliverSingleChildDelegate(
+            count: 12,
+            child: MsgFeedTopSkeleton(),
+          ),
         );
       case Success(:final response):
         if (response != null && response.isNotEmpty) {

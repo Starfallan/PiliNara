@@ -34,10 +34,10 @@ import 'package:PiliPlus/utils/image_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:get/get_core/src/get_main.dart';
 import 'package:get/get_navigation/src/extension_navigation.dart';
+import 'package:material_ui/material_ui.dart';
 
 class ImageModel {
   ImageModel({
@@ -131,17 +131,14 @@ class ImageGridView extends StatelessWidget {
     final bool hasUp = index - col >= 0;
     final bool hasDown = index + col < length;
 
-    final bool isRowStart = (index % col) == 0;
-    final bool isRowEnd = (index % col) == col - 1 || index == length - 1;
-
-    final bool hasLeft = !isRowStart;
-    final bool hasRight = !isRowEnd && (index + 1) < length;
+    final bool isRowStart = index % col == 0;
+    final bool isRowEnd = index % col == col - 1 || index == length - 1;
 
     return BorderRadius.only(
-      topLeft: !hasUp && !hasLeft ? r : Radius.zero,
-      topRight: !hasUp && !hasRight ? r : Radius.zero,
-      bottomLeft: !hasDown && !hasLeft ? r : Radius.zero,
-      bottomRight: !hasDown && !hasRight ? r : Radius.zero,
+      topLeft: !hasUp && isRowStart ? r : Radius.zero,
+      topRight: !hasUp && isRowEnd ? r : Radius.zero,
+      bottomLeft: !hasDown && isRowStart ? r : Radius.zero,
+      bottomRight: !hasDown && isRowEnd ? r : Radius.zero,
     );
   }
 

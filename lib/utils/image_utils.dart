@@ -19,9 +19,9 @@ import 'package:PiliPlus/utils/utils.dart';
 import 'package:clipboard/clipboard.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:live_photo_maker/live_photo_maker.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:saver_gallery/saver_gallery.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -310,7 +310,7 @@ abstract final class ImageUtils {
         SmartDialog.showToast("取消保存");
         return null;
       }
-      await File(savePath).writeAsBytes(bytes);
+      await File(savePath.toFilePath()).writeAsBytes(bytes);
       SmartDialog.showToast(' 已保存 ');
       res = SaveResult(true, null);
     }
@@ -346,7 +346,7 @@ abstract final class ImageUtils {
         SmartDialog.showToast("取消保存");
         return;
       }
-      await file.copy(savePath);
+      await file.copy(savePath.toFilePath());
       res = SaveResult(true, null);
     }
     if (needToast) {

@@ -31,9 +31,9 @@ import 'package:PiliPlus/utils/user_whitelist.dart';
 import 'package:PiliPlus/utils/share_utils.dart';
 import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
-import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
+import 'package:material_ui/material_ui.dart';
 
 class AuthorPanel extends StatelessWidget {
   final DynamicItemModel item;
@@ -114,7 +114,7 @@ class AuthorPanel extends StatelessWidget {
               TextSpan(
                 children: [
                   TextSpan(
-                    text: moduleAuthor.name!,
+                    text: remarkedName(moduleAuthor.mid, moduleAuthor.name!),
                     style: TextStyle(
                       color:
                           moduleAuthor.vip != null &&
@@ -125,11 +125,10 @@ class AuthorPanel extends StatelessWidget {
                       fontSize: theme.textTheme.titleSmall!.fontSize,
                     ),
                   ),
-                  if (GlobalData().remarkMids[moduleAuthor.mid]
-                      case final String remark
-                      when remark.isNotEmpty)
+                  if (!GlobalData().remarkReplaceName &&
+                      remarkOf(moduleAuthor.mid) != null)
                     TextSpan(
-                      text: '（$remark）',
+                      text: '（${remarkOf(moduleAuthor.mid)}）',
                       style: TextStyle(
                         color: theme.colorScheme.primary,
                         fontSize:
@@ -344,7 +343,7 @@ class AuthorPanel extends StatelessWidget {
                 onTap: () {
                   Get.back();
                   ShareUtils.shareText(
-                    '${HttpString.dynamicShareBaseUrl}/${item.idStr}',
+                    '${HttpString.opusBaseUrl}/${item.idStr}',
                   );
                 },
                 minLeadingWidth: 0,
@@ -695,7 +694,7 @@ class AuthorPanel extends StatelessWidget {
                           mid: moduleAuthor.mid!,
                           dynId: item.idStr,
                           reasonType: reasonType,
-                          reasonDesc: reasonType == 0 ? reasonDesc : null,
+                          reasonDesc: reasonDesc,
                         );
                       },
                     );

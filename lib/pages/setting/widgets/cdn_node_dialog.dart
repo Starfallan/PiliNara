@@ -6,7 +6,7 @@ import 'package:PiliPlus/utils/cdn_node_store.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/video_utils.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 
 /// 二级对话框：按地区浏览 CDN 节点，返回选中的 host

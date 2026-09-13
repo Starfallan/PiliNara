@@ -10,7 +10,6 @@ import 'package:PiliPlus/common/widgets/scroll_physics.dart'
     show kSpringDescription;
 import 'package:PiliPlus/common/widgets/stateful_builder.dart';
 import 'package:PiliPlus/models/common/bar_hide_type.dart';
-import 'package:PiliPlus/models/common/danmaku/danmaku_font_sync_mode.dart';
 import 'package:PiliPlus/models/common/dynamic/dynamic_badge_mode.dart';
 import 'package:PiliPlus/models/common/dynamic/up_panel_position.dart';
 import 'package:PiliPlus/models/common/home_tab_type.dart';
@@ -28,8 +27,6 @@ import 'package:PiliPlus/pages/setting/widgets/multi_select_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/slider_dialog.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
-import 'package:PiliPlus/utils/app_font.dart';
-import 'package:PiliPlus/utils/danmaku_font.dart';
 import 'package:PiliPlus/utils/extension/file_ext.dart';
 import 'package:PiliPlus/utils/extension/get_ext.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
@@ -41,11 +38,11 @@ import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/theme_utils.dart';
-import 'package:flutter/material.dart' hide StatefulBuilder;
 import 'package:flutter/services.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
+import 'package:material_ui/material_ui.dart' hide StatefulBuilder;
 import 'package:path/path.dart' as path;
 
 List<SettingsModel> get styleSettings => [
@@ -96,54 +93,11 @@ List<SettingsModel> get styleSettings => [
     defaultVal: false,
     onTap: _showSideBarThresholdDialog,
   ),
-  SplitModel(
-    normalModel: const NormalModel.split(
-      title: 'App字体字重',
-      subtitle: '点击设置',
-      leading: Icon(Icons.text_fields),
-    ),
-    switchModel: SwitchModel.split(
-      defaultVal: false,
-      setKey: SettingBoxKey.appFontWeight,
-      onChanged: (_) => Get.updateMyAppTheme(),
-      onTap: _showFontWeightDialog,
-    ),
-  ),
   NormalModel(
-    title: '应用字体',
-    leading: const Icon(Icons.font_download_outlined),
-    getSubtitle: () => AppFont.currentFontName ?? '系统字体',
-    onTap: _showCustomFontDialog,
-  ),
-  SwitchModel(
-    title: '自定义弹幕字体',
-    subtitle: '开启后点击可跟随全局或设置独立字体，关闭即恢复系统字体',
-    setKey: SettingBoxKey.enableCustomDanmakuFont,
-    defaultVal: false,
-    leading: const Icon(Icons.subtitles_outlined),
-    onChanged: (val) {
-      if (!val) {
-        GStorage.setting.put(
-          SettingBoxKey.danmakuFontSyncMode,
-          DanmakuFontSyncMode.system.index,
-        );
-        DanmakuFont.clear();
-      } else {
-        GStorage.setting.put(
-          SettingBoxKey.danmakuFontSyncMode,
-          DanmakuFontSyncMode.global.index,
-        );
-      }
-    },
-    onTap: (context) {
-      if (!Pref.enableCustomDanmakuFont) {
-        SmartDialog.showToast('请先开启自定义弹幕字体开关');
-        return;
-      }
-      _showDanmakuFontDialog(context, () {
-        // UI will rebuild naturally
-      });
-    },
+    title: 'App字体设置',
+    subtitle: '点击设置',
+    leading: const Icon(Icons.text_fields),
+    onTap: (context, setState) => Get.toNamed('/fontSetting'),
   ),
   NormalModel(
     title: '界面缩放',
@@ -215,11 +169,17 @@ List<SettingsModel> get styleSettings => [
     defaultVal: Pref.horizontalScreen,
     needReboot: true,
   ),
-  NormalModel(
+  PopupModel(
     title: '动态页UP主显示位置',
     leading: const Icon(Icons.person_outlined),
-    getSubtitle: () => '当前：${Pref.upPanelPosition.label}',
-    onTap: _showUpPosDialog,
+    value: () => Pref.upPanelPosition,
+    items: UpPanelPosition.values,
+    onSelected: (value, setState) {
+      GStorage.setting
+          .put(SettingBoxKey.upPanelPosition, value.index)
+          .whenComplete(setState);
+      SmartDialog.showToast('重启生效');
+    },
   ),
   const SwitchModel(
     title: '动态页UP主列表显示“我”置顶',
@@ -242,17 +202,19 @@ List<SettingsModel> get styleSettings => [
     defaultVal: false,
     needReboot: true,
   ),
-  NormalModel(
+  PopupModel(
     title: '动态未读标记',
     leading: const Icon(Icons.motion_photos_on_outlined),
-    getSubtitle: () => '当前标记样式：${Pref.dynamicBadgeType.desc}',
-    onTap: _showDynBadgeDialog,
+    value: () => Pref.dynamicBadgeType,
+    items: DynamicBadgeMode.values,
+    onSelected: _setDynBadge,
   ),
-  NormalModel(
+  PopupModel(
     title: '消息未读标记',
     leading: const Icon(MdiIcons.bellBadgeOutline),
-    getSubtitle: () => '当前标记样式：${Pref.msgBadgeMode.desc}',
-    onTap: _showMsgBadgeDialog,
+    value: () => Pref.msgBadgeMode,
+    items: DynamicBadgeMode.values,
+    onSelected: _setMsgBadge,
   ),
   NormalModel(
     onTap: _showMsgUnReadDialog,
@@ -261,11 +223,17 @@ List<SettingsModel> get styleSettings => [
     getSubtitle: () =>
         '当前消息类型：${Pref.msgUnReadTypeV2.map((item) => item.title).join('、')}',
   ),
-  NormalModel(
-    onTap: _showBarHideTypeDialog,
+  PopupModel(
     title: '顶/底栏收起类型',
     leading: const Icon(MdiIcons.arrowExpandVertical),
-    getSubtitle: () => '当前：${Pref.barHideType.label}',
+    value: () => Pref.barHideType,
+    items: BarHideType.values,
+    onSelected: (value, setState) {
+      GStorage.setting
+          .put(SettingBoxKey.barHideType, value.index)
+          .whenComplete(setState);
+      SmartDialog.showToast('重启生效');
+    },
   ),
   SwitchModel(
     title: '首页顶栏收起',
@@ -344,11 +312,12 @@ List<SettingsModel> get styleSettings => [
     ),
     onTap: _showToastDialog,
   ),
-  NormalModel(
-    onTap: _showThemeTypeDialog,
+  PopupModel(
     leading: const Icon(Icons.flashlight_on_outlined),
     title: '主题模式',
-    getSubtitle: () => '当前模式：${Pref.themeType.desc}',
+    value: () => Pref.themeType,
+    items: ThemeType.values,
+    onSelected: _setThemeType,
   ),
   SwitchModel(
     leading: const Icon(Icons.invert_colors),
@@ -378,30 +347,22 @@ List<SettingsModel> get styleSettings => [
             ),
           ),
   ),
-  NormalModel(
+  PopupModel(
     leading: const Icon(Icons.home_outlined),
     title: '默认启动页',
-    getSubtitle: () => '当前启动页：${Pref.defaultHomePage.label}',
-    onTap: _showDefHomeDialog,
+    value: () => Pref.defaultHomePage,
+    items: NavigationBarType.values,
+    onSelected: (value, setState) {
+      GStorage.setting
+          .put(SettingBoxKey.defaultHomePage, value.index)
+          .whenComplete(setState);
+      SmartDialog.showToast('重启生效');
+    },
   ),
   const NormalModel(
     title: '滑动动画弹簧参数',
     leading: Icon(Icons.chrome_reader_mode_outlined),
     onTap: _showSpringDialog,
-  ),
-  NormalModel(
-    onTap: (context, setState) async {
-      final res = await Get.toNamed('/fontSizeSetting');
-      if (res != null) {
-        setState();
-      }
-    },
-    title: '字体大小',
-    leading: const Icon(Icons.format_size_outlined),
-    getSubtitle: () {
-      final scale = Pref.defaultTextScale;
-      return scale == 1.0 ? '默认' : scale.toString();
-    },
   ),
   NormalModel(
     onTap: (context, setState) => Get.toNamed(
@@ -443,6 +404,17 @@ List<SettingsModel> get styleSettings => [
     leading: const Icon(Icons.person_outline),
   ),
   SwitchModel(
+    title: '备注替换昵称',
+    subtitle: '开启后备注首行将替换原昵称，建议首行填写为称呼；余下行仅在主页可见',
+    leading: const Icon(Icons.badge_outlined),
+    setKey: SettingBoxKey.remarkReplaceName,
+    defaultVal: false,
+    onChanged: (value) {
+      GlobalData().remarkReplaceName = value;
+      GlobalData().remarkVersion.value++;
+    },
+  ),
+  SwitchModel(
     title: '返回时直接退出',
     subtitle: '开启后在主页任意tab按返回键都直接退出，关闭则先回到Navbar的第一个tab',
     leading: const Icon(Icons.exit_to_app_outlined),
@@ -481,134 +453,6 @@ void _showQualityDialog({
       onChanged(result.toInt());
     }
   });
-}
-
-Future<void> _showCustomFontDialog(
-  BuildContext context,
-  VoidCallback setState,
-) async {
-  final pageContext = context;
-  await showDialog<void>(
-    context: pageContext,
-    builder: (dialogContext) => AlertDialog(
-      title: const Text('应用字体'),
-      content: Text(
-        AppFont.currentFontName == null
-            ? '当前使用系统字体。'
-            : '当前字体：${AppFont.currentFontName}',
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(),
-          child: const Text('取消'),
-        ),
-        TextButton(
-          onPressed: () async {
-            Navigator.of(dialogContext).pop();
-            final cleared = await AppFont.clear();
-            if (!pageContext.mounted) {
-              return;
-            }
-            if (cleared) {
-              setState();
-              Get.forceAppUpdate();
-              SmartDialog.showToast('已恢复为系统字体');
-            } else {
-              SmartDialog.showToast('当前已经是系统字体');
-            }
-          },
-          child: const Text('系统字体'),
-        ),
-        FilledButton(
-          onPressed: () async {
-            Navigator.of(dialogContext).pop();
-            try {
-              final changed = await AppFont.pickAndApply();
-              if (!pageContext.mounted) {
-                return;
-              }
-              if (changed) {
-                setState();
-                Get.forceAppUpdate();
-                SmartDialog.showToast('自定义字体已应用');
-              }
-            } catch (e) {
-              SmartDialog.showToast('字体加载失败: $e');
-            }
-          },
-          child: const Text('选择字体'),
-        ),
-      ],
-    ),
-  );
-}
-
-Future<void> _showDanmakuFontDialog(
-  BuildContext context,
-  VoidCallback setState,
-) async {
-  final pageContext = context;
-  await showDialog<void>(
-    context: pageContext,
-    builder: (dialogContext) => AlertDialog(
-      title: const Text('选择弹幕字体模式'),
-      content: Text(
-        Pref.danmakuFontSyncMode == DanmakuFontSyncMode.global
-            ? '当前：跟随应用界面字体'
-            : DanmakuFont.currentFontName == null
-            ? '当前：系统自带弹幕字体 (尚未选择独立字体)'
-            : '当前独立字体：${DanmakuFont.currentFontName}',
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(),
-          child: const Text('取消'),
-        ),
-        TextButton(
-          onPressed: () async {
-            Navigator.of(dialogContext).pop();
-            await GStorage.setting.put(
-              SettingBoxKey.danmakuFontSyncMode,
-              DanmakuFontSyncMode.global.index,
-            );
-            final cleared = await DanmakuFont.clear();
-            if (!pageContext.mounted) {
-              return;
-            }
-            setState();
-            if (cleared) {
-              SmartDialog.showToast('已清除独立字体并跟随应用界面');
-            } else {
-              SmartDialog.showToast('已跟随应用界面字体');
-            }
-          },
-          child: const Text('跟随应用界面'),
-        ),
-        FilledButton(
-          onPressed: () async {
-            Navigator.of(dialogContext).pop();
-            try {
-              final changed = await DanmakuFont.pickAndApply();
-              if (!pageContext.mounted) {
-                return;
-              }
-              if (changed) {
-                await GStorage.setting.put(
-                  SettingBoxKey.danmakuFontSyncMode,
-                  DanmakuFontSyncMode.custom.index,
-                );
-                setState();
-                SmartDialog.showToast('弹幕自定义字体已应用');
-              }
-            } catch (e) {
-              SmartDialog.showToast('字体加载失败: $e');
-            }
-          },
-          child: const Text('选择单独字体'),
-        ),
-      ],
-    ),
-  );
 }
 
 void _showUiScaleDialog(
@@ -843,23 +687,6 @@ void _showSpringDialog(BuildContext context, _) {
   );
 }
 
-Future<void> _showFontWeightDialog(BuildContext context) async {
-  final res = await showDialog<double>(
-    context: context,
-    builder: (context) => SliderDialog(
-      title: const Text('App字体字重'),
-      value: Pref.appFontWeight.toDouble() + 1,
-      min: 1,
-      max: FontWeight.values.length.toDouble(),
-      divisions: FontWeight.values.length - 1,
-    ),
-  );
-  if (res != null) {
-    await GStorage.setting.put(SettingBoxKey.appFontWeight, res.toInt() - 1);
-    Get.updateMyAppTheme();
-  }
-}
-
 Future<void> _showTransitionDialog(
   BuildContext context,
   VoidCallback setState,
@@ -954,76 +781,24 @@ void _showSideBarThresholdDialog(BuildContext context) {
   );
 }
 
-Future<void> _showUpPosDialog(
-  BuildContext context,
-  VoidCallback setState,
-) async {
-  final res = await showDialog<UpPanelPosition>(
-    context: context,
-    builder: (context) => SelectDialog<UpPanelPosition>(
-      title: '动态页UP主显示位置',
-      value: Pref.upPanelPosition,
-      values: UpPanelPosition.values.map((e) => (e, e.label)).toList(),
-    ),
-  );
-  if (res != null) {
-    await GStorage.setting.put(SettingBoxKey.upPanelPosition, res.index);
-    SmartDialog.showToast('重启生效');
-    setState();
-  }
+void _setDynBadge(DynamicBadgeMode value, VoidCallback setState) {
+  final mainController = Get.find<MainController>()..dynamicBadgeMode = value;
+  if (value != DynamicBadgeMode.hidden) mainController.getUnreadDynamic();
+  GStorage.setting
+      .put(SettingBoxKey.dynamicBadgeMode, value.index)
+      .whenComplete(setState);
 }
 
-Future<void> _showDynBadgeDialog(
-  BuildContext context,
-  VoidCallback setState,
-) async {
-  final res = await showDialog<DynamicBadgeMode>(
-    context: context,
-    builder: (context) => SelectDialog<DynamicBadgeMode>(
-      title: '动态未读标记',
-      value: Pref.dynamicBadgeType,
-      values: DynamicBadgeMode.values.map((e) => (e, e.desc)).toList(),
-    ),
-  );
-  if (res != null) {
-    final mainController = Get.find<MainController>()
-      ..dynamicBadgeMode = DynamicBadgeMode.values[res.index];
-    if (mainController.dynamicBadgeMode != DynamicBadgeMode.hidden) {
-      mainController.getUnreadDynamic();
-    }
-    await GStorage.setting.put(
-      SettingBoxKey.dynamicBadgeMode,
-      res.index,
-    );
-    SmartDialog.showToast('设置成功');
-    setState();
+Future<void> _setMsgBadge(DynamicBadgeMode value, VoidCallback setState) async {
+  final mainController = Get.find<MainController>()..msgBadgeMode = value;
+  if (value != DynamicBadgeMode.hidden) {
+    mainController.queryUnreadMsg(true);
+  } else {
+    mainController.clearUnreadMsg();
   }
-}
-
-Future<void> _showMsgBadgeDialog(
-  BuildContext context,
-  VoidCallback setState,
-) async {
-  final res = await showDialog<DynamicBadgeMode>(
-    context: context,
-    builder: (context) => SelectDialog<DynamicBadgeMode>(
-      title: '消息未读标记',
-      value: Pref.msgBadgeMode,
-      values: DynamicBadgeMode.values.map((e) => (e, e.desc)).toList(),
-    ),
-  );
-  if (res != null) {
-    final mainController = Get.find<MainController>()
-      ..msgBadgeMode = DynamicBadgeMode.values[res.index];
-    if (mainController.msgBadgeMode != DynamicBadgeMode.hidden) {
-      mainController.queryUnreadMsg(true);
-    } else {
-      mainController.msgUnReadCount.value = '';
-    }
-    await GStorage.setting.put(SettingBoxKey.msgBadgeMode, res.index);
-    SmartDialog.showToast('设置成功');
-    setState();
-  }
+  GStorage.setting
+      .put(SettingBoxKey.msgBadgeMode, value.index)
+      .whenComplete(setState);
 }
 
 Future<void> _showMsgUnReadDialog(
@@ -1125,74 +900,19 @@ Future<void> _showToastDialog(
   }
 }
 
-Future<void> _showThemeTypeDialog(
-  BuildContext context,
-  VoidCallback setState,
-) async {
-  final res = await showDialog<ThemeType>(
-    context: context,
-    builder: (context) => SelectDialog<ThemeType>(
-      title: '主题模式',
-      value: Pref.themeType,
-      values: ThemeType.values.map((e) => (e, e.desc)).toList(),
-    ),
-  );
-  if (res != null) {
-    try {
-      Get.find<MineController>().themeType.value = res;
-    } catch (_) {}
-    GStorage.setting.put(SettingBoxKey.themeMode, res.index);
-    Get.changeThemeMode(ThemeUtils.themeMode = res.toThemeMode);
-    setState();
-  }
-}
-
-Future<void> _showDefHomeDialog(
-  BuildContext context,
-  VoidCallback setState,
-) async {
-  final res = await showDialog<NavigationBarType>(
-    context: context,
-    builder: (context) => SelectDialog<NavigationBarType>(
-      title: '首页启动页',
-      value: Pref.defaultHomePage,
-      values: NavigationBarType.values.map((e) => (e, e.label)).toList(),
-    ),
-  );
-  if (res != null) {
-    await GStorage.setting.put(SettingBoxKey.defaultHomePage, res.index);
-    SmartDialog.showToast('设置成功，重启生效');
-    setState();
-  }
-}
-
-Future<void> _showBarHideTypeDialog(
-  BuildContext context,
-  VoidCallback setState,
-) async {
-  final res = await showDialog<BarHideType>(
-    context: context,
-    builder: (context) => SelectDialog<BarHideType>(
-      title: '顶/底栏收起类型',
-      value: Pref.barHideType,
-      values: BarHideType.values.map((e) => (e, e.label)).toList(),
-    ),
-  );
-  if (res != null) {
-    await GStorage.setting.put(SettingBoxKey.barHideType, res.index);
-    SmartDialog.showToast('重启生效');
-    setState();
-  }
+void _setThemeType(ThemeType value, VoidCallback setState) {
+  try {
+    Get.find<MineController>().themeType.value = value;
+  } catch (_) {}
+  GStorage.setting.put(SettingBoxKey.themeMode, value.index);
+  Get.changeThemeMode(ThemeUtils.themeMode = value.toThemeMode);
+  setState();
 }
 
 NormalModel _useSSDModel() {
   final file = File(path.join(appSupportDirPath, 'use_ssd'));
   void onChanged(BuildContext context, VoidCallback setState) {
-    (file.existsSync() ? file.tryDel() : file.create()).whenComplete(() {
-      if (context.mounted) {
-        setState();
-      }
-    });
+    (file.existsSync() ? file.tryDel() : file.create()).whenComplete(setState);
   }
 
   return NormalModel(

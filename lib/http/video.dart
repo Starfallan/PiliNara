@@ -23,7 +23,6 @@ import 'package:PiliPlus/models_new/triple/pgc_triple.dart';
 import 'package:PiliPlus/models_new/triple/ugc_triple.dart';
 import 'package:PiliPlus/models_new/video/video_ai_conclusion/data.dart';
 import 'package:PiliPlus/models_new/video/video_detail/data.dart';
-import 'package:PiliPlus/models_new/video/video_detail/video_detail_response.dart';
 import 'package:PiliPlus/models_new/video/video_note_list/data.dart';
 import 'package:PiliPlus/models_new/video/video_play_info/data.dart';
 import 'package:PiliPlus/models_new/video/video_relation/data.dart';
@@ -130,10 +129,8 @@ abstract final class VideoHttp {
       options: Options(
         headers: {
           'buvid': LoginHttp.buvid,
-          'fp_local':
-              '1111111111111111111111111111111111111111111111111111111111111111',
-          'fp_remote':
-              '1111111111111111111111111111111111111111111111111111111111111111',
+          'fp_local': '1111111111111111111111111111111111111111111111111111111111111111',
+          'fp_remote': '1111111111111111111111111111111111111111111111111111111111111111',
           'session_id': '11111111',
           'env': 'prod',
           'app-key': 'android_hd',
@@ -225,7 +222,7 @@ abstract final class VideoHttp {
     int? avid,
     String? bvid,
     required int cid,
-    int? qn,
+    required int qn,
     dynamic epid,
     dynamic seasonId,
     required bool tryLook,
@@ -241,7 +238,7 @@ abstract final class VideoHttp {
       'ep_id': ?epid,
       'season_id': ?seasonId,
       'cid': cid,
-      'qn': qn ?? 80,
+      'qn': qn,
       // 获取所有格式的视频
       'fnval': 4048,
       'fourk': 1,
@@ -313,13 +310,12 @@ abstract final class VideoHttp {
   }) async {
     final res = await Request().get(
       Api.videoIntro,
-      queryParameters: {'bvid': bvid},
+      queryParameters: await WbiSign.makSign({'bvid': bvid}),
     );
-    VideoDetailResponse data = VideoDetailResponse.fromJson(res.data);
-    if (data.code == 0) {
-      return Success(data.data!);
+    if (res.data['code'] == 0) {
+      return Success(VideoDetailData.fromJson(res.data['data']));
     } else {
-      return Error(data.message);
+      return Error(res.data['message']);
     }
   }
 
@@ -889,7 +885,7 @@ abstract final class VideoHttp {
     }
   }
 
-  static Future<String?> vttSubtitles(
+  static Future<String?> getSubtitles(
     String subtitleUrl, {
     SubtitleFormat format = .vtt,
   }) async {

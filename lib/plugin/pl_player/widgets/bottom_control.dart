@@ -6,8 +6,8 @@ import 'package:PiliPlus/plugin/pl_player/view/view.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:material_ui/material_ui.dart';
 
 class BottomControl extends StatelessWidget {
   const BottomControl({
@@ -31,8 +31,7 @@ class BottomControl extends StatelessWidget {
     feedBack();
     controller
       ..onDesktopProgressDragStart(duration.timeStamp)
-      ..position.value = duration.seconds
-      ..isSeeking.value = true;
+      ..onSeekStart(duration.seconds);
   }
 
   void onDragUpdate(ThumbDragDetails duration) {
@@ -40,11 +39,12 @@ class BottomControl extends StatelessWidget {
     if (!controller.isFileSource && controller.showSeekPreview) {
       controller.updatePreviewIndex(duration.seconds);
     }
-    controller.position.value = duration.seconds;
+    controller.seekPosition.value = duration.seconds;
   }
 
   void onSeek(int milliseconds) {
     controller
+      ..position.value = milliseconds ~/ 1000
       ..onSeekEnd()
       ..seekTo(Duration(milliseconds: milliseconds), isSeek: false);
   }
@@ -75,7 +75,7 @@ class BottomControl extends StatelessWidget {
                   children: [
                     Obx(
                       () => ProgressBar(
-                        progress: controller.position.value,
+                        progress: controller.progress,
                         buffered: controller.buffered.value,
                         total: controller.duration.value,
                         progressBarColor: primary,

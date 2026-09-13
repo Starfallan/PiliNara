@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 
 /// A dialog for editing a list of strings with add/remove/edit functionality
@@ -36,6 +37,7 @@ class _ListEditorDialogState extends State<ListEditorDialog> {
   late List<TextEditingController> _controllers;
   final TextEditingController _addController = TextEditingController();
   final FocusNode _addFocusNode = FocusNode();
+  final Set<int> _invalidEditIndexes = {};
 
   @override
   void initState() {
@@ -54,9 +56,9 @@ class _ListEditorDialogState extends State<ListEditorDialog> {
     super.dispose();
   }
 
-  void _addItem() {
+  bool _addItem() {
     final value = _addController.text.trim();
-    if (value.isEmpty) return;
+    if (value.isEmpty) return true;
 
     if (widget.validator != null) {
       final error = widget.validator!(value);
@@ -64,7 +66,7 @@ class _ListEditorDialogState extends State<ListEditorDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(error), duration: const Duration(seconds: 2)),
         );
-        return;
+        return false;
       }
     }
 
@@ -74,22 +76,23 @@ class _ListEditorDialogState extends State<ListEditorDialog> {
         _controllers.add(TextEditingController(text: value));
         _addController.clear();
       });
+      return true;
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('该${widget.itemLabel}已存在'),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      _showDuplicateToast();
+      return false;
     }
   }
 
-  void _commitEdit(int index) {
+  bool _commitEdit(int index) {
     final value = _controllers[index].text.trim();
-    if (value.isEmpty || value == _items[index]) {
-      // Revert if empty or unchanged
+    if (value.isEmpty) {
       _controllers[index].text = _items[index];
-      return;
+      _invalidEditIndexes.remove(index);
+      return true;
+    }
+    if (value == _items[index]) {
+      _invalidEditIndexes.remove(index);
+      return true;
     }
 
     if (widget.validator != null) {
@@ -98,29 +101,32 @@ class _ListEditorDialogState extends State<ListEditorDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(error), duration: const Duration(seconds: 2)),
         );
-        _controllers[index].text = _items[index];
-        return;
+        _invalidEditIndexes.add(index);
+        return false;
       }
     }
 
-    if (_items.contains(value)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('该${widget.itemLabel}已存在'),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-      _controllers[index].text = _items[index];
-      return;
+    if (_items.indexOf(value) case final duplicateIndex
+        when duplicateIndex != -1 && duplicateIndex != index) {
+      _showDuplicateToast();
+      _invalidEditIndexes.add(index);
+      return false;
     }
 
+    _invalidEditIndexes.remove(index);
     setState(() {
       _items[index] = value;
     });
+    return true;
+  }
+
+  void _showDuplicateToast() {
+    SmartDialog.showToast('该${widget.itemLabel}已存在');
   }
 
   void _removeItem(int index) {
     _controllers[index].dispose();
+    _invalidEditIndexes.clear();
     setState(() {
       _items.removeAt(index);
       _controllers.removeAt(index);
@@ -205,6 +211,9 @@ class _ListEditorDialogState extends State<ListEditorDialog> {
                                     border: InputBorder.none,
                                     contentPadding: EdgeInsets.zero,
                                   ),
+                                  onChanged: (_) {
+                                    _invalidEditIndexes.remove(index);
+                                  },
                                   onSubmitted: (_) => _commitEdit(index),
                                   onTapOutside: (_) => _commitEdit(index),
                                 )
@@ -213,16 +222,15 @@ class _ListEditorDialogState extends State<ListEditorDialog> {
                                   style: theme.textTheme.bodyMedium,
                                 ),
                           trailing: IconButton(
-                                icon: const Icon(Icons.delete_outline,
-                                    size: 20),
-                                onPressed: () => _removeItem(index),
-                                tooltip: '删除',
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(
-                                  minWidth: 32,
-                                  minHeight: 32,
-                                ),
-                              ),
+                            icon: const Icon(Icons.delete_outline, size: 20),
+                            onPressed: () => _removeItem(index),
+                            tooltip: '删除',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: 32,
+                              minHeight: 32,
+                            ),
+                          ),
                         ),
                       );
                     },
@@ -243,13 +251,17 @@ class _ListEditorDialogState extends State<ListEditorDialog> {
         ),
         FilledButton(
           onPressed: () {
+            // A focus-loss validation may run before this button callback.
+            if (_invalidEditIndexes.isNotEmpty) {
+              SmartDialog.showToast('存在未修正的编辑项');
+              return;
+            }
             // Commit any in-progress edits before saving
             for (int i = 0; i < _items.length; i++) {
-              final value = _controllers[i].text.trim();
-              if (value.isNotEmpty && value != _items[i]) {
-                _items[i] = value;
-              }
+              if (!_commitEdit(i)) return;
             }
+            // Include text that has not been explicitly added yet.
+            if (!_addItem()) return;
             Get.back(result: _items);
           },
           child: const Text('保存'),

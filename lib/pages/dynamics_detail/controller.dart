@@ -11,7 +11,12 @@ import 'package:get/get.dart';
 
 class DynamicDetailController extends CommonDynController with ReloadMixin {
   static const String _kWebLinkPlaceholder = '网页链接';
+
+  DynamicDetailController({super.count});
+
+  @override
   late int oid;
+  @override
   late int replyType;
   late DynamicItemModel dynItem;
   final RxInt detailVersion = 0.obs;

@@ -1,8 +1,9 @@
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/models/common/image_type.dart';
 import 'package:PiliPlus/models_new/follow/list.dart';
-import 'package:flutter/material.dart';
+import 'package:PiliPlus/utils/global_data.dart';
 import 'package:get/get.dart';
+import 'package:material_ui/material_ui.dart';
 
 class FollowTypeItem extends StatelessWidget {
   const FollowTypeItem({
@@ -46,7 +47,9 @@ class FollowTypeItem extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item.uname!,
+                      remarkedName(item.mid, item.uname!),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontSize: 14),
                     ),
                     if (item.sign case final sign?)

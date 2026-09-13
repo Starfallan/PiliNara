@@ -38,7 +38,7 @@ import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/data_source.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
 import 'package:PiliPlus/services/shutdown_timer_service.dart'
-    show shutdownTimerService;
+    show shutdownTimerService, ShutdownPanel;
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/accounts/account.dart';
 import 'package:PiliPlus/utils/android/bindings.g.dart';
@@ -61,14 +61,14 @@ import 'package:collection/collection.dart';
 import 'package:dio/dio.dart';
 import 'package:easy_debounce/easy_throttle.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show compute;
-import 'package:flutter/material.dart' hide showBottomSheet;
+import 'package:flutter/foundation.dart' show compute, kDebugMode;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:intl/intl.dart' show DateFormat;
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
+import 'package:material_ui/material_ui.dart' hide showBottomSheet;
 import 'package:media_kit/media_kit.dart' show NativePlayer;
 
 class _BatteryInfo {
@@ -334,26 +334,22 @@ class HeaderControl extends StatefulWidget {
       return autoWrapReportDialog(
         context,
         ReportOptions.danmakuReport,
+        withContent: ReportOptions.danmakuReportCheck,
+        contentRequired: ReportOptions.danmakuReportCheck,
         (reasonType, reasonDesc, banUid) {
           if (banUid) {
             final filter = ctr.filters;
             if (filter.dmUid.add(extra.mid)) {
               filter.count++;
-              GStorage.localCache.put(
-                LocalCacheKey.danmakuFilterRules,
-                filter,
-              );
+              GStorage.localCache.put(LocalCacheKey.danmakuFilterRules, filter);
             }
-            DanmakuFilterHttp.danmakuFilterAdd(
-              filter: extra.mid,
-              type: 2,
-            );
+            DanmakuFilterHttp.danmakuFilterAdd(filter: extra.mid, type: 2);
           }
           return DanmakuHttp.danmakuReport(
-            reason: reasonType == 0 ? 11 : reasonType,
+            reason: reasonType,
             cid: ctr.cid!,
             id: extra.id,
-            content: reasonType == 0 ? reasonDesc : null,
+            content: reasonDesc,
           );
         },
       );
@@ -373,6 +369,8 @@ class HeaderControl extends StatefulWidget {
         context,
         ban: false,
         ReportOptions.liveDanmakuReport,
+        withContent: ReportOptions.liveDanmakuReportCheck,
+        contentRequired: ReportOptions.liveDanmakuReportCheck,
         (reasonType, reasonDesc, banUid) {
           // if (banUid) {
           //   final filter = ctr.filters;
@@ -450,6 +448,7 @@ class HeaderControlState extends State<HeaderControl>
     showBottomSheet(
       (context, setState) {
         final theme = Theme.of(context);
+
         return Padding(
           padding: const EdgeInsets.all(12),
           child: Material(
@@ -514,6 +513,18 @@ class HeaderControlState extends State<HeaderControl>
                   },
                   leading: const Icon(Icons.hourglass_top_outlined, size: 20),
                   title: const Text('定时关闭', style: titleStyle),
+                  subtitle: shutdownTimerService.isActive
+                      ? ShutdownPanel(
+                          buildCountdownText: (text) =>
+                              Text(text == null ? '已结束' : '剩余 $text'),
+                          builder: (
+                            context,
+                            countdown,
+                            onCountdown,
+                            setState,
+                          ) => countdown,
+                        )
+                      : null,
                 ),
                 if (!isFileSource) ...[
                   ListTile(
@@ -544,7 +555,8 @@ class HeaderControlState extends State<HeaderControl>
                     Icons.stay_current_landscape_outlined,
                     size: 20,
                   ),
-                  title: const Text('超分辨率'),
+                  title: const Text('超分辨率', style: titleStyle),
+                  titleStyle: theme.textTheme.bodyLarge,
                   value: () {
                     final value = plPlayerController.superResolutionType.value;
                     return (value, value.label);
@@ -556,8 +568,8 @@ class HeaderControlState extends State<HeaderControl>
                     plPlayerController.setShader(value);
                     setState();
                   },
-                  descFontSize: 12,
                   descPosType: .subtitle,
+                  descStyle: subTitleStyle,
                 ),
                 if (PlatformUtils.isMobile)
                   if (plPlayerController.videoPlayerController
@@ -656,6 +668,8 @@ class HeaderControlState extends State<HeaderControl>
                               onTap: () {
                                 plPlayerController.onlyPlayAudio.value =
                                     !onlyPlayAudio;
+                                plPlayerController.markManualOnlyPlayAudio(
+                                    !onlyPlayAudio);
                                 final player =
                                     plPlayerController.videoPlayerController!;
                                 if (onlyPlayAudio &&
@@ -733,7 +747,8 @@ class HeaderControlState extends State<HeaderControl>
                 PopupListTile(
                   dense: true,
                   leading: const Icon(Icons.repeat, size: 20),
-                  title: const Text('播放顺序'),
+                  title: const Text('播放顺序', style: titleStyle),
+                  titleStyle: theme.textTheme.bodyLarge,
                   value: () {
                     final value = plPlayerController.playRepeat;
                     return (value, value.label);
@@ -744,7 +759,7 @@ class HeaderControlState extends State<HeaderControl>
                     setState();
                   },
                   descPosType: .subtitle,
-                  descFontSize: 12,
+                  descStyle: subTitleStyle,
                 ),
                 ListTile(
                   dense: true,
@@ -780,14 +795,20 @@ class HeaderControlState extends State<HeaderControl>
                     try {
                       final result = await FilePicker.pickFile(
                         type: .custom,
-                        allowedExtensions: const ['json', 'vtt', 'srt', 'ass'],
+                        allowedExtensions: const [
+                          'json',
+                          'vtt',
+                          'srt',
+                          'ass',
+                          'bcc',
+                        ],
                       );
                       if (result != null) {
                         final file = result.xFile;
                         final path = file.path;
                         final name = file.name;
                         final length = videoDetailCtr.subtitles.length;
-                        if (name.endsWith('.json')) {
+                        if (name.endsWith('.json') || name.endsWith('.bcc')) {
                           final file = File(path);
                           final stream = file.openRead().transform(
                             utf8.decoder,
@@ -840,6 +861,17 @@ class HeaderControlState extends State<HeaderControl>
                     leading: const Icon(Icons.download_outlined, size: 20),
                     title: const Text('保存字幕', style: titleStyle),
                   ),
+                if (plPlayerController.videoPlayerController != null &&
+                    !plPlayerController.onlyPlayAudio.value)
+                  ListTile(
+                    dense: true,
+                    title: const Text('视频参数', style: titleStyle),
+                    leading: const Icon(Icons.tune, size: 20),
+                    onTap: () {
+                      Get.back();
+                      showVideoPictureParameters();
+                    },
+                  ),
                 if (plPlayerController.videoPlayerController case final player?)
                   ListTile(
                     dense: true,
@@ -873,6 +905,7 @@ class HeaderControlState extends State<HeaderControl>
     required NativePlayer player,
   }) {
     final hwdec = player.getProperty('hwdec-current');
+    final vo = player.getProperty('current-vo');
     final volume =
         '${(double.tryParse(player.getProperty('volume')) ?? 0).toStringAsFixed(1)}%';
     showDialog(
@@ -930,7 +963,7 @@ class HeaderControlState extends State<HeaderControl>
                       title: const Text("VideoTrack"),
                       subtitle: Text(state.track.video.toString()),
                       onTap: () =>
-                          Utils.copyText('VideoTrack\n${state.track.audio}'),
+                          Utils.copyText('VideoTrack\n${state.track.video}'),
                     ),
                     ListTile(
                       dense: true,
@@ -941,7 +974,7 @@ class HeaderControlState extends State<HeaderControl>
                     ListTile(
                       dense: true,
                       title: const Text("Volume"),
-                      subtitle: Text(volume.toString()),
+                      subtitle: Text(volume),
                       onTap: () => Utils.copyText('Volume\n$volume'),
                     ),
                     ListTile(
@@ -949,6 +982,12 @@ class HeaderControlState extends State<HeaderControl>
                       title: const Text('hwdec'),
                       subtitle: Text(hwdec),
                       onTap: () => Utils.copyText('hwdec\n$hwdec'),
+                    ),
+                    ListTile(
+                      dense: true,
+                      title: const Text('VO'),
+                      subtitle: Text(vo),
+                      onTap: () => Utils.copyText('VO\n$vo'),
                     ),
                   ],
                 ),
@@ -979,21 +1018,7 @@ class HeaderControlState extends State<HeaderControl>
     if (currentVideoQa == null) return;
 
     final List<FormatItem> videoFormat = videoInfo.supportFormats!;
-
-    /// 总质量分类
-    final int totalQaSam = videoFormat.length;
-
-    /// 可用的质量分类
-    int usefulQaSam = 0;
-    final List<VideoItem> video = videoInfo.dash!.video!;
-    final Set<int> idSet = {};
-    for (final VideoItem item in video) {
-      final int id = item.id!;
-      if (!idSet.contains(id)) {
-        idSet.add(id);
-        usefulQaSam++;
-      }
-    }
+    final availableQa = videoInfo.dash!.video!.availableVideoQualities;
 
     showBottomSheet(
       (context, setState) {
@@ -1029,7 +1054,7 @@ class HeaderControlState extends State<HeaderControl>
                   ),
                 ),
                 SliverList.builder(
-                  itemCount: totalQaSam,
+                  itemCount: videoFormat.length,
                   itemBuilder: (context, index) {
                     final item = videoFormat[index];
                     final isCurr = currentVideoQa.code == item.quality;
@@ -1053,7 +1078,7 @@ class HeaderControlState extends State<HeaderControl>
                         videoDetailCtr.persistVideoQa(quality);
                       },
                       // 可能包含会员解锁画质
-                      enabled: index >= totalQaSam - usefulQaSam,
+                      enabled: availableQa.contains(item.quality),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 20,
                       ),
@@ -1113,7 +1138,7 @@ class HeaderControlState extends State<HeaderControl>
                           return;
                         }
                         Get.back();
-                        final int quality = item.id!;
+                        final int quality = item.id;
                         final newQa = AudioQuality.fromCode(quality);
                         videoDetailCtr
                           ..plPlayerController.cacheAudioQa = newQa.code
@@ -1252,7 +1277,7 @@ class HeaderControlState extends State<HeaderControl>
     if (subtitle == null) {
       final url = item.subtitleUrl;
       if (url == null || url.isEmpty) return null;
-      final res = await VideoHttp.vttSubtitles(url);
+      final res = await VideoHttp.getSubtitles(url);
       if (res == null) return null;
       subtitle = (isData: true, id: res);
       videoDetailCtr.vttSubtitles[index] = subtitle;
@@ -1331,7 +1356,7 @@ class HeaderControlState extends State<HeaderControl>
                     case .srt:
                       final url = item.subtitleUrl;
                       if (url == null || url.isEmpty) return;
-                      final subtitle = await VideoHttp.vttSubtitles(
+                      final subtitle = await VideoHttp.getSubtitles(
                         url,
                         format: .srt,
                       );
@@ -1802,56 +1827,61 @@ class HeaderControlState extends State<HeaderControl>
         (isFullScreen ||
             ((!horizontalScreen || plPlayerController.isDesktopPip) &&
                 !isPortrait))) {
-      title = Padding(
-        key: titleKey,
-        padding: isPortrait
-            ? EdgeInsets.zero
-            : const EdgeInsets.only(right: 10),
-        child: Obx(
-          () {
-            final videoDetail = introController.videoDetail.value;
-            final String title;
-            if (isFileSource || videoDetail.videos == 1) {
-              title = videoDetail.title!;
-            } else {
-              title =
-                  videoDetail.pages
-                      ?.firstWhereOrNull(
-                        (e) => e.cid == videoDetailCtr.cid.value,
-                      )
-                      ?.part ??
-                  videoDetail.title!;
-            }
-            return MarqueeText(
-              title,
-              spacing: 30,
-              velocity: 30,
-              strutStyle: const StrutStyle(fontSize: 16, leading: 0),
-              style: const TextStyle(color: Colors.white, fontSize: 16),
-              provider: effectiveProvider,
-            );
-          },
-        ),
-      );
-      if (introController.isShowOnlineTotal) {
-        title = Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+      title = Expanded(
+        child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            title,
-            Obx(
-              () => Text(
-                '${introController.total.value}人正在看',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                ),
+            Padding(
+              key: titleKey,
+              padding: isPortrait
+                  ? EdgeInsets.zero
+                  : const EdgeInsets.only(right: 10),
+              child: Obx(
+                () {
+                  final videoDetail = introController.videoDetail.value;
+                  final String title;
+                  if (isFileSource || videoDetail.videos == 1) {
+                    title = videoDetail.title!;
+                  } else {
+                    title =
+                        videoDetail.pages
+                            ?.firstWhereOrNull(
+                              (e) => e.cid == videoDetailCtr.cid.value,
+                            )
+                            ?.part ??
+                        videoDetail.title!;
+                  }
+                  return MarqueeText(
+                    title,
+                    spacing: 30,
+                    velocity: 30,
+                    strutStyle: const StrutStyle(fontSize: 16, leading: 0),
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                    provider: effectiveProvider,
+                  );
+                },
               ),
             ),
+            if (introController.isShowOnlineTotal)
+              Positioned(
+                left: 0,
+                bottom: 0,
+                child: FractionalTranslation(
+                  translation: const Offset(0, 1),
+                  child: Obx(
+                    () => Text(
+                      '${introController.total.value}人正在看',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
           ],
-        );
-      }
-      title = Expanded(child: title);
+        ),
+      );
     } else {
       title = const Spacer();
     }
@@ -1957,7 +1987,7 @@ class HeaderControlState extends State<HeaderControl>
                   ),
                 ),
               ],
-              if (plPlayerController.enableSponsorBlock)
+              if (kDebugMode || plPlayerController.enableSponsorBlock)
                 SizedBox(
                   width: btnWidth,
                   height: btnHeight,
@@ -2198,6 +2228,22 @@ class HeaderControlState extends State<HeaderControl>
                 ),
               ),
             ],
+          ),
+        // 计入人数行的高度，收起顶部控制栏时避免溢出内容残留。
+        if (introController.isShowOnlineTotal)
+          const Visibility(
+            visible: false,
+            maintainAnimation: true,
+            maintainState: true,
+            maintainSize: true,
+            child: Text(
+              '0人正在看',
+              maxLines: 1,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+              ),
+            ),
           ),
       ],
     );

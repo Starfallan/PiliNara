@@ -39,10 +39,10 @@ import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/theme_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LengthLimitingTextInputFormatter;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
+import 'package:material_ui/material_ui.dart';
 
 abstract final class RequestUtils {
   static Future<void> syncHistoryStatus() async {
@@ -589,7 +589,7 @@ abstract final class RequestUtils {
     }
 
     final json = await GeetestWebviewDialog.geetest(gt!, challenge!);
-    if (json is Map) {
+    if (json != null) {
       captchaData
         ..validate = json['geetest_validate']
         ..seccode = json['geetest_seccode']

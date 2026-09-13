@@ -30,11 +30,11 @@ import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/share_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:cached_network_image_ce/cached_network_image.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:html/parser.dart' as parser;
+import 'package:material_ui/material_ui.dart';
 
 class ArticlePage extends StatefulWidget {
   const ArticlePage({super.key});
@@ -362,36 +362,12 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
       foregroundColor: outline,
     );
 
-    Widget textIconButton({
-      required IconData icon,
-      required String text,
-      required DynamicStat? stat,
-      required VoidCallback onPressed,
-      IconData? activatedIcon,
-    }) {
-      final status = stat?.status == true;
-      final color = status ? primary : outline;
-      return TextButton.icon(
-        onPressed: onPressed,
-        icon: Icon(
-          status ? activatedIcon : icon,
-          size: 16,
-          color: color,
-        ),
-        style: btnStyle,
-        label: Text(
-          stat?.count != null ? NumUtils.numFormat(stat!.count) : text,
-          style: TextStyle(color: color),
-        ),
-      );
-    }
-
     return Padding(
       padding: .only(left: padding.left, right: padding.right),
       child: Obx(() {
         final stats = controller.stats.value;
 
-        Widget btn = Padding(
+        final fab = Padding(
           padding: .only(
             right: kFloatingActionButtonMargin,
             bottom:
@@ -402,14 +378,39 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage> {
         );
 
         if (stats == null) {
-          return Align(alignment: .bottomRight, child: btn);
+          return Align(alignment: .bottomRight, child: fab);
+        }
+
+        Widget textIconButton({
+          required IconData icon,
+          required String text,
+          required DynamicStat? stat,
+          required VoidCallback onPressed,
+          IconData? activatedIcon,
+        }) {
+          final bool status;
+          final String count;
+          if (stat != null) {
+            status = stat.status ?? false;
+            count = stat.count != null ? NumUtils.numFormat(stat.count) : text;
+          } else {
+            status = false;
+            count = text;
+          }
+          final color = status ? primary : outline;
+          return TextButton.icon(
+            style: btnStyle,
+            onPressed: onPressed,
+            label: Text(count, style: TextStyle(color: color)),
+            icon: Icon(status ? activatedIcon : icon, size: 16, color: color),
+          );
         }
 
         return Column(
           mainAxisSize: .min,
           crossAxisAlignment: .end,
           children: [
-            btn,
+            fab,
             Container(
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,

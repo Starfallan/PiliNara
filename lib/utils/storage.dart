@@ -29,6 +29,7 @@ abstract final class GStorage {
     'whitelistMids',
     'recommendBlockedMids',
     'replyBlockedMids',
+    'remarkMids',
   ];
   static late final Box<Uint8List>? reply;
 
@@ -150,7 +151,8 @@ abstract final class GStorage {
       'dynamicsBlockedMids' => value is Set ? value.toList() : value,
       'whitelistMids' ||
       'recommendBlockedMids' ||
-      'replyBlockedMids' =>
+      'replyBlockedMids' ||
+      'remarkMids' =>
         value is Map ? value.map((k, v) => MapEntry(k.toString(), v)) : value,
       _ => value,
     };
@@ -162,7 +164,8 @@ abstract final class GStorage {
         value is List ? value.whereType<int>().toSet() : value,
       'whitelistMids' ||
       'recommendBlockedMids' ||
-      'replyBlockedMids' =>
+      'replyBlockedMids' ||
+      'remarkMids' =>
         value is Map
             ? value.map(
                 (k, v) =>

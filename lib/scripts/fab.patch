@@ -5,13 +5,13 @@ index 4b78e44dab9..80ca9c9bfc2 100644
 @@ -603,9 +603,9 @@ class FloatingActionButton extends StatelessWidget {
        result = Tooltip(message: tooltip, child: result);
      }
-
+ 
 -    if (heroTag != null) {
 -      result = Hero(tag: heroTag!, child: result);
 -    }
 +    // if (heroTag != null) {
 +    //   result = Hero(tag: heroTag!, child: result);
 +    // }
-
+ 
      return MergeSemantics(child: result);
    }

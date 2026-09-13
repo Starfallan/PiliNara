@@ -16,13 +16,12 @@ import 'package:PiliPlus/services/download/download_collection_service.dart';
 import 'package:PiliPlus/services/download/download_service.dart';
 import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/services/service_locator.dart';
-import 'package:PiliPlus/utils/app_font.dart';
 import 'package:PiliPlus/utils/cache_manager.dart';
 import 'package:PiliPlus/utils/calc_window_position.dart';
-import 'package:PiliPlus/utils/danmaku_font.dart';
 import 'package:PiliPlus/utils/date_utils.dart';
 import 'package:PiliPlus/utils/extension/core_palettes_ext.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
+import 'package:PiliPlus/utils/font_utils.dart';
 import 'package:PiliPlus/utils/json_file_handler.dart';
 import 'package:PiliPlus/utils/max_screen_size.dart';
 import 'package:PiliPlus/utils/path_utils.dart';
@@ -33,17 +32,17 @@ import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/theme_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
+import 'package:audio_service_mpris/audio_service_mpris.dart';
 import 'package:catcher_2/catcher_2.dart';
 import 'package:collection/collection.dart';
 import 'package:dynamic_color/dynamic_color.dart' show DynamicColorPlugin;
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
@@ -103,13 +102,12 @@ void main() async {
     if (kDebugMode) debugPrint('GStorage init error: $e');
     exit(0);
   }
-  await AppFont.init();
-  await DanmakuFont.init();
   ScaledWidgetsFlutterBinding.instance.scaleFactor = Pref.uiScale;
   await Future.wait([
     _initDownPath(),
     _initTmpPath(),
     CacheManager.ensureInitialized(),
+    FontUtils.init(),
   ]);
   Get
     ..lazyPut(AccountService.new)
@@ -131,7 +129,18 @@ void main() async {
         ),
       );
     }
+    await setupServiceLocator();
   } else if (Platform.isMacOS) {
+    await setupServiceLocator();
+  } else if (Platform.isLinux) {
+    AudioServiceMpris.init(
+      identity: Constants.appName,
+      canControl: true,
+      canPlay: true,
+      canPause: true,
+      canGoNext: true,
+      canGoPrevious: true,
+    );
     await setupServiceLocator();
   }
 
@@ -282,11 +291,7 @@ class MyApp extends StatelessWidget {
       theme: light,
       darkTheme: dark,
       themeMode: ThemeUtils.themeMode = Pref.themeMode,
-      localizationsDelegates: const [
-        GlobalCupertinoLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       locale: const Locale("zh", "CN"),
       fallbackLocale: const Locale("zh", "CN"),
       supportedLocales: const [Locale("zh", "CN"), Locale("en", "US")],
@@ -313,34 +318,29 @@ class MyApp extends StatelessWidget {
 
   // 修复后的 Builder 方法
   static Widget _builder(BuildContext context, Widget? child) {
-    final mediaQuery = MediaQuery.of(context);
     final uiScale = Pref.uiScale;
+    var mediaQuery = MediaQuery.of(context);
     final textScaler = TextScaler.linear(Pref.defaultTextScale);
 
-    // --- Fix for Flutter SDK bug on HyperOS windowed mode (Android only) ---
-    // https://github.com/flutter/flutter/issues/164092
-    // https://github.com/flutter/flutter/issues/161086
-    EdgeInsets effectiveViewPadding = mediaQuery.viewPadding;
-    EdgeInsets effectivePadding = mediaQuery.padding;
-
+    // 修复 HyperOS 小窗/自由窗口模式下 MediaQuery 异常上报接近整个窗口
+    // 高度的安全区 padding，导致内容被顶出屏幕只剩底栏的问题。
+    // 参考: https://github.com/flutter/flutter/issues/161086
     if (Platform.isAndroid) {
-      // Fallback padding values based on typical Android status/navigation bar heights
-      const fallbackPadding = EdgeInsets.only(top: 25, bottom: 35);
-
-      // Threshold for detecting abnormal padding:
-      // - Normal status bars are typically 20-48 dp
-      // - Values > 50 indicate the Flutter SDK bug on HyperOS windowed mode
-      // - Values == 0 are valid in fullscreen/immersive mode
-      // - Check both top AND bottom to avoid misdetecting during orientation changes
-      const maxNormalPadding = 50.0;
-
-      final hasAbnormalPadding =
-          mediaQuery.viewPadding.top > maxNormalPadding &&
-          mediaQuery.viewPadding.bottom > maxNormalPadding;
-
-      if (hasAbnormalPadding) {
-        effectiveViewPadding = fallbackPadding;
-        effectivePadding = fallbackPadding;
+      final sizeHeight = mediaQuery.size.height;
+      final viewPadding = mediaQuery.viewPadding;
+      final topAbnormal = viewPadding.top > sizeHeight * 0.4;
+      final bottomAbnormal = viewPadding.bottom > sizeHeight * 0.4;
+      if (topAbnormal || bottomAbnormal) {
+        mediaQuery = mediaQuery.copyWith(
+          padding: mediaQuery.padding.copyWith(
+            top: topAbnormal ? 0 : mediaQuery.padding.top,
+            bottom: bottomAbnormal ? 0 : mediaQuery.padding.bottom,
+          ),
+          viewPadding: viewPadding.copyWith(
+            top: topAbnormal ? 0 : viewPadding.top,
+            bottom: bottomAbnormal ? 0 : viewPadding.bottom,
+          ),
+        );
       }
     }
     // -----------------------------------------------------------------------
@@ -361,8 +361,8 @@ class MyApp extends StatelessWidget {
       child = MediaQuery(
         data: mediaQuery.copyWith(
           textScaler: textScaler,
-          padding: tmpPadding ?? effectivePadding,
-          viewPadding: tmpPadding ?? effectiveViewPadding,
+          padding: tmpPadding ?? mediaQuery.padding,
+          viewPadding: tmpPadding ?? mediaQuery.viewPadding,
         ),
         child: child!,
       );

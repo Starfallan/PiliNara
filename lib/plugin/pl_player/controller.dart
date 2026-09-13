@@ -1,4 +1,4 @@
-import 'dart:async' show StreamSubscription, Timer, unawaited;
+import 'dart:async' show Completer, StreamSubscription, Timer, unawaited;
 import 'dart:convert' show ascii, utf8;
 import 'dart:io' show Platform;
 import 'dart:math' show max, min;
@@ -57,12 +57,12 @@ import 'package:archive/archive.dart' show getCrc32;
 import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:easy_debounce/easy_throttle.dart';
 import 'package:flutter/foundation.dart' show clampDouble, kDebugMode;
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback, DeviceOrientation;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:get/get.dart';
 import 'package:hive_ce/hive.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:native_device_orientation/native_device_orientation.dart';
@@ -70,10 +70,12 @@ import 'package:path/path.dart' as path;
 import 'package:screen_brightness_platform_interface/screen_brightness_platform_interface.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:PiliPlus/plugin/pl_player/models/auto_audio_only_state.dart';
 
 typedef PlayCallback = Future<void>? Function();
+typedef PlayerInitCallback = Future<void> Function();
 
-class PlPlayerController with BlockConfigMixin {
+class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   Player? _videoPlayerController;
   VideoController? _videoController;
 
@@ -88,6 +90,8 @@ class PlPlayerController with BlockConfigMixin {
   final RxBool isSeeking = false.obs;
 
   final RxInt position = RxInt(0);
+  final RxInt seekPosition = RxInt(0);
+  int get progress => isSeeking.value ? seekPosition.value : position.value;
 
   int get positionInMilliseconds =>
       videoPlayerController?.state.position.inMilliseconds ?? 0;
@@ -206,6 +210,21 @@ class PlPlayerController with BlockConfigMixin {
   /// 听视频
   late final RxBool onlyPlayAudio = false.obs;
 
+  /// 后台自动只听音频状态机
+  AutoAudioOnlyState _autoAudioState = AutoAudioOnlyState.idle;
+  Timer? _autoAudioOnlyTimer;
+  bool _audioReopened = false;
+  AppLifecycleState? _lastAppLifecycleState;
+  bool _autoAudioRestoreInProgress = false;
+  int _autoAudioRestoreGeneration = 0;
+  Timer? _autoAudioRestoreTimer;
+  StreamSubscription? _autoAudioRestoreSubscription;
+  Completer<bool>? _autoAudioRestoreCompleter;
+  final RxBool suppressBufferingIndicator = false.obs;
+
+  /// 自动恢复需要重初始化的回调（视频→playerInit，直播→queryLiveUrl）
+  PlayerInitCallback? onNeedsPlayerInit;
+
   /// 镜像
   late final RxBool flipX = false.obs;
 
@@ -316,8 +335,7 @@ class PlPlayerController with BlockConfigMixin {
   }
 
   void enterPip({bool autoEnter = false}) {
-    if (videoPlayerController != null) {
-      final state = videoPlayerController!.state;
+    if (videoPlayerController case NativePlayer(:final state)) {
       PageUtils.enterPip(
         autoEnter: autoEnter,
         width: state.width == 0 ? width : state.width,
@@ -414,6 +432,25 @@ class PlPlayerController with BlockConfigMixin {
   late final bool pipNoDanmaku = Pref.pipNoDanmaku;
 
   late final bool tempPlayerConf = Pref.tempPlayerConf;
+
+  static const int videoPictureParameterMin = -100;
+  static const int videoPictureParameterMax = 100;
+  static const int audioDelayMin = -1000;
+  static const int audioDelayMax = 1000;
+  static const int audioDelayStep = 10;
+  static const Duration _videoPictureSaveDelay = Duration(milliseconds: 300);
+
+  late final RxInt videoBrightness =
+      (tempPlayerConf ? 0 : Pref.videoBrightness).obs;
+  late final RxInt videoContrast =
+      (tempPlayerConf ? 0 : Pref.videoContrast).obs;
+  late final RxInt videoSaturation =
+      (tempPlayerConf ? 0 : Pref.videoSaturation).obs;
+  late final RxInt videoGamma = (tempPlayerConf ? 0 : Pref.videoGamma).obs;
+  late final RxInt videoHue = (tempPlayerConf ? 0 : Pref.videoHue).obs;
+  late final RxInt audioDelayMs =
+      (tempPlayerConf ? 0 : Pref.audioDelayMs).obs;
+  Timer? _videoPictureSaveTimer;
 
   late int? cacheVideoQa = PlatformUtils.isMobile ? null : Pref.defaultVideoQa;
   late int cacheAudioQa = Pref.defaultAudioQa;
@@ -648,6 +685,7 @@ class PlPlayerController with BlockConfigMixin {
           isNativePip.value = isInPip;
           PipOverlayService.isNativePip = isInPip;
           LivePipOverlayService.isNativePip = isInPip;
+          handleAutoAudioOnlyPipChanged(isInPip);
         }
       });
 
@@ -718,6 +756,111 @@ class PlPlayerController with BlockConfigMixin {
         setShader(defaultSuperResolutionType, _videoPlayerController!),
       );
     }
+
+    resetAllVideoPictureParameters(persist: false);
+  }
+
+  int _normalizeVideoPictureParameter(num value) =>
+      value.round().clamp(
+        videoPictureParameterMin,
+        videoPictureParameterMax,
+      ).toInt();
+
+  RxInt? _videoPictureParameterState(String property) => switch (property) {
+    'brightness' => videoBrightness,
+    'contrast' => videoContrast,
+    'saturation' => videoSaturation,
+    'gamma' => videoGamma,
+    'hue' => videoHue,
+    _ => null,
+  };
+
+  void setVideoPictureParameter(String property, num value) {
+    final state = _videoPictureParameterState(property);
+    if (state == null) return;
+
+    final normalized = _normalizeVideoPictureParameter(value);
+    state.value = normalized;
+    _applyVideoPictureProperty(property, normalized);
+    _scheduleVideoPictureSettingsSave();
+  }
+
+  void resetVideoPictureParameter(String property) {
+    setVideoPictureParameter(property, 0);
+  }
+
+  void setAudioDelay(int value) {
+    audioDelayMs.value = value.clamp(audioDelayMin, audioDelayMax).toInt();
+    _applyAudioDelay();
+    _scheduleVideoPictureSettingsSave();
+  }
+
+  void resetAudioDelay() => setAudioDelay(0);
+
+  void _applyAudioDelay() {
+    final player = _videoPlayerController;
+    if (player == null || onlyPlayAudio.value) return;
+    try {
+      player.setProperty('audio-delay', (audioDelayMs.value / 1000).toString());
+    } catch (_) {}
+  }
+
+  void resetAllVideoPictureParameters({bool persist = true}) {
+    videoBrightness.value = 0;
+    videoContrast.value = 0;
+    videoSaturation.value = 0;
+    videoGamma.value = 0;
+    videoHue.value = 0;
+    audioDelayMs.value = 0;
+    applyVideoPictureParameters();
+    if (persist) {
+      _scheduleVideoPictureSettingsSave();
+    }
+  }
+
+  void _applyVideoPictureProperty(String property, int value) {
+    final player = _videoPlayerController;
+    if (player == null || onlyPlayAudio.value) return;
+    try {
+      player.setProperty(property, value.toString());
+    } catch (_) {}
+  }
+
+  void applyVideoPictureParameters([Player? target]) {
+    final player = target ?? _videoPlayerController;
+    if (player == null || onlyPlayAudio.value) return;
+    try {
+      player
+        ..setProperty('brightness', videoBrightness.value.toString())
+        ..setProperty('contrast', videoContrast.value.toString())
+        ..setProperty('saturation', videoSaturation.value.toString())
+        ..setProperty('gamma', videoGamma.value.toString())
+        ..setProperty('hue', videoHue.value.toString())
+        ..setProperty('audio-delay', (audioDelayMs.value / 1000).toString());
+    } catch (_) {}
+  }
+
+  void _scheduleVideoPictureSettingsSave() {
+    if (tempPlayerConf) return;
+    _videoPictureSaveTimer?.cancel();
+    _videoPictureSaveTimer = Timer(
+      _videoPictureSaveDelay,
+      persistVideoPictureSettings,
+    );
+  }
+
+  void persistVideoPictureSettings() {
+    _videoPictureSaveTimer?.cancel();
+    _videoPictureSaveTimer = null;
+    if (tempPlayerConf) return;
+    setting.putAllNE({
+      SettingBoxKey.videoBrightness: videoBrightness.value,
+      SettingBoxKey.videoContrast: videoContrast.value,
+      SettingBoxKey.videoSaturation: videoSaturation.value,
+      SettingBoxKey.videoGamma: videoGamma.value,
+      SettingBoxKey.videoHue: videoHue.value,
+      SettingBoxKey.audioDelayMs: audioDelayMs.value,
+    });
   }
 
   bool _processing = false;
@@ -725,12 +868,6 @@ class PlPlayerController with BlockConfigMixin {
 
   // offline
   bool get isFileSource => dataSource is FileSource;
-
-  late final _audioNormalization = Pref.audioNormalization;
-  late final enableAudioNormalization =
-      Platform.isAndroid && _audioNormalization != '0';
-  late final String _audioNormalizationParam =
-      AudioNormalization.getParamFromConfig(_audioNormalization);
 
   // 初始化资源
   Future<void> setDataSource(
@@ -780,6 +917,13 @@ class PlPlayerController with BlockConfigMixin {
         resetTempSettings(nextPgcType: pgcType);
       }
       _activeVideoContextKey = nextVideoContextKey;
+
+      // 换视频上下文时取消自动只听定时器，状态保持
+      _cancelAutoAudioOnlyTimer();
+      _interruptAutoAudioRestore();
+      if (_autoAudioState == AutoAudioOnlyState.autoAudioOnly) {
+        _audioReopened = true;
+      }
       this.isLive = isLive;
       _videoType = videoType ?? VideoType.ugc;
       this.width = width;
@@ -911,8 +1055,6 @@ class PlPlayerController with BlockConfigMixin {
     }
   }
 
-  static final loudnormRegExp = RegExp('loudnorm=([^,]+)');
-
   Future<Player> _initPlayer() async {
     assert(_videoPlayerController == null);
     if (PlatformUtils.isMobile && Pref.enableAppVolume) {
@@ -960,11 +1102,8 @@ class PlPlayerController with BlockConfigMixin {
     return player;
   }
 
-  Map<String, String>? _buffer;
-  Map<String, String> get buffer =>
-      _buffer ??= Pref.initBuffer(_playbackSpeed.value);
-  Map<String, String>? _liveBuffer;
-  Map<String, String> get liveBuffer => _liveBuffer ??= Pref.initLiveBuffer();
+  late final buffer = Pref.initBuffer(_playbackSpeed.value);
+  late final liveBuffer = Pref.initLiveBuffer();
 
   // 配置播放器
   Future<void> _createVideoController(
@@ -995,17 +1134,14 @@ class PlPlayerController with BlockConfigMixin {
       }
     }
 
-    final Map<String, String> extras = {};
-
-    if (dataSource is FileSource) {
-      extras['cache'] = 'no';
-    } else {
-      if (isLive) {
-        extras.addAll(liveBuffer);
-      } else {
-        extras.addAll(buffer);
-      }
-    }
+    final Map<String, String> extras = {
+      if (dataSource is FileSource)
+        'cache': 'no'
+      else if (isLive)
+        ...liveBuffer
+      else
+        ...buffer,
+    };
 
     String video = dataSource.videoSource;
     if (dataSource.audioSource case final audio? when (audio.isNotEmpty)) {
@@ -1015,40 +1151,17 @@ class PlPlayerController with BlockConfigMixin {
         // dely_open need provide length
         video =
             ('edl://'
-            '!no_clip;!no_chapters;'
+            '!no_chapters;'
             // '!delay_open,media_type=video;'
             '%${isFileSource ? utf8.encode(video).length : video.length}%$video;'
-            '!new_stream;!no_clip;!no_chapters;'
+            '!new_stream;!no_chapters;'
             // '!delay_open,media_type=audio;'
             '%${isFileSource ? utf8.encode(audio).length : audio.length}%$audio');
       }
-      if (enableAudioNormalization) {
-        final String audioNormalization;
-        if (volume != null && volume.isNotEmpty) {
-          audioNormalization = _audioNormalizationParam.replaceFirstMapped(
-            loudnormRegExp,
-            (i) =>
-                'loudnorm=${volume.format(
-                  Map.fromEntries(
-                    i.group(1)!.split(':').map((item) {
-                      final parts = item.split('=');
-                      return MapEntry(parts[0].toLowerCase(), num.parse(parts[1]));
-                    }),
-                  ),
-                )}',
-          );
-        } else {
-          audioNormalization = _audioNormalizationParam.replaceFirst(
-            loudnormRegExp,
-            AudioNormalization.getParamFromConfig(Pref.fallbackNormalization),
-          );
-        }
-        if (audioNormalization.isNotEmpty) {
-          extras['lavfi-complex'] = '"[aid1] $audioNormalization [ao]"';
-        }
-      }
+      audioFilterExtras(volume, map: extras);
     }
 
+    assert(!isLive || seekTo == null);
     await player.open(
       Media(
         video,
@@ -1057,6 +1170,7 @@ class PlPlayerController with BlockConfigMixin {
       ),
       play: false,
     );
+    applyVideoPictureParameters(player);
   }
 
   Future<void>? refreshPlayer() {
@@ -1064,10 +1178,9 @@ class PlPlayerController with BlockConfigMixin {
       return null;
     }
     if (_videoPlayerController case final ctr? when (ctr.current.isNotEmpty)) {
-      return ctr.open(
-        ctr.current.last.copyWith(start: ctr.state.position),
-        play: true,
-      );
+      var media = ctr.current.last;
+      if (!isLive) media = media.copyWith(start: ctr.state.position);
+      return ctr.open(media, play: true);
     }
     return null;
   }
@@ -1113,7 +1226,8 @@ class PlPlayerController with BlockConfigMixin {
       stream.playing.listen((bool playing) {
         WakelockPlus.toggle(enable: playing);
         if (playing) {
-          if (_isAutoEnterPip) {
+          if (_isAutoEnterPip &&
+              _autoAudioState != AutoAudioOnlyState.autoAudioOnly) {
             if (_isCurrVideoPage || _isInInAppPip) {
               enterPip(autoEnter: true);
             } else {
@@ -1160,9 +1274,7 @@ class PlPlayerController with BlockConfigMixin {
         final posInSeconds = position.inSeconds;
 
         if (posInSeconds != this.position.value) {
-          if (!isSeeking.value) {
-            this.position.value = posInSeconds;
-          }
+          this.position.value = posInSeconds;
 
           videoPlayerServiceHandler?.onPositionChange(position);
 
@@ -1188,7 +1300,10 @@ class PlPlayerController with BlockConfigMixin {
       if (kDebugMode)
         stream.log.listen(((PlayerLog log) {
           if (log.level == 'error' || log.level == 'fatal') {
-            Utils.reportError('${log.level}: ${log.prefix}: ${log.text}', null);
+            Utils.reportError(
+              '${log.level}: ${log.prefix}: ${log.text}\n${player.state.playlist}',
+              null,
+            );
           } else {
             debugPrint(log.toString());
           }
@@ -1246,7 +1361,9 @@ class PlPlayerController with BlockConfigMixin {
               event.startsWith("Can not open")) {
             return;
           }
-          Utils.reportError(event);
+          if (!kDebugMode) {
+            Utils.reportError('$event\n${player.state.playlist}');
+          }
           // SmartDialog.showToast('视频加载错误, $event');
         }
       }),
@@ -1348,6 +1465,13 @@ class PlPlayerController with BlockConfigMixin {
     return showControls;
   }
 
+  /// 底层播放：申请音频焦点 + 启动播放，不含 UI 副作用
+  Future<void> _rawPlay() async {
+    await _videoPlayerController?.play();
+    audioSessionHandler?.setActive(true);
+    playerStatus.value = PlayerStatus.playing;
+  }
+
   /// 播放视频
   Future<void> play({bool repeat = false, bool hideControls = true}) async {
     if (_playerCount == 0) return;
@@ -1360,11 +1484,7 @@ class PlPlayerController with BlockConfigMixin {
       await seekTo(Duration.zero, isSeek: false);
     }
 
-    await _videoPlayerController?.play();
-
-    audioSessionHandler?.setActive(true);
-
-    playerStatus.value = PlayerStatus.playing;
+    await _rawPlay();
     // screenManager.setOverlays(false);
   }
 
@@ -1390,6 +1510,11 @@ class PlPlayerController with BlockConfigMixin {
       }
       _timer = null;
     });
+  }
+
+  void onSeekStart(int seekFrom) {
+    seekPosition.value = seekFrom;
+    isSeeking.value = true;
   }
 
   void onSeekEnd() {
@@ -1732,9 +1857,11 @@ class PlPlayerController with BlockConfigMixin {
   Future<void> onDoubleTapCenter() async {
     if (!isLive && isCompleted) {
       await videoPlayerController!.seek(Duration.zero);
-      videoPlayerController!.play();
+      await _rawPlay();
+    } else if (videoPlayerController!.state.playing) {
+      await pause();
     } else {
-      videoPlayerController!.playOrPause();
+      await _rawPlay();
     }
   }
 
@@ -1993,11 +2120,368 @@ class PlPlayerController with BlockConfigMixin {
 
   void onCloseAll() {
     _isCloseAll = true;
+    if (PlatformUtils.isDesktop) exitDesktopFullScreen();
     dispose();
     Get.until((route) => route.isFirst);
   }
 
+  // ──────────────────────────────────────────────
+  // 后台自动只听音频 — 状态机
+  // ──────────────────────────────────────────────
+
+  /// 手动听视频/仅播放音频标记，由三点菜单或直播按钮调用
+  void markManualOnlyPlayAudio(bool enabled) {
+    _interruptAutoAudioRestore();
+    if (enabled) {
+      _cancelAutoAudioOnlyTimer();
+      _autoAudioState = AutoAudioOnlyState.manualAudioOnly;
+    } else {
+      if (_autoAudioState == AutoAudioOnlyState.manualAudioOnly ||
+          _autoAudioState == AutoAudioOnlyState.autoAudioOnly) {
+        _autoAudioState = AutoAudioOnlyState.idle;
+      }
+    }
+  }
+
+  /// 设置项变更时调用
+  void onAutoAudioOnlySettingChanged() {
+    if (!Pref.autoAudioOnlyInBackground || !continuePlayInBackground.value) {
+      if (_autoAudioState == AutoAudioOnlyState.arm ||
+          _autoAudioState == AutoAudioOnlyState.pipHold) {
+        _cancelAutoAudioOnlyTimer();
+        _autoAudioState = AutoAudioOnlyState.idle;
+      } else if (_autoAudioState == AutoAudioOnlyState.autoAudioOnly) {
+        _cancelAutoAudioOnlyTimer();
+        unawaited(restoreFromAutoAudioOnly());
+      }
+    }
+  }
+
+  void _cancelAutoAudioOnlyTimer() {
+    _autoAudioOnlyTimer?.cancel();
+    _autoAudioOnlyTimer = null;
+  }
+
+  /// 自动只听准入检查
+  bool _canEnterAutoAudioOnly() {
+    if (!PlatformUtils.isMobile) return false;
+    if (!Pref.autoAudioOnlyInBackground) return false;
+    if (!continuePlayInBackground.value) return false;
+    if (_videoPlayerController == null) return false;
+    if (!playerStatus.isPlaying) return false;
+    if (isPipMode) return false;
+    if (_autoAudioState == AutoAudioOnlyState.manualAudioOnly) return false;
+    if (_autoAudioState == AutoAudioOnlyState.autoAudioOnly) return false;
+    if (Get.currentRoute == '/audio') return false;
+    // 点播有独立音轨才可切；直播没有音轨限制
+    if (!isLive && !_hasIndependentAudioTrack) return false;
+    return true;
+  }
+
+  bool get _hasIndependentAudioTrack {
+    if (dataSource is FileSource) {
+      return !(dataSource as FileSource).isMp4;
+    }
+    return dataSource.audioSource?.isNotEmpty == true;
+  }
+
+  /// 后台 10 秒到点，切到只听
+  Future<void> applyAutoAudioOnly() async {
+    if (!_canEnterAutoAudioOnly()) {
+      _autoAudioState = AutoAudioOnlyState.idle;
+      return;
+    }
+
+    onlyPlayAudio.value = true;
+
+    if (isLive) {
+      // 直播：重拉 only_audio=1
+      _autoAudioState = AutoAudioOnlyState.autoAudioOnly;
+      await onNeedsPlayerInit?.call();
+    } else {
+      // 点播：vid=no
+      try {
+        _videoPlayerController?.setProperty(
+          'file-local-options/vid',
+          'no',
+        );
+      } catch (_) {
+        onlyPlayAudio.value = false;
+        _autoAudioState = AutoAudioOnlyState.idle;
+        return;
+      }
+      _audioReopened = false;
+      _autoAudioState = AutoAudioOnlyState.autoAudioOnly;
+    }
+  }
+
+  /// 回到前台，恢复画面
+  Future<void> restoreFromAutoAudioOnly() async {
+    if (_autoAudioState != AutoAudioOnlyState.autoAudioOnly) return;
+    if (_autoAudioRestoreInProgress) return;
+
+    _cancelAutoAudioOnlyTimer();
+    _autoAudioRestoreInProgress = true;
+    final restoreGeneration = ++_autoAudioRestoreGeneration;
+    suppressBufferingIndicator.value = !isLive && !_audioReopened;
+
+    try {
+      // 直播，以及自动只听期间已经重开过纯音频 Media 的点播，
+      // 都没有可供 vid=auto 复用的视频输入，直接走页面级恢复。
+      if (isLive || _audioReopened) {
+        await _fullRestore();
+        return;
+      }
+
+      final player = _videoPlayerController;
+      if (player == null || player.current.isEmpty) {
+        await _fullRestore();
+        return;
+      }
+
+      onlyPlayAudio.value = false;
+
+      // 第一层：在当前 EDL Media 上重新选择视频轨，不重开 Media。
+      try {
+        player.setProperty('file-local-options/vid', 'auto');
+      } catch (_) {
+        await _fullRestore();
+        return;
+      }
+      applyVideoPictureParameters();
+
+      final restoredByTrackSwitch = await _waitForVideoOutput(
+        restoreGeneration,
+        checkCurrentState: false,
+      );
+      if (!_isAutoAudioRestoreCurrent(restoreGeneration)) {
+        return;
+      }
+
+      if (restoredByTrackSwitch) {
+        _completeAutoAudioRestore();
+        return;
+      }
+
+      if (!_canUseAutoAudioRestoreFallback(player)) {
+        _completeAutoAudioRestore();
+        return;
+      }
+
+      // 第二层：当前 EDL 仍可复用时，只重开这一个 Media。
+      if (await _reopenCurrentMedia(restoreGeneration)) {
+        _completeAutoAudioRestore();
+        return;
+      }
+
+      if (_isAutoAudioRestoreCurrent(restoreGeneration) &&
+          _canUseAutoAudioRestoreFallback(player)) {
+        // 第三层：当前 Media 也无法恢复时，交给页面重新初始化资源。
+        await _fullRestore();
+      } else if (_isAutoAudioRestoreCurrent(restoreGeneration)) {
+        _completeAutoAudioRestore();
+      }
+    } finally {
+      if (restoreGeneration == _autoAudioRestoreGeneration) {
+        _autoAudioRestoreInProgress = false;
+        suppressBufferingIndicator.value = false;
+      }
+    }
+  }
+
+  /// 等待当前 Media 恢复真实视频输出。
+  Future<bool> _waitForVideoOutput(
+    int restoreGeneration, {
+    bool checkCurrentState = true,
+  }) {
+    final player = _videoPlayerController;
+    if (player == null) return Future.value(false);
+    if (checkCurrentState && _hasVideoOutput(player)) {
+      return Future.value(true);
+    }
+
+    final completer = _autoAudioRestoreCompleter = Completer<bool>();
+    final subscription = player.stream.videoParams.listen((_) {
+      if (!_isAutoAudioRestoreCurrent(restoreGeneration)) {
+        _finishAutoAudioRestoreWait(false);
+      } else if (_hasVideoOutput(player)) {
+        _finishAutoAudioRestoreWait(true);
+      }
+    });
+    _autoAudioRestoreSubscription = subscription;
+    _autoAudioRestoreTimer = Timer(
+      const Duration(seconds: 4),
+      () => _finishAutoAudioRestoreWait(false),
+    );
+    return completer.future;
+  }
+
+  bool _hasVideoOutput(Player player) {
+    final state = player.state;
+    if (state.track.video.id == 'no') return false;
+    final params = state.videoParams;
+    final width = params.dw ?? params.w ?? 0;
+    final height = params.dh ?? params.h ?? 0;
+    return width > 0 && height > 0;
+  }
+
+  bool _canUseAutoAudioRestoreFallback(Player player) =>
+      playerStatus.isPlaying || player.state.buffering;
+
+  bool _isAutoAudioRestoreCurrent(int restoreGeneration) =>
+      restoreGeneration == _autoAudioRestoreGeneration &&
+      _autoAudioState == AutoAudioOnlyState.autoAudioOnly &&
+      _lastAppLifecycleState != AppLifecycleState.hidden &&
+      _lastAppLifecycleState != AppLifecycleState.paused &&
+      _lastAppLifecycleState != AppLifecycleState.detached &&
+      !isPipMode;
+
+  void _completeAutoAudioRestore() {
+    _autoAudioState = AutoAudioOnlyState.idle;
+    _audioReopened = false;
+  }
+
+  void _finishAutoAudioRestoreWait(bool result) {
+    final completer = _autoAudioRestoreCompleter;
+    if (completer == null || completer.isCompleted) return;
+    _autoAudioRestoreTimer?.cancel();
+    _autoAudioRestoreTimer = null;
+    unawaited(_autoAudioRestoreSubscription?.cancel());
+    _autoAudioRestoreSubscription = null;
+    _autoAudioRestoreCompleter = null;
+    completer.complete(result);
+  }
+
+  void _interruptAutoAudioRestore() {
+    if (!_autoAudioRestoreInProgress &&
+        _autoAudioRestoreCompleter == null) {
+      return;
+    }
+    _autoAudioRestoreGeneration++;
+    _autoAudioRestoreInProgress = false;
+    suppressBufferingIndicator.value = false;
+    _finishAutoAudioRestoreWait(false);
+  }
+
+  /// 第二层：重开当前 Media，避免立即进入页面级 playerInit 的加载状态。
+  Future<bool> _reopenCurrentMedia(int restoreGeneration) async {
+    final player = _videoPlayerController;
+    if (player == null || player.current.isEmpty) return false;
+    if (!_isAutoAudioRestoreCurrent(restoreGeneration)) return false;
+
+    try {
+      final shouldResumePlayback = player.state.playing;
+      await player.open(
+        player.current.last.copyWith(start: player.state.position),
+        play: shouldResumePlayback,
+      );
+      applyVideoPictureParameters(player);
+    } catch (_) {
+      return false;
+    }
+
+    if (!_isAutoAudioRestoreCurrent(restoreGeneration)) return false;
+    return _waitForVideoOutput(restoreGeneration);
+  }
+
+  /// 第三层：点播 playerInit，直播 queryLiveUrl。
+  Future<void> _fullRestore() async {
+    suppressBufferingIndicator.value = false;
+    onlyPlayAudio.value = false;
+    _completeAutoAudioRestore();
+    await onNeedsPlayerInit?.call();
+  }
+
+  /// 生命周期变化 — 由 view 转发
+  void handleAutoAudioOnlyLifecycle(AppLifecycleState state) {
+    _lastAppLifecycleState = state;
+
+    switch (state) {
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+        _cancelAutoAudioOnlyTimer();
+        if (_autoAudioRestoreInProgress) {
+          _interruptAutoAudioRestore();
+        }
+        // 已在只听/手动听视频时，保持状态不退出
+        if (_autoAudioState == AutoAudioOnlyState.autoAudioOnly ||
+            _autoAudioState == AutoAudioOnlyState.manualAudioOnly) {
+          break;
+        }
+        if (isPipMode) {
+          _autoAudioState = AutoAudioOnlyState.pipHold;
+        } else if (_canEnterAutoAudioOnly()) {
+          _autoAudioOnlyTimer = Timer(
+            const Duration(seconds: 10),
+            applyAutoAudioOnly,
+          );
+          _autoAudioState = AutoAudioOnlyState.arm;
+        }
+        break;
+      case AppLifecycleState.resumed:
+        _cancelAutoAudioOnlyTimer();
+        if (_autoAudioState == AutoAudioOnlyState.autoAudioOnly) {
+          if (!_autoAudioRestoreInProgress) {
+            unawaited(restoreFromAutoAudioOnly());
+          }
+        } else if (_autoAudioState == AutoAudioOnlyState.arm ||
+            _autoAudioState == AutoAudioOnlyState.pipHold) {
+          _autoAudioState = AutoAudioOnlyState.idle;
+        }
+        // manualAudioOnly / pipHold / arm / idle：保持状态不重置
+        break;
+      case AppLifecycleState.inactive:
+        // 过渡状态，忽略
+        break;
+      case AppLifecycleState.detached:
+        _cancelAutoAudioOnlyTimer();
+        _interruptAutoAudioRestore();
+        break;
+    }
+  }
+
+  /// 系统 PiP 变化时由 onPipChanged 调用
+  void handleAutoAudioOnlyPipChanged(bool isInPip) {
+    if (isInPip) {
+      _cancelAutoAudioOnlyTimer();
+      if (_autoAudioRestoreInProgress) {
+        _interruptAutoAudioRestore();
+      }
+      if (_autoAudioState == AutoAudioOnlyState.arm) {
+        _autoAudioState = AutoAudioOnlyState.pipHold;
+      }
+    } else {
+      // PiP 关闭
+      _cancelAutoAudioOnlyTimer();
+      if (_lastAppLifecycleState == AppLifecycleState.resumed) {
+        if (_autoAudioState == AutoAudioOnlyState.autoAudioOnly) {
+          unawaited(restoreFromAutoAudioOnly());
+        } else if (_autoAudioState == AutoAudioOnlyState.arm ||
+            _autoAudioState == AutoAudioOnlyState.pipHold) {
+          _autoAudioState = AutoAudioOnlyState.idle;
+        }
+        // manualAudioOnly 保持不动
+      } else {
+        // 仍在后台：仅当不在只听/手动听时重新 arm
+        if (_autoAudioState == AutoAudioOnlyState.autoAudioOnly ||
+            _autoAudioState == AutoAudioOnlyState.manualAudioOnly) {
+          return;
+        }
+        _autoAudioState = AutoAudioOnlyState.arm;
+        _autoAudioOnlyTimer = Timer(
+          const Duration(seconds: 10),
+          applyAutoAudioOnly,
+        );
+      }
+    }
+  }
+
   void dispose() {
+    _cancelAutoAudioOnlyTimer();
+    _interruptAutoAudioRestore();
+    _autoAudioState = AutoAudioOnlyState.idle;
+    _audioReopened = false;
+    _lastAppLifecycleState = null;
     // 每次减1，最后销毁
     resetScreenRotation();
     cancelLongPressTimer();
@@ -2030,6 +2514,7 @@ class PlPlayerController with BlockConfigMixin {
       AndroidHelper$ToDart.onUserLeaveHint = null;
     }
     _timer?.cancel();
+    persistVideoPictureSettings();
     // _position.close();
     // _playerEventSubs?.cancel();
     // _sliderPosition.close();
@@ -2080,11 +2565,10 @@ class PlPlayerController with BlockConfigMixin {
         continuePlayInBackground.value,
       );
     }
-  }
-
-  void setOnlyPlayAudio() {
-    onlyPlayAudio.toggle();
-    videoPlayerController?.setVideoTrack(onlyPlayAudio.value ? .no() : .auto());
+    // 关掉后台播放时，停止自动只听状态机
+    if (!continuePlayInBackground.value) {
+      onAutoAudioOnlySettingChanged();
+    }
   }
 
   late final Map<String, ui.Image?> previewCache = {};
@@ -2263,9 +2747,6 @@ class PlPlayerController with BlockConfigMixin {
 
   Future<void> takeScreenshot() async {
     SmartDialog.showToast('截图中');
-    final time = DurationUtils.formatDuration(
-      positionInMilliseconds / 1000,
-    ).replaceAll(':', '-');
     final image = await videoPlayerController?.screenshot();
     if (image != null) {
       SmartDialog.showToast('点击弹窗保存截图');
@@ -2275,10 +2756,15 @@ class PlPlayerController with BlockConfigMixin {
           onTap: () async {
             final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
             if (bytes != null) {
+              final time = DurationUtils.formatDuration(
+                positionInMilliseconds / 1000,
+              ).replaceAll(':', '-');
               ImageUtils.saveByteImg(
                 bytes: bytes.buffer.asUint8List(),
                 fileName: 'screenshot_${cid}_$time',
               );
+            } else {
+              SmartDialog.showToast('保存失败');
             }
             Get.back();
           },

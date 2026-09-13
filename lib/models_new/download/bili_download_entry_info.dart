@@ -6,9 +6,10 @@ import 'package:PiliPlus/pages/common/multi_select/base.dart'
     show MultiSelectData;
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
-import 'package:flutter/material.dart';
+import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/route_manager.dart';
+import 'package:material_ui/material_ui.dart';
 
 class BiliDownloadEntryInfo with MultiSelectData {
   int mediaType;
@@ -49,7 +50,7 @@ class BiliDownloadEntryInfo with MultiSelectData {
 
   String get pageId => seasonId ?? avid.toString();
 
-  int get sortKey => ep?.sortIndex ?? pageData!.cid;
+  int get sortKey => ep?.sortIndex ?? pageData!.page;
 
   String get showTitle {
     if (pageData case PageInfo(:final part)) {
@@ -130,6 +131,15 @@ class BiliDownloadEntryInfo with MultiSelectData {
                       SmartDialog.showToast(e.toString());
                     }
                   },
+                )
+              else
+                CustomPopupMenuItem<void>(
+                  height: 38,
+                  child: const Text(
+                    '复制缓存路径',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                  onTap: () => Utils.copyText(entryDirPath),
                 ),
               if (ownerId case final mid?)
                 CustomPopupMenuItem<void>(

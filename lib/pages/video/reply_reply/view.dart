@@ -1,4 +1,5 @@
 import 'package:PiliPlus/common/skeleton/video_reply.dart';
+import 'package:PiliPlus/common/sliver_single_child_delegate.dart';
 import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/colored_box_transition.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
@@ -17,12 +18,13 @@ import 'package:PiliPlus/pages/video/reply_reply/controller.dart';
 import 'package:PiliPlus/utils/app_scheme.dart';
 import 'package:PiliPlus/utils/extension/widget_ext.dart';
 import 'package:PiliPlus/utils/num_utils.dart';
+import 'package:PiliPlus/utils/parse_string.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:extended_nested_scroll_view/extended_nested_scroll_view.dart';
 import 'package:fixnum/fixnum.dart' show Int64;
-import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
 
 class VideoReplyReplyPanel extends CommonSlidePage {
@@ -62,7 +64,7 @@ class VideoReplyReplyPanel extends CommonSlidePage {
     String? heroTag,
     Uri? uri,
   }) {
-    final rpId = rpIdStr == null ? null : int.tryParse(rpIdStr);
+    final rpId = parseIntOrNull(rpIdStr);
     return Get.to(
       arguments: {
         'oid': oid,
@@ -273,7 +275,7 @@ class _VideoReplyReplyPanelState extends State<VideoReplyReplyPanel>
               icon: Icon(Icons.sort, size: 16, color: colorScheme.secondary),
               label: Obx(
                 () => Text(
-                  _controller.sortType.value.text!,
+                  _controller.sortType.value.label,
                   style: TextStyle(fontSize: 13, color: colorScheme.secondary),
                 ),
               ),
@@ -290,10 +292,12 @@ class _VideoReplyReplyPanelState extends State<VideoReplyReplyPanel>
   ) {
     final jumpIndex = _controller.index.value;
     return switch (loadingState) {
-      Loading() => SliverPrototypeExtentList.builder(
-        prototypeItem: const VideoReplySkeleton(),
-        itemBuilder: (_, _) => const VideoReplySkeleton(),
-        itemCount: 8,
+      Loading() => const SliverPrototypeExtentList(
+        prototypeItem: VideoReplySkeleton(),
+        delegate: SliverSingleChildDelegate(
+          count: 8,
+          child: VideoReplySkeleton(),
+        ),
       ),
       Success(:final response!) => SuperSliverList.builder(
         listController: _controller.listController,

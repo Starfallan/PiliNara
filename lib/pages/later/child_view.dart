@@ -10,8 +10,8 @@ import 'package:PiliPlus/pages/later/widgets/video_card_h_later.dart';
 import 'package:PiliPlus/utils/extension/get_ext.dart';
 import 'package:PiliPlus/utils/grid.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:material_ui/material_ui.dart';
 
 class LaterViewChildPage extends StatefulWidget {
   const LaterViewChildPage({
@@ -97,7 +97,7 @@ class _LaterViewChildPageState extends State<LaterViewChildPage>
                                 'desc': _laterController.asc.value,
                                 'isContinuePlaying': index != 0,
                               }
-                            : null,
+                            : const {'viewLater': true},
                       );
                     },
                   );

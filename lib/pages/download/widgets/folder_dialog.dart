@@ -1,6 +1,6 @@
 import 'package:PiliPlus/models_new/download/download_collection.dart';
 import 'package:PiliPlus/services/download/download_collection_service.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 Future<String?> showDownloadFolderNameDialog({
   required BuildContext context,

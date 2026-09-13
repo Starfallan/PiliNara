@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// 双层箭头流光动画（长按倍速锁定引导）：
 /// 两个 chevron 紧凑叠放，明暗以半周期相位差循环，

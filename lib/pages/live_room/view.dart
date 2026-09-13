@@ -9,7 +9,6 @@ import 'package:PiliPlus/common/widgets/custom_icon.dart';
 import 'package:PiliPlus/common/widgets/extra_hittest_stack.dart';
 import 'package:PiliPlus/common/widgets/flutter/popup_menu.dart';
 import 'package:PiliPlus/common/widgets/flutter/pop_scope.dart';
-import 'package:PiliPlus/common/widgets/flutter/text_field/controller.dart';
 import 'package:PiliPlus/common/widgets/gesture/horizontal_drag_gesture_recognizer.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/keep_alive_wrapper.dart';
@@ -57,9 +56,9 @@ import 'package:PiliPlus/utils/utils.dart';
 import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:canvas_danmaku/danmaku_screen.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
-import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:screen_brightness_platform_interface/screen_brightness_platform_interface.dart';
 
 const baseWhite = Color(0xFFEEEEEE);
@@ -830,10 +829,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
       if (_liveRoomController.onlineCount.value case final onlineCount?) {
         return Text(
           '高能观众($onlineCount)',
-          style: const TextStyle(
-            fontSize: 12,
-            color: Colors.white,
-          ),
+          style: const TextStyle(fontSize: 12, color: Colors.white),
         );
       }
       return const SizedBox.shrink();
@@ -1066,18 +1062,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     Widget chat() => LiveRoomChatPanel(
       key: chatKey,
       isPP: isPP,
-      roomId: _liveRoomController.roomId,
       liveRoomController: _liveRoomController,
-      onAtUser: (item) => _liveRoomController
-        ..savedDanmaku = [
-          RichTextItem.fromStart(
-            '@${item.name} ',
-            rawText: item.extra.mid.toString(),
-            type: .at,
-            id: item.extra.id.toString(),
-          ),
-        ]
-        ..onSendDanmaku(),
     );
     return Padding(
       padding: .only(bottom: 12, top: isPortrait ? 12 : 0),
@@ -1156,25 +1141,32 @@ class _LiveRoomPageState extends State<LiveRoomPage>
                   },
                 ),
                 const Expanded(
-                  child: Text(
-                    '发送弹幕',
-                    style: TextStyle(color: baseWhite),
-                  ),
+                  child: Text('发送弹幕', style: TextStyle(color: baseWhite)),
                 ),
                 Builder(
                   builder: (context) {
-                    final colorScheme = Theme.of(context).colorScheme;
+                    final isLogin = kDebugMode || _liveRoomController.isLogin;
+                    final colorScheme = ColorScheme.of(context);
                     return Material(
                       type: MaterialType.transparency,
                       child: Stack(
                         clipBehavior: Clip.none,
                         children: [
                           InkWell(
-                            overlayColor: overlayColor(colorScheme),
+                            overlayColor: _overlayColor(colorScheme),
                             customBorder: const CircleBorder(),
-                            onTapDown: _liveRoomController.onLikeTapDown,
-                            onTapUp: _liveRoomController.onLikeTapUp,
-                            onTapCancel: _liveRoomController.onLikeTapUp,
+                            onTap: isLogin
+                                ? null
+                                : _liveRoomController.toastNotLogin,
+                            onTapDown: isLogin
+                                ? _liveRoomController.onLikeTapDown
+                                : null,
+                            onTapUp: isLogin
+                                ? _liveRoomController.onLikeTapUp
+                                : null,
+                            onTapCancel: isLogin
+                                ? _liveRoomController.onLikeTapUp
+                                : null,
                             child: const SizedBox.square(
                               dimension: 34,
                               child: Icon(
@@ -1259,29 +1251,20 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     return child;
   }
 
-  WidgetStateProperty<Color?>? overlayColor(ColorScheme theme) =>
+  WidgetStateProperty<Color?>? _overlayColor(ColorScheme colorScheme) =>
       WidgetStateProperty.resolveWith((Set<WidgetState> states) {
-        if (states.contains(WidgetState.selected)) {
-          if (states.contains(WidgetState.pressed)) {
-            return theme.primary.withValues(alpha: 0.1);
-          }
-          if (states.contains(WidgetState.hovered)) {
-            return theme.primary.withValues(alpha: 0.08);
-          }
-          if (states.contains(WidgetState.focused)) {
-            return theme.primary.withValues(alpha: 0.1);
-          }
-        }
+        final color = states.contains(WidgetState.selected)
+            ? colorScheme.primary
+            : colorScheme.onSurfaceVariant;
         if (states.contains(WidgetState.pressed)) {
-          return theme.onSurfaceVariant.withValues(alpha: 0.1);
+          return color.withValues(alpha: 0.1);
+        } else if (states.contains(WidgetState.hovered)) {
+          return color.withValues(alpha: 0.08);
+        } else if (states.contains(WidgetState.focused)) {
+          return color.withValues(alpha: 0.1);
+        } else {
+          return Colors.transparent;
         }
-        if (states.contains(WidgetState.hovered)) {
-          return theme.onSurfaceVariant.withValues(alpha: 0.08);
-        }
-        if (states.contains(WidgetState.focused)) {
-          return theme.onSurfaceVariant.withValues(alpha: 0.1);
-        }
-        return Colors.transparent;
       });
 }
 

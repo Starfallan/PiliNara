@@ -10,10 +10,10 @@ import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/user_whitelist.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:hive_ce/hive.dart';
+import 'package:material_ui/material_ui.dart';
 
 List<SettingsModel> get recommendSettings => [
   NormalModel(
@@ -67,6 +67,14 @@ List<SettingsModel> get recommendSettings => [
     onChanged: (value) {
       RecommendFilter.rcmdRegExp = value;
       RecommendFilter.enableFilter = value.pattern.isNotEmpty;
+    },
+  ),
+  getListBanWordModel(
+    title: 'UP名称关键词过滤',
+    key: SettingBoxKey.banWordForRecommendUpName,
+    onChanged: (value) {
+      RecommendFilter.rcmdUpNameRegExp = value;
+      RecommendFilter.enableUpNameFilter = value.pattern.isNotEmpty;
     },
   ),
   getListBanWordModel(
@@ -163,7 +171,7 @@ List<SettingsModel> get recommendSettings => [
   ),
   SwitchModel(
     title: '过滤器也应用于热门视频',
-    subtitle: '开启后对热门视频应用完整过滤（标题关键词、时长、播放量、点赞率、屏蔽用户）',
+    subtitle: '开启后对热门视频应用完整过滤（标题和UP名称关键词、时长、播放量、点赞率、屏蔽用户）',
     leading: const Icon(Icons.local_fire_department_outlined),
     setKey: SettingBoxKey.applyFilterToHotVideos,
     defaultVal: false,

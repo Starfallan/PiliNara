@@ -317,7 +317,15 @@ class VideoPlayerServiceHandler extends BaseAudioHandler with SeekHandler {
     if (!PlPlayerController.instanceExists()) return;
     if (data == null) return;
 
-    Uri getUri(String? cover) => Uri.parse(ImageUtils.safeThumbnailUrl(cover));
+    // Windows SMTC 弹窗由 shell 进程渲染，仅支持系统内置解码器，WebP 会静默不显示，
+    // 将图床处理参数的 .webp 后缀换为 .jpg（由图床转码），其他平台维持原状
+    Uri getUri(String? cover) {
+      String url = ImageUtils.safeThumbnailUrl(cover);
+      if (Platform.isWindows && url.contains('@') && url.endsWith('.webp')) {
+        url = '${url.substring(0, url.length - '.webp'.length)}.jpg';
+      }
+      return Uri.parse(url);
+    }
 
     late final id = '$cid$herotag';
     final MediaItem mediaItem;

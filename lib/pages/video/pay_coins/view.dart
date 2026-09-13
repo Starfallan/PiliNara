@@ -15,8 +15,8 @@ import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:material_ui/material_ui.dart';
 
 typedef OnPayCoin = Function(int coin, bool coinWithLike);
 
@@ -208,13 +208,16 @@ class _PayCoinsPageState extends State<PayCoinsPage>
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
     final isPortrait = size.isPortrait;
-    return isPortrait
-        ? _buildBody(isPortrait)
-        : _buildBody(isPortrait).constraintWidth(
-            constraints: BoxConstraints(
-              maxWidth: math.min(525, size.width * 0.6),
+    return DefaultTextStyle(
+      style: TextTheme.of(context).bodyMedium!,
+      child: isPortrait
+          ? _buildBody(isPortrait)
+          : _buildBody(isPortrait).constraintWidth(
+              constraints: BoxConstraints(
+                maxWidth: math.min(525, size.width * 0.6),
+              ),
             ),
-          );
+    );
   }
 
   Widget _buildCoinWidget(int index, double factor) {

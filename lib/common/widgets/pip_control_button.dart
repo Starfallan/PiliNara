@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// 小窗控制按钮:固定触控目标 + hover 高亮。
 ///

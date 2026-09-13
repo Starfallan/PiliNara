@@ -11,6 +11,7 @@ import 'package:PiliPlus/models/common/badge_type.dart';
 import 'package:PiliPlus/models/common/stat_type.dart';
 import 'package:PiliPlus/utils/date_utils.dart';
 import 'package:PiliPlus/utils/duration_utils.dart';
+import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/em.dart';
 import 'package:PiliPlus/utils/extension/dimension_ext.dart';
 import 'package:PiliPlus/utils/id_utils.dart';
@@ -18,8 +19,8 @@ import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:fixnum/fixnum.dart' show Int64;
-import 'package:flutter/material.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
+import 'package:material_ui/material_ui.dart';
 
 class SearchArchiveGrpc extends StatelessWidget {
   const SearchArchiveGrpc({
@@ -192,7 +193,10 @@ class SearchArchiveGrpc extends StatelessWidget {
             ),
           ),
           Text(
-            "$pubdate${arc.author.name}",
+            "$pubdate${remarkedName(
+              arc.author.mid.toInt(),
+              arc.author.name,
+            )}",
             maxLines: 1,
             style: TextStyle(
               fontSize: 12,

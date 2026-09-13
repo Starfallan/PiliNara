@@ -1,7 +1,7 @@
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 class DanmakuMergeSettingPage extends StatefulWidget {
   const DanmakuMergeSettingPage({super.key});

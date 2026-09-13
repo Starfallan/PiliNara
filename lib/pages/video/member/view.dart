@@ -1,4 +1,5 @@
 import 'package:PiliPlus/common/skeleton/video_card_h.dart';
+import 'package:PiliPlus/common/sliver_single_child_delegate.dart';
 import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
@@ -25,9 +26,9 @@ import 'package:PiliPlus/utils/num_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/request_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
+import 'package:material_ui/material_ui.dart';
 
 class HorizontalMemberPage extends StatefulWidget {
   const HorizontalMemberPage({
@@ -178,9 +179,11 @@ class _HorizontalMemberPageState extends State<HorizontalMemberPage> {
     LoadingState<List<SpaceArchiveItem>?> loadingState,
   ) {
     return switch (loadingState) {
-      Loading() => SliverFixedExtentList.builder(
-        itemCount: 10,
-        itemBuilder: (_, _) => const VideoCardHSkeleton(),
+      Loading() => const SliverFixedExtentList(
+        delegate: SliverSingleChildDelegate(
+          count: 10,
+          child: VideoCardHSkeleton(),
+        ),
         itemExtent: 112,
       ),
       Success(:final response) =>

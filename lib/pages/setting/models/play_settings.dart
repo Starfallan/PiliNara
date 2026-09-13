@@ -19,10 +19,10 @@ import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
+import 'package:material_ui/material_ui.dart';
 
 List<SettingsModel> get playSettings => [
   const SwitchModel(
@@ -193,11 +193,14 @@ List<SettingsModel> get playSettings => [
     setKey: SettingBoxKey.keyboardControl,
     defaultVal: true,
   ),
-  NormalModel(
+  PopupModel(
     title: 'SuperChat (醒目留言) 显示类型',
     leading: const Icon(Icons.live_tv),
-    getSubtitle: () => '当前:「${Pref.superChatType.title}」',
-    onTap: _showSuperChatDialog,
+    value: () => Pref.superChatType,
+    items: SuperChatType.values,
+    onSelected: (value, setState) => GStorage.setting
+        .put(SettingBoxKey.superChatType, value.index)
+        .whenComplete(setState),
   ),
   NormalModel(
     title: 'SuperChat 发送时间显示',
@@ -247,12 +250,28 @@ List<SettingsModel> get playSettings => [
     defaultVal: false,
   ),
   if (PlatformUtils.isMobile)
-    const SwitchModel(
+    SwitchModel(
       title: '后台播放',
       subtitle: '进入后台时继续播放',
-      leading: Icon(Icons.motion_photos_pause_outlined),
+      leading: const Icon(Icons.motion_photos_pause_outlined),
       setKey: SettingBoxKey.continuePlayInBackground,
       defaultVal: false,
+      onChanged: (value) {
+        if (!value) {
+          PlPlayerController.instance?.onAutoAudioOnlySettingChanged();
+        }
+      },
+    ),
+  if (PlatformUtils.isMobile)
+    SwitchModel(
+      title: '后台只听音频（实验性）',
+      subtitle: '需开启「后台播放」后才生效\n进入后台或息屏一段时间后停止视频流，只保留声音；回到前台恢复画面',
+      leading: const Icon(Icons.headphones_outlined),
+      setKey: SettingBoxKey.autoAudioOnlyInBackground,
+      defaultVal: false,
+      onChanged: (value) {
+        PlPlayerController.instance?.onAutoAudioOnlySettingChanged();
+      },
     ),
   const SwitchModel(
     title: '应用内画中画',
@@ -315,11 +334,14 @@ List<SettingsModel> get playSettings => [
     getSubtitle: () => '当前全屏方向：${Pref.fullScreenMode.desc}',
     onTap: _showFullScreenModeDialog,
   ),
-  NormalModel(
+  PopupModel(
     title: '底部进度条展示',
     leading: const Icon(Icons.border_bottom_outlined),
-    getSubtitle: () => '当前展示方式：${Pref.btmProgressBehavior.desc}',
-    onTap: _showProgressBehaviorDialog,
+    value: () => Pref.btmProgressBehavior,
+    items: BtmProgressBehavior.values,
+    onSelected: (value, setState) => GStorage.setting
+        .put(SettingBoxKey.btmProgressBehavior, value.index)
+        .whenComplete(setState),
   ),
   if (PlatformUtils.isMobile)
     SwitchModel(
@@ -388,24 +410,6 @@ Future<void> _showSuperChatTimeDialog(
   }
 }
 
-Future<void> _showSuperChatDialog(
-  BuildContext context,
-  VoidCallback setState,
-) async {
-  final res = await showDialog<SuperChatType>(
-    context: context,
-    builder: (context) => SelectDialog<SuperChatType>(
-      title: 'SuperChat (醒目留言) 显示类型',
-      value: Pref.superChatType,
-      values: SuperChatType.values.map((e) => (e, e.title)).toList(),
-    ),
-  );
-  if (res != null) {
-    await GStorage.setting.put(SettingBoxKey.superChatType, res.index);
-    setState();
-  }
-}
-
 Future<void> _showFullScreenModeDialog(
   BuildContext context,
   VoidCallback setState,
@@ -420,27 +424,6 @@ Future<void> _showFullScreenModeDialog(
   );
   if (res != null) {
     await GStorage.setting.put(SettingBoxKey.fullScreenMode, res.index);
-    setState();
-  }
-}
-
-Future<void> _showProgressBehaviorDialog(
-  BuildContext context,
-  VoidCallback setState,
-) async {
-  final res = await showDialog<BtmProgressBehavior>(
-    context: context,
-    builder: (context) => SelectDialog<BtmProgressBehavior>(
-      title: '底部进度条展示',
-      value: Pref.btmProgressBehavior,
-      values: BtmProgressBehavior.values.map((e) => (e, e.desc)).toList(),
-    ),
-  );
-  if (res != null) {
-    await GStorage.setting.put(
-      SettingBoxKey.btmProgressBehavior,
-      res.index,
-    );
     setState();
   }
 }

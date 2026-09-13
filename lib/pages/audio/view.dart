@@ -35,6 +35,7 @@ import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/extension/size_ext.dart';
 import 'package:PiliPlus/utils/extension/string_ext.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
+import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/num_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
@@ -42,10 +43,10 @@ import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
-import 'package:flutter/material.dart' hide DraggableScrollableSheet;
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
+import 'package:material_ui/material_ui.dart' hide DraggableScrollableSheet;
 
 class AudioPage extends StatefulWidget {
   const AudioPage({super.key});
@@ -780,8 +781,8 @@ class _AudioPageState extends State<AudioPage> {
 
   void _onDragStart(ThumbDragDetails details) {
     _controller
-      ..isDragging = true
-      ..position.value = details.seconds;
+      ..position.value = details.seconds
+      ..isDragging = true;
   }
 
   void _onDragUpdate(ThumbDragDetails details) {
@@ -985,7 +986,10 @@ class _AudioPageState extends State<AudioPage> {
                                 type: ImageType.avatar,
                               ),
                             Text(
-                              audioItem.owner.name,
+                              remarkedName(
+                                audioItem.owner.mid.toInt(),
+                                audioItem.owner.name,
+                              ),
                             ),
                           ],
                         ),

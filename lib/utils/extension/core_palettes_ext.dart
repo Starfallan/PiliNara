@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:collection/collection.dart';
 import 'package:material_color_utilities/dynamiccolor/dynamic_color.dart';
 import 'package:material_color_utilities/dynamiccolor/dynamic_scheme.dart';
 import 'package:material_color_utilities/dynamiccolor/variant.dart';
 import 'package:material_color_utilities/palettes/core_palettes.dart';
 import 'package:material_color_utilities/palettes/tonal_palette.dart';
+import 'package:material_ui/material_ui.dart';
 
 extension CorePalettesExt on CorePalettes {
   static CorePalettes fromList(List<int> colors) {
@@ -102,7 +103,7 @@ List<int> _getPartition(
   int partitionNumber,
   int partitionSize,
 ) {
-  return list.sublist(
+  return list.slice(
     partitionNumber * partitionSize,
     (partitionNumber + 1) * partitionSize,
   );

@@ -1,6 +1,6 @@
 import 'package:PiliPlus/pages/setting/ai_setting/controller.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 
 class AiSettingPage extends StatelessWidget {

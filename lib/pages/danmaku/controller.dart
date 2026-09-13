@@ -85,7 +85,6 @@ class PlDanmakuController {
     skipAdvanced: Pref.mergeDanmakuSkipAdvanced,
     skipBottom: Pref.mergeDanmakuSkipBottom,
   );
-
   void dispose() {
     if (kDebugMode) {
       debugPrint(

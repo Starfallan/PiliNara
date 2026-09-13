@@ -13,6 +13,8 @@ import 'package:PiliPlus/models/model_owner.dart';
 import 'package:PiliPlus/models_new/live/live_danmaku/danmaku_msg.dart';
 import 'package:PiliPlus/models_new/live/live_danmaku/live_emote.dart';
 import 'package:PiliPlus/models_new/live/live_dm_info/data.dart';
+import 'package:PiliPlus/models_new/live/live_fans_medal/data.dart';
+import 'package:PiliPlus/models_new/live/live_fans_medal/item.dart';
 import 'package:PiliPlus/models_new/live/live_medal_wall/uinfo_medal.dart';
 import 'package:PiliPlus/models_new/live/live_room_info_h5/data.dart';
 import 'package:PiliPlus/models_new/live/live_room_play_info/codec.dart';
@@ -32,6 +34,7 @@ import 'package:PiliPlus/utils/connectivity_utils.dart';
 import 'package:PiliPlus/utils/danmaku_utils.dart';
 import 'package:PiliPlus/utils/duration_utils.dart';
 import 'package:PiliPlus/utils/extension/iterable_ext.dart';
+import 'package:PiliPlus/utils/extension/rx_ext.dart';
 import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/num_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
@@ -42,9 +45,13 @@ import 'package:PiliPlus/utils/video_utils.dart';
 import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:easy_debounce/easy_throttle.dart';
 import 'package:flutter/foundation.dart' show kDebugMode, kReleaseMode;
-import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
+import 'package:material_ui/material_ui.dart';
+
+const int _kMaxChatCount = 500;
+const int _kTrimCount = _kMaxChatCount + 50;
+const int _kSafeTrimIndex = 200;
 
 class LiveRoomController extends GetxController {
   LiveRoomController(this.heroTag, {this.fromPip = false});
@@ -116,6 +123,8 @@ class LiveRoomController extends GetxController {
   final disableAutoScroll = false.obs;
   bool autoScroll = true;
   LiveMessageStream? _msgStream;
+  List<String> _keywordList = const [];
+  Set<int> _shieldUids = const {};
   late final ScrollController scrollController;
   late final RxInt pageIndex = 0.obs;
   PageController? pageController;
@@ -127,6 +136,19 @@ class LiveRoomController extends GetxController {
 
   late final bool isLogin;
   late final int mid;
+
+  // ---------- 粉丝勋章 ----------
+  final Rxn<FansMedalPanelData> fansMedalData = Rxn();
+  final Rxn<UinfoMedal> wearingMedal = Rxn();
+  final RxBool fansMedalLoading = false.obs;
+  final Rxn<String> fansMedalError = Rxn();
+  bool _fansMedalStale = false;
+  Future<void>? _fansMedalReq;
+  int _fansMedalPage = 1;
+  bool _fansMedalLoadingMore = false;
+  final RxBool fansMedalHasMore = false.obs;
+
+  Object? get medalTargetId => ruid ?? roomInfoH5.value?.roomInfo?.uid;
 
   String? videoUrl;
   bool? isPlaying;
@@ -156,6 +178,21 @@ class LiveRoomController extends GetxController {
     return const SizedBox.shrink();
   });
 
+  int chatSimpleIndex = 0;
+  int _trimDmIndex = 0;
+  int get trimDmIndex => _trimDmIndex;
+  void _trimDm() {
+    final trimCount = messages.length - _trimDmIndex;
+    if (trimCount > _kTrimCount) {
+      final endIndex = messages.length - _kMaxChatCount;
+      final canTrim = (chatSimpleIndex - endIndex) > _kSafeTrimIndex;
+      if (canTrim) {
+        messages.fillRangeOnly(_trimDmIndex, endIndex);
+        _trimDmIndex = endIndex;
+      }
+    }
+  }
+
   StreamSubscription? _sizeSub;
 
   void _onSizeChanged((int, int) value) {
@@ -180,6 +217,7 @@ class LiveRoomController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    plPlayerController.onNeedsPlayerInit = () => queryLiveUrl();
 
     // 从参数中提取 roomId（支持 int 或 Map 格式）
     final args = Get.arguments;
@@ -287,12 +325,16 @@ class LiveRoomController extends GetxController {
       isPortrait.value = response.isPortrait ?? false;
       stream = playurl.stream;
       _initStreamIndex();
-      await initLiveUrl(
-        streamIndex: streamIndex,
-        formatIndex: formatIndex,
-        codecIndex: codecIndex,
-        liveUrlIndex: liveUrlIndex,
-      );
+      await Future.wait([
+        ?initLiveUrl(
+          streamIndex: streamIndex,
+          formatIndex: formatIndex,
+          codecIndex: codecIndex,
+          liveUrlIndex: liveUrlIndex,
+        ),
+        if (isLogin && !isLoaded.value) _fetchBlockRules(),
+      ]);
+
       // 置于 initLiveUrl 之后：恢复场景的首次拉取靠该标志让 playerInit 跳过
       // 数据源重建，完成后清零，切换路线/画质才会真正重建数据源
       isReturningFromPip = false;
@@ -501,14 +543,11 @@ class LiveRoomController extends GetxController {
     );
   }
 
-  void scrollToBottom([_]) {
-    if (!scrollController.hasClients) return;
+  void scrollToBottom() {
     EasyThrottle.throttle(
       'liveDm',
       const Duration(milliseconds: 500),
-      () => WidgetsBinding.instance.addPostFrameCallback(
-        _scrollToBottom,
-      ),
+      () => WidgetsBinding.instance.addPostFrameCallback(_scrollToBottom),
     );
   }
 
@@ -548,7 +587,9 @@ class LiveRoomController extends GetxController {
     final res = await LiveHttp.liveRoomDmPrefetch(roomId: roomId);
     if (res case Success(:final response)) {
       if (response != null && response.isNotEmpty) {
-        messages.addAll(response);
+        messages.addAll(
+          response.where((item) => !isBlocked(item.text, item.extra.mid)),
+        );
         scrollToBottom();
       }
     } else {
@@ -560,13 +601,34 @@ class LiveRoomController extends GetxController {
 
   Future<void> getSuperChatMsg() async {
     final res = await LiveHttp.superChatMsg(roomId);
-    if (res.dataOrNull?.list case final list?) {
+    if (res.dataOrNull?.list case final list? when list.isNotEmpty) {
       superChatMsg.addAll(list);
     }
   }
 
   void clearSC() {
     superChatMsg.removeWhere((e) => e.expired);
+  }
+
+  Future<void> _fetchBlockRules() async {
+    final res = await LiveHttp.getLiveInfoByUser(roomId);
+    if (res case Success(:final response?)) {
+      if (response.keywordList case final keywordList?) {
+        _keywordList = keywordList;
+      }
+      if (response.shieldUserList case final shieldUserList?) {
+        _shieldUids = shieldUserList.map((e) => e.uid).toSet();
+      }
+    }
+  }
+
+  void updateBlockRules(List<String> keywords, Set<int> uids) {
+    _keywordList = keywords;
+    _shieldUids = uids;
+  }
+
+  bool isBlocked(String text, Object uid) {
+    return _keywordList.any(text.contains) || _shieldUids.contains(uid);
   }
 
   void startLiveMsg() {
@@ -613,6 +675,7 @@ class LiveRoomController extends GetxController {
 
   @override
   void onClose() {
+    plPlayerController.onNeedsPlayerInit = null;
     _stopSizeSub();
     // 心跳定时器是静态的，无论是否小窗都要取消
     LiveHttp.cancelLiveHeartbeat();
@@ -666,6 +729,8 @@ class LiveRoomController extends GetxController {
   }
 
   void addDm(dynamic msg, [DanmakuContentItem<DanmakuExtra>? item]) {
+    _trimDm();
+
     if (plPlayerController.showDanmaku) {
       if (item != null && plPlayerController.enableShowLiveDanmaku.value) {
         danmakuController?.addDanmaku(item);
@@ -689,12 +754,15 @@ class LiveRoomController extends GetxController {
           final info = obj['info'];
           final first = info[0];
           final content = first[15];
-          final Map<String, dynamic> extra = jsonDecode(content['extra']);
           final user = content['user'];
           // final midHash = first[7];
           final uid = user['uid'];
-          final name = user['base']['name'];
           final msg = info[1];
+          if (isBlocked(msg, uid)) {
+            return;
+          }
+          final Map<String, dynamic> extra = jsonDecode(content['extra']);
+          final name = user['base']['name'];
           BaseEmote? uemote;
           if (first[13] case Map<String, dynamic> map) {
             uemote = BaseEmote.fromJson(map);
@@ -801,16 +869,13 @@ class LiveRoomController extends GetxController {
     likeClickTimer = null;
   }
 
-  void onLikeTapDown([_]) {
+  void onLikeTapDown(_) {
     cancelLikeTimer();
     likeClickTime.value++;
   }
 
   void onLikeTapUp([_]) {
-    likeClickTimer ??= Timer(
-      const Duration(milliseconds: 800),
-      onLike,
-    );
+    likeClickTimer ??= Timer(const Duration(milliseconds: 800), onLike);
   }
 
   Future<void> onLike() async {
@@ -832,9 +897,13 @@ class LiveRoomController extends GetxController {
     likeClickTime.value = 0;
   }
 
+  void toastNotLogin() {
+    SmartDialog.showToast('账号未登录');
+  }
+
   void onSendDanmaku([bool fromEmote = false]) {
     if (kReleaseMode && !isLogin) {
-      SmartDialog.showToast('账号未登录');
+      toastNotLogin();
       return;
     }
     Get.key.currentState!.push(
@@ -861,20 +930,36 @@ class LiveRoomController extends GetxController {
         },
         transitionDuration: fromEmote
             ? const Duration(milliseconds: 400)
-            : const Duration(milliseconds: 500),
+            : PlatformUtils.isDesktop
+            ? const Duration(milliseconds: 350)
+            : const Duration(milliseconds: 400),
       ),
     );
   }
 
+  void onAtUser(DanmakuMsg item) {
+    savedDanmaku = [
+      RichTextItem.fromStart(
+        '@${item.name} ',
+        rawText: item.extra.mid.toString(),
+        type: .at,
+        id: item.extra.id.toString(),
+      ),
+    ];
+    onSendDanmaku();
+  }
+
   void reportSC(SuperChatItem item) {
     if (!isLogin) {
-      SmartDialog.showToast('账号未登录');
+      toastNotLogin();
       return;
     }
     autoWrapReportDialog(
       Get.context!,
       ban: false,
       ReportOptions.liveDanmakuReport,
+      withContent: ReportOptions.liveDanmakuReportCheck,
+      contentRequired: ReportOptions.liveDanmakuReportCheck,
       (reasonType, reasonDesc, banUid) {
         return LiveHttp.superChatReport(
           id: item.id,
@@ -887,5 +972,185 @@ class LiveRoomController extends GetxController {
         );
       },
     );
+  }
+
+  // ---------- 粉丝勋章 ----------
+
+  Future<void> loadFansMedal({bool force = false}) async {
+    if (!isLogin) return;
+    if (_fansMedalReq != null) return _fansMedalReq;
+    if (!force && !_fansMedalStale && fansMedalData.value != null) return;
+    final targetId = medalTargetId;
+    if (targetId == null) return;
+
+    fansMedalLoading.value = true;
+    _fansMedalReq = _doLoadFansMedal(targetId: targetId);
+    try {
+      await _fansMedalReq;
+    } finally {
+      fansMedalLoading.value = false;
+      _fansMedalReq = null;
+    }
+  }
+
+  Future<void> _doLoadFansMedal({
+    required Object targetId,
+  }) async {
+    final res = await LiveHttp.fansMedalPanel(
+      roomId: roomId,
+      targetId: targetId,
+      page: 1,
+    );
+    if (res case Success(:final response)) {
+      fansMedalData.value = response;
+      _fansMedalPage = 1;
+      _updateFansMedalHasMore(response);
+      _updateWearingMedal(response);
+      _fansMedalStale = false;
+      fansMedalError.value = null;
+    } else {
+      fansMedalError.value = res.toString();
+    }
+  }
+
+  void _updateFansMedalHasMore(FansMedalPanelData data) {
+    final itemCount = (data.specialList?.length ?? 0) + (data.list?.length ?? 0);
+    fansMedalHasMore.value = _calcHasMore(data, itemCount);
+  }
+
+  bool _calcHasMore(FansMedalPanelData data, int loadedCount) {
+    if (data.hasMore != true) return false;
+    if (data.nextPage == null || data.nextPage! <= _fansMedalPage) return false;
+    if (data.totalNumber != null && loadedCount >= data.totalNumber!) {
+      return false;
+    }
+    if (_fansMedalPage >= 20) return false;
+    return true;
+  }
+
+  void _updateWearingMedal(FansMedalPanelData data) {
+    final allItems = [
+      ...?data.specialList,
+      ...?data.list,
+    ];
+    final wearing = allItems.cast<FansMedalItem?>().firstWhere(
+      (item) => item?.medal?.wearingStatus == 1,
+      orElse: () => null,
+    );
+    wearingMedal.value = wearing?.uinfoMedal;
+  }
+
+  void markFansMedalStale() {
+    _fansMedalStale = true;
+  }
+
+  Future<void> loadMoreFansMedal() async {
+    if (_fansMedalLoadingMore) return;
+    if (_fansMedalReq != null) return;
+    if (!fansMedalHasMore.value) return;
+    final targetId = medalTargetId;
+    if (targetId == null) return;
+
+    _fansMedalLoadingMore = true;
+    final nextPage = _fansMedalPage + 1;
+    final res = await LiveHttp.fansMedalPanel(
+      roomId: roomId,
+      targetId: targetId,
+      page: nextPage,
+    );
+    if (res case Success(:final response)) {
+      final data = fansMedalData.value;
+      if (data != null) {
+        final existingIds = <int>{};
+        for (final item in [...?data.specialList, ...?data.list]) {
+          if (item.medal?.medalId case final id?) existingIds.add(id);
+        }
+        final newList = <FansMedalItem>[];
+        for (final item in (response.list ?? <FansMedalItem>[])) {
+          if (item.medal?.medalId case final id?) {
+            if (!existingIds.contains(id)) {
+              newList.add(item);
+              existingIds.add(id);
+            }
+          } else {
+            newList.add(item);
+          }
+        }
+        if (newList.isEmpty) {
+          fansMedalHasMore.value = false;
+          _fansMedalLoadingMore = false;
+          return;
+        }
+        data
+          ..list = [...?data.list, ...newList]
+          ..hasMore = response.hasMore
+          ..nextPage = response.nextPage;
+        _fansMedalPage = nextPage;
+        final itemCount = (data.specialList?.length ?? 0) +
+            (data.list?.length ?? 0);
+        fansMedalHasMore.value = _calcHasMore(data, itemCount);
+        fansMedalData.refresh();
+      }
+    } else {
+      res.toast();
+    }
+    _fansMedalLoadingMore = false;
+  }
+
+  Future<bool> wearFansMedal(FansMedalItem item) async {
+    final targetId = medalTargetId;
+    if (targetId == null) return false;
+    final medalId = item.medal?.medalId;
+    if (medalId == null) return false;
+
+    final res = await LiveHttp.fansMedalWear(
+      medalId: medalId,
+      targetId: targetId,
+    );
+    if (res.isSuccess) {
+      _applyWearStatus(medalId, 1);
+      wearingMedal.value = item.uinfoMedal;
+      _fansMedalStale = true;
+      SmartDialog.showToast('已佩戴 ${item.medal?.medalName ?? ''}');
+      return true;
+    } else {
+      res.toast();
+      return false;
+    }
+  }
+
+  Future<bool> takeOffFansMedal(FansMedalItem item) async {
+    final targetId = medalTargetId;
+    if (targetId == null) return false;
+    final medalId = item.medal?.medalId;
+    if (medalId == null) return false;
+
+    final res = await LiveHttp.fansMedalTakeOff(
+      medalId: medalId,
+      targetId: targetId,
+    );
+    if (res.isSuccess) {
+      _applyWearStatus(medalId, 0);
+      wearingMedal.value = null;
+      _fansMedalStale = true;
+      SmartDialog.showToast('已取消佩戴');
+      return true;
+    } else {
+      res.toast();
+      return false;
+    }
+  }
+
+  void _applyWearStatus(int medalId, int status) {
+    final data = fansMedalData.value;
+    if (data == null) return;
+    for (final item in [...?data.specialList, ...?data.list]) {
+      if (item.medal?.medalId == medalId) {
+        item.medal?.wearingStatus = status;
+      } else {
+        item.medal?.wearingStatus = 0;
+      }
+    }
+    fansMedalData.refresh();
   }
 }

@@ -14,7 +14,7 @@ import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:extended_nested_scroll_view/refresh.dart';
 import 'package:flutter/foundation.dart' show clampDouble;
-import 'package:flutter/material.dart' hide RefreshIndicator;
+import 'package:material_ui/material_ui.dart' hide RefreshIndicator;
 
 const kIndicatorSize = 49.0;
 
@@ -520,16 +520,18 @@ class RefreshIndicatorState extends State<RefreshIndicator>
       body: child,
       scale: _scaleFactor,
       position: _positionFactor,
-      indicator: AnimatedBuilder(
-        animation: _positionController,
-        builder: (context, child) => RefreshProgressIndicator(
-          value: showIndeterminateIndicator ? null : _value.value,
-          valueColor: _valueColor,
-          backgroundColor: widget.backgroundColor,
-          strokeWidth: widget.strokeWidth,
-          elevation: widget.elevation,
-        ),
-      ),
+      indicator: _status == null
+          ? null
+          : AnimatedBuilder(
+              animation: _positionController,
+              builder: (context, child) => RefreshProgressIndicator(
+                value: showIndeterminateIndicator ? null : _value.value,
+                valueColor: _valueColor,
+                backgroundColor: widget.backgroundColor,
+                strokeWidth: widget.strokeWidth,
+                elevation: widget.elevation,
+              ),
+            ),
     );
 
     if (PlatformUtils.isDarwin) {

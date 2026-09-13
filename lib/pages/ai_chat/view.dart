@@ -7,7 +7,7 @@ import 'package:PiliPlus/pages/video/controller.dart';
 import 'package:PiliPlus/services/ai_chat/ai_chat_service.dart';
 import 'package:PiliPlus/common/widgets/flutter/text_field/controller.dart';
 import 'package:PiliPlus/common/widgets/flutter/text_field/text_field.dart';
-import 'package:flutter/material.dart' hide TextField;
+import 'package:material_ui/material_ui.dart' hide TextField;
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_markdown_plus_latex/flutter_markdown_plus_latex.dart';
@@ -35,6 +35,9 @@ class _AiChatPageState extends State<AiChatPage>
   bool _isAtBottom = true;
   double _lastScrollOffset = 0;
   bool _scrollScheduled = false;
+
+  /// 小屏设备（手表/小折叠屏）紧凑布局：仅压缩间距与控件密度，不缩放字号。
+  bool get _isCompact => MediaQuery.sizeOf(context).height < 600;
 
   /// Desktop: Enter sends, Shift+Enter inserts newline.
   /// Mobile: consume Enter to prevent it from bubbling up to PlayerFocus
@@ -147,7 +150,7 @@ class _AiChatPageState extends State<AiChatPage>
           GestureDetector(
             onTap: Get.back,
             child: SizedBox(
-              height: 35,
+              height: _isCompact ? 24 : 35,
               child: Center(
                 child: Container(
                   width: 32,
@@ -166,11 +169,11 @@ class _AiChatPageState extends State<AiChatPage>
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                Icon(Icons.auto_awesome, color: colorScheme.primary, size: 22),
+                Icon(Icons.auto_awesome, color: colorScheme.primary, size: _isCompact ? 18 : 22),
                 const SizedBox(width: 8),
                 Text(
                   'AI 视频助手',
-                  style: theme.textTheme.titleMedium?.copyWith(
+                  style: (_isCompact ? theme.textTheme.titleSmall : theme.textTheme.titleMedium)?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -179,6 +182,9 @@ class _AiChatPageState extends State<AiChatPage>
                   if (chatCtl.messages.isNotEmpty) {
                     return TextButton.icon(
                       onPressed: chatCtl.clearMessages,
+                      style: _isCompact
+                          ? TextButton.styleFrom(visualDensity: VisualDensity.compact)
+                          : null,
                       icon: const Icon(Icons.refresh, size: 18),
                       label: const Text('重置'),
                     );
@@ -188,7 +194,7 @@ class _AiChatPageState extends State<AiChatPage>
               ],
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: _isCompact ? 4 : 8),
 
           // Prompt selector + analyze button
           _buildPromptBar(theme),
@@ -234,7 +240,7 @@ class _AiChatPageState extends State<AiChatPage>
   Widget _buildPromptBar(ThemeData theme) {
     final colorScheme = theme.colorScheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: _isCompact ? 4 : 8),
       child: Row(
         children: [
           Expanded(
@@ -255,9 +261,9 @@ class _AiChatPageState extends State<AiChatPage>
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
+                      contentPadding: EdgeInsets.symmetric(
                         horizontal: 12,
-                        vertical: 8,
+                        vertical: _isCompact ? 6 : 8,
                       ),
                       isDense: true,
                     ),
@@ -290,12 +296,15 @@ class _AiChatPageState extends State<AiChatPage>
                     padding: const EdgeInsets.only(right: 8),
                     child: IconButton(
                       onPressed: (analyzing || hasContext) ? null : () => chatCtl.loadVideoContext(),
-                      icon: const Icon(Icons.post_add, size: 22),
+                      icon: Icon(Icons.post_add, size: _isCompact ? 18 : 22),
                       tooltip: '载入上下文',
                     ),
                   ),
                 FilledButton.icon(
                   onPressed: analyzing ? null : _sendSelectedPrompt,
+                  style: _isCompact
+                      ? FilledButton.styleFrom(visualDensity: VisualDensity.compact)
+                      : null,
                   icon: analyzing
                       ? const SizedBox.square(
                           dimension: 18,
@@ -369,7 +378,7 @@ class _AiChatPageState extends State<AiChatPage>
   Widget _buildDivider(ThemeData theme) {
     final colorScheme = theme.colorScheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: EdgeInsets.symmetric(vertical: _isCompact ? 8 : 12),
       child: Row(
         children: [
           Expanded(child: Divider(color: colorScheme.outlineVariant)),
@@ -394,9 +403,9 @@ class _AiChatPageState extends State<AiChatPage>
       alignment: Alignment.centerRight,
       child: Container(
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.8,
+          maxWidth: MediaQuery.sizeOf(context).width * (_isCompact ? 0.92 : 0.8),
         ),
-        margin: const EdgeInsets.symmetric(vertical: 4),
+        margin: EdgeInsets.symmetric(vertical: _isCompact ? 2 : 4),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: theme.colorScheme.primaryContainer,
@@ -427,9 +436,9 @@ class _AiChatPageState extends State<AiChatPage>
         children: [
           Container(
             constraints: BoxConstraints(
-              maxWidth: MediaQuery.sizeOf(context).width * 0.85,
+              maxWidth: MediaQuery.sizeOf(context).width * (_isCompact ? 0.95 : 0.85),
             ),
-            margin: const EdgeInsets.symmetric(vertical: 4),
+            margin: EdgeInsets.symmetric(vertical: _isCompact ? 2 : 4),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: colorScheme.surfaceContainerHighest,
@@ -475,27 +484,62 @@ class _AiChatPageState extends State<AiChatPage>
                       },
                       styleSheet: MarkdownStyleSheet(
                         p: TextStyle(
+                          inherit: false,
                           fontSize: 15,
                           height: 1.6,
                           color: colorScheme.onSurfaceVariant,
                         ),
                         h1: TextStyle(
+                          inherit: false,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                           color: colorScheme.onSurface,
                           height: 1.5,
                         ),
                         h2: TextStyle(
+                          inherit: false,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: colorScheme.onSurface,
                           height: 1.5,
                         ),
                         h3: TextStyle(
+                          inherit: false,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: colorScheme.onSurface,
                           height: 1.4,
+                        ),
+                        h4: TextStyle(
+                          inherit: false,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onSurface,
+                          height: 1.4,
+                        ),
+                        h5: TextStyle(
+                          inherit: false,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onSurface,
+                          height: 1.4,
+                        ),
+                        h6: TextStyle(
+                          inherit: false,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onSurface,
+                          height: 1.4,
+                        ),
+                        a: TextStyle(
+                          color: colorScheme.primary,
+                          inherit: false,
+                        ),
+                        blockquote: TextStyle(
+                          inherit: false,
+                          fontSize: 15,
+                          height: 1.6,
+                          color: colorScheme.onSurfaceVariant,
                         ),
                         blockquoteDecoration: BoxDecoration(
                           border: Border(
@@ -507,6 +551,7 @@ class _AiChatPageState extends State<AiChatPage>
                         ),
                         blockquotePadding: const EdgeInsets.only(left: 12),
                         code: TextStyle(
+                          inherit: false,
                           fontSize: 13,
                           color: colorScheme.primary,
                           backgroundColor: colorScheme.surfaceContainerHigh,
@@ -517,8 +562,53 @@ class _AiChatPageState extends State<AiChatPage>
                         ),
                         codeblockPadding: const EdgeInsets.all(12),
                         listBullet: TextStyle(
+                          inherit: false,
                           fontSize: 14,
                           color: colorScheme.primary,
+                        ),
+                        listIndent: 24,
+                        blockSpacing: 8,
+                        tableHead: TextStyle(
+                          inherit: false,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: colorScheme.onSurface,
+                        ),
+                        tableBody: TextStyle(
+                          inherit: false,
+                          fontSize: 14,
+                          height: 1.5,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        tableHeadAlign: TextAlign.center,
+                        tableBorder: TableBorder.all(
+                          color: colorScheme.outlineVariant,
+                        ),
+                        tableCellsPadding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        tableHeadCellsPadding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        tableHeadCellsDecoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHigh,
+                        ),
+                        tableCellsDecoration: const BoxDecoration(),
+                        tablePadding: const EdgeInsets.only(bottom: 4),
+                        checkbox: TextStyle(
+                          inherit: false,
+                          fontSize: 14,
+                          color: colorScheme.primary,
+                        ),
+                        horizontalRuleDecoration: BoxDecoration(
+                          border: Border(
+                            top: BorderSide(
+                              color: colorScheme.outlineVariant,
+                              width: 1,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -572,9 +662,9 @@ class _AiChatPageState extends State<AiChatPage>
     final colorScheme = theme.colorScheme;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final safeBottom = MediaQuery.of(context).viewPadding.bottom;
-    final bottomPadding = bottomInset > 0 ? bottomInset + 4.0 : safeBottom + 16.0;
+    final bottomPadding = bottomInset > 0 ? bottomInset + 4.0 : safeBottom + (_isCompact ? 8.0 : 16.0);
     return Container(
-      padding: EdgeInsets.fromLTRB(16, 8, 8, bottomPadding),
+      padding: EdgeInsets.fromLTRB(16, _isCompact ? 4 : 8, 8, bottomPadding),
       decoration: BoxDecoration(
         color: colorScheme.surface,
         border: Border(
@@ -597,9 +687,9 @@ class _AiChatPageState extends State<AiChatPage>
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
                 ),
-                contentPadding: const EdgeInsets.symmetric(
+                contentPadding: EdgeInsets.symmetric(
                   horizontal: 16,
-                  vertical: 10,
+                  vertical: _isCompact ? 6 : 10,
                 ),
                 isDense: true,
               ),

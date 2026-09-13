@@ -21,6 +21,7 @@ import 'package:PiliPlus/models_new/live/live_dm_block/shield_user_list.dart';
 import 'package:PiliPlus/models_new/live/live_dm_info/data.dart';
 import 'package:PiliPlus/models_new/live/live_emote/data.dart';
 import 'package:PiliPlus/models_new/live/live_emote/datum.dart';
+import 'package:PiliPlus/models_new/live/live_fans_medal/data.dart';
 import 'package:PiliPlus/models_new/live/live_feed_index/data.dart';
 import 'package:PiliPlus/models_new/live/live_follow/data.dart';
 import 'package:PiliPlus/models_new/live/live_medal_wall/data.dart';
@@ -234,10 +235,8 @@ abstract final class LiveHttp {
       options: Options(
         headers: {
           'buvid': LoginHttp.buvid,
-          'fp_local':
-              '1111111111111111111111111111111111111111111111111111111111111111',
-          'fp_remote':
-              '1111111111111111111111111111111111111111111111111111111111111111',
+          'fp_local': '1111111111111111111111111111111111111111111111111111111111111111',
+          'fp_remote': '1111111111111111111111111111111111111111111111111111111111111111',
           'session_id': '11111111',
           'env': 'prod',
           'app-key': 'android',
@@ -314,10 +313,8 @@ abstract final class LiveHttp {
       options: Options(
         headers: {
           'buvid': LoginHttp.buvid,
-          'fp_local':
-              '1111111111111111111111111111111111111111111111111111111111111111',
-          'fp_remote':
-              '1111111111111111111111111111111111111111111111111111111111111111',
+          'fp_local': '1111111111111111111111111111111111111111111111111111111111111111',
+          'fp_remote': '1111111111111111111111111111111111111111111111111111111111111111',
           'session_id': '11111111',
           'env': 'prod',
           'app-key': 'android',
@@ -939,4 +936,83 @@ abstract final class LiveHttp {
       return Error(res.data['message']);
     }
   }
+
+  static Future<LoadingState<FansMedalPanelData>> fansMedalPanel({
+    required Object roomId,
+    required Object targetId,
+    int page = 1,
+  }) async {
+    final params = <String, dynamic>{
+      'access_key': ?Accounts.main.accessKey,
+      'actionKey': 'appkey',
+      'platform': 'android',
+      'statistics': Constants.statisticsApp,
+      'room_id': roomId,
+      'target_id': targetId,
+      'page': page,
+      'page_size': 50,
+    };
+    AppSign.appSign(params);
+    final res = await Request().get(
+      Api.liveFansMedalPanel,
+      queryParameters: params,
+    );
+    if (res.data['code'] == 0) {
+      try {
+        return Success(FansMedalPanelData.fromJson(res.data['data']));
+      } catch (e) {
+        return Error(e.toString());
+      }
+    } else {
+      return Error(res.data['message']);
+    }
+  }
+
+  static Future<LoadingState<void>> _fansMedalAction(
+    String url, {
+    required Object medalId,
+    required Object targetId,
+  }) async {
+    final params = <String, dynamic>{
+      'access_key': ?Accounts.main.accessKey,
+      'actionKey': 'appkey',
+      'platform': 'android',
+      'statistics': Constants.statisticsApp,
+      'medal_id': medalId,
+      'medal_type': 1,
+      'source': 1,
+      'target_id': targetId,
+    };
+    AppSign.appSign(params);
+    final res = await Request().post(
+      url,
+      data: params,
+      options: Options(contentType: Headers.formUrlEncodedContentType),
+    );
+    if (res.data['code'] == 0) {
+      return const Success(null);
+    } else {
+      return Error(res.data['message']);
+    }
+  }
+
+  static Future<LoadingState<void>> fansMedalWear({
+    required Object medalId,
+    required Object targetId,
+  }) =>
+      _fansMedalAction(
+        Api.liveFansMedalWear,
+        medalId: medalId,
+        targetId: targetId,
+      );
+
+  static Future<LoadingState<void>> fansMedalTakeOff({
+    required Object medalId,
+    required Object targetId,
+  }) =>
+      _fansMedalAction(
+        Api.liveFansMedalTakeOff,
+        medalId: medalId,
+        targetId: targetId,
+      );
 }

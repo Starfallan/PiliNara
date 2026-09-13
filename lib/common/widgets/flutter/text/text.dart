@@ -16,7 +16,7 @@ library;
 
 import 'dart:ui' as ui show TextHeightBehavior;
 
-import 'package:flutter/material.dart' hide Text;
+import 'package:material_ui/material_ui.dart' hide Text;
 
 /// A run of text with a single style.
 ///
@@ -406,10 +406,8 @@ abstract class BaseText extends StatelessWidget {
     };
     Widget result = createRichText(
       textAlign: textAlign ?? defaultTextStyle.textAlign ?? TextAlign.start,
-      textDirection:
-          textDirection, // RichText uses Directionality.of to obtain a default if this is null.
-      locale:
-          locale, // RichText uses Localizations.localeOf to obtain a default if this is null
+      textDirection: textDirection, // RichText uses Directionality.of to obtain a default if this is null.
+      locale: locale, // RichText uses Localizations.localeOf to obtain a default if this is null
       softWrap: softWrap ?? defaultTextStyle.softWrap,
       overflow:
           overflow ?? effectiveTextStyle?.overflow ?? defaultTextStyle.overflow,

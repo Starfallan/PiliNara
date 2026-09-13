@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// from Getx
 extension ContextExtensions on BuildContext {
@@ -70,5 +70,5 @@ extension ContextExtensions on BuildContext {
   bool get isLargeTablet => (mediaQueryShortestSide >= 720);
 
   /// True if the current device is Tablet
-  bool get isTablet => isSmallTablet || isLargeTablet;
+  bool get isTablet => isSmallTablet;
 }

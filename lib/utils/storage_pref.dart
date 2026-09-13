@@ -50,9 +50,9 @@ import 'package:PiliPlus/utils/utils.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flex_seed_scheme/flex_seed_scheme.dart' show FlexSchemeVariant;
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive_ce/hive.dart';
+import 'package:material_ui/material_ui.dart';
 
 abstract final class Pref {
   static final Box _setting = GStorage.setting;
@@ -461,31 +461,19 @@ abstract final class Pref {
   );
 
   static List<VideoDecodeFormatType> get preferCodecs {
-    // TODO: remove next 2 version
-    if (_setting.get('defaultDecode') case String codecStr) {
-      String? codecStr2 = _setting.get('secondDecode');
-      _setting.deleteAll(const ['defaultDecode', 'secondDecode']);
-      final codecs = [
-        VideoDecodeFormatType.values.firstWhere(
-          (i) => i.codes.contains(codecStr),
-        ),
-        if (codecStr2 != null && codecStr2 != codecStr)
-          VideoDecodeFormatType.values.firstWhere(
-            (i) => i.codes.contains(codecStr2),
-          ),
-      ];
-      _setting.put(
-        SettingBoxKey.preferCodecs,
-        codecs.map((i) => i.name).toList(),
-      );
-      return codecs;
-    }
-
     final codecs = _setting.get(SettingBoxKey.preferCodecs);
     if (codecs is List) {
       return codecs.map((i) => VideoDecodeFormatType.values.byName(i)).toList();
     }
     return const <VideoDecodeFormatType>[.AVC, .AV1];
+  }
+
+  static List<VideoDecodeFormatType> get preferCodecsCellular {
+    final codecs = _setting.get(SettingBoxKey.preferCodecsCellular);
+    if (codecs is List) {
+      return codecs.map((i) => VideoDecodeFormatType.values.byName(i)).toList();
+    }
+    return preferCodecs;
   }
 
   static String get hardwareDecoding => _setting.get(
@@ -517,6 +505,9 @@ abstract final class Pref {
 
   static String get banWordForRecommend =>
       _setting.get(SettingBoxKey.banWordForRecommend, defaultValue: '');
+
+  static String get banWordForRecommendUpName =>
+      _setting.get(SettingBoxKey.banWordForRecommendUpName, defaultValue: '');
 
   static String get banWordForReply =>
       _setting.get(SettingBoxKey.banWordForReply, defaultValue: '');
@@ -945,8 +936,26 @@ abstract final class Pref {
     defaultValue: LiveQuality.superHD.code,
   );
 
-  static int get appFontWeight =>
-      _setting.get(SettingBoxKey.appFontWeight, defaultValue: -1);
+  static FontWeight get appFontWeight {
+    // TODO: remove next 2 version
+    const appFontWeightV1 = 'appFontWeight';
+    final int? valV1 = _setting.get(appFontWeightV1);
+    if (valV1 != null) {
+      _setting.delete(appFontWeightV1);
+      if (valV1 == -1) {
+        return .normal;
+      } else {
+        _setting.put(SettingBoxKey.appFontWeightV2, valV1);
+        return .values[valV1];
+      }
+    }
+
+    final int? val = _setting.get(SettingBoxKey.appFontWeightV2);
+    if (val == null) {
+      return .normal;
+    }
+    return .values[val];
+  }
 
   static String? get customFontPath =>
       _setting.get(SettingBoxKey.customFontPath);
@@ -1238,6 +1247,12 @@ abstract final class Pref {
         defaultValue: ReplySortType.hot.index,
       )];
 
+  static ReplySortType get reply2SortType =>
+      ReplySortType.values[_setting.get(
+        SettingBoxKey.reply2SortType,
+        defaultValue: ReplySortType.time.index,
+      )];
+
   static DynamicBadgeMode get dynamicBadgeMode =>
       DynamicBadgeMode.values[_setting.get(
         SettingBoxKey.dynamicBadgeMode,
@@ -1374,6 +1389,9 @@ abstract final class Pref {
   static bool get swapReplyLikeDislike =>
       _setting.get(SettingBoxKey.swapReplyLikeDislike, defaultValue: false);
 
+  static bool get remarkReplaceName =>
+      _setting.get(SettingBoxKey.remarkReplaceName, defaultValue: false);
+
   static bool get enableTrending =>
       _setting.get(SettingBoxKey.enableHotKey, defaultValue: true);
 
@@ -1397,6 +1415,9 @@ abstract final class Pref {
 
   static bool get continuePlayInBackground =>
       _setting.get(SettingBoxKey.continuePlayInBackground, defaultValue: false);
+
+  static bool get autoAudioOnlyInBackground =>
+      _setting.get(SettingBoxKey.autoAudioOnlyInBackground, defaultValue: false);
 
   static bool get directExitOnBack =>
       _setting.get(SettingBoxKey.directExitOnBack, defaultValue: false);
@@ -1615,5 +1636,52 @@ abstract final class Pref {
   static double get maxVolume => // desktop
       _setting.get(SettingBoxKey.maxVolume, defaultValue: 2.0);
 
+  static int _videoPictureParameter(String key) {
+    final value = _setting.get(key, defaultValue: 0);
+    final number = value is num ? value.round() : int.tryParse('$value') ?? 0;
+    return number.clamp(-100, 100).toInt();
+  }
+
+  static int get videoBrightness =>
+      _videoPictureParameter(SettingBoxKey.videoBrightness);
+
+  static int get videoContrast =>
+      _videoPictureParameter(SettingBoxKey.videoContrast);
+
+  static int get videoSaturation =>
+      _videoPictureParameter(SettingBoxKey.videoSaturation);
+
+  static int get videoGamma =>
+      _videoPictureParameter(SettingBoxKey.videoGamma);
+
+  static int get videoHue => _videoPictureParameter(SettingBoxKey.videoHue);
+
+  static int get audioDelayMs {
+    final value = _setting.get(SettingBoxKey.audioDelayMs, defaultValue: 0);
+    final number = value is num ? value.round() : int.tryParse('$value') ?? 0;
+    return number.clamp(-1000, 1000).toInt();
+  }
+
   static List? get liveStream => _setting.get(SettingBoxKey.liveStream);
+
+  static String? get appFont => _setting.get(SettingBoxKey.appFont);
+
+  static bool get enableDocProvider =>
+      _setting.get(SettingBoxKey.enableDocProvider, defaultValue: false);
+
+  static Map<String, String> get customAppFont => Map<String, String>.from(
+    _setting.get(
+      SettingBoxKey.customAppFont,
+      defaultValue: const <String, String>{},
+    ),
+  );
+
+  /// 已导入字体的显示名：字体族名 → 从字体文件解析出的名字
+  static Map<String, String> get customAppFontNames =>
+      Map<String, String>.from(
+        _setting.get(
+          SettingBoxKey.customAppFontNames,
+          defaultValue: const <String, String>{},
+        ),
+      );
 }

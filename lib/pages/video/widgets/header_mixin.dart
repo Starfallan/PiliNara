@@ -5,8 +5,8 @@ import 'package:PiliPlus/plugin/pl_player/utils/danmaku_options.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/theme_utils.dart';
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:material_ui/material_ui.dart';
 
 mixin HeaderMixin<T extends StatefulWidget> on State<T> {
   PlPlayerController get plPlayerController;
@@ -460,6 +460,195 @@ mixin HeaderMixin<T extends StatefulWidget> on State<T> {
     )?.whenComplete(
       () => DanmakuOptions.save(plPlayerController.danmakuOpacity.value),
     );
+  }
+
+  /// 视频参数（画面 + 音频延迟）
+  void showVideoPictureParameters() {
+    const parameters = [
+      (property: 'brightness', label: '亮度'),
+      (property: 'contrast', label: '对比度'),
+      (property: 'saturation', label: '饱和度'),
+      (property: 'gamma', label: '伽马（中间调）'),
+      (property: 'hue', label: '色相'),
+    ];
+
+    showBottomSheet(
+      (context, setState) {
+        final theme = Theme.of(context);
+        final sliderTheme = SliderThemeData(
+          trackHeight: 10,
+          padding: const .symmetric(horizontal: 6),
+          trackShape: const MSliderTrackShape(),
+          thumbColor: theme.colorScheme.primary,
+          activeTrackColor: theme.colorScheme.primary,
+          inactiveTrackColor: theme.colorScheme.onInverseSurface,
+          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
+          tickMarkShape: SliderTickMarkShape.noTickMark,
+        );
+
+        void update(String property, double value) {
+          plPlayerController.setVideoPictureParameter(property, value);
+          setState(() {});
+        }
+
+        Widget buildParameter({
+          required String property,
+          required String label,
+          required int value,
+        }) {
+          return Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('$label ${value > 0 ? '+' : ''}$value'),
+                  resetBtn(
+                    theme,
+                    0,
+                    () {
+                      plPlayerController.resetVideoPictureParameter(property);
+                      setState(() {});
+                    },
+                  ),
+                ],
+              ),
+              Padding(
+                padding: const .symmetric(vertical: 16),
+                child: Slider(
+                  min: PlPlayerController.videoPictureParameterMin.toDouble(),
+                  max: PlPlayerController.videoPictureParameterMax.toDouble(),
+                  divisions: 200,
+                  value: value.toDouble(),
+                  label: value > 0 ? '+$value' : '$value',
+                  onChanged: (value) => update(property, value),
+                ),
+              ),
+            ],
+          );
+        }
+
+        Widget buildAudioDelay(int value) {
+          return Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('音频延迟 ${value > 0 ? '+' : ''}$value ms'),
+                  resetBtn(
+                    theme,
+                    0,
+                    () {
+                      plPlayerController.resetAudioDelay();
+                      setState(() {});
+                    },
+                  ),
+                ],
+              ),
+              Padding(
+                padding: const .symmetric(vertical: 16),
+                child: Slider(
+                  min: PlPlayerController.audioDelayMin.toDouble(),
+                  max: PlPlayerController.audioDelayMax.toDouble(),
+                  divisions:
+                      (PlPlayerController.audioDelayMax -
+                              PlPlayerController.audioDelayMin) ~/
+                          PlPlayerController.audioDelayStep,
+                  value: value.toDouble(),
+                  label: value > 0 ? '+$value ms' : '$value ms',
+                  onChanged: (value) {
+                    plPlayerController.setAudioDelay(value.round());
+                    setState(() {});
+                  },
+                ),
+              ),
+            ],
+          );
+        }
+
+        final values = {
+          'brightness': plPlayerController.videoBrightness.value,
+          'contrast': plPlayerController.videoContrast.value,
+          'saturation': plPlayerController.videoSaturation.value,
+          'gamma': plPlayerController.videoGamma.value,
+          'hue': plPlayerController.videoHue.value,
+        };
+        final allDefault =
+            values.values.every((value) => value == 0) &&
+            plPlayerController.audioDelayMs.value == 0;
+
+        return Padding(
+          padding: const EdgeInsets.all(12),
+          child: Material(
+            clipBehavior: Clip.hardEdge,
+            color: theme.colorScheme.surface,
+            borderRadius: const BorderRadius.all(Radius.circular(12)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: SliderTheme(
+                data: sliderTheme,
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    SizedBox(
+                      height: 45,
+                      child: Row(
+                        children: [
+                          const Expanded(
+                            child: Center(
+                              child: Text(
+                                '视频参数',
+                                style: TextStyle(fontSize: 14),
+                              ),
+                            ),
+                          ),
+                          iconButton(
+                            tooltip: '全部重置',
+                            icon: const Icon(Icons.refresh),
+                            onPressed: allDefault
+                                ? null
+                                : () {
+                                    plPlayerController
+                                        .resetAllVideoPictureParameters();
+                                    setState(() {});
+                                  },
+                            iconColor: theme.colorScheme.outline,
+                            size: 24,
+                            iconSize: 24,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ...parameters.map(
+                      (parameter) => buildParameter(
+                        property: parameter.property,
+                        label: parameter.label,
+                        value: values[parameter.property]!,
+                      ),
+                    ),
+                    buildAudioDelay(plPlayerController.audioDelayMs.value),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 4),
+                      child: Text(
+                        '音频延迟：正值延后音频（画面相对提前），负值延后画面（音频相对提前）',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 4, bottom: 14),
+                      child: Text(
+                        '部分设备或视频输出驱动可能不支持画面调节',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    )?.whenComplete(plPlayerController.persistVideoPictureSettings);
   }
 }
 
