@@ -15,6 +15,8 @@
  * along with PiliPlus.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import 'dart:math' as math;
+
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:flutter/material.dart';
 
@@ -75,5 +77,31 @@ class _VideoRectTween extends RectTween {
     : super(begin: begin, end: end);
 
   @override
-  Rect? lerp(double t) => super.lerp(Curves.easeInOutCubic.transform(t));
+  Rect? lerp(double t) =>
+      super.lerp(_VideoSharedElementCurve.curve.transform(t));
+}
+
+/// Keeps the middle of the flight calm, then adds a small settle at the end.
+///
+/// The rebound is deliberately a short, non-oscillating overshoot. A spring
+/// or elastic curve would make the player visibly wobble, which is distracting
+/// for a large video surface and especially noticeable when popping back.
+class _VideoSharedElementCurve extends Curve {
+  static const Curve curve = _VideoSharedElementCurve();
+
+  const _VideoSharedElementCurve();
+
+  @override
+  double transformInternal(double t) {
+    final base = Curves.easeInOutCubic.transform(t);
+    if (t <= 0.72 || t >= 1.0) {
+      return base;
+    }
+
+    // Keep the overshoot smooth at both ends of the settle window so there
+    // is no sudden change in velocity when the rebound starts or finishes.
+    final settleT = (t - 0.72) / 0.28;
+    final rebound = math.sin(math.pi * settleT);
+    return base + 0.018 * rebound * rebound;
+  }
 }
