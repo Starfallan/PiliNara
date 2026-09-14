@@ -72,6 +72,51 @@ import 'package:PiliPlus/pages/webview/view.dart';
 import 'package:PiliPlus/pages/whisper/view.dart';
 import 'package:PiliPlus/pages/whisper_detail/view.dart';
 import 'package:get/get.dart';
+import 'package:material_ui/material_ui.dart';
+
+class _VideoDetailPageRoute<T> extends GetPageRoute<T> {
+  _VideoDetailPageRoute({
+    required GetPageBuilder page,
+    required RouteSettings settings,
+    Map<String, String>? parameter,
+    bool maintainState = true,
+    Bindings? binding,
+    List<Bindings>? bindings,
+    String? routeName,
+    List<GetMiddleware>? middlewares,
+  }) : super(
+         page: page,
+         settings: settings,
+         parameter: parameter,
+         maintainState: maintainState,
+         binding: binding,
+         bindings: bindings,
+         routeName: routeName,
+         middlewares: middlewares,
+       );
+
+  @override
+  Duration get transitionDuration => const Duration(milliseconds: 450);
+}
+
+class _VideoDetailGetPage extends GetPage<dynamic> {
+  _VideoDetailGetPage()
+    : super(name: '/videoV', page: () => const VideoDetailPageV());
+
+  @override
+  Route<dynamic> createRoute(BuildContext context) {
+    return _VideoDetailPageRoute<dynamic>(
+      page: page,
+      settings: this,
+      parameter: parameters,
+      maintainState: maintainState,
+      binding: binding,
+      bindings: bindings,
+      routeName: name,
+      middlewares: middlewares,
+    );
+  }
+}
 
 class Routes {
   static final List<GetPage<dynamic>> getPages = [
@@ -81,11 +126,7 @@ class Routes {
     // 热门
     GetPage(name: '/hot', page: () => const HotPage()),
     // 视频详情
-    GetPage(
-      name: '/videoV',
-      page: () => const VideoDetailPageV(),
-      transitionDuration: const Duration(milliseconds: 450),
-    ),
+    _VideoDetailGetPage(),
     //
     GetPage(name: '/webview', page: () => const WebviewPage()),
     // 设置
