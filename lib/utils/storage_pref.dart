@@ -1280,6 +1280,11 @@ abstract final class Pref {
   static bool get enableInAppPip =>
       _setting.get(SettingBoxKey.enableInAppPip, defaultValue: true);
 
+  static bool get enableVideoSharedElement => _setting.get(
+    SettingBoxKey.enableVideoSharedElement,
+    defaultValue: false,
+  );
+
   static bool get enableInAppPipToSystemPip =>
       _setting.get(SettingBoxKey.enableInAppPipToSystemPip, defaultValue: true);
 

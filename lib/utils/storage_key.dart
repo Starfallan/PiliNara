@@ -51,6 +51,7 @@ abstract final class SettingBoxKey {
       disableAudioCDN = 'disableAudioCDN',
       autoPiP = 'autoPiP',
       enableInAppPip = 'enableInAppPip',
+      enableVideoSharedElement = 'enableVideoSharedElement',
       enableInAppPipToSystemPip = 'enableInAppPipToSystemPip',
       enableAutoLongPressSpeed = 'enableAutoLongPressSpeed',
       useRelativeSlide = 'useRelativeSlide',

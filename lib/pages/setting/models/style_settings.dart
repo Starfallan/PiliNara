@@ -27,6 +27,7 @@ import 'package:PiliPlus/pages/setting/widgets/multi_select_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/slider_dialog.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
+import 'package:PiliPlus/services/pip_overlay_service.dart';
 import 'package:PiliPlus/utils/extension/file_ext.dart';
 import 'package:PiliPlus/utils/extension/get_ext.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
@@ -110,6 +111,14 @@ List<SettingsModel> get styleSettings => [
     leading: const Icon(Icons.animation),
     getSubtitle: () => '当前：${Pref.pageTransition.name}',
     onTap: _showTransitionDialog,
+  ),
+  const SwitchModel(
+    title: '视频共享元素转场（Beta）',
+    subtitle: '缩略图与播放器连续变换；开启后停用应用内小窗',
+    leading: Icon(Icons.auto_awesome_motion_outlined),
+    setKey: SettingBoxKey.enableVideoSharedElement,
+    defaultVal: false,
+    onChanged: _onVideoSharedElementChanged,
   ),
   if (Platform.isAndroid)
     const SwitchModel(
@@ -429,6 +438,18 @@ List<SettingsModel> get styleSettings => [
       leading: const Icon(Icons.autofps_select_outlined),
     ),
 ];
+
+void _onVideoSharedElementChanged(bool enabled) {
+  if (!enabled) return;
+
+  // Shared-element flights and the in-app PiP owner cannot be active at the
+  // same time. Keep this explicit instead of reusing either feature's key.
+  GStorage.setting.put(SettingBoxKey.enableInAppPip, false);
+  if (PipOverlayService.isInPipMode) {
+    PipOverlayService.stopPip(immediate: true);
+  }
+  SmartDialog.showToast('共享元素转场已启用，应用内小窗已禁用');
+}
 
 void _showQualityDialog({
   required BuildContext context,

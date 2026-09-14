@@ -19,6 +19,7 @@ import 'package:PiliPlus/common/widgets/scroll_physics.dart'
 import 'package:PiliPlus/common/widgets/simple_app_bar.dart';
 import 'package:PiliPlus/common/widgets/sliver/video_header.dart';
 import 'package:PiliPlus/common/widgets/svg/play_icon.dart';
+import 'package:PiliPlus/common/widgets/video_card/video_hero.dart';
 import 'package:PiliPlus/models/common/episode_panel_type.dart';
 import 'package:PiliPlus/models/common/list_order.dart';
 import 'package:PiliPlus/models_new/pgc/pgc_info_model/result.dart';
@@ -80,6 +81,7 @@ import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/theme_utils.dart';
+import 'package:PiliPlus/utils/utils.dart';
 import 'package:extended_nested_scroll_view/extended_nested_scroll_view.dart';
 import 'package:flutter/foundation.dart' show kDebugMode, clampDouble;
 import 'package:flutter/services.dart' show SystemChrome;
@@ -168,6 +170,13 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     return videoDetailController.plPlayerController.horizontalSeasonPanel &&
         (videoDetail.ugcSeason != null ||
             ((videoDetail.pages?.length ?? 0) > 1));
+  }
+
+  String? get _videoHeroTag {
+    final args = Get.arguments;
+    final tag = args is Map ? args['videoHeroTag'] : null;
+    if (tag is String && tag.isNotEmpty) return tag;
+    return Utils.videoHeroTag(videoDetailController.bvid);
   }
 
   void _resetEnteringPipFlags() {
@@ -2197,15 +2206,30 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       onEnter: (_) => playerFocusNode.requestFocus(),
       child: Listener(
         onPointerDown: (_) => playerFocusNode.requestFocus(),
-        child: Stack(
-      clipBehavior: Clip.none,
-      children: [
-        const Positioned.fill(
-          child: ColoredBox(
-            color: Colors.black,
-            isAntiAlias: false,
-          ),
-        ),
+        child: VideoHero(
+          tag: _videoHeroTag,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+        Obx(() {
+          final cover = videoDetailController.cover.value;
+          return Positioned.fill(
+            child: ColoredBox(
+              color: Colors.black,
+              isAntiAlias: false,
+              child: cover.isEmpty
+                  ? const SizedBox.shrink()
+                  : NetworkImgLayer(
+                      src: cover,
+                      width: width,
+                      height: height,
+                      fit: BoxFit.contain,
+                      borderRadius: BorderRadius.zero,
+                      getPlaceHolder: () => const SizedBox.shrink(),
+                    ),
+            ),
+          );
+        }),
 
         plPlayer(width: width, height: height),
 
@@ -2349,7 +2373,8 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
             return const SizedBox.shrink();
           },
         ),
-      ],
+            ],
+          ),
         ),
       ),
     );
@@ -2853,6 +2878,13 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     _logSponsorBlock(
       'Checking PiP: count=${VideoStackManager.getCount()}, previousRoute=${Get.previousRoute}',
     );
+    if (Pref.enableVideoSharedElement) {
+      _logSponsorBlock(
+        'Reject PiP: shared-element transition is enabled in beta',
+      );
+      SmartDialog.showToast('共享元素转场已启用，应用内小窗不可用');
+      return false;
+    }
     if (!Pref.enableInAppPip) {
       _logSponsorBlock('Reject PiP: in-app PiP is disabled in settings');
       return false;

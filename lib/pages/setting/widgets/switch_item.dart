@@ -59,7 +59,19 @@ class _SetSwitchItemState extends State<SetSwitchItem> {
   }
 
   Future<void> switchChange([bool? value]) async {
-    val = value ?? !val;
+    final nextVal = value ?? !val;
+
+    if (widget.setKey == SettingBoxKey.enableInAppPip &&
+        nextVal &&
+        GStorage.setting.get(
+          SettingBoxKey.enableVideoSharedElement,
+          defaultValue: false,
+        )) {
+      SmartDialog.showToast('共享元素转场已启用，应用内小窗不可用');
+      return;
+    }
+
+    val = nextVal;
 
     if (widget.setKey == SettingBoxKey.badCertificateCallback && val) {
       val = await showConfirmDialog(

@@ -3,6 +3,7 @@ import 'package:PiliPlus/common/widgets/badge.dart';
 import 'package:PiliPlus/common/widgets/image/image_save.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/stat/stat.dart';
+import 'package:PiliPlus/common/widgets/video_card/video_hero.dart';
 import 'package:PiliPlus/common/widgets/video_popup_menu.dart';
 import 'package:PiliPlus/http/search.dart';
 import 'package:PiliPlus/models/home/rcmd/result.dart';
@@ -12,11 +13,12 @@ import 'package:PiliPlus/utils/app_scheme.dart';
 import 'package:PiliPlus/utils/date_utils.dart';
 import 'package:PiliPlus/utils/duration_utils.dart';
 import 'package:PiliPlus/utils/extension/dimension_ext.dart';
+import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/id_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
-import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
+import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
@@ -81,6 +83,20 @@ class VideoCardV extends StatelessWidget {
     }
   }
 
+  Widget _buildCover(double width, double height) {
+    final cover = NetworkImgLayer(
+      src: videoItem.cover,
+      width: width,
+      height: height,
+      borderRadius: const .vertical(top: .circular(12)),
+    );
+    final String? heroId = videoItem.goto == 'av'
+        ? videoItem.bvid ??
+              (videoItem.aid == null ? null : IdUtils.av2bv(videoItem.aid!))
+        : null;
+    return VideoHero(tag: Utils.videoHeroTag(heroId), child: cover);
+  }
+
   @override
   Widget build(BuildContext context) {
     void onLongPress() => imageSaveDialog(
@@ -109,12 +125,7 @@ class VideoCardV extends StatelessWidget {
                       return Stack(
                         clipBehavior: Clip.none,
                         children: [
-                          NetworkImgLayer(
-                            src: videoItem.cover,
-                            width: maxWidth,
-                            height: maxHeight,
-                            borderRadius: const .vertical(top: .circular(12)),
-                          ),
+                          _buildCover(maxWidth, maxHeight),
                           if (videoItem.duration > 0)
                             PBadge(
                               bottom: 6,
