@@ -28,6 +28,10 @@ import 'package:flutter/material.dart';
 /// the thumbnail. The beta switch deliberately disables in-app PiP because
 /// both features need to own the same player transition at that moment.
 class VideoHero extends StatelessWidget {
+  static final ValueNotifier<bool> _enabledNotifier = ValueNotifier(
+    Pref.enableVideoSharedElement,
+  );
+
   const VideoHero({
     super.key,
     required this.tag,
@@ -39,13 +43,34 @@ class VideoHero extends StatelessWidget {
   final Widget child;
   final bool? enabled;
 
+  static void setEnabled(bool value) {
+    if (_enabledNotifier.value != value) {
+      _enabledNotifier.value = value;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final heroTag = tag;
-    if (heroTag == null || !(enabled ?? Pref.enableVideoSharedElement)) {
+    if (heroTag == null) {
       return child;
     }
 
+    if (enabled case final enabled?) {
+      return enabled ? _buildHero(heroTag, child) : child;
+    }
+
+    return ValueListenableBuilder<bool>(
+      valueListenable: _enabledNotifier,
+      child: child,
+      builder: (context, enabled, child) {
+        final content = child!;
+        return enabled ? _buildHero(heroTag, content) : content;
+      },
+    );
+  }
+
+  Widget _buildHero(String heroTag, Widget child) {
     return Hero(
       tag: heroTag,
       transitionOnUserGestures: true,

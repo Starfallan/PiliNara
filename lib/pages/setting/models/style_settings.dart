@@ -9,6 +9,7 @@ import 'package:PiliPlus/common/widgets/scale_app.dart';
 import 'package:PiliPlus/common/widgets/scroll_physics.dart'
     show kSpringDescription;
 import 'package:PiliPlus/common/widgets/stateful_builder.dart';
+import 'package:PiliPlus/common/widgets/video_card/video_hero.dart';
 import 'package:PiliPlus/models/common/bar_hide_type.dart';
 import 'package:PiliPlus/models/common/dynamic/dynamic_badge_mode.dart';
 import 'package:PiliPlus/models/common/dynamic/up_panel_position.dart';
@@ -440,6 +441,7 @@ List<SettingsModel> get styleSettings => [
 ];
 
 void _onVideoSharedElementChanged(bool enabled) {
+  VideoHero.setEnabled(enabled);
   if (!enabled) return;
 
   // Shared-element flights and the in-app PiP owner cannot be active at the
