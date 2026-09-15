@@ -46,6 +46,7 @@ class _MainAppState extends PopScopeState<MainApp>
         TrayListener {
   final _mainController = Get.put(MainController());
   late final _setting = GStorage.setting;
+  late bool _enableGradientBg;
   late EdgeInsets _padding;
   late ColorScheme _colorScheme;
   Brightness? _brightness;
