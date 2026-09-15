@@ -57,6 +57,8 @@ class _MainAppState extends PopScopeState<MainApp>
   @override
   void initState() {
     super.initState();
+    _enableGradientBg =
+        _setting.get(SettingBoxKey.enableGradientBg, defaultValue: true);
     addObserverMobile(this);
     if (Platform.isMacOS) {
       HardwareKeyboard.instance.addHandler(_handleKeyEvent);
@@ -529,13 +531,46 @@ class _MainAppState extends PopScopeState<MainApp>
       padding = .only(top: _padding.top, right: _padding.right);
     }
 
-    child = Material(
+    final mainLayout = Material(
+      color: _enableGradientBg ? Colors.transparent : null,
       child: MainLayout(
         sideBar: sideBar,
         bottomNav: bottomNav,
         body: Padding(padding: padding, child: child),
       ),
     );
+
+    if (_enableGradientBg) {
+      child = Stack(
+        children: [
+          Align(
+            alignment: Alignment.topLeft,
+            child: Opacity(
+              opacity: 0.6,
+              child: Container(
+                width: MediaQuery.sizeOf(context).width,
+                height: MediaQuery.sizeOf(context).height,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      _colorScheme.primary.withValues(alpha: 0.6),
+                      _colorScheme.primaryContainer.withValues(alpha: 0.6),
+                      _colorScheme.surface,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    stops: const [0.1, 0.4, 0.7],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          mainLayout,
+        ],
+      );
+    } else {
+      child = mainLayout;
+    }
 
     if (PlatformUtils.isMobile) {
       return AnnotatedRegion<SystemUiOverlayStyle>(
