@@ -2207,7 +2207,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
           ),
         ),
 
-        Hero(tag: heroTag, child: plPlayer(width: width, height: height)),
+         plPlayer(width: width, height: height),
 
         Obx(() {
           if (!videoDetailController.autoPlay) {
