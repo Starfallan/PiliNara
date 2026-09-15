@@ -1,0 +1,62 @@
+name: Android Release Build (arm64)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  android-release:
+    name: Build Release APK (arm64)
+    runs-on: ubuntu-latest
+    permissions: write-all
+
+    steps:
+      - name: 代码迁出
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 构建Java环境
+        uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "17"
+          cache: "gradle"
+          cache-dependency-path: |
+            android/*.gradle*
+            android/**/gradle-wrapper.properties
+
+      - name: 安装Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version-file: pubspec.yaml
+          cache: true
+
+      # 用项目自带的 patch.ps1 正确打 Flutter SDK / material_ui / cupertino_ui 补丁
+      - name: apply PiliNara patches
+        shell: pwsh
+        run: lib/scripts/patch.ps1 android
+
+      - name: Set and Extract version
+        shell: pwsh
+        run: lib/scripts/build.ps1 android
+
+      # release + 只出 arm64：走 R8 裁剪，体积明显小于 debug 包
+      # 仓库无 android/key.properties -> release 自动用 debug keystore 签名，可正常安装
+      - name: Flutter Build Release APK (arm64)
+        run: |
+          flutter build apk --release --target-platform android-arm64 --dart-define-from-file=pili_release.json --pub
+
+      - name: Rename Release APK
+        run: |
+          mkdir -p output
+          if [ -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
+            mv "build/app/outputs/flutter-apk/app-release.apk" "output/PiliNara_android_release_arm64.apk"
+          fi
+        shell: bash
+
+      - name: 上传 Release 产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: Android_Release_APK_arm64
+          path: output/PiliNara_android_release_arm64.apk
