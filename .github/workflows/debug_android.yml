@@ -51,18 +51,18 @@ jobs:
 
       - name: Flutter Build Debug APK
         run: |
-          flutter build apk --debug --dart-define-from-file=pili_release.json --pub
-
-      - name: Rename Debug APK
+          flutter build apk --debug --dart-define-from-file=pili_release.json --pub --target-platform android-arm64
+       
+      - name: Rename Debug APKa
         run: |
           mkdir -p output
           if [ -f "build/app/outputs/flutter-apk/app-debug.apk" ]; then
-            mv "build/app/outputs/flutter-apk/app-debug.apk" "output/PiliNara_android_debug_all.apk"
+            mv "build/app/outputs/flutter-apk/app-debug.apk" "output/PiliNara_android_debug_arm64.apk"
           fi
         shell: bash
 
       - name: 上传 Debug 产物
         uses: actions/upload-artifact@v4
         with:
-          name: Android_Debug_APK
-          path: output/PiliNara_android_debug_all.apk
+          name: Android_Debug_APK_arm64
+          path: output/PiliNara_android_debug_arm64.apk
