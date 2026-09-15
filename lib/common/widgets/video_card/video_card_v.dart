@@ -1,5 +1,4 @@
 import 'package:PiliPlus/common/style.dart';
-import 'package:PiliPlus/utils/utils.dart';
 import 'package:PiliPlus/common/widgets/badge.dart';
 import 'package:PiliPlus/common/widgets/image/image_save.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
@@ -110,16 +109,11 @@ class VideoCardV extends StatelessWidget {
                       return Stack(
                         clipBehavior: Clip.none,
                         children: [
-                            Hero(
-                            tag: Utils.makeHeroTag(
-                              videoItem.bvid ?? videoItem.aid,
-                            ),
-                            child: NetworkImgLayer(
-                              src: videoItem.cover,
-                              width: maxWidth,
-                              height: maxHeight,
-                              borderRadius: const .vertical(top: .circular(12)),
-                            ),
+                            NetworkImgLayer(
+                            src: videoItem.cover,
+                            width: maxWidth,
+                            height: maxHeight,
+                            borderRadius: const .vertical(top: .circular(12)),
                           ),
                           if (videoItem.duration > 0)
                             PBadge(
