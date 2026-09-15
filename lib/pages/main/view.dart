@@ -553,9 +553,9 @@ class _MainAppState extends PopScopeState<MainApp>
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      _colorScheme.primary.withValues(alpha: 0.6),
-                      _colorScheme.primaryContainer.withValues(alpha: 0.6),
-                      _colorScheme.surface,
+                      Theme.of(context).colorScheme.primary.withValues(alpha: 0.6),
+                      Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.6),
+                      Theme.of(context).colorScheme.surface,
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
