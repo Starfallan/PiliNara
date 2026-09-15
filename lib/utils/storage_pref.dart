@@ -1262,6 +1262,9 @@ abstract final class Pref {
   static bool get enableMYBar =>
       _setting.get(SettingBoxKey.enableMYBar, defaultValue: true);
 
+  static bool get enableGradientBg =>
+      _setting.get(SettingBoxKey.enableGradientBg, defaultValue: true);
+
   static Transition get pageTransition =>
       Transition.values[_setting.get(
         SettingBoxKey.pageTransition,
