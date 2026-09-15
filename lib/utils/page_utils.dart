@@ -545,7 +545,7 @@ abstract final class PageUtils {
       'progress': ?progress,
       'videoType': videoType,
       'isVertical': dimension?.isVertical ?? isVertical,
-      'heroTag': Utils.makeHeroTag(cid),
+      'heroTag': Utils.makeHeroTag(bvid ?? aid),
       ...?extraArguments,
     };
     return PageUtils.toDupNamed('/videoV', arguments: arguments, off: off);
