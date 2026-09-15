@@ -543,6 +543,7 @@ class _MainAppState extends PopScopeState<MainApp>
     if (_enableGradientBg) {
       child = Stack(
         children: [
+          Container(color: Theme.of(context).colorScheme.surface),
           Align(
             alignment: Alignment.topLeft,
             child: Opacity(
