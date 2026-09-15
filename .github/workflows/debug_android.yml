@@ -37,31 +37,18 @@ jobs:
           flutter-version-file: pubspec.yaml
           cache: true
 
-      # 保留你原有的 Patch 逻辑
-      - name: revert new overscrollindicator
-        working-directory: ${{ env.FLUTTER_ROOT }}
-        run: |
-          git config --global user.name "ci"
-          git config --global user.email "example@example.com"
-          git stash || true
-          git revert 362b1de29974ffc1ed6faa826e1df870d7bec75f --no-edit
-          git reset --soft HEAD~1
-          git stash pop || true
-        continue-on-error: true
-
-      - name: apply patches
-        working-directory: ${{ env.FLUTTER_ROOT }}
-        run: |
-          git apply $GITHUB_WORKSPACE/lib/scripts/bottom_sheet_patch.diff || true
-          git apply $GITHUB_WORKSPACE/lib/scripts/modal_barrier_patch.diff || true
-          git apply $GITHUB_WORKSPACE/lib/scripts/mouse_cursor_patch.diff || true
+      # 用项目自带的 patch.ps1 正确打 Flutter SDK / material_ui / cupertino_ui 补丁
+      # （原 workflow 内联的 "git revert 362b1de" 在 Flutter 3.47.2 上冲突留下 <<<===>>> 标记，
+      #  且内联的三个 git apply 文件名写错，导致 Flutter 私有 API 未暴露而编译失败。
+      #  patch.ps1 才是作者设计的正确流程。）
+      - name: apply PiliNara patches
+        shell: pwsh
+        run: lib/scripts/patch.ps1 android
 
       - name: Set and Extract version
         shell: pwsh
         run: lib/scripts/build.ps1 android
 
-      # 核心修改点：使用 --debug 模式
-      # 注意：Debug 模式下通常不使用 --split-per-abi，因为它会生成一个包含全架构的胖 APK
       - name: Flutter Build Debug APK
         run: |
           flutter build apk --debug --dart-define-from-file=pili_release.json --pub
@@ -75,8 +62,7 @@ jobs:
         shell: bash
 
       - name: 上传 Debug 产物
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
-          archive: false
           name: Android_Debug_APK
           path: output/PiliNara_android_debug_all.apk
