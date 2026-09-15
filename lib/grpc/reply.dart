@@ -120,6 +120,7 @@ abstract final class ReplyGrpc {
     required int rpid,
     required Mode mode,
     required String? offset,
+    Map<Int64, ReplyInfo>? removedOut, // 收集被屏蔽评论（树模式保留其数据）
   }) async {
     final res = await GrpcReq.request(
       GrpcUrl.detailList,
@@ -137,7 +138,9 @@ abstract final class ReplyGrpc {
     if (res case Success(:final response)) {
       final upMid = response.subjectControl.upMid;
       response.root.replies.removeWhere((item) {
-        return needRemoveGrpc(item, upMid: upMid);
+        final removed = needRemoveGrpc(item, upMid: upMid);
+        if (removed) removedOut?[item.id] = item;
+        return removed;
       });
     }
     return res;

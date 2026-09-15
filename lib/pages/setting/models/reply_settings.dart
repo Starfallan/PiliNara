@@ -3,10 +3,29 @@ import 'package:PiliPlus/grpc/reply.dart';
 import 'package:PiliPlus/pages/setting/models/model.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
+import 'package:PiliPlus/utils/storage.dart';
+import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
 import 'package:PiliPlus/utils/user_whitelist.dart';
 import 'package:material_ui/material_ui.dart';
 
 List<SettingsModel> get replySettings => [
+  const SwitchModel(
+    title: '树状显示评论回复',
+    subtitle: '根据回复关系整理楼中楼，按层级缩进显示，支持折叠',
+    leading: Icon(Icons.account_tree_outlined),
+    setKey: SettingBoxKey.replyTreeEnabled,
+    defaultVal: true,
+  ),
+  NormalModel(
+    title: '树状评论最大深度',
+    subtitle: '超过此深度的回复将显示"继续此讨论串"',
+    leading: const Icon(Icons.format_indent_increase),
+    getTrailing: (theme) => Text(
+      '${Pref.replyTreeMaxDepth}层',
+      style: theme.textTheme.titleSmall,
+    ),
+    onTap: _showReplyTreeDepthDialog,
+  ),
   getListBanWordModel(
     title: '关键词过滤',
     key: SettingBoxKey.banWordForReply,
@@ -74,3 +93,26 @@ List<SettingsModel> get replySettings => [
     onChanged: (value) => ReplyGrpc.keepUpReplyReply = value,
   ),
 ];
+
+Future<void> _showReplyTreeDepthDialog(
+  BuildContext context,
+  VoidCallback setState,
+) async {
+  final res = await showDialog<int>(
+    context: context,
+    builder: (context) => SelectDialog<int>(
+      title: '树状评论最大深度',
+      value: Pref.replyTreeMaxDepth,
+      values: const [
+        (2, '2层'),
+        (3, '3层'),
+        (4, '4层'),
+        (5, '5层'),
+      ],
+    ),
+  );
+  if (res != null) {
+    await GStorage.setting.put(SettingBoxKey.replyTreeMaxDepth, res);
+    setState();
+  }
+}
