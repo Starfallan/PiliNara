@@ -53,11 +53,12 @@ class _PopularPreciousPageState extends State<PopularPreciousPage>
             final item = response[index];
             return VideoCardH(
               videoItem: item,
-              onTap: () {
+              onTapWithTransition: (transition) {
                 PageUtils.toVideoPage(
                   bvid: item.bvid,
                   cid: item.cid!,
                   dimension: item.dimension,
+                  videoHeroTag: transition.tag,
                   extraArguments: {
                     'sourceType': SourceType.playlist,
                     'favTitle': '入站必刷',
@@ -72,10 +73,7 @@ class _PopularPreciousPageState extends State<PopularPreciousPage>
           },
         );
       case Error(:final errMsg):
-        return HttpError(
-          errMsg: errMsg,
-          onReload: _controller.onReload,
-        );
+        return HttpError(errMsg: errMsg, onReload: _controller.onReload);
     }
   }
 }

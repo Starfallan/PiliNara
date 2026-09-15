@@ -1,3 +1,4 @@
+import 'package:PiliPlus/common/widgets/video_card/video_hero.dart';
 import 'package:PiliPlus/pages/about/view.dart';
 import 'package:PiliPlus/pages/setting/ai_setting/view.dart';
 import 'package:PiliPlus/pages/article/view.dart';
@@ -71,8 +72,9 @@ import 'package:PiliPlus/pages/webdav/view.dart';
 import 'package:PiliPlus/pages/webview/view.dart';
 import 'package:PiliPlus/pages/whisper/view.dart';
 import 'package:PiliPlus/pages/whisper_detail/view.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:get/get.dart';
-import 'package:material_ui/material_ui.dart';
 
 class _VideoDetailPageRoute<T> extends GetPageRoute<T> {
   _VideoDetailPageRoute({
@@ -96,7 +98,70 @@ class _VideoDetailPageRoute<T> extends GetPageRoute<T> {
        );
 
   @override
-  Duration get transitionDuration => const Duration(milliseconds: 450);
+  Duration get transitionDuration => VideoSpatialTransition.duration;
+
+  @override
+  Duration get reverseTransitionDuration => VideoSpatialTransition.duration;
+
+  // Let the source page remain visible underneath the spatial flight. An
+  // opaque route hides the originating card and turns the transition into a
+  // page replacement, which is especially noticeable on iOS/iPad.
+  @override
+  bool get opaque =>
+      !VideoSpatialTransition.enabled ||
+      !VideoSpatialTransition.hasSourceTag(settings.arguments);
+
+  // A route snapshot can freeze the player texture during the flight. Keep
+  // the live route tree available so Hero and the poster crossfade remain
+  // deterministic on iOS/iPad as well as Android.
+  @override
+  bool get allowSnapshotting =>
+      !VideoSpatialTransition.enabled ||
+      !VideoSpatialTransition.hasSourceTag(settings.arguments);
+
+  @override
+  Widget buildTransitions(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    if (!VideoSpatialTransition.enabled ||
+        !VideoSpatialTransition.hasSourceTag(settings.arguments)) {
+      return super.buildTransitions(
+        context,
+        animation,
+        secondaryAnimation,
+        child,
+      );
+    }
+
+    final spatialTransition = VideoSpatialTransition.routeTransition(
+      route: this,
+      animation: animation,
+      hasSource: true,
+      child: child,
+    );
+
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      // Keep Flutter's public Cupertino back-gesture detector mounted from
+      // the first frame. Constant animations neutralize its page slide and
+      // shadow; the spatial transition above still follows the real route
+      // controller during the gesture.
+      return CupertinoRouteTransitionMixin.buildPageTransitions<T>(
+        this,
+        context,
+        kAlwaysCompleteAnimation,
+        kAlwaysDismissedAnimation,
+        spatialTransition,
+      );
+    }
+
+    // Android predictive back updates the route controller directly, so the
+    // same spatial transition remains interactive without a competing page
+    // translation from the platform builder.
+    return spatialTransition;
+  }
 }
 
 class _VideoDetailGetPage extends GetPage<dynamic> {
@@ -119,6 +184,27 @@ class _VideoDetailGetPage extends GetPage<dynamic> {
 }
 
 class Routes {
+  static Route<dynamic> onGenerateRoute(RouteSettings settings) {
+    final path = Uri.tryParse(settings.name ?? '')?.path;
+    if (path == '/videoV') {
+      final videoPage = getPages.singleWhere((page) => page.name == path);
+      return _VideoDetailPageRoute<dynamic>(
+        page: videoPage.page,
+        settings: settings,
+        parameter: videoPage.parameters,
+        maintainState: videoPage.maintainState,
+        binding: videoPage.binding,
+        bindings: videoPage.bindings,
+        routeName: videoPage.name,
+        middlewares: videoPage.middlewares,
+      );
+    }
+
+    // All other routes retain GetX's route-tree matching and middleware
+    // behavior. The app registers [getPages] in GetMaterialApp.onInit.
+    return PageRedirect(settings: settings).page();
+  }
+
   static final List<GetPage<dynamic>> getPages = [
     GetPage(name: '/', page: () => const MainApp()),
     // 首页(推荐)

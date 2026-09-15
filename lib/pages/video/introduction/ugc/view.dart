@@ -12,6 +12,7 @@ import 'package:PiliPlus/common/widgets/scroll_physics.dart'
 import 'package:PiliPlus/common/widgets/selection_text.dart';
 import 'package:PiliPlus/common/widgets/stat/stat.dart';
 import 'package:PiliPlus/common/widgets/translucent_column.dart';
+import 'package:PiliPlus/common/widgets/video_card/video_hero.dart';
 import 'package:PiliPlus/http/sponsor_block.dart';
 import 'package:PiliPlus/models_new/video/video_ai_conclusion/model_result.dart';
 import 'package:PiliPlus/models_new/video/video_detail/data.dart';
@@ -53,6 +54,7 @@ class UgcIntroPanel extends StatefulWidget {
   const UgcIntroPanel({
     super.key,
     required this.heroTag,
+    this.infoHeroTag,
     required this.showAiBottomSheet,
     required this.showAiChatBottomSheet,
     required this.showEpisodes,
@@ -61,6 +63,7 @@ class UgcIntroPanel extends StatefulWidget {
     required this.isHorizontal,
   });
   final String heroTag;
+  final String? infoHeroTag;
   final Function showAiBottomSheet;
   final VoidCallback showAiChatBottomSheet;
   final Function showEpisodes;
@@ -117,71 +120,84 @@ class _UgcIntroPanelState extends State<UgcIntroPanel> {
               child: TranslucentColumn(
                 crossAxisAlignment: .start,
                 children: [
-                  NoTranslucentArea(
-                    child: _buildOwnerInfo(
-                      isLoading,
-                      isPortrait,
-                      isHorizontal,
-                      videoDetail,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildTitle(isLoading, isHorizontal, videoDetail),
-                  const SizedBox(height: 8),
-                  Stack(
-                    clipBehavior: .none,
-                    children: [
-                      _buildInfo(videoDetail.stat, videoDetail.pubdate),
-                      if (introController.enableAi) _aiBtn,
-                    ],
-                  ),
-                  if (introController.showArgueMsg)
-                    if (videoDetail.argueInfo?.argueMsg case final argueMsg?
-                        when argueMsg.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      _buildArgueInfo(argueMsg),
-                    ],
-                  if (isHorizontal && PlatformUtils.isDesktop)
-                    ..._infos(videoDetail)
-                  else
-                    Obx(
-                      () => AnimatedHeightWidgetExt(
-                        expand: introController.expand.value,
-                        duration: const Duration(milliseconds: 300),
-                        child: TranslucentColumn(
-                          mainAxisSize: .min,
-                          crossAxisAlignment: .start,
-                          children: _infos(videoDetail),
+                  VideoSpatialTransition.destinationInfo(
+                    tag: widget.infoHeroTag,
+                    child: TranslucentColumn(
+                      crossAxisAlignment: .start,
+                      children: [
+                        NoTranslucentArea(
+                          child: _buildOwnerInfo(
+                            isLoading,
+                            isPortrait,
+                            isHorizontal,
+                            videoDetail,
+                          ),
                         ),
-                      ),
-                    ),
-                  Obx(
-                    () => introController.status.value
-                        ? const SizedBox.shrink()
-                        : Center(
-                            child: TextButton.icon(
-                              icon: const Icon(Icons.refresh),
-                              onPressed: () {
-                                introController
-                                  ..status.value = true
-                                  ..queryVideoIntro();
-                                if (videoDetailCtr.videoUrl.isNullOrEmpty &&
-                                    !videoDetailCtr.isQuerying) {
-                                  videoDetailCtr.queryVideoUrl();
-                                }
-                              },
-                              label: const Text("点此重新加载"),
+                        const SizedBox(height: 8),
+                        _buildTitle(isLoading, isHorizontal, videoDetail),
+                        const SizedBox(height: 8),
+                        Stack(
+                          clipBehavior: .none,
+                          children: [
+                            _buildInfo(videoDetail.stat, videoDetail.pubdate),
+                            if (introController.enableAi) _aiBtn,
+                          ],
+                        ),
+                        if (introController.showArgueMsg)
+                          if (videoDetail.argueInfo?.argueMsg
+                              case final argueMsg?
+                              when argueMsg.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            _buildArgueInfo(argueMsg),
+                          ],
+                        if (isHorizontal && PlatformUtils.isDesktop)
+                          ..._infos(videoDetail)
+                        else
+                          Obx(
+                            () => AnimatedHeightWidgetExt(
+                              expand: introController.expand.value,
+                              duration: const Duration(milliseconds: 300),
+                              child: TranslucentColumn(
+                                mainAxisSize: .min,
+                                crossAxisAlignment: .start,
+                                children: _infos(videoDetail),
+                              ),
                             ),
                           ),
+                        Obx(
+                          () => introController.status.value
+                              ? const SizedBox.shrink()
+                              : Center(
+                                  child: TextButton.icon(
+                                    icon: const Icon(Icons.refresh),
+                                    onPressed: () {
+                                      introController
+                                        ..status.value = true
+                                        ..queryVideoIntro();
+                                      if (videoDetailCtr
+                                              .videoUrl
+                                              .isNullOrEmpty &&
+                                          !videoDetailCtr.isQuerying) {
+                                        videoDetailCtr.queryVideoUrl();
+                                      }
+                                    },
+                                    label: const Text("点此重新加载"),
+                                  ),
+                                ),
+                        ),
+                      ],
+                    ),
                   ),
                   // 点赞收藏转发 布局样式2
                   if (!isHorizontal) ...[
                     const SizedBox(height: 8),
-                    actionGrid(
-                      context,
-                      isLoading,
-                      introController,
-                      videoDetail.stat,
+                    VideoSpatialTransition.chrome(
+                      child: actionGrid(
+                        context,
+                        isLoading,
+                        introController,
+                        videoDetail.stat,
+                      ),
                     ),
                   ],
                   // 合集
@@ -191,12 +207,14 @@ class _UgcIntroPanelState extends State<UgcIntroPanel> {
                           !videoDetailCtr
                               .plPlayerController
                               .horizontalSeasonPanel))
-                    Obx(
-                      () => SeasonPanel(
-                        key: ValueKey(introController.videoDetail.value),
-                        heroTag: widget.heroTag,
-                        showEpisodes: widget.showEpisodes,
-                        ugcIntroController: introController,
+                    VideoSpatialTransition.chrome(
+                      child: Obx(
+                        () => SeasonPanel(
+                          key: ValueKey(introController.videoDetail.value),
+                          heroTag: widget.heroTag,
+                          showEpisodes: widget.showEpisodes,
+                          ugcIntroController: introController,
+                        ),
                       ),
                     ),
                   if (!isLoading &&
@@ -206,13 +224,15 @@ class _UgcIntroPanelState extends State<UgcIntroPanel> {
                           !videoDetailCtr
                               .plPlayerController
                               .horizontalSeasonPanel))
-                    Obx(
-                      () => PagesPanel(
-                        key: ValueKey(introController.videoDetail.value),
-                        heroTag: widget.heroTag,
-                        ugcIntroController: introController,
-                        bvid: introController.bvid,
-                        showEpisodes: widget.showEpisodes,
+                    VideoSpatialTransition.chrome(
+                      child: Obx(
+                        () => PagesPanel(
+                          key: ValueKey(introController.videoDetail.value),
+                          heroTag: widget.heroTag,
+                          ugcIntroController: introController,
+                          bvid: introController.bvid,
+                          showEpisodes: widget.showEpisodes,
+                        ),
                       ),
                     ),
                 ],
@@ -340,6 +360,9 @@ class _UgcIntroPanelState extends State<UgcIntroPanel> {
   }) {
     Widget child() {
       final videoLabel = videoDetailCtr.videoLabel.value;
+      final title = videoDetail.title?.isNotEmpty == true
+          ? videoDetail.title
+          : videoDetailCtr.args['title'] as String?;
       final textSpan = TextSpan(
         children: [
           if (videoLabel.isNotEmpty) ...[
@@ -409,7 +432,7 @@ class _UgcIntroPanelState extends State<UgcIntroPanel> {
             ),
             const TextSpan(text: ' '),
           ],
-          TextSpan(text: videoDetail.title),
+          TextSpan(text: title),
         ],
       );
       if (isSelectable) {

@@ -56,7 +56,8 @@ import 'package:PiliPlus/utils/video_utils.dart';
 import 'package:archive/archive.dart' show getCrc32;
 import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:easy_debounce/easy_throttle.dart';
-import 'package:flutter/foundation.dart' show clampDouble, kDebugMode;
+import 'package:flutter/foundation.dart'
+    show ValueNotifier, clampDouble, kDebugMode;
 import 'package:flutter/services.dart' show HapticFeedback, DeviceOrientation;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
@@ -84,6 +85,14 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   final playerStatus = PlPlayerStatus(.playing);
 
   final Rx<DataStatus> dataStatus = Rx(.none);
+
+  /// True only after the rendering backend has reported a real video frame
+  /// size. The spatial transition uses this to keep the poster above the live
+  /// texture until the texture is actually drawable.
+  // This is deliberately a Flutter listenable instead of an Rx value. The
+  // spatial destination listens to it locally; changing it must not rebuild
+  // the Hero anchor while a flight is in progress.
+  final ValueNotifier<bool> videoOutputReady = ValueNotifier(false);
 
   Duration? seekToPos;
   bool hasToasted = false;
@@ -189,9 +198,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     required String bvid,
     required int cid,
   }) =>
-      dataStatus.value == DataStatus.loaded &&
-      _bvid == bvid &&
-      this.cid == cid;
+      dataStatus.value == DataStatus.loaded && _bvid == bvid && this.cid == cid;
 
   /// 视频播放速度
   double get playbackSpeed => _playbackSpeed.value;
@@ -448,8 +455,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
       (tempPlayerConf ? 0 : Pref.videoSaturation).obs;
   late final RxInt videoGamma = (tempPlayerConf ? 0 : Pref.videoGamma).obs;
   late final RxInt videoHue = (tempPlayerConf ? 0 : Pref.videoHue).obs;
-  late final RxInt audioDelayMs =
-      (tempPlayerConf ? 0 : Pref.audioDelayMs).obs;
+  late final RxInt audioDelayMs = (tempPlayerConf ? 0 : Pref.audioDelayMs).obs;
   Timer? _videoPictureSaveTimer;
 
   late int? cacheVideoQa = PlatformUtils.isMobile ? null : Pref.defaultVideoQa;
@@ -760,11 +766,13 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     resetAllVideoPictureParameters(persist: false);
   }
 
-  int _normalizeVideoPictureParameter(num value) =>
-      value.round().clamp(
+  int _normalizeVideoPictureParameter(num value) => value
+      .round()
+      .clamp(
         videoPictureParameterMin,
         videoPictureParameterMax,
-      ).toInt();
+      )
+      .toInt();
 
   RxInt? _videoPictureParameterState(String property) => switch (property) {
     'brightness' => videoBrightness,
@@ -934,6 +942,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
       // _playbackSpeed.value = speed;
       // 初始化数据加载状态
       dataStatus.value = DataStatus.loading;
+      videoOutputReady.value = false;
       // 初始化全屏方向
       _isVertical = isVertical ?? false;
       _aid = aid;
@@ -1066,10 +1075,13 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     final opt = {
       'video-sync': Pref.videoSync,
       if (Platform.isAndroid) 'ao': Pref.audioOutput,
-      'volume': (PlatformUtils.isMobile
-              ? (Pref.enableAppVolume ? volume.value * 100 : Pref.playerVolume)
-              : volume.value * 100)
-          .toString(),
+      'volume':
+          (PlatformUtils.isMobile
+                  ? (Pref.enableAppVolume
+                        ? volume.value * 100
+                        : Pref.playerVolume)
+                  : volume.value * 100)
+              .toString(),
       'volume-max': kMaxVolume.toString(),
     };
     final autosync = Pref.autosync;
@@ -1221,6 +1233,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   void _startListeners(NativePlayer player) {
     assert(_subscriptions == null);
     final stream = player.stream;
+    videoOutputReady.value = _hasVideoOutput(player);
     _subscriptions = [
       /// playing
       stream.playing.listen((bool playing) {
@@ -1296,6 +1309,13 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
           buffering,
           isLive,
         );
+      }),
+      stream.videoParams.listen((params) {
+        final width = params.dw ?? params.w ?? 0;
+        final height = params.dh ?? params.h ?? 0;
+        if (width > 0 && height > 0) {
+          videoOutputReady.value = true;
+        }
       }),
       if (kDebugMode)
         stream.log.listen(((PlayerLog log) {
@@ -1375,6 +1395,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     _subscriptions?.forEach((e) => e.cancel());
     _subscriptions?.clear();
     _subscriptions = null;
+    videoOutputReady.value = false;
   }
 
   void _cancelSubForSeek() {
@@ -2353,8 +2374,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   }
 
   void _interruptAutoAudioRestore() {
-    if (!_autoAudioRestoreInProgress &&
-        _autoAudioRestoreCompleter == null) {
+    if (!_autoAudioRestoreInProgress && _autoAudioRestoreCompleter == null) {
       return;
     }
     _autoAudioRestoreGeneration++;
@@ -2754,7 +2774,9 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
         context: Get.context!,
         builder: (context) => GestureDetector(
           onTap: () async {
-            final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+            final bytes = await image.toByteData(
+              format: ui.ImageByteFormat.png,
+            );
             if (bytes != null) {
               final time = DurationUtils.formatDuration(
                 positionInMilliseconds / 1000,

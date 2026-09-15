@@ -68,12 +68,13 @@ class _PopularSeriesPageState extends State<PopularSeriesPage> with GridMixin {
               final item = response[index];
               return VideoCardH(
                 videoItem: item,
-                onTap: () {
+                onTapWithTransition: (transition) {
                   final config = _controller.config.value;
                   PageUtils.toVideoPage(
                     bvid: item.bvid,
                     cid: item.cid!,
                     dimension: item.dimension,
+                    videoHeroTag: transition.tag,
                     extraArguments: {
                       'sourceType': SourceType.playlist,
                       'favTitle': '每周必看 ${config?.label ?? ''}',
@@ -92,18 +93,12 @@ class _PopularSeriesPageState extends State<PopularSeriesPage> with GridMixin {
         }
         if (_controller.config.value case final config?) {
           sliver = SliverMainAxisGroup(
-            slivers: [
-              _buildSeriesList(config),
-              sliver,
-            ],
+            slivers: [_buildSeriesList(config), sliver],
           );
         }
         return sliver;
       case Error(:final errMsg):
-        return HttpError(
-          errMsg: errMsg,
-          onReload: _controller.onReload,
-        );
+        return HttpError(errMsg: errMsg, onReload: _controller.onReload);
     }
   }
 
@@ -196,19 +191,13 @@ class _PopularSeriesPageState extends State<PopularSeriesPage> with GridMixin {
         spacing: 16,
         children: [
           child,
-          Text(
-            reminder,
-            style: TextStyle(color: colorScheme.outline),
-          ),
+          Text(reminder, style: TextStyle(color: colorScheme.outline)),
         ],
       );
     }
     return SliverFloatingHeaderWidget(
       backgroundColor: colorScheme.surface,
-      child: Padding(
-        padding: const .only(left: 14, bottom: 7),
-        child: child,
-      ),
+      child: Padding(padding: const .only(left: 14, bottom: 7), child: child),
     );
   }
 }

@@ -50,16 +50,6 @@ abstract final class Utils {
     return v.toString() + random.nextInt(9999).toString();
   }
 
-  /// Stable tag for the video thumbnail ↔ inline player shared element.
-  ///
-  /// This is separate from [makeHeroTag], which is intentionally random and
-  /// is used as the GetX controller scope for a page.
-  static String? videoHeroTag(Object? id) {
-    final value = id?.toString();
-    if (value == null || value.isEmpty || value == 'null') return null;
-    return 'video-hero-$value';
-  }
-
   static List<int> generateRandomBytes(int minLength, int maxLength) {
     return List<int>.generate(
       minLength + random.nextInt(maxLength - minLength + 1),

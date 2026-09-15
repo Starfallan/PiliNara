@@ -15,7 +15,6 @@ import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/id_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
-import 'package:PiliPlus/utils/utils.dart';
 import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -27,13 +26,68 @@ class VideoCardH extends StatelessWidget {
     super.key,
     required this.videoItem,
     this.onTap,
+    this.onTapWithTransition,
     this.onViewLater,
     this.onRemove,
   });
   final HorizontalVideoModel videoItem;
   final VoidCallback? onTap;
+  final ValueChanged<VideoSpatialTransitionHandle>? onTapWithTransition;
   final ValueChanged<int>? onViewLater;
   final VoidCallback? onRemove;
+
+  String? get _videoId =>
+      (videoItem.isLive ?? false) || (videoItem.isPugv ?? false)
+      ? null
+      : videoItem.bvid ??
+            (videoItem.aid == null ? null : IdUtils.av2bv(videoItem.aid!));
+
+  Future<void> _openVideo(VideoSpatialTransitionHandle transition) async {
+    final videoHeroTag = transition.tag;
+    if (videoItem.isPugv ?? false) {
+      PageUtils.viewPugv(seasonId: videoItem.seasonId);
+      return;
+    }
+
+    if (videoItem.isLive ?? false) {
+      if (videoItem.roomId case final roomId?) {
+        PageUtils.toLiveRoom(roomId);
+      }
+      return;
+    }
+
+    if (videoItem.redirectUrl?.isNotEmpty == true &&
+        PageUtils.viewPgcFromUri(videoItem.redirectUrl!)) {
+      return;
+    }
+
+    int? cid = videoItem.cid;
+    Dimension? dimension = videoItem.dimension;
+    if (cid == null) {
+      if (await SearchHttp.ab2cWithDimension(
+            aid: videoItem.aid,
+            bvid: videoItem.bvid,
+          )
+          case final res?) {
+        cid = res.cid;
+        dimension = res.dimension;
+      }
+    }
+    if (cid != null) {
+      PageUtils.toVideoPage(
+        bvid: videoItem.bvid,
+        cid: cid,
+        cover: videoItem.cover,
+        title: videoItem.title,
+        dimension: dimension,
+        videoHeroTag: videoHeroTag,
+      );
+      final String? key = videoItem.bvid ?? videoItem.aid?.toString();
+      if (key != null && key.isNotEmpty) {
+        VideoCardH.clickedBvids.add(key);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,251 +97,202 @@ class VideoCardH extends StatelessWidget {
       cover: videoItem.cover,
     );
     final theme = Theme.of(context);
-    return Material(
-      type: .transparency,
-      child: Stack(
-        clipBehavior: .none,
-        children: [
-          InkWell(
-            onLongPress: onLongPress,
-            onSecondaryTap: PlatformUtils.isMobile ? null : onLongPress,
-            onTap:
-                onTap ??
-                () async {
-                  if (videoItem.isPugv ?? false) {
-                    PageUtils.viewPugv(seasonId: videoItem.seasonId);
-                    return;
-                  }
+    return VideoSpatialTransitionSource(
+      videoId: onTap == null || onTapWithTransition != null ? _videoId : null,
+      builder: (context, transition) => Material(
+        type: .transparency,
+        child: Stack(
+          clipBehavior: .none,
+          children: [
+            InkWell(
+              onLongPress: onLongPress,
+              onSecondaryTap: PlatformUtils.isMobile ? null : onLongPress,
+              onTap: onTapWithTransition == null
+                  ? onTap ?? () => _openVideo(transition)
+                  : () => onTapWithTransition!(transition),
+              child: Padding(
+                padding: const .symmetric(
+                  horizontal: Style.safeSpace,
+                  vertical: 5,
+                ),
+                child: Row(
+                  crossAxisAlignment: .start,
+                  children: [
+                    AspectRatio(
+                      aspectRatio: Style.aspectRatio,
+                      child: LayoutBuilder(
+                        builder: (context, boxConstraints) {
+                          final double maxWidth = boxConstraints.maxWidth;
+                          final double maxHeight = boxConstraints.maxHeight;
 
-                  if (videoItem.isLive ?? false) {
-                    if (videoItem.roomId case final roomId?) {
-                      PageUtils.toLiveRoom(roomId);
-                    }
-                    return;
-                  }
+                          final progress = videoItem.progress;
 
-                  if (videoItem.redirectUrl?.isNotEmpty == true &&
-                      PageUtils.viewPgcFromUri(videoItem.redirectUrl!)) {
-                    return;
-                  }
-
-                  int? cid = videoItem.cid;
-                  Dimension? dimension = videoItem.dimension;
-                  if (cid == null) {
-                    if (await SearchHttp.ab2cWithDimension(
-                          aid: videoItem.aid,
-                          bvid: videoItem.bvid,
-                        )
-                        case final res?) {
-                      cid = res.cid;
-                      dimension = res.dimension;
-                    }
-                  }
-                  if (cid != null) {
-                    PageUtils.toVideoPage(
-                      bvid: videoItem.bvid,
-                      cid: cid,
-                      cover: videoItem.cover,
-                      title: videoItem.title,
-                      dimension: dimension,
-                    );
-                    final String? key =
-                        videoItem.bvid ?? videoItem.aid?.toString();
-                    if (key != null && key.isNotEmpty) {
-                      VideoCardH.clickedBvids.add(key);
-                    }
-                  }
-                },
-            child: Padding(
-              padding: const .symmetric(
-                horizontal: Style.safeSpace,
-                vertical: 5,
-              ),
-              child: Row(
-                crossAxisAlignment: .start,
-                children: [
-                  AspectRatio(
-                    aspectRatio: Style.aspectRatio,
-                    child: LayoutBuilder(
-                      builder: (context, boxConstraints) {
-                        final double maxWidth = boxConstraints.maxWidth;
-                        final double maxHeight = boxConstraints.maxHeight;
-
-                        final progress = videoItem.progress;
-
-                        return Stack(
-                          clipBehavior: .none,
-                          children: [
-                            _buildCover(maxWidth, maxHeight),
-                            if (videoItem.badge case final badge?)
-                              PBadge(
-                                text: badge,
-                                top: 6.0,
-                                right: 6.0,
-                                type: switch (badge) {
-                                  '充电专属' => .error,
-                                  _ => .primary,
-                                },
-                              ),
-                            if (progress != null && progress != 0) ...[
-                              PBadge(
-                                text: progress == -1
-                                    ? '已看完'
-                                    : '${DurationUtils.formatDuration(progress)}/${DurationUtils.formatDuration(videoItem.duration)}',
-                                right: 6,
-                                bottom: 8,
-                                type: .gray,
-                              ),
-                              Positioned(
-                                left: 0,
-                                bottom: 0,
-                                right: 0,
-                                child: VideoProgressIndicator(
-                                  color: theme.colorScheme.primary,
-                                  backgroundColor:
-                                      theme.colorScheme.secondaryContainer,
-                                  progress: progress == -1
-                                      ? 1
-                                      : progress / videoItem.duration,
+                          return Stack(
+                            clipBehavior: .none,
+                            children: [
+                              _buildCover(maxWidth, maxHeight, transition),
+                              if (videoItem.badge case final badge?)
+                                PBadge(
+                                  text: badge,
+                                  top: 6.0,
+                                  right: 6.0,
+                                  type: switch (badge) {
+                                    '充电专属' => .error,
+                                    _ => .primary,
+                                  },
                                 ),
-                              ),
-                            ] else if (videoItem.duration > 0)
-                              PBadge(
-                                text: DurationUtils.formatDuration(
-                                  videoItem.duration,
+                              if (progress != null && progress != 0) ...[
+                                PBadge(
+                                  text: progress == -1
+                                      ? '已看完'
+                                      : '${DurationUtils.formatDuration(progress)}/${DurationUtils.formatDuration(videoItem.duration)}',
+                                  right: 6,
+                                  bottom: 8,
+                                  type: .gray,
                                 ),
-                                right: 6.0,
-                                bottom: 6.0,
-                                type: .gray,
-                              ),
-                          ],
-                        );
-                      },
+                                Positioned(
+                                  left: 0,
+                                  bottom: 0,
+                                  right: 0,
+                                  child: VideoProgressIndicator(
+                                    color: theme.colorScheme.primary,
+                                    backgroundColor:
+                                        theme.colorScheme.secondaryContainer,
+                                    progress: progress == -1
+                                        ? 1
+                                        : progress / videoItem.duration,
+                                  ),
+                                ),
+                              ] else if (videoItem.duration > 0)
+                                PBadge(
+                                  text: DurationUtils.formatDuration(
+                                    videoItem.duration,
+                                  ),
+                                  right: 6.0,
+                                  bottom: 6.0,
+                                  type: .gray,
+                                ),
+                            ],
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  content(theme),
-                ],
+                    const SizedBox(width: 10),
+                    content(theme, transition),
+                  ],
+                ),
               ),
             ),
-          ),
-          Positioned(
-            bottom: 0,
-            right: 12,
-            width: 29,
-            height: 29,
-            child: VideoPopupMenu(
-              iconSize: 17,
-              videoItem: videoItem,
-              onRemove: onRemove,
+            Positioned(
+              bottom: 0,
+              right: 12,
+              width: 29,
+              height: 29,
+              child: VideoPopupMenu(
+                iconSize: 17,
+                videoItem: videoItem,
+                onRemove: onRemove,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildCover(double width, double height) {
+  Widget _buildCover(
+    double width,
+    double height,
+    VideoSpatialTransitionHandle transition,
+  ) {
     final cover = NetworkImgLayer(
       src: videoItem.cover,
       width: width,
       height: height,
+      borderRadius: BorderRadius.zero,
     );
-    final String? heroId =
-        (videoItem.isLive ?? false) ||
-            (videoItem.isPugv ?? false)
-        ? null
-        : videoItem.bvid ??
-              (videoItem.aid == null ? null : IdUtils.av2bv(videoItem.aid!));
-    return VideoHero(tag: Utils.videoHeroTag(heroId), child: cover);
+    return transition.wrap(cover, borderRadius: Style.mdRadius);
   }
 
-  Widget content(ThemeData theme) {
+  Widget content(ThemeData theme, VideoSpatialTransitionHandle transition) {
     String pubdate = DateFormatUtils.dateFormat(videoItem.pubdate!);
     if (pubdate != '') pubdate += '  ';
     return Expanded(
-      child: Column(
-        crossAxisAlignment: .start,
-        children: [
-          if (videoItem.titleList?.isNotEmpty == true)
-            Expanded(
-              child: Obx(() {
-                final key = videoItem.bvid ?? videoItem.aid?.toString();
-                final isClicked =
-                    key != null && VideoCardH.clickedBvids.contains(key);
-                return Text.rich(
-                  overflow: .ellipsis,
-                  maxLines: 2,
-                  TextSpan(
-                    children: videoItem.titleList!
-                        .map(
-                          (e) => TextSpan(
-                            text: e.text,
-                            style: TextStyle(
-                              fontSize: theme.textTheme.bodyMedium!.fontSize,
-                              height: 1.42,
-                              letterSpacing: 0.3,
-                              color: isClicked
-                                  ? theme.colorScheme.outline
-                                  : e.isEm
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.onSurface,
+      child: transition.wrapInfo(
+        Column(
+          crossAxisAlignment: .start,
+          children: [
+            if (videoItem.titleList?.isNotEmpty == true)
+              Expanded(
+                child: Obx(() {
+                  final key = videoItem.bvid ?? videoItem.aid?.toString();
+                  final isClicked =
+                      key != null && VideoCardH.clickedBvids.contains(key);
+                  return Text.rich(
+                    overflow: .ellipsis,
+                    maxLines: 2,
+                    TextSpan(
+                      children: videoItem.titleList!
+                          .map(
+                            (e) => TextSpan(
+                              text: e.text,
+                              style: TextStyle(
+                                fontSize: theme.textTheme.bodyMedium!.fontSize,
+                                height: 1.42,
+                                letterSpacing: 0.3,
+                                color: isClicked
+                                    ? theme.colorScheme.outline
+                                    : e.isEm
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.onSurface,
+                              ),
                             ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                );
-              }),
-            )
-          else
-            Expanded(
-              child: Obx(() {
-                final key = videoItem.bvid ?? videoItem.aid?.toString();
-                final isClicked =
-                    key != null && VideoCardH.clickedBvids.contains(key);
-                return Text(
-                  videoItem.title,
-                  textAlign: .start,
-                  style: TextStyle(
-                    fontSize: theme.textTheme.bodyMedium!.fontSize,
-                    height: 1.42,
-                    letterSpacing: 0.3,
-                    color: isClicked ? theme.colorScheme.outline : null,
-                  ),
-                  maxLines: 2,
-                  overflow: .ellipsis,
-                );
-              }),
-            ),
-          Text(
-            "$pubdate${remarkedName(
-              videoItem.owner.mid,
-              videoItem.owner.name ?? '',
-            )}",
-            maxLines: 1,
-            style: TextStyle(
-              fontSize: 12,
-              height: 1,
-              color: theme.colorScheme.outline,
-              overflow: .clip,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Row(
-            spacing: 8,
-            children: [
-              StatWidget(
-                type: .play,
-                value: videoItem.stat.view,
+                          )
+                          .toList(),
+                    ),
+                  );
+                }),
+              )
+            else
+              Expanded(
+                child: Obx(() {
+                  final key = videoItem.bvid ?? videoItem.aid?.toString();
+                  final isClicked =
+                      key != null && VideoCardH.clickedBvids.contains(key);
+                  return Text(
+                    videoItem.title,
+                    textAlign: .start,
+                    style: TextStyle(
+                      fontSize: theme.textTheme.bodyMedium!.fontSize,
+                      height: 1.42,
+                      letterSpacing: 0.3,
+                      color: isClicked ? theme.colorScheme.outline : null,
+                    ),
+                    maxLines: 2,
+                    overflow: .ellipsis,
+                  );
+                }),
               ),
-              StatWidget(
-                type: .danmaku,
-                value: videoItem.stat.danmu,
+            Text(
+              "$pubdate${remarkedName(videoItem.owner.mid, videoItem.owner.name ?? '')}",
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 12,
+                height: 1,
+                color: theme.colorScheme.outline,
+                overflow: .clip,
               ),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: 3),
+            Row(
+              spacing: 8,
+              children: [
+                StatWidget(type: .play, value: videoItem.stat.view),
+                StatWidget(type: .danmaku, value: videoItem.stat.danmu),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

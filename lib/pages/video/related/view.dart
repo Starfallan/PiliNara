@@ -1,5 +1,6 @@
 import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
 import 'package:PiliPlus/common/widgets/video_card/video_card_h.dart';
+import 'package:PiliPlus/common/widgets/video_card/video_hero.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/models/model_hot_video_item.dart';
 import 'package:PiliPlus/pages/video/related/controller.dart';
@@ -37,25 +38,32 @@ class _RelatedVideoPanelState extends State<RelatedVideoPanel> with GridMixin {
 
   Widget _buildBody(LoadingState<List<HotVideoItemModel>?> loadingState) {
     return switch (loadingState) {
-      Loading() => gridSkeleton,
+      Loading() => VideoSpatialTransition.secondarySliver(
+        sliver: gridSkeleton,
+      ),
       Success(:final response) =>
         response != null && response.isNotEmpty
             ? SliverGrid.builder(
                 gridDelegate: gridDelegate,
                 itemBuilder: (context, index) {
-                  return VideoCardH(
-                    videoItem: response[index],
-                    onRemove: () => _relatedController.loadingState
-                      ..value.data!.removeAt(index)
-                      ..refresh(),
+                  return VideoSpatialTransition.secondaryItem(
+                    index: index,
+                    child: VideoCardH(
+                      videoItem: response[index],
+                      onRemove: () => _relatedController.loadingState
+                        ..value.data!.removeAt(index)
+                        ..refresh(),
+                    ),
                   );
                 },
                 itemCount: response.length,
               )
             : const SliverToBoxAdapter(),
-      Error(:final errMsg) => HttpError(
-        errMsg: errMsg,
-        onReload: _relatedController.onReload,
+      Error(:final errMsg) => VideoSpatialTransition.secondarySliver(
+        sliver: HttpError(
+          errMsg: errMsg,
+          onReload: _relatedController.onReload,
+        ),
       ),
     };
   }

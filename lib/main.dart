@@ -296,7 +296,8 @@ class MyApp extends StatelessWidget {
       fallbackLocale: const Locale("zh", "CN"),
       supportedLocales: const [Locale("zh", "CN"), Locale("en", "US")],
       initialRoute: '/',
-      getPages: Routes.getPages,
+      onInit: () => Get.addPages(Routes.getPages),
+      onGenerateRoute: Routes.onGenerateRoute,
       defaultTransition: Pref.pageTransition,
       builder: FlutterSmartDialog.init(
         toastBuilder: CustomToast.new,

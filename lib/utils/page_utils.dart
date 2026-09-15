@@ -87,9 +87,9 @@ abstract final class PageUtils {
     }
 
     if (userList.isEmpty && context.mounted) {
-      final UserModel? userModel = await Navigator.of(context).push(
-        GetPageRoute(page: () => const ContactPage()),
-      );
+      final UserModel? userModel = await Navigator.of(
+        context,
+      ).push(GetPageRoute(page: () => const ContactPage()));
       if (userModel != null) {
         userList.add(userModel);
       }
@@ -98,10 +98,7 @@ abstract final class PageUtils {
     if (context.mounted) {
       showModalBottomSheet(
         context: context,
-        builder: (context) => SharePanel(
-          content: content,
-          userList: userList,
-        ),
+        builder: (context) => SharePanel(content: content, userList: userList),
         useSafeArea: true,
         enableDrag: false,
         isScrollControlled: true,
@@ -127,20 +124,11 @@ abstract final class PageUtils {
       if (response.basic?.commentType == 12) {
         toDupNamed(
           '/articlePage',
-          parameters: {
-            'id': id!,
-            'type': 'opus',
-          },
+          parameters: {'id': id!, 'type': 'opus'},
           off: off,
         );
       } else {
-        toDupNamed(
-          '/dynamicDetail',
-          arguments: {
-            'item': response,
-          },
-          off: off,
-        );
+        toDupNamed('/dynamicDetail', arguments: {'item': response}, off: off);
       }
     } else {
       SmartDialog.showToast('${type != null ? 'type: $type ' : ''}$res');
@@ -171,10 +159,7 @@ abstract final class PageUtils {
           snapSizes: [maxChildSize],
           initialChildSize: maxChildSize,
           builder: (BuildContext context, ScrollController scrollController) {
-            return FavPanel(
-              ctr: ctr,
-              scrollController: scrollController,
-            );
+            return FavPanel(ctr: ctr, scrollController: scrollController);
           },
         );
       },
@@ -234,10 +219,7 @@ abstract final class PageUtils {
       if (item.basic?.commentType == 12) {
         toDupNamed(
           '/articlePage',
-          parameters: {
-            'id': item.idStr,
-            'type': 'opus',
-          },
+          parameters: {'id': item.idStr, 'type': 'opus'},
         );
       } else {
         toDupNamed(
@@ -309,10 +291,7 @@ abstract final class PageUtils {
       case 'DYNAMIC_TYPE_ARTICLE':
         toDupNamed(
           '/articlePage',
-          parameters: {
-            'id': item.idStr,
-            'type': 'opus',
-          },
+          parameters: {'id': item.idStr, 'type': 'opus'},
         );
         break;
 
@@ -412,10 +391,7 @@ abstract final class PageUtils {
     }
   }
 
-  static void inAppWebview(
-    String url, {
-    bool off = false,
-  }) {
+  static void inAppWebview(String url, {bool off = false}) {
     if (Pref.openInBrowser) {
       launchURL(url);
     } else {
@@ -502,10 +478,7 @@ abstract final class PageUtils {
     );
   }
 
-  static void toLiveRoom(
-    int? roomId, {
-    bool off = false,
-  }) {
+  static void toLiveRoom(int? roomId, {bool off = false}) {
     if (roomId == null) {
       return;
     }
@@ -532,6 +505,7 @@ abstract final class PageUtils {
     bool off = false,
     bool isVertical = false,
     Dimension? dimension,
+    String? videoHeroTag,
   }) {
     final arguments = {
       'aid': aid ?? IdUtils.bv2av(bvid!),
@@ -546,7 +520,10 @@ abstract final class PageUtils {
       'videoType': videoType,
       'isVertical': dimension?.isVertical ?? isVertical,
       'heroTag': Utils.makeHeroTag(cid),
-      'videoHeroTag': Utils.videoHeroTag(bvid ?? IdUtils.av2bv(aid!)),
+      // Only a real card source may opt into the spatial Hero. Deep links,
+      // history, PGC/PUGV, and local-file entries must use the normal detail
+      // fallback rather than manufacturing a tag with no source anchor.
+      'videoHeroTag': ?videoHeroTag,
       ...?extraArguments,
     };
     return PageUtils.toDupNamed('/videoV', arguments: arguments, off: off);
@@ -627,10 +604,7 @@ abstract final class PageUtils {
             cover: episode.cover,
             title: episode.title,
             progress: progress,
-            extraArguments: {
-              'pgcApi': true,
-              'pgcItem': response,
-            },
+            extraArguments: {'pgcApi': true, 'pgcItem': response},
             off: off,
           );
         }
@@ -677,9 +651,7 @@ abstract final class PageUtils {
             pgcType: response.type,
             cover: episode.cover,
             progress: progress,
-            extraArguments: {
-              'pgcItem': response,
-            },
+            extraArguments: {'pgcItem': response},
             off: off,
           );
           return;
@@ -733,9 +705,7 @@ abstract final class PageUtils {
             epId: episode.id,
             cover: episode.cover,
             progress: progress,
-            extraArguments: {
-              'pgcItem': response,
-            },
+            extraArguments: {'pgcItem': response},
             off: off,
           );
         } else {

@@ -81,7 +81,6 @@ import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/theme_utils.dart';
-import 'package:PiliPlus/utils/utils.dart';
 import 'package:extended_nested_scroll_view/extended_nested_scroll_view.dart';
 import 'package:flutter/foundation.dart' show kDebugMode, clampDouble;
 import 'package:flutter/services.dart' show SystemChrome;
@@ -175,9 +174,11 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   String? get _videoHeroTag {
     final args = Get.arguments;
     final tag = args is Map ? args['videoHeroTag'] : null;
-    if (tag is String && tag.isNotEmpty) return tag;
-    return Utils.videoHeroTag(videoDetailController.bvid);
+    return tag is String && tag.isNotEmpty ? tag : null;
   }
+
+  String? get _videoHeroInfoTag =>
+      VideoSpatialTransition.infoTagForMediaTag(_videoHeroTag);
 
   void _resetEnteringPipFlags() {
     _isEnteringPipMode = false;
@@ -211,9 +212,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   /// 规避路由转场偏移),否则为全局坐标(用于收起源矩形,pop/push 甫一触发
   /// 页面尚未移动,全局坐标即所见位置)
   Rect? _playerRect({bool relativeToPage = false}) {
-    final renderObject = videoDetailController
-        .videoPlayerKey
-        .currentContext
+    final renderObject = videoDetailController.videoPlayerKey.currentContext
         ?.findRenderObject();
     if (renderObject is! RenderBox ||
         !renderObject.attached ||
@@ -1140,151 +1139,133 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       (isWindowMode && isFullScreen && !isPortrait);
 
   Widget get childWhenDisabled {
-    return Obx(
-      () {
-        final isFullScreen = this.isFullScreen;
-        return SimpleScaffold(
-          appBar: removeAppBar(isFullScreen)
-              ? null
-              : Obx(
-                  () {
-                    final scrollRatio = videoDetailController.scrollRatio.value;
-                    final brightness = colorScheme.brightness;
-                    final Brightness statusBarBrightness;
-                    final Brightness statusBarIconBrightness;
-                    final backgroundColor = isPortrait && scrollRatio > 0
-                        ? Color.lerp(
-                            Colors.black,
-                            colorScheme.surface,
-                            scrollRatio,
-                          )!
-                        : Colors.black;
-                    if (isPortrait && scrollRatio >= 0.5) {
-                      statusBarBrightness = brightness;
-                      statusBarIconBrightness = brightness.reverse;
-                    } else {
-                      statusBarBrightness = .dark;
-                      statusBarIconBrightness = .light;
-                    }
-                    return SimpleAppBar(
-                      height: padding.top,
-                      backgroundColor: backgroundColor,
-                      brightness: brightness,
-                      statusBarBrightness: statusBarBrightness,
-                      statusBarIconBrightness: statusBarIconBrightness,
-                    );
-                  },
-                ),
-          body: ExtendedNestedScrollView(
-            onlyOneScrollInBody: true,
-            physics: platformClampingPhysics,
-            key: videoDetailController.scrollKey,
-            controller: videoDetailController.scrollCtr,
-            scrollBehavior: const NoOverscrollIndicator(),
-            pinnedHeaderSliverHeightBuilder: () {
-              double pinnedHeight = this.isFullScreen || !isPortrait
-                  ? maxHeight - (isWindowMode && !isPortrait ? 0 : padding.top)
-                  : videoDetailController.isExpanding ||
-                        videoDetailController.isCollapsing
-                  ? videoDetailController.animHeight
-                  : videoDetailController.isCollapsing ||
-                        (plPlayerController?.playerStatus.isPlaying ?? false)
-                  ? videoDetailController.minVideoHeight
-                  : kToolbarHeight;
-              if (videoDetailController.isExpanding &&
-                  videoDetailController.animationController.value == 1) {
-                videoDetailController.isExpanding = false;
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  videoDetailController.scrollRatio.value = 0;
-                  videoDetailController.refreshPage();
-                });
-              } else if (videoDetailController.isCollapsing &&
-                  videoDetailController.animationController.value == 1) {
-                videoDetailController.isCollapsing = false;
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  videoDetailController.refreshPage();
-                });
-              }
-              return pinnedHeight;
-            },
-            headerSliverBuilder: (context, innerBoxIsScrolled) {
-              final height = isFullScreen || !isPortrait
-                  ? maxHeight - (isWindowMode && !isPortrait ? 0 : padding.top)
-                  : videoDetailController.isExpanding ||
-                        videoDetailController.isCollapsing
-                  ? videoDetailController.animHeight
-                  : videoDetailController.videoHeight;
-              return [
-                VideoHeader(
-                  minExtent: kToolbarHeight,
-                  maxExtent: height,
-                  minVideoHeight: videoDetailController.minVideoHeight,
-                  onScrollRatioChanged: videoDetailController.scrollRatio.call,
-                  child: Stack(
-                    clipBehavior: .none,
-                    children: [
-                      // 溢出垫层，解决预测性返回缩放动画时的亚像素白缝
-                      const Positioned(
-                        top: -1,
-                        left: 0,
-                        right: 0,
-                        height: 2,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(color: Colors.black),
-                        ),
-                      ),
-                      SizedBox(
-                        width: maxWidth,
-                        height: height,
-                        child: DecoratedBox(
-                          decoration: const BoxDecoration(color: Colors.black),
-                          child: videoPlayer(
-                            width: maxWidth,
-                            height: height,
-                          ),
-                        ),
-                      ),
-                      _buildHeaderOverlay(),
-                    ],
+    return Obx(() {
+      final isFullScreen = this.isFullScreen;
+      return SimpleScaffold(
+        backgroundColor: _spatialPageBackground,
+        appBar: removeAppBar(isFullScreen)
+            ? null
+            : Obx(() {
+                final scrollRatio = videoDetailController.scrollRatio.value;
+                final brightness = colorScheme.brightness;
+                final Brightness statusBarBrightness;
+                final Brightness statusBarIconBrightness;
+                final backgroundColor = isPortrait && scrollRatio > 0
+                    ? Color.lerp(
+                        Colors.black,
+                        colorScheme.surface,
+                        scrollRatio,
+                      )!
+                    : Colors.black;
+                if (isPortrait && scrollRatio >= 0.5) {
+                  statusBarBrightness = brightness;
+                  statusBarIconBrightness = brightness.reverse;
+                } else {
+                  statusBarBrightness = .dark;
+                  statusBarIconBrightness = .light;
+                }
+                return VideoSpatialTransition.primaryChrome(
+                  child: SimpleAppBar(
+                    height: padding.top,
+                    backgroundColor: backgroundColor,
+                    brightness: brightness,
+                    statusBarBrightness: statusBarBrightness,
+                    statusBarIconBrightness: statusBarIconBrightness,
                   ),
-                ),
-              ];
-            },
-            body: MiniScaffold(
-              key: videoDetailController.childKey,
-              body: Column(
-                children: [
-                  buildTabBar(onTap: videoDetailController.animToTop),
-                  Expanded(
-                    child: wrapTabContent(
-                      tabBarView(
-                        hitTestBehavior: .translucent,
-                        controller: videoDetailController.tabCtr,
-                        children: [
-                          videoIntro(isHorizontal: false, needCtr: false),
-                          if (videoDetailController.showReply)
-                            videoReplyPanel(isNested: true),
-                          if (_shouldShowSeasonPanel) seasonPanel,
-                        ],
-                      ),
-                      // 竖屏：简介/评论滚整页，播放列表滚自身列表
-                      resolveCtr: () {
-                        final idx = videoDetailController.tabCtr.index;
-                        return _shouldShowSeasonPanel &&
-                                idx ==
-                                    (videoDetailController.showReply ? 2 : 1)
-                            ? _seasonScrollCtr()
-                            : videoDetailController.scrollCtr;
-                      },
+                );
+              }),
+        body: ExtendedNestedScrollView(
+          onlyOneScrollInBody: true,
+          physics: platformClampingPhysics,
+          key: videoDetailController.scrollKey,
+          controller: videoDetailController.scrollCtr,
+          scrollBehavior: const NoOverscrollIndicator(),
+          pinnedHeaderSliverHeightBuilder: () {
+            double pinnedHeight = this.isFullScreen || !isPortrait
+                ? maxHeight - (isWindowMode && !isPortrait ? 0 : padding.top)
+                : videoDetailController.isExpanding ||
+                      videoDetailController.isCollapsing
+                ? videoDetailController.animHeight
+                : videoDetailController.isCollapsing ||
+                      (plPlayerController?.playerStatus.isPlaying ?? false)
+                ? videoDetailController.minVideoHeight
+                : kToolbarHeight;
+            if (videoDetailController.isExpanding &&
+                videoDetailController.animationController.value == 1) {
+              videoDetailController.isExpanding = false;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                videoDetailController.scrollRatio.value = 0;
+                videoDetailController.refreshPage();
+              });
+            } else if (videoDetailController.isCollapsing &&
+                videoDetailController.animationController.value == 1) {
+              videoDetailController.isCollapsing = false;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                videoDetailController.refreshPage();
+              });
+            }
+            return pinnedHeight;
+          },
+          headerSliverBuilder: (context, innerBoxIsScrolled) {
+            final height = isFullScreen || !isPortrait
+                ? maxHeight - (isWindowMode && !isPortrait ? 0 : padding.top)
+                : videoDetailController.isExpanding ||
+                      videoDetailController.isCollapsing
+                ? videoDetailController.animHeight
+                : videoDetailController.videoHeight;
+            return [
+              VideoHeader(
+                minExtent: kToolbarHeight,
+                maxExtent: height,
+                minVideoHeight: videoDetailController.minVideoHeight,
+                onScrollRatioChanged: videoDetailController.scrollRatio.call,
+                child: Stack(
+                  clipBehavior: .none,
+                  children: [
+                    SizedBox(
+                      width: maxWidth,
+                      height: height,
+                      child: videoPlayer(width: maxWidth, height: height),
                     ),
-                  ),
-                ],
+                    _buildHeaderOverlay(),
+                  ],
+                ),
               ),
+            ];
+          },
+          body: MiniScaffold(
+            key: videoDetailController.childKey,
+            body: Column(
+              children: [
+                buildTabBar(onTap: videoDetailController.animToTop),
+                Expanded(
+                  child: wrapTabContent(
+                    tabBarView(
+                      hitTestBehavior: .translucent,
+                      controller: videoDetailController.tabCtr,
+                      children: [
+                        videoIntro(isHorizontal: false, needCtr: false),
+                        if (videoDetailController.showReply)
+                          videoReplyPanel(isNested: true),
+                        if (_shouldShowSeasonPanel) seasonPanel,
+                      ],
+                    ),
+                    // 竖屏：简介/评论滚整页，播放列表滚自身列表
+                    resolveCtr: () {
+                      final idx = videoDetailController.tabCtr.index;
+                      return _shouldShowSeasonPanel &&
+                              idx == (videoDetailController.showReply ? 2 : 1)
+                          ? _seasonScrollCtr()
+                          : videoDetailController.scrollCtr;
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
-        );
-      },
-    );
+        ),
+      );
+    });
   }
 
   Widget _buildOverlayToolBar(double scrollRatio) {
@@ -1305,10 +1286,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       mainAxisSize: .min,
       children: [
         Icon(icon, color: colorScheme.primary),
-        Text(
-          '$playStat播放',
-          style: TextStyle(color: colorScheme.primary),
-        ),
+        Text('$playStat播放', style: TextStyle(color: colorScheme.primary)),
       ],
     );
     return Opacity(
@@ -1389,66 +1367,65 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   }
 
   Widget _buildHeaderOverlay() {
-    return Obx(
-      () {
-        final scrollRatio = videoDetailController.scrollRatio.value;
-        if (scrollRatio == 0) {
-          return const SizedBox.shrink();
-        }
-        return Positioned.fill(
-          bottom: -1,
-          child: GestureDetector(
-            onTap: () {
-              if (!videoDetailController.isFileSource) {
-                if (videoDetailController.isQuerying) {
-                  if (kDebugMode) {
-                    debugPrint('handlePlay: querying');
-                  }
-                  return;
+    return Obx(() {
+      final scrollRatio = videoDetailController.scrollRatio.value;
+      if (scrollRatio == 0) {
+        return const SizedBox.shrink();
+      }
+      return Positioned.fill(
+        bottom: -1,
+        child: GestureDetector(
+          onTap: () {
+            if (!videoDetailController.isFileSource) {
+              if (videoDetailController.isQuerying) {
+                if (kDebugMode) {
+                  debugPrint('handlePlay: querying');
                 }
-                if (videoDetailController.videoUrl == null ||
-                    videoDetailController.audioUrl == null) {
-                  if (kDebugMode) {
-                    debugPrint('handlePlay: videoUrl/audioUrl not initialized');
-                  }
-                  videoDetailController.queryVideoUrl();
-                  return;
+                return;
+              }
+              if (videoDetailController.videoUrl == null ||
+                  videoDetailController.audioUrl == null) {
+                if (kDebugMode) {
+                  debugPrint('handlePlay: videoUrl/audioUrl not initialized');
                 }
+                videoDetailController.queryVideoUrl();
+                return;
               }
-              if (plPlayerController == null ||
-                  videoDetailController.playedTime == null) {
-                handlePlay();
-              } else {
-                plPlayerController!.onDoubleTapCenter();
-              }
-            },
-            behavior: .opaque,
-            child: _buildOverlayToolBar(scrollRatio),
-          ),
-        );
-      },
-    );
+            }
+            if (plPlayerController == null ||
+                videoDetailController.playedTime == null) {
+              handlePlay();
+            } else {
+              plPlayerController!.onDoubleTapCenter();
+            }
+          },
+          behavior: .opaque,
+          child: _buildOverlayToolBar(scrollRatio),
+        ),
+      );
+    });
   }
 
-  Widget get childWhenDisabledLandscape => Obx(
-    () {
-      final isFullScreen = this.isFullScreen;
-      return SimpleScaffold(
-        appBar: removeAppBar(isFullScreen)
-            ? null
-            : SimpleAppBar(
+  Widget get childWhenDisabledLandscape => Obx(() {
+    final isFullScreen = this.isFullScreen;
+    return SimpleScaffold(
+      backgroundColor: _spatialPageBackground,
+      appBar: removeAppBar(isFullScreen)
+          ? null
+          : VideoSpatialTransition.primaryChrome(
+              child: SimpleAppBar(
                 height: padding.top,
                 brightness: colorScheme.brightness,
               ),
-        body: Padding(
-          padding: isFullScreen
-              ? EdgeInsets.zero
-              : padding.copyWith(top: 0, bottom: 0),
-          child: childWhenDisabledLandscapeInner(isFullScreen),
-        ),
-      );
-    },
-  );
+            ),
+      body: Padding(
+        padding: isFullScreen
+            ? EdgeInsets.zero
+            : padding.copyWith(top: 0, bottom: 0),
+        child: childWhenDisabledLandscapeInner(isFullScreen),
+      ),
+    );
+  });
 
   Widget childSplit(double ratio) {
     final double videoHeight = maxHeight - padding.vertical;
@@ -1461,10 +1438,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         SizedBox(
           width: videoWidth,
           height: videoHeight,
-          child: videoPlayer(
-            width: videoWidth,
-            height: videoHeight,
-          ),
+          child: videoPlayer(width: videoWidth, height: videoHeight),
         ),
         Offstage(
           offstage: isFullScreen,
@@ -1482,11 +1456,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                       tabBarView(
                         controller: videoDetailController.tabCtr,
                         children: [
-                          videoIntro(
-                            width: introWidth,
-                            height: maxHeight,
-                          ),
-                          if (videoDetailController.showReply) videoReplyPanel(),
+                          videoIntro(width: introWidth, height: maxHeight),
+                          if (videoDetailController.showReply)
+                            videoReplyPanel(),
                           if (_shouldShowSeasonPanel) seasonPanel,
                         ],
                       ),
@@ -1519,19 +1491,13 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                 child: SizedBox(
                   width: introWidth,
                   height: introHeight,
-                  child: videoIntro(
-                    width: introWidth,
-                    height: introHeight,
-                  ),
+                  child: videoIntro(width: introWidth, height: introHeight),
                 ),
               ),
               SizedBox(
                 width: videoWidth,
                 height: videoHeight,
-                child: videoPlayer(
-                  width: videoWidth,
-                  height: videoHeight,
-                ),
+                child: videoPlayer(width: videoWidth, height: videoHeight),
               ),
               Offstage(
                 offstage: isFullScreen,
@@ -1609,10 +1575,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
             SizedBox(
               width: videoWidth,
               height: videoHeight,
-              child: videoPlayer(
-                width: videoWidth,
-                height: videoHeight,
-              ),
+              child: videoPlayer(width: videoWidth, height: videoHeight),
             ),
             if (!videoDetailController.isFileSource)
               Offstage(
@@ -1656,9 +1619,11 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                           else if (showIntro)
                             KeepAliveWrapper(
                               child: CustomScrollView(
-                                key: const PageStorageKey(CommonIntroController),
-                                controller:
-                                    videoDetailController.effectiveIntroScrollCtr,
+                                key: const PageStorageKey(
+                                  CommonIntroController,
+                                ),
+                                controller: videoDetailController
+                                    .effectiveIntroScrollCtr,
                                 slivers: [
                                   RelatedVideoPanel(
                                     key: videoRelatedKey,
@@ -1667,7 +1632,8 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                                 ],
                               ),
                             ),
-                          if (videoDetailController.showReply) videoReplyPanel(),
+                          if (videoDetailController.showReply)
+                            videoReplyPanel(),
                           if (_shouldShowSeasonPanel) seasonPanel,
                         ],
                       ),
@@ -1686,11 +1652,14 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   Widget get childWhenDisabledAlmostSquare => Obx(() {
     final isFullScreen = this.isFullScreen;
     return SimpleScaffold(
+      backgroundColor: _spatialPageBackground,
       appBar: removeAppBar(isFullScreen)
           ? null
-          : SimpleAppBar(
-              height: padding.top,
-              brightness: colorScheme.brightness,
+          : VideoSpatialTransition.primaryChrome(
+              child: SimpleAppBar(
+                height: padding.top,
+                brightness: colorScheme.brightness,
+              ),
             ),
       body: Padding(
         padding: isFullScreen
@@ -1703,15 +1672,13 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
   Widget childWhenDisabledAlmostSquareInner(bool isFullScreen) {
     if (enableVerticalExpand) {
-      return Obx(
-        () {
-          if (videoDetailController.isVertical.value && !isPortrait) {
-            return childSplit(9 / 16);
-          }
+      return Obx(() {
+        if (videoDetailController.isVertical.value && !isPortrait) {
+          return childSplit(9 / 16);
+        }
 
-          return _childWhenDisabledAlmostSquareInner(isFullScreen);
-        },
-      );
+        return _childWhenDisabledAlmostSquareInner(isFullScreen);
+      });
     }
 
     return _childWhenDisabledAlmostSquareInner(isFullScreen);
@@ -1730,10 +1697,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         SizedBox(
           width: maxWidth,
           height: videoHeight,
-          child: videoPlayer(
-            width: maxWidth,
-            height: videoHeight,
-          ),
+          child: videoPlayer(width: maxWidth, height: videoHeight),
         ),
         Offstage(
           offstage: isFullScreen,
@@ -1796,12 +1760,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                       FontAwesomeIcons.arrowLeft,
                       size: 15,
                       color: Colors.white,
-                      shadows: [
-                        Shadow(
-                          blurRadius: 1.5,
-                          color: Colors.black,
-                        ),
-                      ],
+                      shadows: [Shadow(blurRadius: 1.5, color: Colors.black)],
                     ),
                     onPressed: Get.back,
                   ),
@@ -1815,12 +1774,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                       FontAwesomeIcons.house,
                       size: 15,
                       color: Colors.white,
-                      shadows: [
-                        Shadow(
-                          blurRadius: 1.5,
-                          color: Colors.black,
-                        ),
-                      ],
+                      shadows: [Shadow(blurRadius: 1.5, color: Colors.black)],
                     ),
                     onPressed:
                         videoDetailController.plPlayerController.onCloseAll,
@@ -1829,21 +1783,12 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                 const Spacer(),
                 _moreBtn(
                   Colors.white,
-                  shadows: const [
-                    Shadow(
-                      blurRadius: 1.5,
-                      color: Colors.black,
-                    ),
-                  ],
+                  shadows: const [Shadow(blurRadius: 1.5, color: Colors.black)],
                 ),
               ],
             ),
           ),
-          Positioned(
-            right: 12,
-            top: height - 70,
-            child: const PlayIcon(),
-          ),
+          Positioned(right: 12, top: height - 70, child: const PlayIcon()),
         ],
       );
     }
@@ -1852,50 +1797,46 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
   Widget _moreBtn(Color color, {List<Shadow>? shadows}) =>
       StaticPopupMenuButton(
-    icon: Icon(
-      size: 22,
-      Icons.more_vert,
-      color: color,
-      shadows: shadows,
-    ),
-    itemBuilder: (BuildContext context) => <PopupMenuEntry>[
-      PopupMenuItem(
-        onTap: introController.viewLater,
-        child: const Text('稍后再看'),
-      ),
-      if (videoDetailController.epId == null)
-        PopupMenuItem(
-          onTap: () => videoDetailController.showNoteList(context),
-          child: const Text('查看笔记'),
-        ),
-      if (!videoDetailController.isFileSource)
-        PopupMenuItem(
-          onTap: () => videoDetailController.onDownload(this.context),
-          child: const Text('缓存视频'),
-        ),
-      if (videoDetailController.cover.value.isNotEmpty)
-        PopupMenuItem(
-          onTap: () =>
-              ImageUtils.downloadImg([videoDetailController.cover.value]),
-          child: const Text('保存封面'),
-        ),
-      if (!videoDetailController.isFileSource && videoDetailController.isUgc)
-        PopupMenuItem(
-          onTap: videoDetailController.toAudioPage,
-          child: const Text('听音频'),
-        ),
-      PopupMenuItem(
-        onTap: () {
-          if (!Accounts.main.isLogin) {
-            SmartDialog.showToast('账号未登录');
-          } else {
-            PageUtils.reportVideo(videoDetailController.aid);
-          }
-        },
-        child: const Text('举报'),
-      ),
-    ],
-  );
+        icon: Icon(size: 22, Icons.more_vert, color: color, shadows: shadows),
+        itemBuilder: (BuildContext context) => <PopupMenuEntry>[
+          PopupMenuItem(
+            onTap: introController.viewLater,
+            child: const Text('稍后再看'),
+          ),
+          if (videoDetailController.epId == null)
+            PopupMenuItem(
+              onTap: () => videoDetailController.showNoteList(context),
+              child: const Text('查看笔记'),
+            ),
+          if (!videoDetailController.isFileSource)
+            PopupMenuItem(
+              onTap: () => videoDetailController.onDownload(this.context),
+              child: const Text('缓存视频'),
+            ),
+          if (videoDetailController.cover.value.isNotEmpty)
+            PopupMenuItem(
+              onTap: () =>
+                  ImageUtils.downloadImg([videoDetailController.cover.value]),
+              child: const Text('保存封面'),
+            ),
+          if (!videoDetailController.isFileSource &&
+              videoDetailController.isUgc)
+            PopupMenuItem(
+              onTap: videoDetailController.toAudioPage,
+              child: const Text('听音频'),
+            ),
+          PopupMenuItem(
+            onTap: () {
+              if (!Accounts.main.isLogin) {
+                SmartDialog.showToast('账号未登录');
+              } else {
+                PageUtils.reportVideo(videoDetailController.aid);
+              }
+            },
+            child: const Text('举报'),
+          ),
+        ],
+      );
 
   Widget plPlayer({
     required double width,
@@ -1999,8 +1940,19 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         ? Theme(data: theme, child: child)
         : child;
     // 页面根参照系：归位目标矩形以此量取（规避路由转场期间的整页偏移）
-    return KeyedSubtree(key: _pageRootKey, child: page);
+    return KeyedSubtree(
+      key: _pageRootKey,
+      child: VideoSpatialTransition.pageSurface(
+        color: colorScheme.surface,
+        child: page,
+      ),
+    );
   }
+
+  Color? get _spatialPageBackground =>
+      VideoSpatialRouteScope.maybeOf(context)?.hasSource == true
+          ? Colors.transparent
+          : null;
 
   /// 包住 tab 内容区：方向键滚动当前激活 tab 的内容。
   /// [resolveCtr] 按布局分支返回该 tab 的滚动目标，null 时放行（音量控制）
@@ -2114,58 +2066,58 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
               );
             });
           } else {
-            return Tab(
-              child: Text(text, softWrap: false, overflow: .visible),
-            );
+            return Tab(child: Text(text, softWrap: false, overflow: .visible));
           }
         }).toList(),
       );
     }
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: theme.dividerColor.withValues(alpha: 0.1),
+    return VideoSpatialTransition.chrome(
+      startDelay: 0.01,
+      slideDistance: 5,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: theme.dividerColor.withValues(alpha: 0.1),
+            ),
           ),
         ),
-      ),
-      child: SizedBox(
-        height: 45,
-        child: Row(
-          children: [
-            if (tabs.isEmpty)
-              const Spacer()
-            else
-              Expanded(
-                child: Align(
-                  alignment: .centerLeft,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: 96.0 * tabs.length),
-                    child: tabBar(),
+        child: SizedBox(
+          height: 45,
+          child: Row(
+            children: [
+              if (tabs.isEmpty)
+                const Spacer()
+              else
+                Expanded(
+                  child: Align(
+                    alignment: .centerLeft,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: 96.0 * tabs.length),
+                      child: tabBar(),
+                    ),
+                  ),
+                ),
+              SizedBox(
+                height: 32,
+                child: TextButton(
+                  style: const ButtonStyle(
+                    padding: WidgetStatePropertyAll(.zero),
+                  ),
+                  onPressed: videoDetailController.showShootDanmakuSheet,
+                  child: Text(
+                    '发弹幕',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ),
-            SizedBox(
-              height: 32,
-              child: TextButton(
-                style: const ButtonStyle(
-                  padding: WidgetStatePropertyAll(.zero),
-                ),
-                onPressed: videoDetailController.showShootDanmakuSheet,
-                child: Text(
-                  '发弹幕',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ),
-            SizedBox.square(
-              dimension: 38,
-              child: Obx(
-                () {
+              SizedBox.square(
+                dimension: 38,
+                child: Obx(() {
                   final ctr = videoDetailController.plPlayerController;
                   final enableShowDanmaku = ctr.enableShowDanmaku.value;
                   return IconButton(
@@ -2189,11 +2141,11 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                           : colorScheme.outline,
                     ),
                   );
-                },
+                }),
               ),
-            ),
-            const SizedBox(width: 14),
-          ],
+              const SizedBox(width: 14),
+            ],
+          ),
         ),
       ),
     );
@@ -2201,36 +2153,10 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
   Widget videoPlayer({required double width, required double height}) {
     final isFullScreen = this.isFullScreen;
-    // 点/悬停视频区 → 归还键盘焦点给播放器（方向键恢复音量控制）
-    return MouseRegion(
-      onEnter: (_) => playerFocusNode.requestFocus(),
-      child: Listener(
-        onPointerDown: (_) => playerFocusNode.requestFocus(),
-        child: VideoHero(
-          tag: _videoHeroTag,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-        Obx(() {
-          final cover = videoDetailController.cover.value;
-          return Positioned.fill(
-            child: ColoredBox(
-              color: Colors.black,
-              isAntiAlias: false,
-              child: cover.isEmpty
-                  ? const SizedBox.shrink()
-                  : NetworkImgLayer(
-                      src: cover,
-                      width: width,
-                      height: height,
-                      fit: BoxFit.contain,
-                      borderRadius: BorderRadius.zero,
-                      getPlaceHolder: () => const SizedBox.shrink(),
-                    ),
-            ),
-          );
-        }),
-
+    final poster = _buildVideoPoster(width: width, height: height);
+    final playerContent = Stack(
+      clipBehavior: Clip.none,
+      children: [
         plPlayer(width: width, height: height),
 
         Obx(() {
@@ -2247,9 +2173,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                     width: width,
                     height: height,
                     cacheWidth: true,
-                    getPlaceHolder: () => Center(
-                      child: Image.asset(Assets.loading),
-                    ),
+                    borderRadius: BorderRadius.zero,
+                    getPlaceHolder: () =>
+                        Center(child: Image.asset(Assets.loading)),
                   ),
                 ),
               ),
@@ -2311,78 +2237,109 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         //     child: const Text('index'),
         //   ),
         // ),
-        Obx(
-          () {
-            if (videoDetailController.showSteinEdgeInfo.value) {
-              try {
-                return Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      left: 16,
-                      right: 16,
-                      bottom: plPlayerController?.showControls.value == true
-                          ? 75
-                          : 16,
-                    ),
-                    child: Wrap(
-                      spacing: 25,
-                      runSpacing: 10,
-                      children: videoDetailController
-                          .steinEdgeInfo!
-                          .edges!
-                          .questions!
-                          .first
-                          .choices!
-                          .map((item) {
-                            return FilledButton.tonal(
-                              style: FilledButton.styleFrom(
-                                shape: const RoundedRectangleBorder(
-                                  borderRadius: .all(.circular(6)),
-                                ),
-                                backgroundColor: theme
-                                    .colorScheme
-                                    .secondaryContainer
-                                    .withValues(alpha: 0.8),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 15,
-                                  vertical: 10,
-                                ),
-                                visualDensity: VisualDensity.compact,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              onPressed: () {
-                                ugcIntroController.onChangeEpisode(
-                                  item,
-                                  isStein: true,
-                                );
-                                videoDetailController.getSteinEdgeInfo(item.id);
-                              },
-                              child: Text(item.option!),
-                            );
-                          })
-                          .toList(),
-                    ),
+        Obx(() {
+          if (videoDetailController.showSteinEdgeInfo.value) {
+            try {
+              return Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: 16,
+                    right: 16,
+                    bottom: plPlayerController?.showControls.value == true
+                        ? 75
+                        : 16,
                   ),
-                );
-              } catch (e) {
-                if (kDebugMode) debugPrint('build stein edges: $e');
-                return const SizedBox.shrink();
-              }
+                  child: Wrap(
+                    spacing: 25,
+                    runSpacing: 10,
+                    children: videoDetailController
+                        .steinEdgeInfo!
+                        .edges!
+                        .questions!
+                        .first
+                        .choices!
+                        .map((item) {
+                          return FilledButton.tonal(
+                            style: FilledButton.styleFrom(
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: .all(.circular(6)),
+                              ),
+                              backgroundColor: theme
+                                  .colorScheme
+                                  .secondaryContainer
+                                  .withValues(alpha: 0.8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 15,
+                                vertical: 10,
+                              ),
+                              visualDensity: VisualDensity.compact,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            onPressed: () {
+                              ugcIntroController.onChangeEpisode(
+                                item,
+                                isStein: true,
+                              );
+                              videoDetailController.getSteinEdgeInfo(item.id);
+                            },
+                            child: Text(item.option!),
+                          );
+                        })
+                        .toList(),
+                  ),
+                ),
+              );
+            } catch (e) {
+              if (kDebugMode) debugPrint('build stein edges: $e');
+              return const SizedBox.shrink();
             }
-            return const SizedBox.shrink();
-          },
-        ),
-            ],
-          ),
+          }
+          return const SizedBox.shrink();
+        }),
+      ],
+    );
+    // 点/悬停视频区 → 归还键盘焦点给播放器（方向键恢复音量控制）
+    return MouseRegion(
+      onEnter: (_) => playerFocusNode.requestFocus(),
+      child: Listener(
+        onPointerDown: (_) => playerFocusNode.requestFocus(),
+        child: VideoSpatialTransition.destination(
+          tag: _videoHeroTag,
+          poster: poster,
+          child: playerContent,
+          liveReadiness: plPlayerController?.videoOutputReady,
         ),
       ),
     );
   }
 
-  Widget localIntroPanel({
-    bool needCtr = true,
-  }) {
+  Widget _buildVideoPoster({required double width, required double height}) {
+    return Obx(() {
+      final cover = videoDetailController.cover.value;
+      return SizedBox(
+        width: width,
+        height: height,
+        child: ColoredBox(
+          color: Colors.black,
+          child: cover.isEmpty
+              ? const SizedBox.shrink()
+              : NetworkImgLayer(
+                  src: cover,
+                  width: width,
+                  height: height,
+                  fit: BoxFit.contain,
+                  borderRadius: BorderRadius.zero,
+                  fadeInDuration: Duration.zero,
+                  fadeOutDuration: Duration.zero,
+                  getPlaceHolder: () => const SizedBox.shrink(),
+                ),
+        ),
+      );
+    });
+  }
+
+  Widget localIntroPanel({bool needCtr = true}) {
     return CustomScrollView(
       controller: needCtr
           ? videoDetailController.effectiveIntroScrollCtr
@@ -2392,10 +2349,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       slivers: [
         SliverPadding(
           padding: EdgeInsets.only(top: 7, bottom: padding.bottom + 100),
-          sliver: LocalIntroPanel(
-            key: videoRelatedKey,
-            heroTag: heroTag,
-          ),
+          sliver: LocalIntroPanel(key: videoRelatedKey, heroTag: heroTag),
         ),
       ],
     );
@@ -2408,125 +2362,182 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     bool needRelated = true,
     bool needCtr = true,
   }) {
+    late Widget child;
     if (videoDetailController.isFileSource) {
-      return localIntroPanel(needCtr: needCtr);
-    }
-    Widget child = CustomScrollView(
-      key: const PageStorageKey(CommonIntroController),
-      controller: needCtr
-          ? videoDetailController.effectiveIntroScrollCtr
-          : null,
-      physics: !needCtr ? platformAlwaysClampingPhysics : null,
-      slivers: [
-        if (videoDetailController.isUgc) ...[
-          UgcIntroPanel(
-            key: videoIntroKey,
-            heroTag: heroTag,
-            showAiBottomSheet: showAiBottomSheet,
-            showAiChatBottomSheet: showAiChatBottomSheet,
-            showEpisodes: showEpisodes,
-            onShowMemberPage: onShowMemberPage,
-            isPortrait: isPortrait,
-            isHorizontal: isHorizontal ?? width! / height! >= kScreenRatio,
-          ),
-          if (needRelated && videoDetailController.showRelatedVideo) ...[
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.only(
-                  top: Style.safeSpace,
-                ),
-                child: Divider(
-                  height: 1,
-                  indent: 12,
-                  endIndent: 12,
-                  color: colorScheme.outline.withValues(alpha: .08),
+      child = localIntroPanel(needCtr: needCtr);
+    } else {
+      child = CustomScrollView(
+        key: const PageStorageKey(CommonIntroController),
+        controller: needCtr
+            ? videoDetailController.effectiveIntroScrollCtr
+            : null,
+        physics: !needCtr ? platformAlwaysClampingPhysics : null,
+        slivers: [
+          if (videoDetailController.isUgc) ...[
+            UgcIntroPanel(
+              key: videoIntroKey,
+              heroTag: heroTag,
+              infoHeroTag: _videoHeroInfoTag,
+              showAiBottomSheet: showAiBottomSheet,
+              showAiChatBottomSheet: showAiChatBottomSheet,
+              showEpisodes: showEpisodes,
+              onShowMemberPage: onShowMemberPage,
+              isPortrait: isPortrait,
+              isHorizontal: isHorizontal ?? width! / height! >= kScreenRatio,
+            ),
+            if (needRelated && videoDetailController.showRelatedVideo) ...[
+              VideoSpatialTransition.secondarySliver(
+                sliver: SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: Style.safeSpace),
+                    child: Divider(
+                      height: 1,
+                      indent: 12,
+                      endIndent: 12,
+                      color: colorScheme.outline.withValues(alpha: .08),
+                    ),
+                  ),
                 ),
               ),
+              RelatedVideoPanel(
+                key: videoRelatedKey,
+                heroTag: heroTag,
+              ),
+            ],
+          ] else
+            PgcIntroPage(
+              key: videoIntroKey,
+              heroTag: heroTag,
+              cid: videoDetailController.cid.value,
+              showEpisodes: showEpisodes,
+              showIntroDetail: showIntroDetail,
+              maxWidth: width ?? maxWidth,
+              isLandscape: !isPortrait,
             ),
-            RelatedVideoPanel(key: videoRelatedKey, heroTag: heroTag),
-          ],
-        ] else
-          PgcIntroPage(
-            key: videoIntroKey,
-            heroTag: heroTag,
-            cid: videoDetailController.cid.value,
-            showEpisodes: showEpisodes,
-            showIntroDetail: showIntroDetail,
-            maxWidth: width ?? maxWidth,
-            isLandscape: !isPortrait,
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height:
+                  (videoDetailController.isPlayAll && !isPortrait
+                      ? 80
+                      : Style.safeSpace) +
+                  padding.bottom,
+            ),
           ),
-        SliverToBoxAdapter(
-          child: SizedBox(
-            height:
-                (videoDetailController.isPlayAll && !isPortrait
-                    ? 80
-                    : Style.safeSpace) +
-                padding.bottom,
-          ),
-        ),
-      ],
-    );
+        ],
+      );
 
-    if (videoDetailController.isPlayAll) {
-      child = IntroLayout(
-        body: child,
-        playlist: Padding(
-          padding: .only(left: 12, right: 12, bottom: 12 + padding.bottom),
-          child: Material(
-            type: .transparency,
-            child: InkWell(
-              onTap: () => videoDetailController.showMediaListPanel(context),
-              borderRadius: const .all(.circular(14)),
-              child: Container(
-                height: 54,
-                padding: const .symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: colorScheme.secondaryContainer.withValues(alpha: 0.95),
-                  borderRadius: const .all(.circular(14)),
-                ),
-                child: Row(
-                  spacing: 10,
-                  children: [
-                    const Icon(Icons.playlist_play, size: 24),
-                    Expanded(
-                      child: Text(
-                        videoDetailController.watchLaterTitle,
-                        style: TextStyle(
-                          color: colorScheme.onSecondaryContainer,
-                          fontWeight: .bold,
-                          letterSpacing: 0.2,
+      if (videoDetailController.isPlayAll) {
+        child = IntroLayout(
+          body: child,
+          playlist: Padding(
+            padding: .only(left: 12, right: 12, bottom: 12 + padding.bottom),
+            child: Material(
+              type: .transparency,
+              child: InkWell(
+                onTap: () => videoDetailController.showMediaListPanel(context),
+                borderRadius: const .all(.circular(14)),
+                child: Container(
+                  height: 54,
+                  padding: const .symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: colorScheme.secondaryContainer.withValues(
+                      alpha: 0.95,
+                    ),
+                    borderRadius: const .all(.circular(14)),
+                  ),
+                  child: Row(
+                    spacing: 10,
+                    children: [
+                      const Icon(Icons.playlist_play, size: 24),
+                      Expanded(
+                        child: Text(
+                          videoDetailController.watchLaterTitle,
+                          style: TextStyle(
+                            color: colorScheme.onSecondaryContainer,
+                            fontWeight: .bold,
+                            letterSpacing: 0.2,
+                          ),
                         ),
                       ),
-                    ),
-                    const Icon(Icons.keyboard_arrow_up_rounded, size: 26),
-                  ],
+                      const Icon(Icons.keyboard_arrow_up_rounded, size: 26),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      );
+        );
+      }
     }
+    // The intro header owns the info Hero. Related/comments are animated at
+    // their own sliver/widget boundaries so the header does not fade as a
+    // duplicate destination page beneath the flight.
     return KeepAliveWrapper(child: child);
   }
 
   Widget get seasonPanel {
     final videoDetail = ugcIntroController.videoDetail.value;
-    return KeepAliveWrapper(
-      child: Column(
-        children: [
-          if ((videoDetail.pages?.length ?? 0) > 1)
-            if (videoDetail.ugcSeason != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: PagesPanel(
-                  heroTag: heroTag,
-                  ugcIntroController: ugcIntroController,
-                  bvid: ugcIntroController.bvid,
-                  showEpisodes: showEpisodes,
+    return VideoSpatialTransition.chrome(
+      child: KeepAliveWrapper(
+        child: Column(
+          children: [
+            if ((videoDetail.pages?.length ?? 0) > 1)
+              if (videoDetail.ugcSeason != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: PagesPanel(
+                    heroTag: heroTag,
+                    ugcIntroController: ugcIntroController,
+                    bvid: ugcIntroController.bvid,
+                    showEpisodes: showEpisodes,
+                  ),
+                )
+              else
+                Expanded(
+                  child: Obx(
+                    () => EpisodePanel(
+                      key: seasonEpisodeKey,
+                      heroTag: heroTag,
+                      enableSlide: false,
+                      ugcIntroController: videoDetailController.isUgc
+                          ? ugcIntroController
+                          : null,
+                      type: EpisodeType.part,
+                      list: [videoDetail.pages!],
+                      cover: videoDetailController.cover.value,
+                      bvid: videoDetailController.bvid,
+                      aid: videoDetailController.aid,
+                      cid: videoDetailController.cid.value,
+                      listOrder: videoDetail.listOrder,
+                      onChangeEpisode: videoDetailController.isUgc
+                          ? ugcIntroController.onChangeEpisode
+                          : pgcIntroController.onChangeEpisode,
+                      showTitle: false,
+                      isSupportReverse: videoDetailController.isUgc,
+                      onReverse: () => onReversePlay(isSeason: false),
+                    ),
+                  ),
                 ),
-              )
-            else
+            if (videoDetail.ugcSeason != null) ...[
+              if ((videoDetail.pages?.length ?? 0) > 1) ...[
+                const SizedBox(height: 8),
+                Divider(
+                  height: 1,
+                  color: colorScheme.outline.withValues(alpha: 0.1),
+                ),
+              ],
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Obx(
+                  () => SeasonPanel(
+                    key: ValueKey(introController.videoDetail.value),
+                    heroTag: heroTag,
+                    canTap: false,
+                    showEpisodes: showEpisodes,
+                    ugcIntroController: ugcIntroController,
+                  ),
+                ),
+              ),
               Expanded(
                 child: Obx(
                   () => EpisodePanel(
@@ -2536,85 +2547,46 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                     ugcIntroController: videoDetailController.isUgc
                         ? ugcIntroController
                         : null,
-                    type: EpisodeType.part,
-                    list: [videoDetail.pages!],
+                    type: EpisodeType.season,
+                    initialTabIndex: videoDetailController.seasonIndex.value,
                     cover: videoDetailController.cover.value,
+                    seasonId: videoDetail.ugcSeason!.id,
+                    list: videoDetail.ugcSeason!.sections!,
                     bvid: videoDetailController.bvid,
                     aid: videoDetailController.aid,
-                    cid: videoDetailController.cid.value,
-                    listOrder: videoDetail.listOrder,
+                    cid: videoDetailController.seasonCid ?? 0,
+                    listOrder: ugcIntroController
+                        .videoDetail
+                        .value
+                        .ugcSeason!
+                        .sections![videoDetailController.seasonIndex.value]
+                        .listOrder,
                     onChangeEpisode: videoDetailController.isUgc
                         ? ugcIntroController.onChangeEpisode
                         : pgcIntroController.onChangeEpisode,
                     showTitle: false,
                     isSupportReverse: videoDetailController.isUgc,
-                    onReverse: () => onReversePlay(isSeason: false),
+                    onReverse: () => onReversePlay(isSeason: true),
                   ),
                 ),
               ),
-          if (videoDetail.ugcSeason != null) ...[
-            if ((videoDetail.pages?.length ?? 0) > 1) ...[
-              const SizedBox(height: 8),
-              Divider(
-                height: 1,
-                color: colorScheme.outline.withValues(alpha: 0.1),
-              ),
             ],
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Obx(
-                () => SeasonPanel(
-                  key: ValueKey(introController.videoDetail.value),
-                  heroTag: heroTag,
-                  canTap: false,
-                  showEpisodes: showEpisodes,
-                  ugcIntroController: ugcIntroController,
-                ),
-              ),
-            ),
-            Expanded(
-              child: Obx(
-                () => EpisodePanel(
-                  key: seasonEpisodeKey,
-                  heroTag: heroTag,
-                  enableSlide: false,
-                  ugcIntroController: videoDetailController.isUgc
-                      ? ugcIntroController
-                      : null,
-                  type: EpisodeType.season,
-                  initialTabIndex: videoDetailController.seasonIndex.value,
-                  cover: videoDetailController.cover.value,
-                  seasonId: videoDetail.ugcSeason!.id,
-                  list: videoDetail.ugcSeason!.sections!,
-                  bvid: videoDetailController.bvid,
-                  aid: videoDetailController.aid,
-                  cid: videoDetailController.seasonCid ?? 0,
-                  listOrder: ugcIntroController
-                      .videoDetail
-                      .value
-                      .ugcSeason!
-                      .sections![videoDetailController.seasonIndex.value]
-                      .listOrder,
-                  onChangeEpisode: videoDetailController.isUgc
-                      ? ugcIntroController.onChangeEpisode
-                      : pgcIntroController.onChangeEpisode,
-                  showTitle: false,
-                  isSupportReverse: videoDetailController.isUgc,
-                  onReverse: () => onReversePlay(isSeason: true),
-                ),
-              ),
-            ),
           ],
-        ],
+        ),
       ),
     );
   }
 
-  Widget videoReplyPanel({bool isNested = false}) => VideoReplyPanel(
-    key: videoReplyPanelKey,
-    isNested: isNested,
-    heroTag: heroTag,
-  );
+  Widget videoReplyPanel({bool isNested = false}) =>
+      VideoSpatialTransition.chrome(
+        startDelay: 0.0,
+        slideDistance: 8,
+        child: VideoReplyPanel(
+          key: videoReplyPanelKey,
+          isNested: isNested,
+          heroTag: heroTag,
+        ),
+      );
 
   // ai总结
   void showAiBottomSheet() {
@@ -2639,10 +2611,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   ) {
     videoDetailController.childKey.currentState?.showBottomSheet(
       constraints: const BoxConstraints(),
-      (context) => PgcIntroPanel(
-        item: videoDetail,
-        videoTags: videoTags,
-      ),
+      (context) => PgcIntroPanel(item: videoDetail, videoTags: videoTags),
     );
   }
 
@@ -3025,8 +2994,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         final currentPosition = plPlayerController?.positionInMilliseconds;
         final args = Map<String, dynamic>.from(videoDetailController.args);
         final progress =
-            currentPosition ??
-            videoDetailController.playedTime?.inMilliseconds;
+            currentPosition ?? videoDetailController.playedTime?.inMilliseconds;
         if (progress != null) {
           args['progress'] = progress;
         }
