@@ -81,11 +81,7 @@ class Routes {
     // 热门
     GetPage(name: '/hot', page: () => const HotPage()),
     // 视频详情
-    GetPage(
-      name: '/videoV',
-      page: () => const VideoDetailPageV(),
-      transition: Transition.native,
-    ),
+    GetPage(name: '/videoV', page: () => const VideoDetailPageV()),
     //
     GetPage(name: '/webview', page: () => const WebviewPage()),
     // 设置
