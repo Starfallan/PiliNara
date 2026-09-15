@@ -552,18 +552,12 @@ class _MainAppState extends PopScopeState<MainApp>
                 width: MediaQuery.sizeOf(context).width,
                 height: MediaQuery.sizeOf(context).height,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: _colorScheme.brightness == Brightness.light
-                        ? [
-                            _colorScheme.primaryContainer.withValues(alpha: 0.6),
-                            _colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
-                            _colorScheme.surface,
-                          ]
-                        : [
-                            _colorScheme.primary.withValues(alpha: 0.6),
-                            _colorScheme.primaryContainer.withValues(alpha: 0.6),
-                            _colorScheme.surface,
-                          ],
+                gradient: LinearGradient(
+                    colors: [
+                      Theme.of(context).colorScheme.primary.withValues(alpha: 0.6),
+                      Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.6),
+                      Theme.of(context).colorScheme.surface,
+                    ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     stops: const [0.1, 0.4, 0.7],
