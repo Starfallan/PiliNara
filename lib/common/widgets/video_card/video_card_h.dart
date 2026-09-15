@@ -115,7 +115,7 @@ class VideoCardH extends StatelessWidget {
                         return Stack(
                           clipBehavior: .none,
                           children: [
-                              NetworkImgLayer(
+                            NetworkImgLayer(
                               src: videoItem.cover,
                               width: maxWidth,
                               height: maxHeight,
