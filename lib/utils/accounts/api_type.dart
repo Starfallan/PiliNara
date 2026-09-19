@@ -89,6 +89,7 @@ abstract final class ApiType {
       Api.searchDefault,
       Api.searchSuggest,
       Api.searchByType,
+      Api.searchAll,
       Api.dynSearch,
       Api.searchArchive,
       Api.liveSearch,

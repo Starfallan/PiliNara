@@ -1,5 +1,5 @@
 import 'dart:async' show FutureOr;
-import 'dart:io' show File, Platform;
+import 'dart:io' show Directory, File, Platform;
 import 'dart:math' as math;
 import 'dart:typed_data' show Uint8List;
 
@@ -14,6 +14,8 @@ import 'package:PiliPlus/utils/path_utils.dart';
 import 'package:PiliPlus/utils/permission_handler.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/share_utils.dart';
+import 'package:PiliPlus/utils/storage.dart';
+import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:clipboard/clipboard.dart';
@@ -22,6 +24,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:live_photo_maker/live_photo_maker.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:path/path.dart' as path;
 import 'package:saver_gallery/saver_gallery.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -30,6 +33,19 @@ abstract final class ImageUtils {
   static final _albumPath = Platform.isAndroid
       ? 'Pictures/${Constants.appName}'
       : Constants.appName;
+
+  static String? imageSavePath = _initImageSavePath();
+  static String? _initImageSavePath() {
+    final path = Pref.imageSavePath;
+    if (path != null) {
+      if (Directory(path).existsSync()) {
+        return path;
+      } else {
+        GStorage.setting.delete(SettingBoxKey.imageSavePath);
+      }
+    }
+    return null;
+  }
 
   // 图片分享
   static Future<void> onShareImg(String url) async {
@@ -301,16 +317,21 @@ abstract final class ImageUtils {
       }
     } else {
       SmartDialog.dismiss();
-      final savePath = await FilePicker.saveFile(
-        type: FileType.image,
-        fileName: fileName,
-        bytes: Uint8List(0),
-      );
-      if (savePath == null) {
-        SmartDialog.showToast("取消保存");
-        return null;
+      final String? savePath;
+      if (imageSavePath != null) {
+        savePath = path.join(imageSavePath!, fileName);
+      } else {
+        savePath = (await FilePicker.saveFile(
+          type: FileType.image,
+          fileName: fileName,
+          bytes: Uint8List(0),
+        ))?.toFilePath();
+        if (savePath == null) {
+          SmartDialog.showToast("取消保存");
+          return null;
+        }
       }
-      await File(savePath.toFilePath()).writeAsBytes(bytes);
+      await File(savePath).writeAsBytes(bytes);
       SmartDialog.showToast(' 已保存 ');
       res = SaveResult(true, null);
     }
@@ -337,16 +358,21 @@ abstract final class ImageUtils {
         skipIfExists: false,
       );
     } else {
-      final savePath = await FilePicker.saveFile(
-        type: type,
-        fileName: fileName,
-        bytes: Uint8List(0),
-      );
-      if (savePath == null) {
-        SmartDialog.showToast("取消保存");
-        return;
+      final String? savePath;
+      if (imageSavePath != null) {
+        savePath = path.join(imageSavePath!, fileName);
+      } else {
+        savePath = (await FilePicker.saveFile(
+          type: type,
+          fileName: fileName,
+          bytes: Uint8List(0),
+        ))?.toFilePath();
+        if (savePath == null) {
+          SmartDialog.showToast("取消保存");
+          return;
+        }
       }
-      await file.copy(savePath.toFilePath());
+      await file.copy(savePath);
       res = SaveResult(true, null);
     }
     if (needToast) {

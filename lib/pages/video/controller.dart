@@ -10,6 +10,8 @@ import 'package:PiliPlus/common/widgets/progress_bar/segment_progress_bar.dart';
 import 'package:PiliPlus/common/widgets/scaffold/mini_scaffold.dart';
 import 'package:PiliPlus/grpc/bilibili/app/listener/v1.pbenum.dart'
     show PlaylistSource;
+import 'package:PiliPlus/grpc/bilibili/community/service/dm/v1.pb.dart'
+    show DanmakuElem;
 import 'package:PiliPlus/grpc/dm.dart';
 import 'package:PiliPlus/http/browser_ua.dart';
 import 'package:PiliPlus/http/fav.dart';
@@ -156,9 +158,12 @@ class VideoDetailController extends GetxController
   String? audioUrl;
   Duration? defaultST;
   Duration? playedTime;
-  String get playedTimePos {
+  String playedTimePos(bool hasParams) {
     final pos = playedTime?.inMilliseconds;
-    return pos == null || pos == 0 ? '' : '?t=${pos / 1000}';
+    if (pos != null && pos > 0) {
+      return '${hasParams ? '&' : '?'}t=${pos / 1000}';
+    }
+    return '';
   }
 
   // 亮度
@@ -994,6 +999,10 @@ class VideoDetailController extends GetxController
         _getDmTrend();
       }
 
+      if (Pref.enableDmCount && dmCount.value == null) {
+        _getDmCount();
+      }
+
       if (plPlayerController.enableBlock) {
         initSkip();
       }
@@ -1752,6 +1761,11 @@ class VideoDetailController extends GetxController
 
     playedTime = null;
     _dmTrendTaskId++;
+    // 切分P/视频时作废全量弹幕任务并清空弹幕数
+    _dmFetchTaskId++;
+    _dmElemsFuture = null;
+    _dmElemsCid = null;
+    dmCount.value = null;
     defaultST = null;
     videoUrl = null;
     audioUrl = null;
@@ -1794,6 +1808,36 @@ class VideoDetailController extends GetxController
       Rx<LoadingState<List<double>>?>(null);
   late final RxBool showDmTrendChart = true.obs;
   int _dmTrendTaskId = 0;
+
+  /// 当前分P弹幕数（null 表示尚未就绪）
+  late final Rx<int?> dmCount = Rx<int?>(null);
+  int _dmFetchTaskId = 0;
+  int? _dmElemsCid;
+  Future<List<DanmakuElem>?>? _dmElemsFuture;
+
+  /// 拉取当前分P的全量弹幕；同一分P内复用结果，避免与高能进度条重复请求
+  Future<List<DanmakuElem>?> _fetchAllDanmaku() {
+    final cached = _dmElemsFuture;
+    if (_dmElemsCid == cid.value && cached != null) {
+      return cached;
+    }
+    final taskId = ++_dmFetchTaskId;
+    bool shouldCancel() => taskId != _dmFetchTaskId || isClosed;
+    final durationMs =
+        data.timeLength ?? plPlayerController.durationInMilliseconds;
+    return _dmElemsFuture = DanmakuDensityTrend.fetchAll(
+      cid: cid.value,
+      durationMs: durationMs,
+      shouldCancel: shouldCancel,
+    );
+  }
+
+  Future<void> _getDmCount() async {
+    if (isFileSource) return;
+    final elems = await _fetchAllDanmaku();
+    if (elems == null || isClosed) return;
+    dmCount.value = elems.length;
+  }
 
   Future<void> _getDmTrend() async {
     final source = plPlayerController.dmChartSource;
@@ -1873,10 +1917,12 @@ class VideoDetailController extends GetxController
     try {
       final durationMs =
           data.timeLength ?? plPlayerController.durationInMilliseconds;
+      final elems = await _fetchAllDanmaku();
+      if (shouldCancel() || elems == null) return null;
       return await DanmakuDensityTrend.build(
         cid: cid.value,
         durationMs: durationMs,
-        shouldCancel: shouldCancel,
+        elems: elems,
       );
     } catch (e, s) {
       if (kDebugMode) debugPrint('_tryBuildLocalDmTrend: $e');

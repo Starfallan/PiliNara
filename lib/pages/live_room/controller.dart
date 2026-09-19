@@ -712,7 +712,7 @@ class LiveRoomController extends GetxController {
   }
 
   void initDm(LiveDmInfoData info) {
-    if (info.hostList.isNullOrEmpty) {
+    if (info.hostList.isEmpty) {
       return;
     }
     _msgStream =

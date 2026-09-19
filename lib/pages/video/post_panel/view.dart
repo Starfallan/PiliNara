@@ -113,6 +113,7 @@ class PostPanel extends CommonSlidePage {
                 final textField = TextFormField(
                   initialValue: value,
                   autofocus: true,
+                  textInputAction: .done,
                   onChanged: (value) => initV = value,
                   decoration: PlatformUtils.isMobile
                       ? const InputDecoration(

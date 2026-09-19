@@ -486,11 +486,14 @@ abstract final class RequestUtils {
                 TextButton(
                   onPressed: () {
                     if (checkedId != null) {
-                      final removeList = ctr.allChecked.toSet();
+                      final isFav = ctr is BaseFavController;
+                      final removeList = isFav
+                          ? ctr.allChecked.toList().reversed
+                          : ctr.allChecked.toSet();
                       SmartDialog.showLoading();
                       FavHttp.copyOrMoveFav(
                         isCopy: isCopy,
-                        isFav: ctr is BaseFavController,
+                        isFav: isFav,
                         srcMediaId: mediaId,
                         tarMediaId: checkedId,
                         resources: removeList
@@ -510,6 +513,11 @@ abstract final class RequestUtils {
                             ctr.loadingState
                               ..value.data!.removeWhere(removeList.contains)
                               ..refresh();
+                            if (isFav) {
+                              (ctr as BaseFavController).updateCount?.call(
+                                removeList.length,
+                              );
+                            }
                           }
                           SmartDialog.dismiss();
                           SmartDialog.showToast('${isCopy ? '复制' : '移动'}成功');

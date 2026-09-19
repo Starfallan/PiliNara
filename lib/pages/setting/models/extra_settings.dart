@@ -3,6 +3,7 @@ import 'dart:math' show max;
 
 import 'package:PiliPlus/common/widgets/custom_icon.dart';
 import 'package:PiliPlus/common/widgets/dialog/simple_dialog_option.dart';
+import 'package:PiliPlus/common/widgets/emote_tooltip.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart'
     show RefreshIndicator, displacement, refreshDragExtent;
 import 'package:PiliPlus/common/widgets/gesture/horizontal_drag_gesture_recognizer.dart'
@@ -76,6 +77,12 @@ List<SettingsModel> get extraSettings => [
       getSubtitle: () => downloadPath,
       leading: const Icon(Icons.storage),
       onTap: _showDownPathDialog,
+    ),
+    NormalModel(
+      title: '图片保存路径',
+      getSubtitle: () => ImageUtils.imageSavePath ?? '未设置',
+      leading: const Icon(Icons.image_outlined),
+      onTap: _showImageSavePathDialog,
     ),
   ] else if (Platform.isAndroid)
     SwitchModel(
@@ -376,6 +383,13 @@ List<SettingsModel> get extraSettings => [
     setKey: SettingBoxKey.showDecorate,
     defaultVal: true,
     onChanged: (value) => PendantAvatar.showDecorate = value,
+  ),
+  SwitchModel(
+    title: '点击表情显示 Tooltip',
+    leading: const Icon(Icons.emoji_emotions_outlined),
+    setKey: SettingBoxKey.enableEmoteTooltip,
+    defaultVal: false,
+    onChanged: (value) => enableEmoteTooltip = value,
   ),
   SwitchModel(
     title: '显示粉丝勋章',
@@ -792,6 +806,13 @@ void _showDownPathDialog(BuildContext context, VoidCallback setState) {
         DialogOption(
           onPressed: () {
             Get.back();
+            PathUtils.openDir(downloadPath);
+          },
+          child: const Text('打开'),
+        ),
+        DialogOption(
+          onPressed: () {
+            Get.back();
             Utils.copyText(downloadPath);
           },
           child: const Text('复制', style: TextStyle(fontSize: 14)),
@@ -819,6 +840,55 @@ void _showDownPathDialog(BuildContext context, VoidCallback setState) {
             GStorage.setting.put(SettingBoxKey.downloadPath, path);
           },
           child: const Text('设置新路径', style: TextStyle(fontSize: 14)),
+        ),
+      ],
+    ),
+  );
+}
+
+void _showImageSavePathDialog(BuildContext context, VoidCallback setState) {
+  final imageSavePath = ImageUtils.imageSavePath;
+  showDialog(
+    context: context,
+    builder: (context) => SimpleDialog(
+      clipBehavior: .hardEdge,
+      contentPadding: const .symmetric(vertical: 12),
+      children: [
+        if (imageSavePath != null) ...[
+          DialogOption(
+            onPressed: () {
+              Get.back();
+              PathUtils.openDir(imageSavePath);
+            },
+            child: const Text('打开'),
+          ),
+          DialogOption(
+            onPressed: () {
+              Get.back();
+              Utils.copyText(imageSavePath);
+            },
+            child: const Text('复制'),
+          ),
+          DialogOption(
+            onPressed: () {
+              Get.back();
+              ImageUtils.imageSavePath = null;
+              setState();
+              GStorage.setting.delete(SettingBoxKey.imageSavePath);
+            },
+            child: const Text('重置'),
+          ),
+        ],
+        DialogOption(
+          onPressed: () async {
+            Get.back();
+            final path = await FilePicker.getDirectoryPath();
+            if (path == null || path == imageSavePath) return;
+            ImageUtils.imageSavePath = path;
+            setState();
+            GStorage.setting.put(SettingBoxKey.imageSavePath, path);
+          },
+          child: const Text('设置新路径'),
         ),
       ],
     ),
