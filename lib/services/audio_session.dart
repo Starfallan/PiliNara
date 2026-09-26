@@ -62,7 +62,9 @@ class AudioSessionHandler {
             _playInterrupted = true;
             break;
           case AudioInterruptionType.unknown:
-            if (Pref.mixWithOthers) return;
+            // Android 的 unknown 对应永久失去音频焦点；iOS 的 unknown
+            // 对应音频中断开始，不能复用 Android 的豁免逻辑。
+            if (Platform.isAndroid && Pref.mixWithOthers) return;
             PlPlayerController.pauseIfExists(isInterrupt: true);
             // player.pause(isInterrupt: true);
             _playInterrupted = true;

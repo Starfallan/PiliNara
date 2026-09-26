@@ -136,6 +136,14 @@ List<SettingsModel> get styleSettings => [
     needReboot: true,
   ),
   const SwitchModel(
+    title: '首页背景渐变',
+    subtitle: '主框架背景由纯色改为渐变色',
+    leading: Icon(Icons.gradient_outlined),
+    setKey: SettingBoxKey.enableGradientBg,
+    defaultVal: false,
+    needReboot: true,
+  ),
+  const SwitchModel(
     title: '悬浮底栏',
     leading: Icon(MdiIcons.soundbar),
     setKey: SettingBoxKey.floatingNavBar,
@@ -335,17 +343,26 @@ List<SettingsModel> get styleSettings => [
     leading: const Icon(Icons.color_lens_outlined),
     title: '应用主题',
     getSubtitle: () => '当前主题：${Pref.dynamicColor ? '动态取色' : '指定颜色'}',
-    getTrailing: (theme) => Pref.dynamicColor
-        ? Icon(Icons.color_lens_rounded, color: theme.colorScheme.primary)
-        : SizedBox.square(
-            dimension: 20,
-            child: ColorPalette(
-              colorScheme: colorThemeTypes[Pref.customColor].color
-                  .asColorSchemeSeed(Pref.schemeVariant, theme.brightness),
-              selected: false,
-              showBgColor: false,
-            ),
+    getTrailing: (theme) {
+      if (Pref.dynamicColor) {
+        return Icon(Icons.color_lens_rounded, color: theme.colorScheme.primary);
+      }
+      final customColor = Pref.customColor;
+      final color =
+          colorThemeTypes.elementAtOrNull(customColor)?.color ??
+          Color(customColor);
+      return SizedBox.square(
+        dimension: 20,
+        child: ColorPalette(
+          colorScheme: color.asColorSchemeSeed(
+            Pref.schemeVariant,
+            theme.brightness,
           ),
+          selected: false,
+          showBgColor: false,
+        ),
+      );
+    },
   ),
   PopupModel(
     leading: const Icon(Icons.home_outlined),

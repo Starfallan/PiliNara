@@ -1,5 +1,6 @@
 import 'package:PiliPlus/common/widgets/button/icon_button.dart';
 import 'package:PiliPlus/pages/video/introduction/ugc/widgets/menu_row.dart';
+import 'package:PiliPlus/pages/danmaku/mask/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/danmaku_options.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
@@ -50,7 +51,7 @@ mixin HeaderMixin<T extends StatefulWidget> on State<T> {
   }
 
   /// 弹幕功能
-  void showSetDanmaku({bool isLive = false}) {
+  void showSetDanmaku({bool isLive = false, DanmakuMaskController? maskController}) {
     // 屏蔽类型
     const blockTypesList = [
       (value: 2, label: '滚动'),
@@ -242,6 +243,19 @@ mixin HeaderMixin<T extends StatefulWidget> on State<T> {
                       child: Row(
                         spacing: 10,
                         children: [
+                          if (maskController != null &&
+                              maskController.available)
+                            ActionRowLineItem(
+                              selectStatus: maskController.enabled,
+                              onTap: () {
+                                maskController.setEnabled(
+                                  !maskController.enabled,
+                                  plPlayerController.positionInMilliseconds,
+                                );
+                                setState(() {});
+                              },
+                              text: '智能防挡',
+                            ),
                           ActionRowLineItem(
                             selectStatus: DanmakuOptions.danmakuMassiveMode,
                             onTap: () {
@@ -462,7 +476,7 @@ mixin HeaderMixin<T extends StatefulWidget> on State<T> {
     );
   }
 
-  /// 视频画面参数
+  /// 视频参数（画面 + 音频延迟）
   void showVideoPictureParameters() {
     const parameters = [
       (property: 'brightness', label: '亮度'),
@@ -527,6 +541,44 @@ mixin HeaderMixin<T extends StatefulWidget> on State<T> {
           );
         }
 
+        Widget buildAudioDelay(int value) {
+          return Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('音频延迟 ${value > 0 ? '+' : ''}$value ms'),
+                  resetBtn(
+                    theme,
+                    0,
+                    () {
+                      plPlayerController.resetAudioDelay();
+                      setState(() {});
+                    },
+                  ),
+                ],
+              ),
+              Padding(
+                padding: const .symmetric(vertical: 16),
+                child: Slider(
+                  min: PlPlayerController.audioDelayMin.toDouble(),
+                  max: PlPlayerController.audioDelayMax.toDouble(),
+                  divisions:
+                      (PlPlayerController.audioDelayMax -
+                              PlPlayerController.audioDelayMin) ~/
+                          PlPlayerController.audioDelayStep,
+                  value: value.toDouble(),
+                  label: value > 0 ? '+$value ms' : '$value ms',
+                  onChanged: (value) {
+                    plPlayerController.setAudioDelay(value.round());
+                    setState(() {});
+                  },
+                ),
+              ),
+            ],
+          );
+        }
+
         final values = {
           'brightness': plPlayerController.videoBrightness.value,
           'contrast': plPlayerController.videoContrast.value,
@@ -534,7 +586,9 @@ mixin HeaderMixin<T extends StatefulWidget> on State<T> {
           'gamma': plPlayerController.videoGamma.value,
           'hue': plPlayerController.videoHue.value,
         };
-        final allDefault = values.values.every((value) => value == 0);
+        final allDefault =
+            values.values.every((value) => value == 0) &&
+            plPlayerController.audioDelayMs.value == 0;
 
         return Padding(
           padding: const EdgeInsets.all(12),
@@ -556,7 +610,7 @@ mixin HeaderMixin<T extends StatefulWidget> on State<T> {
                           const Expanded(
                             child: Center(
                               child: Text(
-                                '视频画面参数',
+                                '视频参数',
                                 style: TextStyle(fontSize: 14),
                               ),
                             ),
@@ -584,6 +638,14 @@ mixin HeaderMixin<T extends StatefulWidget> on State<T> {
                         property: parameter.property,
                         label: parameter.label,
                         value: values[parameter.property]!,
+                      ),
+                    ),
+                    buildAudioDelay(plPlayerController.audioDelayMs.value),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 4),
+                      child: Text(
+                        '音频延迟：正值延后音频（画面相对提前），负值延后画面（音频相对提前）',
+                        style: TextStyle(fontSize: 12),
                       ),
                     ),
                     const Padding(

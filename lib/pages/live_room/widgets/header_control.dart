@@ -117,11 +117,7 @@ class _LiveHeaderControlState extends State<LiveHeaderControl>
     const btnHeight = 30.0;
 
     return Padding(
-      padding: const .only(
-        left: 14,
-        right: 14,
-        top: (kToolbarHeight - btnHeight) / 2,
-      ),
+      padding: const .symmetric(horizontal: 14, vertical: 13),
       child: Row(
         children: [
           if (isFullScreen || plPlayerController.isDesktopPip)
@@ -292,6 +288,21 @@ class _LiveHeaderControlState extends State<LiveHeaderControl>
                         ],
                       ),
                     ),
+                  // 全屏下也能进入（点击后先退全屏再收起）；系统 PiP 中没有控制栏，排除
+                  // 桌面小窗形态下不能 pop 本页，不提供入口
+                  if (!plPlayerController.isDesktopPip &&
+                      !plPlayerController.isPipMode)
+                    PopupMenuItem(
+                      height: 42,
+                      onTap: () => liveController.onRequestInAppPip?.call(),
+                      child: const Row(
+                        spacing: 8,
+                        children: [
+                          Icon(Icons.picture_in_picture_alt_outlined, size: 20),
+                          Text('应用内画中画', style: TextStyle(fontSize: 14)),
+                        ],
+                      ),
+                    ),
                   PopupMenuItem(
                     height: 42,
                     child: const Row(
@@ -314,7 +325,7 @@ class _LiveHeaderControlState extends State<LiveHeaderControl>
                         spacing: 8,
                         children: [
                           Icon(Icons.tune, size: 20),
-                          Text('视频画面参数', style: TextStyle(fontSize: 14)),
+                          Text('视频参数', style: TextStyle(fontSize: 14)),
                         ],
                       ),
                     ),
