@@ -55,6 +55,30 @@ class _Node {
   final List<_Node> children = [];
 }
 
+/// 楼层续拉决策：是否还需要再翻一页。
+enum FloorLoad { done, next }
+
+/// 判断楼中楼是否已翻完。三个信号互为兜底，单点失效不会导致静默截断：
+///
+/// - [isEnd]：服务端权威终止信号（`cursor.isEnd`）。
+/// - [cursorAdvanced]：本次响应后 `paginationReply.nextOffset` 是否推进；
+///   为 false 表示服务端不再给出新位置，再翻也是同一页。
+/// - [floorTotal]：`data.root.count`，实测等于该楼层实际条数；随每页响应刷新。
+///   `<= 0` 表示未知，此时忽略该条件（只靠前两个信号）。
+///
+/// 之所以需要 [floorTotal] 兜底：B站偶有不翻转 `cursor.isEnd` 的情况，
+/// 基类 `ReplyController.checkIsEnd` 用 `length >= count` 兜底正是同一个原因。
+FloorLoad decideFloorLoad({
+  required int floorTotal,
+  required int floorLoaded,
+  required bool isEnd,
+  required bool cursorAdvanced,
+}) {
+  if (isEnd || !cursorAdvanced) return FloorLoad.done;
+  if (floorTotal > 0 && floorLoaded >= floorTotal) return FloorLoad.done;
+  return FloorLoad.next;
+}
+
 /// 由扁平子回复列表构建树并扁平化为行序列。
 ///
 /// - parent == rootId → 本线程根节点（depth 0）
@@ -224,7 +248,10 @@ List<ReplyTreeRow> buildReplyTree({
 ///
 /// 用于「继续此讨论串」：父面板已加载整棵楼中楼的扁平列表，
 /// 从中提取深层评论的子树作为新面板的数据源。
-/// 保持原列表顺序，供 flatIndex 使用。
+///
+/// 注意：返回的是按子树 DFS 顺序排列的**子集**，不是 `flat` 的子序列。
+/// 因此它的下标不能用来索引 `flat`/`loadingState.data`——需要下标时请用
+/// [replyIndexOf] 配合 `buildReplyTree(indexOf:)`。
 List<ReplyInfo> extractSubtree(List<ReplyInfo> flat, Int64 rootId) {
   final children = <Int64, List<ReplyInfo>>{};
   for (final r in flat) {
