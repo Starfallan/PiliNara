@@ -1459,6 +1459,9 @@ abstract final class Pref {
   static bool get showFsLockBtnRight =>
       _setting.get(SettingBoxKey.showFsLockBtnRight, defaultValue: false);
 
+  static bool get lockFsRotation =>
+      _setting.get(SettingBoxKey.lockFsRotation, defaultValue: false);
+
   static bool get silentDownImg =>
       _setting.get(SettingBoxKey.silentDownImg, defaultValue: false);
 

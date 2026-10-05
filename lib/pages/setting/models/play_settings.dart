@@ -74,6 +74,13 @@ List<SettingsModel> get playSettings => [
     defaultVal: true,
   ),
   const SwitchModel(
+    title: '锁定后禁止重力感应旋转',
+    subtitle: '全屏锁定后不再随设备方向翻转（仅横屏视频生效）',
+    leading: Icon(Icons.screen_lock_rotation),
+    setKey: SettingBoxKey.lockFsRotation,
+    defaultVal: false,
+  ),
+  const SwitchModel(
     title: '锁定按钮显示在右侧',
     subtitle: '开启后锁定按钮移至右侧，与截图按钮一同垂直居中排列',
     leading: Icon(Icons.keyboard_double_arrow_right),
