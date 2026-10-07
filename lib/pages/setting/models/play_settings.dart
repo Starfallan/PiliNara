@@ -14,7 +14,9 @@ import 'package:PiliPlus/plugin/pl_player/models/bottom_progress_behavior.dart';
 import 'package:PiliPlus/plugin/pl_player/models/fullscreen_mode.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
 import 'package:PiliPlus/services/service_locator.dart';
+import 'package:PiliPlus/utils/android/android_helper.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
+import 'package:PiliPlus/utils/ios/pip_helper.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
@@ -277,6 +279,7 @@ List<SettingsModel> get playSettings => [
       },
     ),
   if (PlatformUtils.isMobile)
+  if (PlatformUtils.isMobile)
     SwitchModel(
       title: '后台只听音频（实验性）',
       subtitle: '需开启「后台播放」后才生效\n进入后台或息屏一段时间后停止视频流，只保留声音；回到前台恢复画面',
@@ -294,19 +297,24 @@ List<SettingsModel> get playSettings => [
     setKey: SettingBoxKey.enableInAppPip,
     defaultVal: true,
   ),
-  if (Platform.isAndroid) ...[
+  if ((Platform.isAndroid && PiliAndroidHelper.isPipAvailable) ||
+      (Platform.isIOS && IOSPipHelper.isAvailable))
     SwitchModel(
       title: '后台画中画',
       subtitle: '进入后台时以小窗形式（PiP）播放',
       leading: const Icon(Icons.picture_in_picture_outlined),
       setKey: SettingBoxKey.autoPiP,
       defaultVal: false,
-      onChanged: (val) {
-        if (val && !videoPlayerServiceHandler!.enableBackgroundPlay) {
-          SmartDialog.showToast('建议开启后台音频服务');
-        }
-      },
+      onChanged: Platform.isAndroid
+          ? (val) {
+              if (val && !videoPlayerServiceHandler!.enableBackgroundPlay) {
+                SmartDialog.showToast('建议开启后台音频服务');
+              }
+            }
+          : null,
     ),
+  // PiP on iOS only shows the video frames, without danmaku.
+  if (Platform.isAndroid)
     const SwitchModel(
       title: '应用内小窗转后台画中画（实验性）',
       subtitle: '实验性功能：应用内小窗存在时，退到后台自动切换为系统 PiP；可能因系统差异出现异常',
@@ -321,7 +329,6 @@ List<SettingsModel> get playSettings => [
       setKey: SettingBoxKey.pipNoDanmaku,
       defaultVal: false,
     ),
-  ],
   const SwitchModel(
     title: '全屏手势反向',
     subtitle: '默认播放器中部向上滑动进入全屏，向下退出\n开启后向下全屏，向上退出',

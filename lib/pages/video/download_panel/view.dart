@@ -175,7 +175,7 @@ class _DownloadPanelState extends State<DownloadPanel> {
               ),
             ),
           ),
-          if (kDebugMode || PlatformUtils.isMobile) ...[
+          if (PlatformUtils.isMobile) ...[
             const Spacer(),
             StreamBuilder(
               stream: Connectivity().onConnectivityChanged,
@@ -316,32 +316,36 @@ class _DownloadPanelState extends State<DownloadPanel> {
       switch (episode) {
         case Part part:
           _downloadService.downloadVideo(
-            part,
-            parent == null ? widget.videoDetail : null,
-            parent,
-            _quality,
+            index: index,
+            page: part,
+            videoDetail: parent == null ? widget.videoDetail : null,
+            videoArc: parent,
+            videoQuality: _quality,
             autoFolderTitle: autoFolderInfo?.title,
             autoFolderSourceKey: autoFolderInfo?.sourceKey,
             autoFolderIndex: autoFolderIndex,
+            seasonInfo: widget.videoDetail?.seasonInfo(index),
           );
           break;
         case ugc.EpisodeItem episode:
           _downloadService.downloadVideo(
-            episode.pages!.first,
-            null,
-            episode,
-            _quality,
+            index: index,
+            page: episode.pages!.first,
+            videoDetail: null,
+            videoArc: episode,
+            videoQuality: _quality,
             autoFolderTitle: autoFolderInfo?.title,
             autoFolderSourceKey: autoFolderInfo?.sourceKey,
             autoFolderIndex: autoFolderIndex,
+            seasonInfo: widget.videoDetail?.seasonInfo(index),
           );
           break;
         case pgc.EpisodeItem episode:
           _downloadService.downloadBangumi(
-            index,
-            widget.pgcItem!,
-            episode,
-            _quality,
+            index: index,
+            pgcItem: widget.pgcItem!,
+            episode: episode,
+            quality: _quality,
           );
           break;
       }

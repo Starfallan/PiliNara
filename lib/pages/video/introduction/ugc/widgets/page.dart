@@ -145,12 +145,13 @@ class _PagesPanelState extends State<PagesPanel> {
         SizedBox(
           height: 45,
           child: ListView.builder(
-            key: PageStorageKey(widget.bvid),
-            controller: _scrollController,
-            scrollDirection: .horizontal,
-            itemCount: pages.length,
-            itemExtent: 150,
             padding: .zero,
+            itemExtent: 150,
+            itemCount: pages.length,
+            scrollDirection: .horizontal,
+            controller: _scrollController,
+            key: PageStorageKey(widget.bvid),
+            physics: const AlwaysScrollableScrollPhysics(),
             itemBuilder: (context, index) {
               bool isCurrentIndex = pageIndex == index;
               final item = pages[index];

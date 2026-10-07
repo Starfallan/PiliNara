@@ -34,7 +34,6 @@ import 'package:PiliPlus/pages/video/reply/widgets/reply_item_grpc.dart';
 import 'package:PiliPlus/services/download/download_service.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/android/bindings.g.dart';
-import 'package:PiliPlus/utils/cache_manager.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
 import 'package:PiliPlus/utils/filtering_text.dart';
@@ -659,8 +658,7 @@ List<SettingsModel> get extraSettings => [
   ),
   NormalModel(
     title: '最大缓存大小',
-    getSubtitle: () =>
-        '当前最大缓存大小: 「${CacheManager.formatSize(Pref.maxCacheSize)}」',
+    getSubtitle: () => '当前最大缓存大小: 「${Pref.maxCacheSize.formatSize}」',
     leading: const Icon(Icons.delete_outlined),
     onTap: _showCacheDialog,
   ),
@@ -1251,6 +1249,7 @@ void _showCacheDialog(BuildContext context, VoidCallback setState) {
     builder: (context) => AlertDialog(
       title: const Text('最大缓存大小'),
       content: TextField(
+        maxLength: 6,
         autofocus: true,
         onChanged: (value) => valueStr = value,
         keyboardType: TextInputType.number,

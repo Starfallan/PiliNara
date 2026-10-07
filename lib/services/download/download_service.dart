@@ -27,7 +27,9 @@ import 'package:PiliPlus/utils/extension/file_ext.dart';
 import 'package:PiliPlus/utils/extension/string_ext.dart';
 import 'package:PiliPlus/utils/id_utils.dart';
 import 'package:PiliPlus/utils/path_utils.dart';
-import 'package:flutter/foundation.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
+import 'package:flutter/foundation.dart'
+    show kDebugMode, debugPrint, VoidCallback, ValueChanged;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart' as path;
@@ -120,14 +122,16 @@ class DownloadService extends GetxService {
     return result;
   }
 
-  void downloadVideo(
-    Part page,
+  void downloadVideo({
+    required int index,
+    required Part page,
     VideoDetailData? videoDetail,
     ugc.EpisodeItem? videoArc,
-    VideoQuality videoQuality, {
+    required VideoQuality videoQuality,
     String? autoFolderTitle,
     String? autoFolderSourceKey,
     int? autoFolderIndex,
+    SeasonInfo? seasonInfo,
   }) {
     final cid = page.cid!;
     if (downloadList.indexWhere((e) => e.cid == cid) != -1) {
@@ -182,16 +186,17 @@ class DownloadService extends GetxService {
       autoFolderTitle: autoFolderTitle,
       autoFolderSourceKey: autoFolderSourceKey,
       autoFolderIndex: autoFolderIndex,
+      seasonInfo: seasonInfo,
     );
     _createDownload(entry);
   }
 
-  void downloadBangumi(
-    int index,
-    PgcInfoModel pgcItem,
-    pgc.EpisodeItem episode,
-    VideoQuality quality,
-  ) {
+  void downloadBangumi({
+    required int index,
+    required PgcInfoModel pgcItem,
+    required pgc.EpisodeItem episode,
+    required VideoQuality quality,
+  }) {
     final cid = episode.cid!;
     if (downloadList.indexWhere((e) => e.cid == cid) != -1) {
       return;
@@ -578,13 +583,77 @@ class DownloadService extends GetxService {
     }
   }
 
+  /// 更新离线缓存里的空降/跳过片段（供「更新片段」菜单使用）
+  ///
+  /// 上游把片段存在 entry.segments（entry.json），本 fork 另有一套
+  /// playback_meta.json，两者各自保留：这里只负责刷新 entry.segments。
+  Future<bool> updateSegments(BiliDownloadEntryInfo entry) {
+    if (entry.pageData != null) {
+      return _updateBlockSegments(entry);
+    } else {
+      return _updatePgcSegments(entry);
+    }
+  }
+
+  Future<bool> _updateBlockSegments(BiliDownloadEntryInfo entry) async {
+    final res = await SponsorBlock.getSkipSegments(
+      bvid: entry.bvid,
+      cid: entry.pageData!.cid,
+    );
+    if (res case Success(:final response)) {
+      if (response.isNotEmpty) {
+        entry.segments = response;
+        await _updateBiliDownloadEntryJson(entry);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> _updatePgcSegments(BiliDownloadEntryInfo entry) async {
+    final ep = entry.ep;
+    if (ep == null) return false;
+    final res = await VideoHttp.videoUrl(
+      avid: entry.avid,
+      bvid: entry.bvid,
+      cid: entry.cid,
+      seasonId: entry.seasonId,
+      epid: ep.episodeId,
+      qn: entry.preferedVideoQuality,
+      tryLook: false,
+      videoType: switch (ep.from) {
+        'pugv' => .pugv,
+        _ => .pgc,
+      },
+    );
+    if (res case Success(:final response)) {
+      final clipInfoList = response.clipInfoList;
+      if (clipInfoList != null && clipInfoList.isNotEmpty) {
+        entry.segments = clipInfoList;
+        await _updateBiliDownloadEntryJson(entry);
+      }
+      return true;
+    }
+    return false;
+  }
+
   Future<void> _startDownload(BiliDownloadEntryInfo entry) async {
     try {
       if (!await downloadDanmaku(entry: entry)) {
         return;
       }
 
+      // ugc segments
+      if (entry.pageData != null && Pref.enableSponsorBlock) {
+        await _updateBlockSegments(entry);
+      }
+
       _updateCurStatus(DownloadStatus.getPlayUrl);
+
+      // 上游的 DownloadHttp.getVideoUrl 会把 pgc 的 clipInfoList 写进 entry.segments，
+      // 本 fork 改为经 DownloadVideoUrlResult 同时取回（供 playback_meta 使用），
+      // 因此首次拿到片段时需要自己落盘一次 entry.json
+      final noSegmentBefore = entry.segments == null;
 
       final downloadResult = await DownloadHttp.getVideoUrl(
         entry: entry,
@@ -593,6 +662,11 @@ class DownloadService extends GetxService {
         pageData: entry.pageData,
       );
       final mediaFileInfo = downloadResult.mediaFileInfo;
+
+      // pgc segments
+      if (noSegmentBefore && entry.segments != null) {
+        await _updateBiliDownloadEntryJson(entry);
+      }
 
       final videoDir = Directory(path.join(entry.entryDirPath, entry.typeTag));
       if (!videoDir.existsSync()) {

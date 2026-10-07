@@ -14,6 +14,10 @@ import 'package:PiliPlus/models_new/live/live_room_info_h5/data.dart';
 import 'package:PiliPlus/models_new/pgc/pgc_info_model/episode.dart';
 import 'package:PiliPlus/models_new/video/video_detail/data.dart';
 import 'package:PiliPlus/models_new/video/video_detail/page.dart';
+import 'package:PiliPlus/pages/common/common_intro_controller.dart';
+import 'package:PiliPlus/pages/video/introduction/local/controller.dart';
+import 'package:PiliPlus/pages/video/introduction/pgc/controller.dart';
+import 'package:PiliPlus/pages/video/introduction/ugc/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/utils/android/bindings.g.dart';
@@ -22,6 +26,9 @@ import 'package:PiliPlus/utils/path_utils.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:get/get_core/src/get_main.dart';
+import 'package:get/get_instance/src/extension_instance.dart';
 import 'package:path/path.dart' as path;
 
 Future<VideoPlayerServiceHandler> initAudioService() {
@@ -54,8 +61,8 @@ class VideoPlayerServiceHandler extends BaseAudioHandler with SeekHandler {
   Future<void>? Function()? onPlay;
   Future<void>? Function()? onPause;
   Future<void>? Function(Duration position)? onSeek;
-  Future<void>? Function()? onSkipToNext;
-  Future<void>? Function()? onSkipToPrevious;
+  void Function()? onSkipToNext;
+  void Function()? onSkipToPrevious;
   String? currentHeroTag;
 
   void _clearCallbacks() {
@@ -92,10 +99,14 @@ class VideoPlayerServiceHandler extends BaseAudioHandler with SeekHandler {
   @override
   Future<void> skipToNext() async {
     if (onSkipToNext != null) {
-      await onSkipToNext?.call();
+      onSkipToNext?.call();
       return;
     }
-    if (currentHeroTag == null) return;
+    // currentHeroTag 未设时退回上游的 playOwner 派发（两者都由视频页写入）
+    if (currentHeroTag == null) {
+      _findIntroController()?.nextPlay();
+      return;
+    }
     // 优先匹配 AudioController（听视频模式）
     try {
       final ctr = Get.find<AudioController>(tag: currentHeroTag!);
@@ -119,10 +130,13 @@ class VideoPlayerServiceHandler extends BaseAudioHandler with SeekHandler {
   @override
   Future<void> skipToPrevious() async {
     if (onSkipToPrevious != null) {
-      await onSkipToPrevious?.call();
+      onSkipToPrevious?.call();
       return;
     }
-    if (currentHeroTag == null) return;
+    if (currentHeroTag == null) {
+      _findIntroController()?.prevPlay();
+      return;
+    }
     // 优先匹配 AudioController（听视频模式）
     try {
       final ctr = Get.find<AudioController>(tag: currentHeroTag!);
@@ -156,6 +170,25 @@ class VideoPlayerServiceHandler extends BaseAudioHandler with SeekHandler {
         PlPlayerController.pauseIfExists() ??
         Future.syncValue(null);
   }
+
+  CommonIntroController? _findIntroController() {
+    final playOwner = PlPlayerController.playOwner;
+    if (playOwner != null) {
+      final tag = playOwner.tag;
+      try {
+        return switch (playOwner.type) {
+          UgcIntroController => Get.find<UgcIntroController>(tag: tag),
+          PgcIntroController => Get.find<PgcIntroController>(tag: tag),
+          LocalIntroController => Get.find<LocalIntroController>(tag: tag),
+          _ => throw UnimplementedError(playOwner.type.toString()),
+        };
+      } catch (_) {
+        if (kDebugMode) rethrow;
+      }
+    }
+    return null;
+  }
+
 
   @override
   Future<void> seek(Duration position) {

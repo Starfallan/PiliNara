@@ -443,6 +443,18 @@ class Basic {
   String? ridStr;
   bool? isOnlyFans;
 
+  ({int oid, int replyType})? get replyInfo {
+    if (commentIdStr != null && commentType != null) {
+      try {
+        return (
+          oid: int.parse(commentIdStr!),
+          replyType: commentType!,
+        );
+      } catch (_) {}
+    }
+    return null;
+  }
+
   Basic.fromJson(Map<String, dynamic> json) {
     commentIdStr = json['comment_id_str'];
     commentType = safeToInt(json['comment_type']);

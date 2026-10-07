@@ -21,9 +21,18 @@ import 'package:PiliPlus/pages/member_pgc/widgets/pgc_card_v_member_pgc.dart';
 import 'package:PiliPlus/utils/extension/context_ext.dart';
 import 'package:PiliPlus/utils/grid.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
+import 'package:flutter/rendering.dart'
+    show BoxHitTestEntry, BoxHitTestResult, RenderObjectWithChildMixin;
+import 'package:flutter/services.dart'
+    show
+        MouseTrackerAnnotation,
+        PointerEnterEventListener,
+        PointerExitEventListener;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
+
+part 'package:PiliPlus/pages/member_home/widgets/live_item.dart';
 
 class MemberHome extends StatefulWidget {
   const MemberHome({super.key, this.heroTag});
@@ -40,6 +49,14 @@ class _MemberHomeState extends State<MemberHome>
   bool get wantKeepAlive => true;
 
   late final _ctr = Get.find<MemberController>(tag: widget.heroTag);
+
+  late ColorScheme colorScheme;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    colorScheme = ColorScheme.of(context);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +86,7 @@ class _MemberHomeState extends State<MemberHome>
     final isVertical = context.width < 600;
     final setting = _ctr.spaceSetting;
     final isOwner = setting != null;
-    final color = Theme.of(context).colorScheme.outline;
+    final color = colorScheme.outline;
     return switch (loadingState) {
       Loading() => m3eLoading,
       Success(response: final res) =>
@@ -249,7 +266,7 @@ class _MemberHomeState extends State<MemberHome>
                       ),
                     ),
                   ],
-                  _liveEntryBar,
+                  ?_buildLiveItem,
                   SliverToBoxAdapter(
                     child: SizedBox(
                       height: 100 + MediaQuery.viewPaddingOf(context).bottom,
@@ -262,47 +279,43 @@ class _MemberHomeState extends State<MemberHome>
     };
   }
 
-  // 未开播房间的入口：主页（本 tab）其余地方只在开播时给出直播入口，没开播时进不去
-  Widget get _liveEntryBar {
+  Widget? get _buildLiveItem {
     final live = _ctr.live;
-    if (live == null || live.roomStatus != 1 || live.liveStatus == 1) {
-      return const SliverToBoxAdapter(child: SizedBox.shrink());
-    }
-    final theme = Theme.of(context).colorScheme;
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-        child: Material(
-          color: theme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(8),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(8),
-            onTap: () => PageUtils.toLiveRoom(live.roomid),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.live_tv,
-                    size: 20,
-                    color: theme.onSurfaceVariant,
+    if (live != null && live.roomStatus == 1 && live.liveStatus != 1) {
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: const .only(top: 20),
+          child: _LiveItem(
+            color: colorScheme.surfaceContainerHigh,
+            child: GestureDetector(
+              behavior: .opaque,
+              onTap: () => PageUtils.toLiveRoom(live.roomid),
+              child: Padding(
+                padding: const .symmetric(vertical: 11),
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      WidgetSpan(
+                        alignment: .middle,
+                        child: Icon(
+                          size: 18,
+                          Icons.bar_chart_rounded,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const TextSpan(text: ' TA现在并没有直播，去TA直播间'),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'TA现在并没有直播',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: theme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
+                  textAlign: .center,
+                  style: TextStyle(color: colorScheme.onSurfaceVariant),
+                ),
               ),
             ),
           ),
         ),
-      ),
-    );
+      );
+    }
+    return null;
   }
 
   Widget _header(

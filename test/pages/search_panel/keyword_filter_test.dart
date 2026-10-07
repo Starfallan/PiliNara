@@ -6,6 +6,9 @@ import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/models/common/search/search_type.dart';
 import 'package:PiliPlus/models/search/result.dart';
 import 'package:PiliPlus/models/search/search_esports.dart';
+import 'package:PiliPlus/models_new/match/match_info/contest.dart';
+import 'package:PiliPlus/models_new/match/match_info/season.dart';
+import 'package:PiliPlus/models_new/match/match_info/team.dart';
 import 'package:PiliPlus/pages/search_panel/all/controller.dart';
 import 'package:PiliPlus/pages/search_panel/all/view.dart';
 import 'package:PiliPlus/pages/search_panel/all/widgets/activity.dart';
@@ -89,11 +92,11 @@ SearchPgcItemModel _pgc(String title) => SearchPgcItemModel.fromJson({
   'season_type_name': '番剧',
 });
 
-EsportsContest _contest(String title) => EsportsContest(
+MatchContest _contest(String title) => MatchContest(
   id: 1,
-  title: title,
-  homeTeam: EsportsTeam(title: '主队', logoFull: ''),
-  awayTeam: EsportsTeam(title: '客队', logoFull: ''),
+  season: MatchSeason(title: title),
+  homeTeam: MatchTeam(title: '主队'),
+  awayTeam: MatchTeam(title: '客队'),
   liveRoom: 1,
 );
 

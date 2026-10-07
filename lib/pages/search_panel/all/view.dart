@@ -72,7 +72,7 @@ class _SearchAllPanelState
       media, (item) => item.title.map((e) => e.text).join(),
     );
     final filteredEsports = controller.filterKeywords(
-      [if (hasEsports) esports], (item) => item.contest.first.title,
+      [if (hasEsports) esports], (item) => item.contest.first.season?.title,
     );
     return buildResults(
       filteredVideos,

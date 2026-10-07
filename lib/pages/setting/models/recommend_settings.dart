@@ -60,6 +60,7 @@ List<SettingsModel> get recommendSettings => [
     key: SettingBoxKey.minLikeRatioForRecommend,
     values: [0, 1, 2, 3, 4],
     onChanged: (value) => RecommendFilter.minLikeRatioForRecommend = value,
+    filterScope: 'Web推荐、热门、分区',
   ),
   getListBanWordModel(
     title: '标题关键词过滤',
@@ -68,6 +69,7 @@ List<SettingsModel> get recommendSettings => [
       RecommendFilter.rcmdRegExp = value;
       RecommendFilter.enableFilter = value.pattern.isNotEmpty;
     },
+    banScope: '推荐、热门、分区、相关视频',
   ),
   getListBanWordModel(
     title: 'UP名称关键词过滤',
@@ -78,12 +80,13 @@ List<SettingsModel> get recommendSettings => [
     },
   ),
   getListBanWordModel(
-    title: 'App推荐/热门/排行榜: 视频分区关键词过滤',
+    title: '分区关键词过滤',
     key: SettingBoxKey.banWordForZone,
     onChanged: (value) {
       VideoHttp.zoneRegExp = value;
       VideoHttp.enableFilter = value.pattern.isNotEmpty;
     },
+    banScope: 'App推荐、热门、分区',
   ),
   getListUidWithNameModel(
     title: '屏蔽用户',
@@ -114,12 +117,14 @@ List<SettingsModel> get recommendSettings => [
     key: SettingBoxKey.minDurationForRcmd,
     values: [0, 30, 60, 90, 120],
     onChanged: (value) => RecommendFilter.minDurationForRcmd = value,
+    filterScope: '推荐、相关视频',
   ),
   getVideoFilterSelectModel(
     title: '播放量',
     key: SettingBoxKey.minPlayForRcmd,
     values: [0, 50, 100, 500, 1000],
     onChanged: (value) => RecommendFilter.minPlayForRcmd = value,
+    filterScope: '推荐、热门、分区、相关视频',
   ),
   NormalModel(
     title: '屏蔽无权查看视频',

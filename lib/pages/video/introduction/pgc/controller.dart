@@ -22,6 +22,7 @@ import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
 import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/utils/android/android_helper.dart';
+import 'package:PiliPlus/utils/bili_utils.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
 import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/id_utils.dart';
@@ -44,7 +45,15 @@ class PgcIntroController extends CommonIntroController {
       : '追剧';
 
   late final bool isPgc;
-  late final PgcInfoModel pgcItem;
+  late PgcInfoModel pgcItem;
+
+  ScrollController? _seasonController;
+  ScrollController seasonController(int index) {
+    if (_seasonController != null) return _seasonController!;
+    return _seasonController = ScrollController(
+      initialScrollOffset: index * 150,
+    );
+  }
 
   // 是否正在进入应用内小窗
   bool isEnteringPip = false;
@@ -69,6 +78,10 @@ class PgcIntroController extends CommonIntroController {
 
     super.onInit();
 
+    _onGetPgcInfo();
+  }
+
+  void _onGetPgcInfo() {
     if (isPgc) {
       if (isLogin) {
         queryIsFollowed();
@@ -88,6 +101,8 @@ class PgcIntroController extends CommonIntroController {
       );
     }
     if (isEnteringPip) return;
+    _seasonController?.dispose();
+    _seasonController = null;
     super.onClose();
   }
 
@@ -206,6 +221,10 @@ class PgcIntroController extends CommonIntroController {
                     title:
                         '${pgcItem.title}${item != null ? '\n${item.showTitle}' : ''}',
                     uname: '',
+                    replyInfo: (
+                      oid: videoDetailCtr.aid,
+                      replyType: videoDetailCtr.videoType.replyType,
+                    ),
                   ),
                 );
               },
@@ -234,16 +253,7 @@ class PgcIntroController extends CommonIntroController {
                       "headline": title,
                       "source": 16,
                       "thumb": item.cover,
-                      "source_desc": switch (pgcItem.type) {
-                        1 => '番剧',
-                        2 => '电影',
-                        3 => '纪录片',
-                        4 => '国创',
-                        5 => '电视剧',
-                        6 => '漫画',
-                        7 => '综艺',
-                        _ => null,
-                      },
+                      "source_desc": BiliUtils.pgcType2Label(pgcItem.type),
                     },
                   );
                 } catch (e) {
@@ -498,4 +508,36 @@ class PgcIntroController extends CommonIntroController {
       res.toast();
     }
   }
+
+  bool _changingSeason = false;
+  bool get changingSeason => _changingSeason;
+
+  Future<bool> changeSeason(int seasonId) async {
+    if (_changingSeason) return false;
+    _changingSeason = true;
+    SmartDialog.showLoading();
+    try {
+      final res = await SearchHttp.pgcInfo(seasonId: seasonId, epId: epId);
+      if (res case Success(:final response)) {
+        final episodes = response.episodes;
+        if (episodes != null && episodes.isNotEmpty) {
+          pgcItem = response;
+          this.seasonId = seasonId;
+          onChangeEpisode(episodes.first);
+          _onGetPgcInfo();
+          return true;
+        } else {
+          SmartDialog.showToast('剧集为空');
+        }
+      } else {
+        res.toast();
+      }
+    } catch (_) {
+    } finally {
+      SmartDialog.dismiss();
+      _changingSeason = false;
+    }
+    return false;
+  }
+
 }
