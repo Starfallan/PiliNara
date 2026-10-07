@@ -325,14 +325,11 @@ abstract class CommonRichTextPubPageState<T extends CommonRichTextPubPage>
   }
 
   late double _mentionOffset = 0;
-  int? get mentionUpMid => null;
-
   Future<void>? onMention([bool fromClick = false]) async {
     final res = await DynMentionPanel.onDynMention(
       context,
       offset: _mentionOffset,
       onCachePos: (offset) => _mentionOffset = offset,
-      upMid: mentionUpMid,
     );
     if (res != null) {
       if (res is MentionItem) {
