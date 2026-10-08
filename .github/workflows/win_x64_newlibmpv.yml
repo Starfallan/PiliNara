@@ -1,0 +1,94 @@
+name: Build for Windows x64 With NewLibmpv
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: "tag"
+        required: false
+        default: ""
+        type: string
+  workflow_dispatch:
+
+jobs:
+  build-windows-app:
+    name: Release Windows x64
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version-file: pubspec.yaml
+
+      - name: Add fastforge and Inno Setup
+        run: |
+          dart pub global activate fastforge
+          choco install innosetup
+
+      - name: Add Chinese language file for Inno Setup
+        run: |
+          Copy-Item "windows/packaging/exe/ChineseSimplified.isl" "C:\Program Files (x86)\Inno Setup 6\Languages\ChineseSimplified.isl"
+        shell: pwsh
+
+      - name: Set and Extract version
+        shell: pwsh
+        run: lib/scripts/build.ps1
+
+      - name: Apply Patch
+        shell: pwsh
+        run: lib/scripts/patch.ps1 windows
+
+      # 新增步骤：在 Patch 之后回滚指定 Commit
+      - name: Revert specified commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git revert --no-edit ee148aa640e2da807c3048fde40eff9094ff897a
+
+      - name: Build Windows
+        run: |
+          fastforge package --platform windows --targets exe --flutter-build-args="dart-define-from-file=pili_release.json,no-pub" --skip-clean
+
+      # 产物重命名为含有 NewLibmpv 后缀
+      - name: Prepare Upload
+        run: |
+          mkdir -p Release/PiliNara-Win
+          mkdir -p PiliNara-Win-Setup
+          mv build/windows/x64/runner/Release/* Release/PiliNara-Win/
+          mv dist/**/*.exe PiliNara-Win-Setup/PiliNara_windows_${{env.version}}_x64_NewLibmpv_setup.exe
+
+      - name: Compress
+        run: |
+          Compress-Archive -Path "Release/PiliNara-Win" -DestinationPath "PiliNara_windows_${{env.version}}_x64_NewLibmpv_portable.zip"
+        shell: pwsh
+
+      - name: Release
+        if: ${{ github.event.inputs.tag != '' }}
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.event.inputs.tag }}
+          name: ${{ github.event.inputs.tag }}
+          target_commitish: ${{ github.sha }}
+          files: |
+            PiliNara_windows_*_NewLibmpv_portable.zip
+            PiliNara-Win-Setup/PiliNara_windows_*_NewLibmpv_setup.exe
+
+      - name: Upload windows file release
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          name: Windows-file-x64-NewLibmpv-release
+          path: PiliNara_windows_*_NewLibmpv_portable.zip
+
+      - name: Upload windows setup release
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          name: Windows-setup-x64-NewLibmpv-release
+          path: PiliNara-Win-Setup/PiliNara_windows_*_NewLibmpv_setup.exe
