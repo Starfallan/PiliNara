@@ -1856,70 +1856,66 @@ class HeaderControlState extends State<HeaderControl>
         (isFullScreen ||
             ((!horizontalScreen || plPlayerController.isDesktopPip) &&
                 !isPortrait))) {
-      title = Expanded(
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Padding(
-              key: titleKey,
-              padding: isPortrait
-                  ? EdgeInsets.zero
-                  : const EdgeInsets.only(right: 10),
-              child: Obx(
-                () {
-                  final videoDetail = introController.videoDetail.value;
-                  final String title;
-                  if (isFileSource || videoDetail.videos == 1) {
-                    title = videoDetail.title!;
-                  } else {
-                    title =
-                        videoDetail.pages
-                            ?.firstWhereOrNull(
-                              (e) => e.cid == videoDetailCtr.cid.value,
-                            )
-                            ?.part ??
-                        videoDetail.title!;
-                  }
-                  return MarqueeText(
-                    title,
-                    spacing: 30,
-                    velocity: 30,
-                    strutStyle: const StrutStyle(fontSize: 16, leading: 0),
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                    provider: effectiveProvider,
+      title = Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Padding(
+            key: titleKey,
+            padding: isPortrait
+                ? EdgeInsets.zero
+                : const EdgeInsets.only(right: 10),
+            child: Obx(
+              () {
+                final videoDetail = introController.videoDetail.value;
+                final String title;
+                if (isFileSource || videoDetail.videos == 1) {
+                  title = videoDetail.title!;
+                } else {
+                  title =
+                      videoDetail.pages
+                          ?.firstWhereOrNull(
+                            (e) => e.cid == videoDetailCtr.cid.value,
+                          )
+                          ?.part ??
+                      videoDetail.title!;
+                }
+                return MarqueeText(
+                  title,
+                  spacing: 30,
+                  velocity: 30,
+                  strutStyle: const StrutStyle(fontSize: 16, leading: 0),
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                  provider: effectiveProvider,
+                );
+              },
+            ),
+          ),
+          if (introController.isShowOnlineTotal || introController.isShowDmCount)
+            Positioned(
+              left: 0,
+              bottom: 0,
+              child: FractionalTranslation(
+                translation: const Offset(0, 1),
+                child: Obx(() {
+                  final parts = <String>[
+                    if (introController.isShowOnlineTotal)
+                      '${introController.total.value}人正在看',
+                    if (introController.isShowDmCount &&
+                        videoDetailCtr.dmCount.value != null)
+                      '${videoDetailCtr.dmCount.value}条弹幕',
+                  ];
+                  return Text(
+                    parts.join('  '),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                    ),
                   );
-                },
+                }),
               ),
             ),
-            if (introController.isShowOnlineTotal || introController.isShowDmCount)
-              Positioned(
-                left: 0,
-                bottom: 0,
-                child: FractionalTranslation(
-                  translation: const Offset(0, 1),
-                  child: Obx(() {
-                    final parts = <String>[
-                      if (introController.isShowOnlineTotal)
-                        '${introController.total.value}人正在看',
-                      if (introController.isShowDmCount &&
-                          videoDetailCtr.dmCount.value != null)
-                        '${videoDetailCtr.dmCount.value}条弹幕',
-                    ];
-                    return Text(
-                      parts.join('  '),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                      ),
-                    );
-                  }),
-                ),
-              ),
-          ],
-        ),
+        ],
       );
-    } else {
-      title = const Spacer();
     }
 
     return Padding(
