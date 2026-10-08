@@ -132,7 +132,12 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   final _pageRootKey = GlobalKey();
 
   // intro ctr
-  late final CommonIntroController introController;
+  late final CommonIntroController introController =
+      videoDetailController.isFileSource
+      ? localIntroController
+      : videoDetailController.isUgc
+      ? ugcIntroController
+      : pgcIntroController;
   late final UgcIntroController ugcIntroController;
   late final PgcIntroController pgcIntroController;
   late final LocalIntroController localIntroController;
@@ -141,18 +146,6 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     if (!kDebugMode) return;
     logger.i('[${videoDetailController.hashCode}] [SponsorBlock] $message');
   }
-
-  // dart format off
-  CommonIntroController _initIntroCtr() {
-    if (videoDetailController.isFileSource) {
-      return localIntroController = Get.put(LocalIntroController(), tag: heroTag);
-    } else if (videoDetailController.isUgc) {
-      return ugcIntroController = Get.put(UgcIntroController(), tag: heroTag);
-    } else {
-      return pgcIntroController = Get.put(PgcIntroController(), tag: heroTag);
-    }
-  }
-  // dart format on
 
   bool get autoExitFullscreen =>
       videoDetailController.plPlayerController.autoExitFullscreen;
@@ -413,10 +406,6 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       videoDetailController = Get.put(VideoDetailController(), tag: heroTag);
     }
 
-    introController = _initIntroCtr();
-
-    _setPlayCallBack();
-
     if (videoDetailController.removeSafeArea) {
       hideSystemBar();
     }
@@ -489,6 +478,10 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         pgcIntroController = Get.put(PgcIntroController(), tag: heroTag);
       }
     }
+
+    // introController 是惰性字段（见字段声明），必须在三条赋值路径
+    // 汇合之后才能求值 runtimeType
+    _setPlayCallBack();
 
     // AI chat controller - create if not already registered (PiP reuse)
     if (!Get.isRegistered<AiChatController>(tag: heroTag)) {
@@ -1011,7 +1004,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     final bool fromPip = Get.arguments?['fromPip'] ?? false;
     if (fromPip) {
       isShowing = true;
-      PlPlayerController.setPlayCallBack(playCallBack);
+      _setPlayCallBack();
       introController.startTimer();
 
       // 重新恢复 SponsorBlock
