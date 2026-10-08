@@ -12,7 +12,7 @@
 
 namespace {
 
-static const char* kChannelName = "com.example.piliplus/linux_webview";
+static const char* kChannelName = "com.example.pilinara/linux_webview";
 
 static GtkOverlay* s_overlay = nullptr;
 static FlView* s_fl_view = nullptr;

@@ -6,7 +6,7 @@ import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 
 /// Picture-in-Picture on iOS, implemented in `ios/Runner/PipPlugin.swift`.
 abstract final class IOSPipHelper {
-  static const _channel = MethodChannel('com.example.piliplus/pip');
+  static const _channel = MethodChannel('com.example.pilinara/pip');
 
   static bool isAvailable = false;
 

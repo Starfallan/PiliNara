@@ -146,7 +146,7 @@ void main() {
   late Directory tempDir;
 
   setUpAll(() async {
-    tempDir = await Directory.systemTemp.createTemp('piliplus-search-test-');
+    tempDir = await Directory.systemTemp.createTemp('pilinara-search-test-');
     Hive.init(tempDir.path);
     GStorage.setting = await Hive.openBox('setting');
     GStorage.localCache = await Hive.openBox('localCache');

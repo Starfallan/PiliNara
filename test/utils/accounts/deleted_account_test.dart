@@ -20,7 +20,7 @@ void main() {
   late Directory tempDir;
 
   setUpAll(() async {
-    tempDir = await Directory.systemTemp.createTemp('piliplus-account-test-');
+    tempDir = await Directory.systemTemp.createTemp('pilinara-account-test-');
     Hive.init(tempDir.path);
     GStorage.regAdapter();
     Accounts.account = await Hive.openBox<LoginAccount>('account');

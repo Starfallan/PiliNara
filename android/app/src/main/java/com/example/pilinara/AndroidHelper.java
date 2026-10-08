@@ -39,7 +39,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Map;
 
-import static com.example.piliplus.MediaHelper.getRemoteAction;
+import static com.example.pilinara.MediaHelper.getRemoteAction;
 
 public final class AndroidHelper {
     public static final boolean isFoldable;
