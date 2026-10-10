@@ -1,10 +1,16 @@
-import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
+import 'package:PiliPlus/utils/miuix/miuix_colors.dart';
+import 'package:PiliPlus/utils/miuix/miuix_theme.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
-import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoThemeData;
 import 'package:flutter/foundation.dart' show PlatformDispatcher;
 import 'package:material_ui/material_ui.dart';
 
+/// 应用主题。
+///
+/// PiliNara 的主题就是 miuix 主题：配色是 miuix 的角色（[MiuixColors]），几何是 miuix 的
+/// 圆角与高度（`MiuixShapes`），字阶是 miuix 的十四个槽位（`miuixTextTheme`）。取色方式也
+/// 与 miuix 一致——动态取色或种子色先算出 Material 配色，再翻译成 miuix 的角色；选择
+/// 「MIUI 蓝」时则直接使用 miuix 的固定配色。
 abstract final class ThemeUtils {
   static late ThemeData lightTheme;
 
@@ -13,9 +19,9 @@ abstract final class ThemeUtils {
   static late ThemeMode themeMode;
 
   static ThemeData get theme {
-    if (themeMode == .dark ||
-        (themeMode == .system &&
-            PlatformDispatcher.instance.platformBrightness == .dark)) {
+    if (themeMode == ThemeMode.dark ||
+        (themeMode == ThemeMode.system &&
+            PlatformDispatcher.instance.platformBrightness == Brightness.dark)) {
       return darkTheme;
     }
     return lightTheme;
@@ -26,159 +32,23 @@ abstract final class ThemeUtils {
   static String themeUrl(bool isDark) =>
       'native.theme=${isDark ? 2 : 1}&night=${isDark ? 1 : 0}';
 
+  /// 用一份 Material 配色构造 miuix 主题。
+  ///
+  /// [miuixColors] 给出 miuix 令牌，省略时把 [colorScheme] 翻译成 miuix 的取色方式
+  /// （动态取色与种子色走的就是这条路）。传 [MiuixColors.light] / [MiuixColors.dark] 则得到
+  /// miuix 的固定配色，也就是 MIUI 经典主题。
   static ThemeData getThemeData({
     required ColorScheme colorScheme,
     required bool isDynamic,
     bool isDark = false,
+    MiuixColors? miuixColors,
   }) {
-    final fontWeight = Pref.appFontWeight;
-    final fontFamily = Pref.appFont;
-
-    TextTheme? textTheme;
-    if (fontWeight != .normal) {
-      final textStyle = TextStyle(fontWeight: fontWeight);
-      textTheme = TextTheme(
-        displayLarge: textStyle,
-        displayMedium: textStyle,
-        displaySmall: textStyle,
-        headlineLarge: textStyle,
-        headlineMedium: textStyle,
-        headlineSmall: textStyle,
-        titleLarge: textStyle,
-        titleMedium: textStyle,
-        titleSmall: textStyle,
-        bodyLarge: textStyle,
-        bodyMedium: textStyle,
-        bodySmall: textStyle,
-        labelLarge: textStyle,
-        labelMedium: textStyle,
-        labelSmall: textStyle,
-      );
-    }
-
-    final theme = ThemeData(
-      useMaterial3: true,
-      colorScheme: colorScheme,
-      fontFamily: fontFamily,
-      textTheme: textTheme,
-      appBarTheme: AppBarTheme(
-        elevation: 0,
-        titleSpacing: 0,
-        centerTitle: false,
-        scrolledUnderElevation: 0,
-        backgroundColor: colorScheme.surface,
-        titleTextStyle: TextStyle(
-          fontSize: 16,
-          fontWeight: fontWeight,
-          fontFamily: fontFamily,
-          color: colorScheme.onSurface,
-        ),
-      ),
-      navigationBarTheme: NavigationBarThemeData(
-        surfaceTintColor: isDark ? colorScheme.surfaceContainerHighest : null,
-      ),
-      snackBarTheme: SnackBarThemeData(
-        elevation: 20,
-        actionTextColor: colorScheme.primary,
-        closeIconColor: colorScheme.secondary,
-        backgroundColor: colorScheme.secondaryContainer,
-        contentTextStyle: TextStyle(
-          fontFamily: fontFamily,
-          fontWeight: fontWeight,
-          color: colorScheme.onSecondaryContainer,
-        ),
-      ),
-      popupMenuTheme: PopupMenuThemeData(
-        color: colorScheme.surfaceContainerLow,
-        elevation: 3,
-        shadowColor: colorScheme.shadow,
-        surfaceTintColor: Colors.transparent,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(16)),
-        ),
-        menuPadding: const EdgeInsets.symmetric(vertical: 4),
-        labelTextStyle: WidgetStatePropertyAll(
-          TextStyle(
-            color: colorScheme.onSurface,
-            fontSize: 14,
-            letterSpacing: 0.1,
-            fontWeight: FontWeight.w500,
-            fontFamily: fontFamily,
-          ),
-        ),
-      ),
-      listTileTheme: const ListTileThemeData(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(12)),
-        ),
-        controlAffinity: .leading,
-      ),
-      cardTheme: CardThemeData(
-        elevation: 1,
-        margin: EdgeInsets.zero,
-        shadowColor: Colors.transparent,
-        surfaceTintColor: isDark ? colorScheme.onSurfaceVariant : null,
-      ),
-      progressIndicatorTheme: isDark
-          ? ProgressIndicatorThemeData(
-              // ignore: deprecated_member_use
-              year2023: false,
-              refreshBackgroundColor: colorScheme.onInverseSurface,
-            )
-          // ignore: deprecated_member_use
-          : const ProgressIndicatorThemeData(year2023: false),
-      dialogTheme: DialogThemeData(
-        titleTextStyle: TextStyle(
-          fontSize: 18,
-          fontWeight: fontWeight,
-          fontFamily: fontFamily,
-          color: colorScheme.onSurface,
-        ),
-        backgroundColor: colorScheme.surface,
-        constraints: const BoxConstraints(minWidth: 280, maxWidth: 420),
-      ),
-      bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: colorScheme.surface,
-        shape: const RoundedRectangleBorder(
-          borderRadius: Style.bottomSheetRadius,
-        ),
-      ),
-      // ignore: deprecated_member_use
-      sliderTheme: const SliderThemeData(year2023: false),
-      tooltipTheme: TooltipThemeData(
-        textStyle: TextStyle(
-          fontSize: 14,
-          color: Colors.white,
-          fontFamily: fontFamily,
-          fontWeight: fontWeight,
-        ),
-        decoration: const BoxDecoration(
-          color: Color(0xE6616161), // Colors.grey[700]!.withValues(alpha: 0.9)
-          borderRadius: BorderRadius.all(Radius.circular(4)),
-        ),
-      ),
-      cupertinoOverrideTheme: CupertinoThemeData(
-        selectionHandleColor: colorScheme.primary,
-      ),
-      switchTheme: const SwitchThemeData(
-        padding: .zero,
-        materialTapTargetSize: .shrinkWrap,
-        thumbIcon: WidgetStateProperty<Icon?>.fromMap(
-          <WidgetStatesConstraint, Icon?>{
-            WidgetState.selected: Icon(Icons.done),
-            WidgetState.any: null,
-          },
-        ),
-      ),
-      expansionTileTheme: const ExpansionTileThemeData(
-        shape: Border(),
-        collapsedShape: Border(),
-      ),
-      filledButtonTheme: const FilledButtonThemeData(
-        style: ButtonStyle(
-          shadowColor: WidgetStatePropertyAll(Colors.transparent),
-        ),
-      ),
+    final theme = MiuixTheme.getThemeData(
+      colors: miuixColors ?? MiuixColors.fromColorScheme(colorScheme),
+      fontFamily: Pref.appFont,
+      fontWeight: Pref.appFontWeight,
+      isDynamic: isDynamic,
+    ).copyWith(
       pageTransitionsTheme: PageTransitionsTheme(
         builders: {
           TargetPlatform.android: Pref.enablePredictiveBack
@@ -193,6 +63,8 @@ abstract final class ThemeUtils {
     return theme;
   }
 
+  /// 纯黑模式：画布与顶层表面压成纯黑，各层容器按 miuix 的层次继续压暗，主色与次要色
+  /// 也略微向黑色靠拢，保证在纯黑画布上的对比度。
   static ThemeData darkenTheme(ThemeData theme) {
     final colorScheme = theme.colorScheme;
     final color = colorScheme.surfaceContainerHighest.darken(0.7);

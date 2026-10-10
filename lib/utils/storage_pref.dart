@@ -22,6 +22,8 @@ import 'package:PiliPlus/models/common/sponsor_block/skip_type.dart';
 import 'package:PiliPlus/models/common/super_chat_time_type.dart';
 import 'package:PiliPlus/models/common/super_chat_type.dart';
 import 'package:PiliPlus/models/common/super_resolution_type.dart';
+import 'package:PiliPlus/models/common/theme/theme_color_type.dart'
+    show miuixColorIndex;
 import 'package:PiliPlus/models/common/theme/theme_type.dart';
 import 'package:PiliPlus/models/common/video/audio_quality.dart';
 import 'package:PiliPlus/models/common/video/cdn_type.dart';
@@ -1233,11 +1235,13 @@ abstract final class Pref {
       _setting.get(SettingBoxKey.p1080, defaultValue: true);
 
   static int get customColor =>
-      _setting.get(SettingBoxKey.customColor, defaultValue: 0);
+      _setting.get(SettingBoxKey.customColor, defaultValue: miuixColorIndex);
 
+  // miuix 的默认主题是固定配色（也就是 MIUI 经典），动态取色相当于 miuix 的 Monet 模式，
+  // 需要用户显式开启。
   static bool get dynamicColor =>
       !Platform.isIOS &&
-      _setting.get(SettingBoxKey.dynamicColor, defaultValue: true);
+      _setting.get(SettingBoxKey.dynamicColor, defaultValue: false);
 
   static bool get enableSystemProxy =>
       _setting.get(SettingBoxKey.enableSystemProxy, defaultValue: false);

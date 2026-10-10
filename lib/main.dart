@@ -25,6 +25,7 @@ import 'package:PiliPlus/utils/extension/theme_ext.dart';
 import 'package:PiliPlus/utils/font_utils.dart';
 import 'package:PiliPlus/utils/json_file_handler.dart';
 import 'package:PiliPlus/utils/max_screen_size.dart';
+import 'package:PiliPlus/utils/miuix/miuix_colors.dart';
 import 'package:PiliPlus/utils/path_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/request_utils.dart';
@@ -267,7 +268,10 @@ class MyApp extends StatelessWidget {
     final dynamicColor = _light != null && _dark != null && Pref.dynamicColor;
 
     final ColorScheme lightScheme, darkScheme;
+    MiuixColors? lightMiuix, darkMiuix;
     if (dynamicColor) {
+      // 动态取色：壁纸配色先由 Material 的颜色工具算出，再翻译成 miuix 的角色，
+      // 相当于 miuix 的 Monet 模式。
       lightScheme = _light!;
       darkScheme = _dark!;
     } else {
@@ -275,21 +279,31 @@ class MyApp extends StatelessWidget {
       final brandColor =
           colorThemeTypes.elementAtOrNull(customColor)?.color ??
           Color(customColor);
-      final variant = Pref.schemeVariant;
+      if (brandColor == miuixKeyColor) {
+        // MIUI 蓝：使用 miuix 的固定配色，与 miuix 的默认主题一致。
+        lightMiuix = MiuixColors.light;
+        darkMiuix = MiuixColors.dark;
+        lightScheme = lightMiuix.toColorScheme();
+        darkScheme = darkMiuix.toColorScheme();
+      } else {
+        final variant = Pref.schemeVariant;
 
-      lightScheme = brandColor.asColorSchemeSeed(variant, .light);
-      darkScheme = brandColor.asColorSchemeSeed(variant, .dark);
+        lightScheme = brandColor.asColorSchemeSeed(variant, .light);
+        darkScheme = brandColor.asColorSchemeSeed(variant, .dark);
+      }
     }
 
     return (
       ThemeUtils.lightTheme = ThemeUtils.getThemeData(
         colorScheme: lightScheme,
         isDynamic: dynamicColor,
+        miuixColors: lightMiuix,
       ),
       ThemeUtils.darkTheme = ThemeUtils.getThemeData(
         isDark: true,
         colorScheme: darkScheme,
         isDynamic: dynamicColor,
+        miuixColors: darkMiuix,
       ),
     );
   }

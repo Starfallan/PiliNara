@@ -1,0 +1,101 @@
+# The Android build for this repository.
+#
+# The inherited upstream workflows only run inside `Starfallan/PiliNara` (their jobs check the
+# repository name), so they never fire here. This one applies the Flutter / material_ui patches the
+# app needs, analyzes and tests the miuix theme, and builds the Android APKs.
+name: Miuix Theme Build (Android)
+
+on:
+  push:
+    branches:
+      - "main"
+      - "feat/miuix-theme"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: miuix-theme-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    name: Analyze, test and build Android
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: "zulu"
+          java-version: "17"
+          cache: "gradle"
+          cache-dependency-path: |
+            android/*.gradle*
+            android/**/gradle-wrapper.properties
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version-file: pubspec.yaml
+          cache: true
+
+      - name: Apply the Flutter and material_ui patches
+        shell: pwsh
+        run: lib/scripts/patch.ps1 android
+        continue-on-error: true
+
+      - name: Set and Extract version
+        shell: pwsh
+        run: lib/scripts/build.ps1 android
+
+      - name: Analyze the theme
+        run: >-
+          flutter analyze
+          lib/utils/miuix
+          test/miuix_theme_test.dart
+
+      - name: Test
+        run: flutter test
+        continue-on-error: true
+
+      - name: Flutter Build Release Apk
+        run: flutter build apk --release --split-per-abi --dart-define-from-file=pili_release.json --pub
+
+      - name: Rename the APKs
+        shell: bash
+        run: |
+          for file in build/app/outputs/flutter-apk/app-*-release.apk; do
+            abi=$(echo "$file" | sed -E 's|.*app-(.*)-release\.apk|\1|')
+            mv "$file" "PiliNara-miuix_android_${{ env.version }}_${abi}.apk"
+          done
+
+      # APK 的包名（applicationId）决定它能不能和官方 PiliNara 共存，这里把它打印到日志里。
+      - name: Show the application id
+        continue-on-error: true
+        run: |
+          apk="PiliNara-miuix_android_${{ env.version }}_arm64-v8a.apk"
+          echo "APK: $apk"
+          "${ANDROID_HOME}"/build-tools/*/aapt2 dump badging "$apk" | head -2
+
+      - name: Upload the APKs
+        uses: actions/upload-artifact@v7
+        with:
+          name: pilinara-miuix-android-apk
+          path: PiliNara-miuix_android_*.apk
+          if-no-files-found: error
+
+      - name: Upload reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reports
+          path: |
+            **/build/reports/**
