@@ -77,6 +77,14 @@ jobs:
             mv "$file" "PiliNara-miuix_android_${{ env.version }}_${abi}.apk"
           done
 
+      # APK 的包名（applicationId）决定它能不能和官方 PiliNara 共存，这里把它打印到日志里。
+      - name: Show the application id
+        continue-on-error: true
+        run: |
+          apk="PiliNara-miuix_android_${{ env.version }}_arm64-v8a.apk"
+          echo "APK: $apk"
+          "${ANDROID_HOME}"/build-tools/*/aapt2 dump badging "$apk" | head -2
+
       - name: Upload the APKs
         uses: actions/upload-artifact@v7
         with:

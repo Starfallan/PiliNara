@@ -38,6 +38,8 @@
 
 - 默认主题是 miuix 的固定配色（MIUI 蓝 `#3482FF`），主题色列表里可切换；自定义主题色与动态取色会先算出 Material 配色，再按 miuix 的角色规则翻译（相当于 miuix 的 Monet 模式）。
 - 圆角、字阶与组件配色取自 miuix 各组件的默认值：卡片/按钮/输入框 16、对话框 32、底部弹层 28、提示气泡 12、顶部栏 52dp；字阶是 miuix 的十四个槽位。
+- 连续圆角（squircle）、miuix 的按压反馈、MIUI 填充式输入框与弹层拖拽手柄也都接进了主题。
+- Android 包名是 `com.example.pilinara.miuix`，可以与官方 PiliNara 同时安装、互不覆盖（首次安装是这个新包名，设置需要用应用内的导出/导入搬一次）。
 - 实现细节、Material ↔ miuix 的映射表与移植的限制见 [docs/miuix_theme.md](docs/miuix_theme.md)。
 
 ## 改动说明(未来计划？)

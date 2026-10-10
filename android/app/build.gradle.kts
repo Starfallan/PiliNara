@@ -28,7 +28,9 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.pilinara"
+        // PiliNara-miuix 用自己的包名，这样能和官方 PiliNara（以及其它签名的构建）共存，
+        // 互不覆盖。namespace（Kotlin/Java 包名与 R 类）保持上游不变。
+        applicationId = "com.example.pilinara.miuix"
         minSdk = flutter.minSdkVersion
         targetSdk = 37
         versionCode = flutter.versionCode
