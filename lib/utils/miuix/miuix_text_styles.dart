@@ -24,13 +24,22 @@ import 'package:material_ui/material_ui.dart';
 /// 死行高；字重默认与 miuix 一致（除 `subtitle` 加粗外都是常规字重）。PiliNara 的字体重
 /// 与字体族偏好会覆盖到全部角色上，这与其原本的行为一致。
 ///
+/// miuix 的字色来自 `LocalContentColor`，而 Flutter 的组件（比如 ListTile、Card 里的文字）
+/// 是从 [TextTheme] 的角色里取颜色的，所以 [color] 默认由调用方传 `onSurface`：不传的话
+/// 深色模式下文字会按黑色渲染，落在 `#242424` 的卡片上几乎看不见。
+///
 /// miuix 的 `title4`（18）、`paragraph`、`body1` 在这套映射里没有独立角色，它们的字号分别
 /// 落在 `titleMedium`、`bodyLarge` 与 `bodyLarge` 附近。
-TextTheme miuixTextTheme({String? fontFamily, FontWeight? fontWeight}) {
+TextTheme miuixTextTheme({
+  String? fontFamily,
+  FontWeight? fontWeight,
+  Color? color,
+}) {
   TextStyle style(double fontSize, [FontWeight? weight]) => TextStyle(
     fontSize: fontSize,
     fontWeight: fontWeight ?? weight,
     fontFamily: fontFamily,
+    color: color,
   );
 
   return TextTheme(

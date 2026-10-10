@@ -93,6 +93,10 @@ the font's own metrics apply. `title4` (18) has no separate Material role; it si
 `titleMedium` and `titleLarge`. The font family and weight preferences still override every role,
 as they did before.
 
+Miuix takes its text color from `LocalContentColor`; Flutter's widgets read it out of the
+`TextTheme` roles instead, so `miuixTextTheme()` is called with `color: onSurface`. Without it,
+widgets such as `ListTile` would paint black text on a `#242424` card in dark mode.
+
 ## Limits of the port
 
 * Miuix draws continuous (squircle) corners on Android; Flutter's `BorderRadius` is a plain

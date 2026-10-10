@@ -33,6 +33,9 @@ abstract final class MiuixTheme {
     final textTheme = miuixTextTheme(
       fontFamily: fontFamily,
       fontWeight: fontWeight,
+      // 组件（ListTile、Card、对话框标题等）从 TextTheme 的角色里取字色，Miui 的白字
+      // 必须写进去，否则深色模式下会按黑色渲染。
+      color: colors.onSurface,
     );
     final uncheckedThumbColor = isDynamic
         ? colors.onSurface.withValues(alpha: 0.38)

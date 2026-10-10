@@ -167,6 +167,7 @@ void main() {
       final styled = miuixTextTheme(
         fontFamily: 'PiliFont',
         fontWeight: FontWeight.w600,
+        color: const Color(0xFFF2F2F2),
       );
       for (final style in [
         styled.displayLarge,
@@ -179,6 +180,7 @@ void main() {
       ]) {
         expect(style?.fontFamily, 'PiliFont');
         expect(style?.fontWeight, FontWeight.w600);
+        expect(style?.color, const Color(0xFFF2F2F2));
       }
     });
   });
