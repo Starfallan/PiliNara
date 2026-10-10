@@ -32,6 +32,14 @@
 
 在此致敬原作者和上游作者的无私奉献。如有侵权请联系删除。
 
+## miuix 主题
+
+本仓库是 PiliNara 的 miuix 换肤版：应用主题（配色、圆角、字阶）全部换成 miuix（MIUI / HyperOS）的设计令牌，只替换主题层，业务、网络与协议逻辑与 [Starfallan/PiliNara](https://github.com/Starfallan/PiliNara) 保持一致。
+
+- 默认主题是 miuix 的固定配色（MIUI 蓝 `#3482FF`），主题色列表里可切换；自定义主题色与动态取色会先算出 Material 配色，再按 miuix 的角色规则翻译（相当于 miuix 的 Monet 模式）。
+- 圆角、字阶与组件配色取自 miuix 各组件的默认值：卡片/按钮/输入框 16、对话框 32、底部弹层 28、提示气泡 12、顶部栏 52dp；字阶是 miuix 的十四个槽位。
+- 实现细节、Material ↔ miuix 的映射表与移植的限制见 [docs/miuix_theme.md](docs/miuix_theme.md)。
+
 ## 改动说明(未来计划？)
 
 Fork特性：
