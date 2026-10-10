@@ -71,21 +71,26 @@ abstract final class MiuixTheme {
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: colors.surface,
+        // MIUI 的底栏：浮动样式（PiliNara 默认的底栏）用 surfaceContainer 作底色，而页面底色是
+        // surface。这里设成 surface 会让整条栏和页面糊在一起，看不出栏的形状。
+        backgroundColor: colors.surfaceContainer,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        indicatorColor: colors.surfaceContainer,
-        iconTheme: WidgetStatePropertyAll(
-          IconThemeData(color: colors.onSurfaceContainer),
+        indicatorShape: const MiuixSquircleBorder(
+          cornerRadius: MiuixShapes.navigationItemCornerRadius,
         ),
-        labelTextStyle: WidgetStatePropertyAll(
-          TextStyle(
-            fontSize: 11,
-            fontWeight: fontWeight,
+        // indicatorColor 与 iconTheme 都交回给应用自己的默认值：PiliNara 的底栏把选中指示画成
+        // 6%（浅色）/ 8%（深色）的叠加色，图标按状态取 onSecondaryContainer / onSurfaceVariant。
+        // 主题里一旦给定不透明的值，选中项就会变成一个硬色块。
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return TextStyle(
             fontFamily: fontFamily,
-            color: colors.onSurfaceContainer,
-          ),
-        ),
+            fontWeight: fontWeight,
+            fontSize: 11,
+            color: selected ? colors.onSurface : colors.onSurfaceVariantSummary,
+          );
+        }),
       ),
       navigationRailTheme: NavigationRailThemeData(
         backgroundColor: colors.surface,

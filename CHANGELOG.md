@@ -10,6 +10,10 @@
 - **应用 miuix 的界面特性**：连续圆角（squircle，角块 = 半径 × 1.1、贝塞尔控制点 0.643）用到卡片、对话框、弹层、弹出菜单、按钮与导航项；按压反馈由 Material 水波纹换成 miuix 的整块淡入（10%，进入 200ms / 退出 350ms）；输入框改为 MIUI 的填充样式（`secondaryContainer` 底色、16 连续圆角，聚焦/报错才描边）；底部弹层补上 miuix 的拖拽手柄（24dp 抓取区 + 45×4dp 胶囊，按下加长到 55dp、加深到 35%）。滚动回弹本来就是拉伸式，与 miuix 一致，未作改动。
 - **Android 包名改为 `com.example.pilinara.miuix`**：本构建与官方 PiliNara 用不同的包名，可以同时安装、互不覆盖；`namespace`（Kotlin/Java 包名与 R 类）保持上游不变，provider 权限声明用的是 `${applicationId}` 占位符，会跟着一起变。
 
+### Fixed
+- **底栏选中态变成硬色块**：上一版把 `navigationBarTheme.indicatorColor` 设成了不透明的 `surfaceContainer`（浅色模式下就是纯白），而 PiliNara 的底栏本来把选中指示画成 6%（浅色）/ 8%（深色）的叠加色，于是选中项变成一块盖在底栏上的白块；同时底栏底色被设成 `surface`（＝页面底色），整条栏和页面糊在一起。现在底色改为 MIUI 浮动底栏的 `surfaceContainer`，指示块与图标颜色交回应用自己按状态取色，只保留标签样式（footnote2 档）。
+- **`secondary` 作次级文字/图标色时看不清**：miuix 的 `secondary` 是中性填充（浅色模式 `#E6E6E6`），而 PiliNara 把它当次级文字/图标色（也是底栏指示块的兜底色）用。改取 miuix 压在背景上的变体色 `onBackgroundVariant`（Monet 下等于 primary），明暗两种模式都能看清。
+
 ## 2.1.5.1 -[Pearl] - 2026-09-26
 
 这版改动挺杂的。弹幕加了个「人像防挡」，应用内画中画也开了个手动入口。目前AI 对话支持显示思考过程、可调思考强度，设置页和对话界面都按 M3 重做了一遍，往下滑时上下两条控制栏会自己收起来。播放器这边视频参数面板多了音频延迟，全屏顶栏能看当前分 P 的弹幕数。上游这轮更新了综合搜索、醒目留言导出图片、Linux 内嵌网页、Linux/Windows 的链接唤起等。修的问题里比较要紧的是音频中断、小窗缩放写坏记忆、iOS 音量监听把播放类别改掉。

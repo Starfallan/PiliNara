@@ -82,6 +82,10 @@ void main() {
       // PiliNara 一直把 outline 当次级文字色用。
       expect(scheme.outline, light.onSurfaceVariantSummary);
       expect(scheme.onSurfaceVariant, light.onSurfaceVariantSummary);
+      // PiliNara 的 secondary 也是次级文字/图标色（以及底栏指示块的兜底色），
+      // 所以用 miuix 压在背景上的变体色，而不是它那块中性填充。
+      expect(scheme.secondary, light.onBackgroundVariant);
+      expect(scheme.secondary, isNot(light.secondary));
       expect(scheme.outlineVariant, light.dividerLine);
       expect(scheme.scrim, light.windowDimming);
       // MIUI 的表面是平的，不做高程着色。
@@ -112,9 +116,9 @@ void main() {
       expect(miuix.errorContainer, seed.errorContainer);
     });
 
-    test('中性填充色取自 outlineVariant，与 miuix 的取色方式一致', () {
-      expect(miuix.secondary, seed.outlineVariant);
-      expect(miuix.onSecondary, seed.outline);
+    test('次级色取自 outline，与 miuix 的取色方式一致', () {
+      expect(miuix.secondary, seed.outline);
+      expect(miuix.onSecondary, seed.surface);
       expect(miuix.secondaryVariant, seed.surfaceContainerHigh);
     });
 
@@ -314,6 +318,29 @@ void main() {
       expect(decoration.fillColor, MiuixColors.light.secondaryContainer);
       expect(decoration.border, isA<MiuixSquircleInputBorder>());
       expect(decoration.hintStyle?.color, MiuixColors.light.onSurfaceVariantSummary);
+    });
+
+    test('底栏不与应用自己的取色打架', () {
+      // MIUI 的浮动底栏底色是 surfaceContainer（页面底色才是 surface），设成 surface 会让整条栏
+      // 和页面糊在一起。
+      expect(
+        theme.navigationBarTheme.backgroundColor,
+        MiuixColors.light.surfaceContainer,
+      );
+      // 指示块与图标色必须留空：PiliNara 的底栏把它们画成 6%/8% 的叠加色并按状态取图标色，
+      // 主题给定不透明的值就会变成硬色块。
+      expect(theme.navigationBarTheme.indicatorColor, isNull);
+      expect(theme.navigationBarTheme.iconTheme, isNull);
+      expect(
+        theme.navigationBarTheme.labelTextStyle?.resolve({
+          WidgetState.selected,
+        })?.color,
+        MiuixColors.light.onSurface,
+      );
+      expect(
+        theme.navigationBarTheme.labelTextStyle?.resolve({})?.color,
+        MiuixColors.light.onSurfaceVariantSummary,
+      );
     });
   });
 }

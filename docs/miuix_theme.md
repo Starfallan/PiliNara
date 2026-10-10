@@ -49,7 +49,7 @@ PiliNara's widgets read Material's `ColorScheme`, so the MIUI tokens are mapped 
 | `primary` / `onPrimary` | `primary` / `onPrimary` |
 | `primaryContainer` / `onPrimaryContainer` | `primaryContainer` / `onPrimaryContainer` |
 | `primaryFixed` / `onPrimaryFixed` | `primaryVariant` / `onPrimaryVariant` |
-| `secondary` / `onSecondary` | `secondary` / `onSecondary` |
+| `secondary` / `onSecondary` | `onBackgroundVariant` / `onSecondary` |
 | `secondaryContainer` / `onSecondaryContainer` | `secondaryContainer` / `onSecondaryVariant` |
 | `tertiary` / `tertiaryContainer` | `tertiaryContainer` |
 | `surface` / `onSurface` | `surface` / `onSurface` |
@@ -71,6 +71,10 @@ Two pairings deliberately differ from miuix's own:
   a placeholder gray (`#A9A9A9` in light mode) that is nearly invisible on the `#F0F0F0` fill.
   miuix pairs that fill with `onSecondaryVariant` (`#303030`), so the app does too.
 * `outline` carries PiliNara's secondary text, as described above.
+* PiliNara's `secondary` is a *secondary text / icon* tone (and the fallback fill of the bottom
+  bar's selection pill), whereas miuix's `secondary` is a neutral fill (`#E6E6E6` in light mode)
+  that is unreadable as text. miuix's tint for content on a surface is `onBackgroundVariant`
+  (which is what its Monet mapping resolves to `primary`), so `secondary` uses that.
 
 ## Type scale
 
@@ -149,6 +153,16 @@ press only, so dragging still belongs to the sheet's own gesture recogniser.
 MIUI stretches the scrollable at its ends instead of showing the Android glow. PiliNara's
 `CustomScrollBehavior` already used `StretchingOverscrollIndicator` on Android, which matches
 miuix's `MiuixOverscrollEffect`, so this needed no change.
+
+### Bottom navigation bar
+
+The theme sets the bar's fill to `surfaceContainer` (MIUI's floating bar; the page is `surface`) and
+otherwise leaves the app's own colours alone: `indicatorColor` and `iconTheme` stay unset because
+PiliNara paints the selected pill as a 6 % (light) / 8 % (dark) overlay and picks icon colours per
+state. Putting an opaque colour into the theme turns the selection into a hard block on the bar —
+which is what the earlier revision did, and why the bar's selection looked wrong. The label style is
+the one exception: it is set here so bottom-bar labels use Miuix's `footnote2` size (11) with
+`onSurface` when selected and the summary tone when not.
 
 ## Tests
 
