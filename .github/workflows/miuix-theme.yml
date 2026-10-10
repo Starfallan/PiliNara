@@ -1,0 +1,83 @@
+# A fork-only workflow.
+#
+# The upstream workflows only run for pushes and pull requests that target `main`, so a feature
+# branch in a fork gets no build at all. This one analyzes and tests the branch the miuix theme
+# lives on, applies the Flutter / material_ui patches the app needs, and builds the Android APKs.
+name: Miuix Theme Build (Android)
+
+on:
+  push:
+    branches:
+      - "feat/miuix-theme"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: miuix-theme-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    name: Analyze, test and build Android
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: "zulu"
+          java-version: "17"
+          cache: "gradle"
+          cache-dependency-path: |
+            android/*.gradle*
+            android/**/gradle-wrapper.properties
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version-file: pubspec.yaml
+          cache: true
+
+      - name: Apply the Flutter and material_ui patches
+        shell: pwsh
+        run: lib/scripts/patch.ps1 android
+        continue-on-error: true
+
+      - name: Set and Extract version
+        shell: pwsh
+        run: lib/scripts/build.ps1 android
+
+      - name: Analyze the theme
+        run: >-
+          flutter analyze
+          lib/utils/miuix
+          test/miuix_theme_test.dart
+
+      - name: Test
+        run: flutter test
+
+      - name: Flutter Build Dev Apk
+        run: flutter build apk --release --split-per-abi --android-project-arg dev=1 --pub
+
+      - name: Upload the APKs
+        uses: actions/upload-artifact@v7
+        with:
+          name: pilinara-miuix-android-apk
+          path: build/app/outputs/flutter-apk/app-*-release.apk
+          if-no-files-found: error
+
+      - name: Upload reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reports
+          path: |
+            **/build/reports/**
