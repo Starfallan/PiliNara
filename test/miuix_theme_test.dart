@@ -1,8 +1,12 @@
 import 'package:PiliPlus/models/common/theme/theme_color_type.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
 import 'package:PiliPlus/utils/miuix/miuix_colors.dart';
+import 'package:PiliPlus/utils/miuix/miuix_drag_handle.dart';
+import 'package:PiliPlus/utils/miuix/miuix_indication.dart';
 import 'package:PiliPlus/utils/miuix/miuix_shapes.dart';
+import 'package:PiliPlus/utils/miuix/miuix_squircle.dart';
 import 'package:PiliPlus/utils/miuix/miuix_text_styles.dart';
+import 'package:PiliPlus/utils/miuix/miuix_theme.dart';
 import 'package:flex_seed_scheme/flex_seed_scheme.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -200,6 +204,116 @@ void main() {
     test('底部弹层只圆上面两个角', () {
       expect(MiuixShapes.bottomSheetRadius.topLeft.x, 28);
       expect(MiuixShapes.bottomSheetRadius.bottomLeft, Radius.zero);
+    });
+  });
+
+  group('miuix 连续圆角（squircle）', () {
+    test('角块是半径的 1.1 倍，并夹在短边一半以内', () {
+      expect(miuixSquircleExtension, 1.1);
+      expect(miuixSquircleTile(16, const Size(200, 100)), closeTo(17.6, 0.001));
+      // 短边 40，一半是 20，超出的部分被夹住。
+      expect(miuixSquircleTile(32, const Size(200, 40)), closeTo(20, 0.001));
+      expect(miuixSquircleTile(0, const Size(200, 100)), 0);
+    });
+
+    test('路径从角块末端起笔，普通圆角矩形则从边上起笔', () {
+      const rect = Rect.fromLTWH(0, 0, 100, 60);
+      final squircle = miuixSquirclePath(rect, 16);
+      final rounded = miuixSquirclePath(rect, 16, enabled: false);
+      final start = squircle.computeMetrics().first.getTangentForOffset(0)!;
+      final roundedStart = rounded.computeMetrics().first.getTangentForOffset(0)!;
+      expect(start.position.dx, closeTo(17.6, 0.01));
+      expect(start.position.dy, 0);
+      // 普通圆角矩形的路径从左边（或上边）的直线段开始。
+      expect(
+        roundedStart.position.dx == 0 || roundedStart.position.dy == 0,
+        isTrue,
+      );
+      expect(squircle.getBounds(), rect);
+      expect(rounded.getBounds(), rect);
+    });
+
+    test('顶部弹层只圆上面两角', () {
+      const rect = Rect.fromLTWH(0, 0, 100, 80);
+      final topOnly = miuixSquirclePath(rect, 28, topOnly: true);
+      final allRound = miuixSquirclePath(rect, 28);
+      expect(topOnly.contains(const Offset(0.5, 79.5)), isTrue);
+      expect(allRound.contains(const Offset(0.5, 79.5)), isFalse);
+    });
+
+    test('形状可以当 ThemeData 的 shape 用，且带描边时相等性稳定', () {
+      const border = MiuixSquircleBorder(cornerRadius: 16);
+      expect(border.getOuterPath(const Rect.fromLTWH(0, 0, 100, 60)), isNotNull);
+      expect(border.copyWith(), border);
+      expect(border.scale(2).cornerRadius, 32);
+      const inputBorder = MiuixSquircleInputBorder(cornerRadius: 16);
+      expect(inputBorder.isOutline, isFalse);
+    });
+  });
+
+  group('miuix 按压反馈', () {
+    test('是替换水波纹的 ink feature 工厂，按下叠加 10%', () {
+      const indication = MiuixIndication(Color(0xFF000000));
+      expect(indication, isA<InteractiveInkFeatureFactory>());
+      expect(indication.pressAlpha, 0.1);
+      expect(indication.enterDuration, const Duration(milliseconds: 200));
+      expect(indication.exitDuration, const Duration(milliseconds: 350));
+    });
+  });
+
+  group('miuix 弹层手柄', () {
+    test('尺寸取自 miuix', () {
+      expect(MiuixDragHandle.restWidth, 45);
+      expect(MiuixDragHandle.pressedWidth, 55);
+      expect(MiuixDragHandle.handleHeight, 4);
+      expect(MiuixDragHandle.handleRadius, 2);
+      expect(MiuixDragHandle.areaHeight, 24);
+    });
+  });
+
+  group('主题里的 miuix 特性', () {
+    final theme = MiuixTheme.getThemeData(colors: MiuixColors.light);
+
+    test('卡片、对话框、弹层、菜单与按钮都是连续圆角', () {
+      expect(
+        theme.cardTheme.shape,
+        const MiuixSquircleBorder(cornerRadius: MiuixShapes.cardCornerRadius),
+      );
+      expect(
+        theme.dialogTheme.shape,
+        const MiuixSquircleBorder(cornerRadius: MiuixShapes.dialogCornerRadius),
+      );
+      expect(
+        theme.bottomSheetTheme.shape,
+        const MiuixSquircleBorder(
+          cornerRadius: MiuixShapes.bottomSheetCornerRadius,
+          topOnly: true,
+        ),
+      );
+      expect(
+        theme.popupMenuTheme.shape,
+        const MiuixSquircleBorder(cornerRadius: MiuixShapes.menuCornerRadius),
+      );
+      expect(
+        theme.filledButtonTheme.style?.shape?.resolve({}),
+        const MiuixSquircleBorder(cornerRadius: MiuixShapes.buttonCornerRadius),
+      );
+    });
+
+    test('按压反馈换成 miuix 的整块淡入', () {
+      expect(theme.splashFactory, isA<MiuixIndication>());
+      expect(
+        (theme.splashFactory as MiuixIndication).color,
+        MiuixColors.light.onSurface,
+      );
+    });
+
+    test('输入框是 MIUI 的填充样式', () {
+      final decoration = theme.inputDecorationTheme;
+      expect(decoration.filled, isTrue);
+      expect(decoration.fillColor, MiuixColors.light.secondaryContainer);
+      expect(decoration.border, isA<MiuixSquircleInputBorder>());
+      expect(decoration.hintStyle?.color, MiuixColors.light.onSurfaceVariantSummary);
     });
   });
 }

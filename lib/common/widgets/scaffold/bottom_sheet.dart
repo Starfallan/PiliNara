@@ -1,4 +1,5 @@
 import 'package:flutter/gestures.dart' show VerticalDragGestureRecognizer;
+import 'package:PiliPlus/utils/miuix/miuix_drag_handle.dart';
 import 'package:material_ui/material_ui.dart';
 
 // ignore: camel_case_types
@@ -53,9 +54,26 @@ class _MiniBottomSheetState extends BottomSheetState {
         bottomSheetTheme.constraints ??
         defaults.constraints;
 
+    // miuix 的弹层顶部有一条拖拽手柄（24dp 抓取区 + 45×4dp 胶囊），这里照它的画法叠在内容
+    // 上方：内容整体下移 24dp，手柄只画外观、不参与手势，拖动仍由下面的识别器处理。
+    final bool showHandle = widget.enableDrag;
     Widget bottomSheet = KeyedSubtree(
       key: childKey,
-      child: widget.builder(context),
+      child: Stack(
+        children: [
+          Padding(
+            padding: EdgeInsets.only(top: showHandle ? 24 : 0),
+            child: widget.builder(context),
+          ),
+          if (showHandle)
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: MiuixDragHandle(),
+            ),
+        ],
+      ),
     );
 
     if (constraints != null && constraints != const BoxConstraints()) {

@@ -99,14 +99,56 @@ widgets such as `ListTile` would paint black text on a `#242424` card in dark mo
 
 ## Limits of the port
 
-* Miuix draws continuous (squircle) corners on Android; Flutter's `BorderRadius` is a plain
-  circular corner. The radii match, the curve does not.
 * MIUI has fewer surface levels than Material 3. `surfaceDim` / `surfaceBright` and the two lowest
   container roles are therefore derived, as listed above.
 * MIUI has no inverse roles, no `surfaceTint` and no `background` slot in Material's `ColorScheme`
   any more; those are derived as described in the table.
 * PiliNara's pure-black mode is kept: it still darkens the canvas and each container layer on top
   of the MIUI palette.
+* The continuous corners are drawn as a path (see below) rather than with miuix's runtime shader,
+  and a `BoxDecoration` only accepts a `BorderRadius`, so tooltips keep circular corners.
+
+## Miuix behaviours
+
+The theme does not stop at tokens: miuix's interaction and surface behaviour is applied too.
+
+### Continuous corners (squircle)
+
+MIUI / HyperOS corners are *continuous*: the corner tile is `cornerRadius × 1.1`, and the straight
+edges meet it through a cubic Bézier with a fixed control ratio of `0.643` — miuix's
+`SquircleDefaults.Extension` and `SQUIRCLE_CONTROL`. `lib/utils/miuix/miuix_squircle.dart` builds
+that silhouette as a `Path` and exposes it as `MiuixSquircleBorder` (and
+`MiuixSquircleInputBorder` for fields), so cards, dialogs, sheets, popup menus, buttons and the
+navigation indicator all use it. Bottom sheets use the top-only variant, and `enabled: false` falls
+back to plain rounded corners, which is what miuix itself does where the runtime shader is
+unavailable.
+
+### Press feedback
+
+Material's ripple (on Android M3, `InkSparkle`) is replaced by `MiuixIndication`: a press fades a
+flat 10 % overlay over the whole surface — 200 ms in, 350 ms out — which is miuix's
+`MiuixIndication` with `PRESS_ALPHA_DELTA = 0.10` and its 0.2 s / 0.35 s springs. miuix additionally
+folds hover (6 %) and focus (8 %) into the same overlay; in Flutter those remain the job of
+`InkWell.overlayColor`.
+
+### Text fields
+
+MIUI fields are filled rather than outlined: `secondaryContainer` background, 16 dp continuous
+corners, no border until focus (primary) or error (error colour), 12 dp inner padding. That is the
+`InputDecorationThemeData` in `MiuixTheme`.
+
+### Bottom sheets
+
+Sheets carry miuix's drag handle: a 24 dp grab strip with a 45 × 4 dp pill (radius 2) at 20 % of the
+`onSurfaceVariant` tone, growing to 55 dp / 35 % while pressed. `MiuixDragHandle` is painted above
+the sheet content by `lib/common/widgets/scaffold/bottom_sheet.dart`; it draws and listens for the
+press only, so dragging still belongs to the sheet's own gesture recogniser.
+
+### Overscroll
+
+MIUI stretches the scrollable at its ends instead of showing the Android glow. PiliNara's
+`CustomScrollBehavior` already used `StretchingOverscrollIndicator` on Android, which matches
+miuix's `MiuixOverscrollEffect`, so this needed no change.
 
 ## Tests
 
