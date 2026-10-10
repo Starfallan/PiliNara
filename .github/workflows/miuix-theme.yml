@@ -66,14 +66,22 @@ jobs:
         run: flutter test
         continue-on-error: true
 
-      - name: Flutter Build Dev Apk
-        run: flutter build apk --release --split-per-abi --android-project-arg dev=1 --pub
+      - name: Flutter Build Release Apk
+        run: flutter build apk --release --split-per-abi --dart-define-from-file=pili_release.json --pub
+
+      - name: Rename the APKs
+        shell: bash
+        run: |
+          for file in build/app/outputs/flutter-apk/app-*-release.apk; do
+            abi=$(echo "$file" | sed -E 's|.*app-(.*)-release\.apk|\1|')
+            mv "$file" "PiliNara-miuix_android_${{ env.version }}_${abi}.apk"
+          done
 
       - name: Upload the APKs
         uses: actions/upload-artifact@v7
         with:
           name: pilinara-miuix-android-apk
-          path: build/app/outputs/flutter-apk/app-*-release.apk
+          path: PiliNara-miuix_android_*.apk
           if-no-files-found: error
 
       - name: Upload reports
