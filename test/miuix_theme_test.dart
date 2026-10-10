@@ -85,6 +85,13 @@ void main() {
       expect(scheme.inverseSurface, light.onSecondaryVariant);
       expect(scheme.onInverseSurface, light.secondaryVariant);
     });
+
+    test('secondaryContainer 上的前景色用 onSecondaryVariant', () {
+      // miuix 的 onSecondaryContainer 是占位符灰（#A9A9A9），压在 #F0F0F0 上几乎看不清，
+      // 而 PiliNara 在这个容器上画图标与文字。
+      expect(scheme.secondaryContainer, light.secondaryContainer);
+      expect(scheme.onSecondaryContainer, light.onSecondaryVariant);
+    });
   });
 
   group('任意 Material 配色会被翻译成 miuix 角色', () {

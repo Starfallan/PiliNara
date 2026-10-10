@@ -273,7 +273,7 @@ class MiuixColors {
   /// | `primaryContainer` / `onPrimaryContainer` | `primaryContainer` / `onPrimaryContainer` |
   /// | `primaryFixed` / `onPrimaryFixed` | `primaryVariant` / `onPrimaryVariant` |
   /// | `secondary` / `onSecondary` | `secondary` / `onSecondary` |
-  /// | `secondaryContainer` / `onSecondaryContainer` | `secondaryContainer` / `onSecondaryContainer` |
+  /// | `secondaryContainer` / `onSecondaryContainer` | `secondaryContainer` / `onSecondaryVariant` |
   /// | `tertiary` / `tertiaryContainer` | `tertiaryContainer` |
   /// | `surface` / `onSurface` | `surface` / `onSurface` |
   /// | `surfaceContainer` … `Highest` | 同名令牌 |
@@ -285,8 +285,13 @@ class MiuixColors {
   /// | `inverseSurface` / `onInverseSurface` | `onSecondaryVariant` / `secondaryVariant` |
   /// | `surfaceTint` | `Colors.transparent`（MIUI 表面是平的，不做高程着色） |
   ///
-  /// PiliNara 一直把 `outline` 当作次级文字色使用，所以它落在 miuix 的摘要文字色
-  /// `onSurfaceVariantSummary` 上，真正的分隔线则由 `outlineVariant` / `dividerLine` 承担。
+  /// 两处偏离 miuix 自身配对的说明：
+  ///
+  /// * PiliNara 一直把 `outline` 当作次级文字色使用，所以它落在 miuix 的摘要文字色
+  ///   `onSurfaceVariantSummary` 上，真正的分隔线则由 `outlineVariant` / `dividerLine` 承担。
+  /// * PiliNara 在 `secondaryContainer` 上画的是图标与文字，而 miuix 的 `onSecondaryContainer`
+  ///   是占位符灰（浅色模式 `#A9A9A9`），压在 `#F0F0F0` 上几乎看不清。miuix 给自己的灰色填充
+  ///   配的前景色是 `onSecondaryVariant`（浅色模式 `#303030`），这里跟随它。
   ColorScheme toColorScheme() => ColorScheme(
     brightness: brightness,
     primary: primary,
@@ -301,7 +306,7 @@ class MiuixColors {
     secondary: secondary,
     onSecondary: onSecondary,
     secondaryContainer: secondaryContainer,
-    onSecondaryContainer: onSecondaryContainer,
+    onSecondaryContainer: onSecondaryVariant,
     secondaryFixed: secondaryVariant,
     secondaryFixedDim: secondaryVariant,
     onSecondaryFixed: onSecondaryVariant,

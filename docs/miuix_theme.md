@@ -50,7 +50,7 @@ PiliNara's widgets read Material's `ColorScheme`, so the MIUI tokens are mapped 
 | `primaryContainer` / `onPrimaryContainer` | `primaryContainer` / `onPrimaryContainer` |
 | `primaryFixed` / `onPrimaryFixed` | `primaryVariant` / `onPrimaryVariant` |
 | `secondary` / `onSecondary` | `secondary` / `onSecondary` |
-| `secondaryContainer` / `onSecondaryContainer` | `secondaryContainer` / `onSecondaryContainer` |
+| `secondaryContainer` / `onSecondaryContainer` | `secondaryContainer` / `onSecondaryVariant` |
 | `tertiary` / `tertiaryContainer` | `tertiaryContainer` |
 | `surface` / `onSurface` | `surface` / `onSurface` |
 | `surfaceContainer` … `Highest` | the same-named tokens |
@@ -64,6 +64,13 @@ PiliNara's widgets read Material's `ColorScheme`, so the MIUI tokens are mapped 
 
 PiliNara has always used `outline` as its secondary text color, so it lands on MIUI's summary text
 tone; real dividers are `outlineVariant`, which is `dividerLine`.
+
+Two pairings deliberately differ from miuix's own:
+
+* PiliNara paints icons and labels on `secondaryContainer`, while miuix's `onSecondaryContainer` is
+  a placeholder gray (`#A9A9A9` in light mode) that is nearly invisible on the `#F0F0F0` fill.
+  miuix pairs that fill with `onSecondaryVariant` (`#303030`), so the app does too.
+* `outline` carries PiliNara's secondary text, as described above.
 
 ## Type scale
 
