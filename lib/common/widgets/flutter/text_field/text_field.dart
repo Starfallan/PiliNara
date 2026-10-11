@@ -11,6 +11,7 @@
 /// @docImport 'text_theme.dart';
 library;
 
+import 'package:PiliPlus/utils/miuix/miuix_icon.dart';
 import 'dart:ui' as ui show BoxHeightStyle, BoxWidthStyle;
 
 import 'package:PiliPlus/common/widgets/flutter/text_field/controller.dart';
@@ -639,7 +640,7 @@ class RichTextField extends StatefulWidget {
   ///       onPressed: () {
   ///         // This will work because the TextField is enabled
   ///       },
-  ///       icon: const Icon(Icons.edit_outlined),
+  ///       icon: const MiuixIcon(MiuixIcons.edit),
   ///     ),
   ///   ),
   /// )

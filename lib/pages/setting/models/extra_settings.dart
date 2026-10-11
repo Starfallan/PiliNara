@@ -1,3 +1,4 @@
+import 'package:PiliPlus/utils/miuix/miuix_icon.dart';
 import 'dart:io' show Platform, Directory;
 import 'dart:math' show max;
 
@@ -349,7 +350,7 @@ List<SettingsModel> get extraSettings => [
   ),
   const SwitchModel(
     title: '搜索建议',
-    leading: Icon(Icons.search),
+    leading: MiuixIcon(MiuixIcons.search),
     setKey: SettingBoxKey.searchSuggestion,
     defaultVal: true,
   ),

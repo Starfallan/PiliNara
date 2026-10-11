@@ -13,6 +13,7 @@ import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/video_utils.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
+import 'package:PiliPlus/utils/miuix/miuix_icon.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 
@@ -385,7 +386,7 @@ class _CdnSelectDialogState extends State<CdnSelectDialog> {
                 trailing: IconButton(
                   tooltip: '清除自定义 CDN',
                   visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.close),
+                  icon: const MiuixIcon(MiuixIcons.close),
                   onPressed: () =>
                       Navigator.pop(context, const CdnClearCustomResult()),
                 ),
@@ -422,7 +423,7 @@ class _CdnSelectDialogState extends State<CdnSelectDialog> {
               onTap: _pickNode,
             ),
             M3eOptionItem(
-              leading: const Icon(Icons.edit_outlined),
+              leading: const MiuixIcon(MiuixIcons.edit),
               title: const Text('手动输入'),
               subtitle: const Text('输入任意节点 host 或完整 URL'),
               trailing: const Icon(Icons.chevron_right),

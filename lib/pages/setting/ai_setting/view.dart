@@ -1,6 +1,7 @@
 import 'package:PiliPlus/common/widgets/flutter/popup_menu.dart';
 import 'package:PiliPlus/pages/setting/ai_setting/controller.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
+import 'package:PiliPlus/utils/miuix/miuix_icon.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 
@@ -112,7 +113,7 @@ class AiSettingPage extends StatelessWidget {
                             // 低频辅助操作，用最低强调的 Standard 样式，
                             // 不抢卡片视觉重心
                             : IconButton(
-                                icon: const Icon(Icons.refresh),
+                                icon: const MiuixIcon(MiuixIcons.refresh),
                                 tooltip: '拉取模型列表',
                                 onPressed: controller.fetchModels,
                               ),
@@ -170,7 +171,7 @@ class AiSettingPage extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       FilledButton.tonalIcon(
-                        icon: const Icon(Icons.add, size: 18),
+                        icon: const MiuixIcon(MiuixIcons.add, size: 18),
                         label: const Text('添加'),
                         onPressed: () =>
                             _showTemplateDialog(context, controller),
@@ -326,7 +327,7 @@ class AiSettingPage extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.info_outline,
+                      MiuixIcon(MiuixIcons.info,
                           color: colorScheme.primary, size: 20),
                       const SizedBox(width: 8),
                       Text(

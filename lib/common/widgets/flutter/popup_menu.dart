@@ -1,3 +1,4 @@
+import 'package:PiliPlus/utils/miuix/miuix_icon.dart';
 // Copyright 2014 The Flutter Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -224,7 +225,7 @@ class StaticPopupMenuButton<T> extends StatelessWidget {
               padding: padding,
               iconSize: iconSize ?? 24,
               onPressed: onPressed,
-              icon: icon ?? const Icon(Icons.more_vert),
+              icon: icon ?? const MiuixIcon(MiuixIcons.more),
             ),
           );
         },

@@ -13,6 +13,7 @@ import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
+import 'package:PiliPlus/utils/miuix/miuix_icon.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// 弹幕字体来源（下拉内置项）；选择已导入字体时下拉值为该字体的池 key
@@ -466,7 +467,7 @@ class _FontSettingPageState extends State<FontSettingPage> {
           ),
           IconButton(
             tooltip: '移除',
-            icon: const Icon(Icons.close, size: 18),
+            icon: const MiuixIcon(MiuixIcons.close, size: 18),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints.tightFor(width: 32, height: 32),
             onPressed: () {

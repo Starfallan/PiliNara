@@ -13,6 +13,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:hive_ce/hive.dart';
+import 'package:PiliPlus/utils/miuix/miuix_icon.dart';
 import 'package:material_ui/material_ui.dart';
 
 List<SettingsModel> get recommendSettings => [
@@ -25,7 +26,7 @@ List<SettingsModel> get recommendSettings => [
   SwitchModel(
     title: '保留首页推荐刷新',
     subtitle: '下拉刷新时保留上次内容',
-    leading: const Icon(Icons.refresh),
+    leading: const MiuixIcon(MiuixIcons.refresh),
     setKey: SettingBoxKey.enableSaveLastData,
     defaultVal: true,
     onChanged: (value) {

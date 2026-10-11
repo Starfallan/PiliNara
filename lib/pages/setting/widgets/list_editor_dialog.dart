@@ -1,3 +1,4 @@
+import 'package:PiliPlus/utils/miuix/miuix_icon.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
@@ -222,7 +223,7 @@ class _ListEditorDialogState extends State<ListEditorDialog> {
                                   style: theme.textTheme.bodyMedium,
                                 ),
                           trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline, size: 20),
+                            icon: const MiuixIcon(MiuixIcons.delete, size: 20),
                             onPressed: () => _removeItem(index),
                             tooltip: '删除',
                             padding: EdgeInsets.zero,

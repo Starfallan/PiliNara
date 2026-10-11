@@ -1,6 +1,9 @@
 import 'package:PiliPlus/utils/miuix/miuix_icon_data.dart';
 import 'package:material_ui/material_ui.dart';
 
+// 用到图标的地方只需要 import 这一个文件就能拿到 MiuixIcons 常量与 MiuixIcon 组件。
+export 'package:PiliPlus/utils/miuix/miuix_icon_data.dart';
+
 /// 把 miuix 图标的 SVG 风格路径串解析成 [Path]。
 ///
 /// 生成器只产出绝对坐标的 `M` / `L` / `H` / `V` / `Q` / `C` / `Z`,所以这里只认这几种命令,
@@ -69,13 +72,15 @@ class MiuixIcon extends StatelessWidget {
   const MiuixIcon(
     this.data, {
     super.key,
-    this.size = 24,
+    this.size,
     this.color,
     this.semanticLabel,
   });
 
   final MiuixIconData data;
-  final double size;
+
+  /// 图标边长；不传时跟随 [IconTheme]（和 [Icon] 一样，默认 24）。
+  final double? size;
   final Color? color;
   final String? semanticLabel;
 
@@ -83,8 +88,9 @@ class MiuixIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final iconTheme = IconTheme.of(context);
     final resolved = color ?? iconTheme.color;
+    final resolvedSize = size ?? iconTheme.size ?? 24;
     final painter = CustomPaint(
-      size: Size.square(size),
+      size: Size.square(resolvedSize),
       painter: _MiuixIconPainter(
         // 生成器已经把坐标缩放并翻正到 24×24，这里直接用。
         path: parseMiuixIconPath(data.path),

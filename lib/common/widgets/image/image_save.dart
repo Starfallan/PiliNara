@@ -9,6 +9,7 @@ import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:get/get_navigation/src/extension_navigation.dart';
+import 'package:PiliPlus/utils/miuix/miuix_icon.dart';
 import 'package:material_ui/material_ui.dart';
 
 const _iconSize = 20.0;
@@ -82,7 +83,7 @@ void imageSaveDialog({
                               Get.back();
                               ImageUtils.onShareImg(cover);
                             },
-                            icon: const Icon(Icons.share),
+                            icon: const MiuixIcon(MiuixIcons.share),
                           )
                         else
                           iconButton(
@@ -105,7 +106,7 @@ void imageSaveDialog({
                               Get.back();
                             }
                           },
-                          icon: const Icon(Icons.download),
+                          icon: const MiuixIcon(MiuixIcons.download),
                         ),
                       ],
                     ],
