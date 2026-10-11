@@ -4,6 +4,8 @@ import 'dart:typed_data';
 
 import 'package:PiliPlus/utils/miuix/miuix_colors.dart';
 import 'package:PiliPlus/utils/miuix/miuix_drag_handle.dart';
+import 'package:PiliPlus/utils/miuix/miuix_icon.dart';
+import 'package:PiliPlus/utils/miuix/miuix_icon_data.dart';
 import 'package:PiliPlus/utils/miuix/miuix_shapes.dart';
 import 'package:PiliPlus/utils/miuix/miuix_squircle.dart';
 import 'package:PiliPlus/utils/miuix/miuix_theme.dart';
@@ -115,6 +117,77 @@ void main() {
       );
       // ignore: avoid_print
       print('captured navbar ${entry.$1}');
+    }
+  });
+
+  // miuix 图标集（矢量转过来的路径）：核对方向、粗细与缩放是否正常。
+  testWidgets('miuix 图标预览', (tester) async {
+    await tester.runAsync(() async {
+      final bytes = await File(r'C:\Windows\Fonts\simhei.ttf').readAsBytes();
+      final loader = FontLoader(_fontFamily)
+        ..addFont(Future.value(ByteData.sublistView(Uint8List.fromList(bytes))));
+      await loader.load();
+    });
+    tester.view.physicalSize = const Size(760, 640);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+
+    const icons = [
+      ('back', MiuixIcons.back),
+      ('close', MiuixIcons.close),
+      ('search', MiuixIcons.search),
+      ('settings', MiuixIcons.settings),
+      ('home', MiuixIcons.home),
+      ('add', MiuixIcons.add),
+      ('delete', MiuixIcons.delete),
+      ('share', MiuixIcons.share),
+      ('download', MiuixIcons.download),
+      ('refresh', MiuixIcons.refresh),
+      ('play', MiuixIcons.play),
+      ('pause', MiuixIcons.pause),
+    ];
+
+    for (final entry in [
+      ('light', MiuixColors.light),
+      ('dark', MiuixColors.dark),
+    ]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: MiuixTheme.getThemeData(
+            colors: entry.$2,
+            fontFamily: _fontFamily,
+          ),
+          home: Scaffold(
+            body: Center(
+              child: Wrap(
+                spacing: 24,
+                runSpacing: 16,
+                alignment: WrapAlignment.center,
+                children: [
+                  for (final icon in icons)
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        MiuixIcon(icon.$2, size: 32),
+                        const SizedBox(height: 4),
+                        Text(icon.$1, style: const TextStyle(fontSize: 10)),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 400));
+      await expectLater(
+        find.byType(Scaffold),
+        matchesGoldenFile('goldens/miuix_icons_${entry.$1}.png'),
+      );
+      // ignore: avoid_print
+      print('captured icons ${entry.$1}');
     }
   });
 
