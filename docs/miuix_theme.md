@@ -196,12 +196,12 @@ runs, which is how miuix's effect layer darkens the layer below the entering one
 ### Bottom navigation bar
 
 The theme sets the bar's fill to `surfaceContainer` (MIUI's floating bar; the page is `surface`) and
-otherwise leaves the app's own colours alone: `indicatorColor` and `iconTheme` stay unset because
-PiliNara paints the selected pill as a 6 % (light) / 8 % (dark) overlay and picks icon colours per
-state. Putting an opaque colour into the theme turns the selection into a hard block on the bar —
-which is what the earlier revision did, and why the bar's selection looked wrong. The label style is
-the one exception: it is set here so bottom-bar labels use Miuix's `footnote2` size (11) with
-`onSurface` when selected and the summary tone when not.
+`indicatorColor` stays unset because PiliNara paints the selected pill itself as a 6 % (light) / 8 %
+(dark) overlay; putting an opaque colour into the theme turns the selection into a hard block on the
+bar, which is what an earlier revision did. Icon and label colours follow miuix's
+`FloatingNavigationBar`, where selected and unselected content share one colour
+(`onSurfaceContainer`) and only the indicator marks the selection — miuix's `showDivider` is off by
+default, so the bar carries no separators. The label size is Miuix's `footnote2` (11).
 
 ## Tests
 

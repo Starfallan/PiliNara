@@ -79,16 +79,24 @@ abstract final class MiuixTheme {
         indicatorShape: const MiuixSquircleBorder(
           cornerRadius: MiuixShapes.navigationItemCornerRadius,
         ),
-        // indicatorColor 与 iconTheme 都交回给应用自己的默认值：PiliNara 的底栏把选中指示画成
-        // 6%（浅色）/ 8%（深色）的叠加色，图标按状态取 onSecondaryContainer / onSurfaceVariant。
-        // 主题里一旦给定不透明的值，选中项就会变成一个硬色块。
+        // 内容色按 miuix 的 FloatingNavigationBar：选中与未选中都用 onSurfaceContainer，
+        // 选中态由指示块（那层 6%/8% 的叠加色）来区分。注意 indicatorColor 必须留空——
+        // 一旦给定不透明的值，选中项就会变成一个硬色块。
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final color = states.contains(WidgetState.disabled)
+              ? colors.onSurfaceContainer.withValues(alpha: 0.38)
+              : colors.onSurfaceContainer;
+          return IconThemeData(size: 24, color: color);
+        }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
-          final selected = states.contains(WidgetState.selected);
+          final color = states.contains(WidgetState.disabled)
+              ? colors.onSurfaceContainer.withValues(alpha: 0.38)
+              : colors.onSurfaceContainer;
           return TextStyle(
             fontFamily: fontFamily,
             fontWeight: fontWeight,
             fontSize: 11,
-            color: selected ? colors.onSurface : colors.onSurfaceVariantSummary,
+            color: color,
           );
         }),
       ),

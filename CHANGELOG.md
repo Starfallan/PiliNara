@@ -21,6 +21,7 @@
 - **移除 Material 3 相关的主题字段**：设置里的「调色板风格」（FlexSchemeVariant）、「动态取色」（Monet 壁纸取色）、「页面过渡动画」与「预测性返回动画」四项去掉，`Pref.dynamicColor` / `Pref.schemeVariant` / `Pref.pageTransition` / `Pref.enablePredictiveBack` 及其存储键一并删除，动态取色的平台取色代码也从 `main.dart` 移除。主题只剩两条路径：miuix 的固定配色（MIUI 蓝）或用户挑选的品牌色（经 miuix 的 Monet 规则翻译，固定 tonal spot）。设置需要用应用内的导出/导入搬一次。
 
 ### Changed
+- **浮起底栏按 miuix 的做法调过**：内容色（图标与标签）选中/未选中统一用 `onSurfaceContainer`，选中态只由指示块区分——这是 miuix `FloatingNavigationBar` 的取色方式（它的 `showDivider` 默认关闭，所以不画分隔线）；指示块仍然留给应用自己那层 6%（浅色）/ 8%（深色）叠加色。
 - **动画细节优化**：miuix 的页面过渡补上被覆盖页面的遮罩（miuix `NavDisplayEffects.dimAmount` = 50%，随过场进度淡入，配合原来的 1/4 屏宽视差与 10% 透明衰减）；弹层手柄的缓动改为 Compose tween 的默认形状（`Curves.fastOutSlowIn`），与 miuix 手柄一致。
 - **动画迁移到 miuix**：新增 `lib/utils/miuix/miuix_motion.dart`，曲线与时长取自 miuix 自己的实现——过场曲线是 miuix 导航烘焙的弹簧阶跃响应（response 0.8、damping 0.95，500ms），缓动为 `DecelerateEasing` / `AccelerateEasing` / `SinOutEasing`，弹簧为 `folmeSpring` 的刚度换算，组件时长沿用 miuix 的 100/150/200/350ms；新增 `MiuixPageTransitionsBuilder`（miuix `NavTransitions.MiuixDefault` 的几何：进场整屏滑入、被覆盖页视差 1/4 屏宽 + 10% 透明衰减）并应用到所有平台的 `pageTransitionsTheme`，GetX 的页面转场也改成同款滑入（`rightToLeftWithFade`）。按压反馈与弹层手柄的时长改用这些常量。
 - **CI 只构建 Android arm64-v8a**：`flutter build apk --target-platform android-arm64`，只产出一份 APK；构建后会把包名打印到日志里，方便核对 `com.example.pilinara.miuix`。

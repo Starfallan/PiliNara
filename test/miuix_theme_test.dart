@@ -392,19 +392,28 @@ void main() {
         theme.navigationBarTheme.backgroundColor,
         MiuixColors.light.surfaceContainer,
       );
-      // 指示块与图标色必须留空：PiliNara 的底栏把它们画成 6%/8% 的叠加色并按状态取图标色，
-      // 主题给定不透明的值就会变成硬色块。
+      // 指示块必须留空：PiliNara 的底栏把它画成 6%/8% 的叠加色，主题给定不透明的值就会变成硬色块。
       expect(theme.navigationBarTheme.indicatorColor, isNull);
-      expect(theme.navigationBarTheme.iconTheme, isNull);
+      // 内容色按 miuix 的 FloatingNavigationBar：选中与未选中同色（onSurfaceContainer）。
+      expect(
+        theme.navigationBarTheme.iconTheme?.resolve({
+          WidgetState.selected,
+        })?.color,
+        MiuixColors.light.onSurfaceContainer,
+      );
+      expect(
+        theme.navigationBarTheme.iconTheme?.resolve({})?.color,
+        MiuixColors.light.onSurfaceContainer,
+      );
       expect(
         theme.navigationBarTheme.labelTextStyle?.resolve({
           WidgetState.selected,
         })?.color,
-        MiuixColors.light.onSurface,
+        MiuixColors.light.onSurfaceContainer,
       );
       expect(
         theme.navigationBarTheme.labelTextStyle?.resolve({})?.color,
-        MiuixColors.light.onSurfaceVariantSummary,
+        MiuixColors.light.onSurfaceContainer,
       );
     });
   });
