@@ -6,6 +6,7 @@ import 'package:PiliPlus/utils/miuix/miuix_colors.dart';
 import 'package:PiliPlus/utils/miuix/miuix_drag_handle.dart';
 import 'package:PiliPlus/utils/miuix/miuix_indication.dart';
 import 'package:PiliPlus/utils/miuix/miuix_motion.dart';
+import 'package:PiliPlus/utils/miuix/miuix_scroll_haptic.dart';
 import 'package:PiliPlus/utils/miuix/miuix_shapes.dart';
 import 'package:PiliPlus/utils/miuix/miuix_squircle.dart';
 import 'package:PiliPlus/utils/miuix/miuix_text_styles.dart';
@@ -279,6 +280,38 @@ void main() {
   });
 
   group('miuix 动效', () {
+    test('滚动边界触感的判据与 miuix 一致', () {
+      expect(MiuixScrollHaptic.availableVelocityThreshold, 1);
+      expect(MiuixScrollHaptic.resetThreshold, 1);
+      // 速度够大且这个边界还没震过 → 震。
+      expect(
+        MiuixScrollHaptic.shouldHaptic(
+          overscroll: 12,
+          velocity: 1200,
+          alreadyHit: false,
+        ),
+        isTrue,
+      );
+      // 同一个边界只震一次。
+      expect(
+        MiuixScrollHaptic.shouldHaptic(
+          overscroll: 12,
+          velocity: 1200,
+          alreadyHit: true,
+        ),
+        isFalse,
+      );
+      // 速度太小（慢慢拖到边界）不震。
+      expect(
+        MiuixScrollHaptic.shouldHaptic(
+          overscroll: 12,
+          velocity: 0.4,
+          alreadyHit: false,
+        ),
+        isFalse,
+      );
+    });
+
     test('过场曲线是 miuix 烘焙的那条弹簧（response 0.8 / damping 0.95）', () {
       const curve = MiuixMotion.programmatic;
       expect(curve.transform(0), closeTo(0, 0.0001));

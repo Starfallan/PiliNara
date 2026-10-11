@@ -26,6 +26,7 @@ import 'package:PiliPlus/utils/font_utils.dart';
 import 'package:PiliPlus/utils/json_file_handler.dart';
 import 'package:PiliPlus/utils/max_screen_size.dart';
 import 'package:PiliPlus/utils/miuix/miuix_colors.dart';
+import 'package:PiliPlus/utils/miuix/miuix_scroll_haptic.dart';
 import 'package:PiliPlus/utils/path_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/request_utils.dart';
@@ -385,9 +386,12 @@ class MyApp extends StatelessWidget {
         child: child!,
       );
     }
-    return BackDetector(
-      onBack: _onBack,
-      child: child,
+    // miuix 的滚动边界触感（抛到列表头/尾时震一下）与应用返回探测一起在这里接一次。
+    return MiuixScrollEndHaptic(
+      child: BackDetector(
+        onBack: _onBack,
+        child: child,
+      ),
     );
   }
 
