@@ -22,6 +22,7 @@ import 'package:PiliPlus/common/widgets/dynamic_sliver_app_bar/rendering/sliver_
 import 'package:PiliPlus/common/widgets/dynamic_sliver_app_bar/sliver_persistent_header.dart';
 import 'package:PiliPlus/common/widgets/only_layout_widget.dart'
     show LayoutCallback;
+import 'package:PiliPlus/utils/miuix/miuix_shapes.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart' show RenderOpacity, OpacityLayer;
 import 'package:flutter/services.dart';
@@ -304,7 +305,7 @@ class DynamicSliverAppBar extends StatelessWidget {
         ? MediaQuery.viewPaddingOf(context).top
         : 0.0;
     final double effectiveCollapsedHeight =
-        topPadding + kToolbarHeight + bottomHeight + 1;
+        topPadding + MiuixShapes.topBarHeight + bottomHeight + 1;
 
     return SliverPinnedHeader(
       onPerformLayout: onPerformLayout,
@@ -332,7 +333,7 @@ class DynamicSliverAppBar extends StatelessWidget {
         collapsedHeight: effectiveCollapsedHeight,
         topPadding: topPadding,
         shape: shape,
-        toolbarHeight: kToolbarHeight,
+        toolbarHeight: MiuixShapes.topBarHeight,
         leadingWidth: leadingWidth,
         toolbarTextStyle: toolbarTextStyle,
         titleTextStyle: titleTextStyle,
@@ -400,7 +401,7 @@ class DynamicFlexibleSpaceBar extends StatelessWidget {
 
       final double fadeStart = math.max(
         0.0,
-        1.0 - kToolbarHeight / deltaExtent,
+        1.0 - MiuixShapes.topBarHeight / deltaExtent,
       );
       const fadeEnd = 1.0;
       assert(fadeStart <= fadeEnd);

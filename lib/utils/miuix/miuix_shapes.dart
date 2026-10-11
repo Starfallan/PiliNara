@@ -53,11 +53,20 @@ abstract final class MiuixShapes {
   /// TopAppBarDefaults.CollapsedHeight
   static const double topBarHeight = 52;
 
+  /// TopAppBarDefaults.SmallTopAppBarCenterHeight
+  static const double topBarSmallCenterHeight = 50;
+
   /// TopAppBarDefaults.TitlePadding
   static const double topBarTitlePadding = 26;
 
   /// TopAppBarDefaults.NavigationIconPadding
   static const double topBarIconPadding = 16;
+
+  /// TopAppBarDefaults.LargeTitleBottomPadding
+  static const double topBarLargeTitleBottomPadding = 4;
+
+  /// TopAppBarDefaults.SubtitleBottomPadding
+  static const double topBarSubtitleBottomPadding = 8;
 
   static const BorderRadius cardRadius = BorderRadius.all(
     Radius.circular(cardCornerRadius),
