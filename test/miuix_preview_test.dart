@@ -8,6 +8,7 @@ import 'package:PiliPlus/utils/miuix/miuix_icon.dart';
 import 'package:PiliPlus/utils/miuix/miuix_shapes.dart';
 import 'package:PiliPlus/utils/miuix/miuix_squircle.dart';
 import 'package:PiliPlus/utils/miuix/miuix_theme.dart';
+import 'package:PiliPlus/utils/theme_utils.dart';
 import 'package:PiliPlus/common/widgets/floating_navigation_bar.dart';
 import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter_test/flutter_test.dart';
@@ -48,6 +49,18 @@ void main() {
       // ignore: avoid_print
       print('captured ${entry.$1}');
     }
+    // 纯黑模式：页面钉成纯黑，容器层次保持 miuix 调色板给的 #242424 / #2D2D2D。
+    await tester.pumpWidget(
+      const _Preview(colors: MiuixColors.dark, pureBlack: true),
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 400));
+    await expectLater(
+      find.byType(_Preview),
+      matchesGoldenFile('goldens/miuix_pureblack.png'),
+    );
+    // ignore: avoid_print
+    print('captured pureblack');
   });
 
   // 单独出一张底栏的图：这里渲染的是应用自己的 FloatingNavigationBar，
@@ -265,18 +278,28 @@ void main() {
 }
 
 class _Preview extends StatelessWidget {
-  const _Preview({required this.colors});
+  const _Preview({required this.colors, this.pureBlack = false});
 
   final MiuixColors colors;
+
+  /// 纯黑模式：miuix 的层次不再额外压暗，页面表面钉成纯黑（见 ThemeUtils.darkenTheme）。
+  final bool pureBlack;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: MiuixTheme.getThemeData(
-        colors: colors,
-        fontFamily: _fontFamily,
-      ),
+      theme: pureBlack
+          ? ThemeUtils.darkenTheme(
+              MiuixTheme.getThemeData(
+                colors: colors,
+                fontFamily: _fontFamily,
+              ),
+            )
+          : MiuixTheme.getThemeData(
+              colors: colors,
+              fontFamily: _fontFamily,
+            ),
       home: Builder(
         builder: (context) {
           final theme = Theme.of(context);

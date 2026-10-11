@@ -53,56 +53,29 @@ abstract final class ThemeUtils {
     return theme;
   }
 
-  /// 纯黑模式：画布与顶层表面压成纯黑，各层容器按 miuix 的层次继续压暗，主色与次要色
-  /// 也略微向黑色靠拢，保证在纯黑画布上的对比度。
+  /// 纯黑模式：把画布与顶层表面压成纯黑，其余角色交给 miuix 的调色板。
+  ///
+  /// miuix 的"抬升"不是 Material 那套 elevation 着色，而是靠调色板自己的层次：深色下
+  /// `surface` 纯黑、`surfaceContainer` `#242424`、`surfaceContainerHigh` `#242424`、
+  /// `surfaceContainerHighest` `#2D2D2D`。所以这里只把页面级表面（画布、顶栏、底栏轨道）
+  /// 固定成纯黑，不再把容器角色按比例压暗——那会把 miuix 的层次压平。
   static ThemeData darkenTheme(ThemeData theme) {
     final colorScheme = theme.colorScheme;
-    final color = colorScheme.surfaceContainerHighest.darken(0.7);
     return theme.copyWith(
       canvasColor: Colors.black,
       scaffoldBackgroundColor: Colors.black,
       appBarTheme: theme.appBarTheme.copyWith(
         backgroundColor: Colors.black,
       ),
-      cardTheme: theme.cardTheme.copyWith(
-        color: colorScheme.surfaceContainer.darken(0.75),
-      ),
-      dialogTheme: theme.dialogTheme.copyWith(backgroundColor: color),
-      bottomSheetTheme: theme.bottomSheetTheme.copyWith(
-        backgroundColor: color,
-      ),
-      bottomNavigationBarTheme: theme.bottomNavigationBarTheme.copyWith(
-        backgroundColor: color,
-      ),
       navigationBarTheme: theme.navigationBarTheme.copyWith(
-        backgroundColor: color,
+        backgroundColor: Colors.black,
       ),
       navigationRailTheme: theme.navigationRailTheme.copyWith(
         backgroundColor: Colors.black,
       ),
-      popupMenuTheme: theme.popupMenuTheme.copyWith(color: color),
-      colorScheme: colorScheme.copyWith(
-        primary: colorScheme.primary.darken(0.1),
-        onPrimary: colorScheme.onPrimary.darken(0.1),
-        primaryContainer: colorScheme.primaryContainer.darken(0.1),
-        onPrimaryContainer: colorScheme.onPrimaryContainer.darken(0.1),
-        inversePrimary: colorScheme.inversePrimary.darken(0.1),
-        secondary: colorScheme.secondary.darken(0.05),
-        onSecondary: colorScheme.onSecondary.darken(0.05),
-        secondaryContainer: colorScheme.secondaryContainer.darken(0.05),
-        onSecondaryContainer: colorScheme.onSecondaryContainer.darken(0.05),
-        error: colorScheme.error.darken(0.05),
-        surface: Colors.black,
-        onSurface: colorScheme.onSurface.darken(0.15),
-        surfaceTint: colorScheme.surfaceTint.darken(),
-        inverseSurface: colorScheme.inverseSurface.darken(),
-        onInverseSurface: colorScheme.onInverseSurface.darken(),
-        surfaceContainer: colorScheme.surfaceContainer.darken(),
-        surfaceContainerHigh: colorScheme.surfaceContainerHigh.darken(),
-        surfaceContainerHighest: colorScheme.surfaceContainerHighest.darken(
-          0.4,
-        ),
-      ),
+      // 调色板本身已经是「纯黑页面 + #242424 / #2D2D2D 容器」这套 miuix 层次，这里只把
+      // 页面级表面钉成纯黑，容器角色保持不动。
+      colorScheme: colorScheme.copyWith(surface: Colors.black),
     );
   }
 }
