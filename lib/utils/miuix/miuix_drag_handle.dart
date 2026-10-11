@@ -44,7 +44,9 @@ class _MiuixDragHandleState extends State<MiuixDragHandle>
 
   late final Animation<double> _pressed = CurvedAnimation(
     parent: _controller,
-    curve: Curves.easeOut,
+    // miuix 手柄用的是 Compose 的 tween 默认缓动（FastOutSlowIn），与 Flutter 的
+    // Curves.fastOutSlowIn 同一形状。
+    curve: Curves.fastOutSlowIn,
   );
 
   @override

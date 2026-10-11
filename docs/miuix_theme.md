@@ -138,6 +138,11 @@ flat 10 % overlay over the whole surface — 200 ms in, 350 ms out — which is 
 folds hover (6 %) and focus (8 %) into the same overlay; in Flutter those remain the job of
 `InkWell.overlayColor`.
 
+The fade-out has to be scheduled by `confirm()` itself: Flutter's `InkWell` calls `confirm()` when
+a tap is recognised and never calls `cancel()` afterwards, so an implementation that only ramps the
+overlay up leaves the 10 % tint behind on every widget that was tapped — which reads as a colour
+block stuck on the tab that was selected before.
+
 ### Text fields
 
 MIUI fields are filled rather than outlined: `secondaryContainer` background, 16 dp continuous
@@ -175,6 +180,9 @@ The theme installs `MiuixPageTransitionsBuilder` for every platform: the enterin
 full width from the trailing edge and the covered page parallaxes a quarter width with a 10 % alpha
 falloff — miuix's `NavTransitions.MiuixDefault` geometry with the motion above. Page-routed screens
 go through GetX, which mirrors the same slide (its `rightToLeftWithFade`).
+
+The covered page is additionally dimmed by up to 50 % (`NavDisplayEffects.dimAmount`) as the motion
+runs, which is how miuix's effect layer darkens the layer below the entering one.
 
 ### Bottom navigation bar
 

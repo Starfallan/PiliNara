@@ -174,6 +174,7 @@ class _MiuixPageTransition extends StatelessWidget {
       builder: (context, child) {
         final enter = inCurve.value;
         final cover = coverCurve.value;
+        final page = child ?? const SizedBox.shrink();
         return Transform.translate(
           // 被覆盖时向左视差 1/4 屏宽（miuix 的 covered 处理）。
           offset: Offset(-cover * width * 0.25, 0),
@@ -182,7 +183,25 @@ class _MiuixPageTransition extends StatelessWidget {
             child: Transform.translate(
               // 进场页从右侧整屏滑入。
               offset: Offset((1 - enter) * width, 0),
-              child: child,
+              child: cover <= 0
+                  ? page
+                  : Stack(
+                      fit: StackFit.passthrough,
+                      children: [
+                        page,
+                        // miuix 的遮罩：正在被覆盖的页面上压一层最深 50% 的暗色
+                        // （NavDisplayEffects.dimAmount = 0.5），随过场进度淡入。
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: ColoredBox(
+                              color: const Color(
+                                0xFF000000,
+                              ).withValues(alpha: 0.5 * cover),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
             ),
           ),
         );

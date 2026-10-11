@@ -15,6 +15,10 @@ import 'package:PiliPlus/utils/miuix/miuix_motion.dart';
 ///
 /// 与 miuix 的差异：miuix 另外把悬停、聚焦的增量也算进这层叠加色里，Flutter 的悬停/聚焦高亮
 /// 由 `InkWell` 的 `overlayColor` 单独负责，所以这里只画按下状态；画笔会裁到控件自己的圆角内。
+///
+/// 另外要注意 Flutter 的调用时机：点按成功时 `InkWell` 只调 [InteractiveInkFeature.confirm]，
+/// **不会**再调 [InteractiveInkFeature.cancel]，所以抬手后的淡出必须由 [confirm] 自己安排——
+/// 否则这层叠加色会一直留在被点过的控件上（表现就是「切走以后上一个标签页上还剩一块色」）。
 class MiuixIndication extends InteractiveInkFeatureFactory {
   const MiuixIndication(
     this.color, {
@@ -105,12 +109,20 @@ class _MiuixIndicationFeature extends InteractiveInkFeature {
   final BorderRadius? borderRadius;
 
   late final AnimationController _controller;
+  bool _disposed = false;
 
   @override
   void confirm() {
-    _controller
-      ..duration = enterDuration
-      ..forward();
+    // 先按 miuix 的进入时长淡入到 pressAlpha，再按退出时长淡出到 0（对应 miuix 的
+    // PressEnterSpring / PressExitSpring）。
+    _controller.duration = enterDuration;
+    _controller.forward().whenComplete(() {
+      if (_disposed) {
+        return;
+      }
+      _controller.duration = exitDuration;
+      _controller.reverse();
+    });
   }
 
   @override
@@ -128,13 +140,15 @@ class _MiuixIndicationFeature extends InteractiveInkFeature {
 
   @override
   void dispose() {
+    _disposed = true;
     _controller.dispose();
     super.dispose();
   }
 
   @override
   void paintFeature(Canvas canvas, Matrix4 transform) {
-    final value = _controller.value;
+    // miuix 的进出都是弹簧，这里用它的减速曲线近似（阻尼 1/0.95 时的形状最接近）。
+    final value = MiuixMotion.decelerate.transform(_controller.value);
     if (value <= 0) {
       return;
     }

@@ -11,6 +11,7 @@
 - **Android 包名改为 `com.example.pilinara.miuix`**：本构建与官方 PiliNara 用不同的包名，可以同时安装、互不覆盖；`namespace`（Kotlin/Java 包名与 R 类）保持上游不变，provider 权限声明用的是 `${applicationId}` 占位符，会跟着一起变。
 
 ### Fixed
+- **切换标签页后上一个标签上留下色块**：miuix 的按压反馈之前只在 `confirm()` 里淡入、没有淡出，而 Flutter 的 `InkWell` 在点按成功时只会调 `confirm()`、不会再调 `cancel()`，于是那层 10% 叠加色永久留在被点过的控件上（表现就是切走以后前一个标签页上还剩一块色）。现在 `confirm()` 自己安排「先淡入、再按退出时长淡出」，动画结束后释放 ink feature，并且叠加色的透明度也按 miuix 的减速曲线走。
 - **底栏选中态变成硬色块**：上一版把 `navigationBarTheme.indicatorColor` 设成了不透明的 `surfaceContainer`（浅色模式下就是纯白），而 PiliNara 的底栏本来把选中指示画成 6%（浅色）/ 8%（深色）的叠加色，于是选中项变成一块盖在底栏上的白块；同时底栏底色被设成 `surface`（＝页面底色），整条栏和页面糊在一起。现在底色改为 MIUI 浮动底栏的 `surfaceContainer`，指示块与图标颜色交回应用自己按状态取色，只保留标签样式（footnote2 档）。
 - **`secondary` 作次级文字/图标色时看不清**：miuix 的 `secondary` 是中性填充（浅色模式 `#E6E6E6`），而 PiliNara 把它当次级文字/图标色（也是底栏指示块的兜底色）用。改取 miuix 压在背景上的变体色 `onBackgroundVariant`（Monet 下等于 primary），明暗两种模式都能看清。
 
@@ -18,6 +19,7 @@
 - **移除 Material 3 相关的主题字段**：设置里的「调色板风格」（FlexSchemeVariant）、「动态取色」（Monet 壁纸取色）、「页面过渡动画」与「预测性返回动画」四项去掉，`Pref.dynamicColor` / `Pref.schemeVariant` / `Pref.pageTransition` / `Pref.enablePredictiveBack` 及其存储键一并删除，动态取色的平台取色代码也从 `main.dart` 移除。主题只剩两条路径：miuix 的固定配色（MIUI 蓝）或用户挑选的品牌色（经 miuix 的 Monet 规则翻译，固定 tonal spot）。设置需要用应用内的导出/导入搬一次。
 
 ### Changed
+- **动画细节优化**：miuix 的页面过渡补上被覆盖页面的遮罩（miuix `NavDisplayEffects.dimAmount` = 50%，随过场进度淡入，配合原来的 1/4 屏宽视差与 10% 透明衰减）；弹层手柄的缓动改为 Compose tween 的默认形状（`Curves.fastOutSlowIn`），与 miuix 手柄一致。
 - **动画迁移到 miuix**：新增 `lib/utils/miuix/miuix_motion.dart`，曲线与时长取自 miuix 自己的实现——过场曲线是 miuix 导航烘焙的弹簧阶跃响应（response 0.8、damping 0.95，500ms），缓动为 `DecelerateEasing` / `AccelerateEasing` / `SinOutEasing`，弹簧为 `folmeSpring` 的刚度换算，组件时长沿用 miuix 的 100/150/200/350ms；新增 `MiuixPageTransitionsBuilder`（miuix `NavTransitions.MiuixDefault` 的几何：进场整屏滑入、被覆盖页视差 1/4 屏宽 + 10% 透明衰减）并应用到所有平台的 `pageTransitionsTheme`，GetX 的页面转场也改成同款滑入（`rightToLeftWithFade`）。按压反馈与弹层手柄的时长改用这些常量。
 - **CI 只构建 Android arm64-v8a**：`flutter build apk --target-platform android-arm64`，只产出一份 APK；构建后会把包名打印到日志里，方便核对 `com.example.pilinara.miuix`。
 
