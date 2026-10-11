@@ -71,18 +71,21 @@ jobs:
         continue-on-error: true
 
       # 只出 arm64-v8a 一份：现在的手机基本都是这个 ABIs，另外两种只是白等构建时间。
+      # 注意 --target-platform 只决定编译哪些 ABI，要真正只留一份还得配 --split-per-abi，
+      # 否则打出来的还是一个含全部 ABI 的胖 APK。
       - name: Flutter Build Release Apk
         run: >-
           flutter build apk
           --release
           --target-platform android-arm64
+          --split-per-abi
           --dart-define-from-file=pili_release.json
           --pub
 
       - name: Rename the APKs
         shell: bash
         run: |
-          mv build/app/outputs/flutter-apk/app-release.apk \
+          mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
              "PiliNara-miuix_android_${{ env.version }}_arm64-v8a.apk"
 
       # APK 的包名（applicationId）决定它能不能和官方 PiliNara 共存，这里把它打印到日志里。
