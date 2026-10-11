@@ -72,7 +72,7 @@ class _MiuixScrollEndHapticState extends State<MiuixScrollEndHaptic> {
     }
     if (MiuixScrollHaptic.shouldHaptic(
       overscroll: overscroll,
-      velocity: notification.velocity ?? 0,
+      velocity: notification.velocity,
       alreadyHit: _hit == boundary,
     )) {
       _hit = boundary;
