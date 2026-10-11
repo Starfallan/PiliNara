@@ -481,5 +481,34 @@ void main() {
         MiuixColors.light.onSurfaceContainer,
       );
     });
+
+    test('复选框/单选框是圆的，取色按 miuix', () {
+      final checkbox = theme.checkboxTheme;
+      expect(checkbox.shape, isA<CircleBorder>());
+      expect(
+        checkbox.fillColor?.resolve({WidgetState.selected}),
+        MiuixColors.light.primary,
+      );
+      expect(checkbox.fillColor?.resolve({}), MiuixColors.light.secondary);
+      expect(
+        checkbox.fillColor?.resolve({
+          WidgetState.selected,
+          WidgetState.disabled,
+        }),
+        MiuixColors.light.disabledPrimary,
+      );
+      expect(checkbox.checkColor?.resolve({}), MiuixColors.light.onPrimary);
+      expect(
+        theme.radioTheme.fillColor?.resolve({WidgetState.selected}),
+        MiuixColors.light.primary,
+      );
+      expect(
+        theme.radioTheme.fillColor?.resolve({}),
+        MiuixColors.light.secondary,
+      );
+      expect(theme.tabBarTheme.indicatorColor, MiuixColors.light.primary);
+      expect(theme.tabBarTheme.dividerColor, MiuixColors.light.dividerLine);
+      expect(theme.tabBarTheme.labelColor, MiuixColors.light.onSurface);
+    });
   });
 }

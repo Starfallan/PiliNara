@@ -5,7 +5,6 @@ import 'dart:typed_data';
 import 'package:PiliPlus/utils/miuix/miuix_colors.dart';
 import 'package:PiliPlus/utils/miuix/miuix_drag_handle.dart';
 import 'package:PiliPlus/utils/miuix/miuix_icon.dart';
-import 'package:PiliPlus/utils/miuix/miuix_icon_data.dart';
 import 'package:PiliPlus/utils/miuix/miuix_shapes.dart';
 import 'package:PiliPlus/utils/miuix/miuix_squircle.dart';
 import 'package:PiliPlus/utils/miuix/miuix_theme.dart';
@@ -375,6 +374,10 @@ class _Preview extends StatelessWidget {
                               onPressed: () {},
                               icon: const Icon(Icons.favorite_border),
                             ),
+                            const SizedBox(width: 12),
+                            // MIUI 的复选框是圆的（miuix 用 CircleShape）。
+                            Checkbox(value: true, onChanged: (_) {}),
+                            Checkbox(value: false, onChanged: (_) {}),
                           ],
                         ),
                         Slider(value: 0.55, onChanged: (_) {}),

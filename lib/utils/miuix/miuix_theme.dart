@@ -294,6 +294,40 @@ abstract final class MiuixTheme {
       cupertinoOverrideTheme: CupertinoThemeData(
         selectionHandleColor: colors.primary,
       ),
+      // MIUI 的复选框/单选框是圆的（miuix 用 CircleShape），填充按状态取：选中 primary、
+      // 未选中 secondary、禁用 disabledPrimary / disabledSecondary，勾选对勾用 onPrimary。
+      checkboxTheme: CheckboxThemeData(
+        shape: const CircleBorder(),
+        side: BorderSide.none,
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return states.contains(WidgetState.selected)
+                ? colors.disabledPrimary
+                : colors.disabledSecondary;
+          }
+          return states.contains(WidgetState.selected)
+              ? colors.primary
+              : colors.secondary;
+        }),
+        checkColor: WidgetStatePropertyAll(colors.onPrimary),
+      ),
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return colors.disabledPrimary;
+          }
+          return states.contains(WidgetState.selected)
+              ? colors.primary
+              : colors.secondary;
+        }),
+      ),
+      // 标签行：指示条 primary、分隔线 dividerLine、选中 onSurface、未选中摘要色。
+      tabBarTheme: TabBarThemeData(
+        indicatorColor: colors.primary,
+        dividerColor: colors.dividerLine,
+        labelColor: colors.onSurface,
+        unselectedLabelColor: colors.onSurfaceVariantSummary,
+      ),
       // 页面过渡也用 miuix 那套：进场页整屏滑入 + 被覆盖页面视差，曲线与时长取自 MiuixMotion。
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
