@@ -11,6 +11,8 @@
 - **Android 包名改为 `com.example.pilinara.miuix`**：本构建与官方 PiliNara 用不同的包名，可以同时安装、互不覆盖；`namespace`（Kotlin/Java 包名与 R 类）保持上游不变，provider 权限声明用的是 `${applicationId}` 占位符，会跟着一起变。
 
 ### Fixed
+- **点其他标签时第一个标签也出现点击效果**：按压反馈的叠加色画在了「共享 Material 的局部原点」上——ink feature 的坐标是参照盒自己的局部坐标，必须把 Flutter 传进 `paintFeature` 的 `transform` 应用到画布上（Flutter 的 `paintInkCircle` 就是这么做的），我漏了这一步，于是底栏/标签栏这类多个 `InkWell` 共用一个 `Material` 的地方，任何一处点击都会在**第一个**控件上出现叠加色。现在改走 SDK 的 `paintInkCircle`（大半径 + 裁到控件自身的矩形/形状），叠加色只出现在被按下的那个控件上。
+- **按住期间没有按压反馈**：之前把淡入放在 `confirm()` 里，而 Flutter 只在“点按被确认”（抬手）时才调它，所以按住不动的时候叠加色一直是透明的。现在 ink feature 创建（手指按下）即淡入，`confirm()` / `cancel()` 都只负责按退出时长淡出。
 - **切换标签页后上一个标签上留下色块**：miuix 的按压反馈之前只在 `confirm()` 里淡入、没有淡出，而 Flutter 的 `InkWell` 在点按成功时只会调 `confirm()`、不会再调 `cancel()`，于是那层 10% 叠加色永久留在被点过的控件上（表现就是切走以后前一个标签页上还剩一块色）。现在 `confirm()` 自己安排「先淡入、再按退出时长淡出」，动画结束后释放 ink feature，并且叠加色的透明度也按 miuix 的减速曲线走。
 - **底栏选中态变成硬色块**：上一版把 `navigationBarTheme.indicatorColor` 设成了不透明的 `surfaceContainer`（浅色模式下就是纯白），而 PiliNara 的底栏本来把选中指示画成 6%（浅色）/ 8%（深色）的叠加色，于是选中项变成一块盖在底栏上的白块；同时底栏底色被设成 `surface`（＝页面底色），整条栏和页面糊在一起。现在底色改为 MIUI 浮动底栏的 `surfaceContainer`，指示块与图标颜色交回应用自己按状态取色，只保留标签样式（footnote2 档）。
 - **`secondary` 作次级文字/图标色时看不清**：miuix 的 `secondary` 是中性填充（浅色模式 `#E6E6E6`），而 PiliNara 把它当次级文字/图标色（也是底栏指示块的兜底色）用。改取 miuix 压在背景上的变体色 `onBackgroundVariant`（Monet 下等于 primary），明暗两种模式都能看清。

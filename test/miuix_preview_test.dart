@@ -126,7 +126,7 @@ void main() {
         ..addFont(Future.value(ByteData.sublistView(Uint8List.fromList(bytes))));
       await loader.load();
     });
-    tester.view.physicalSize = const Size(760, 260);
+    tester.view.physicalSize = const Size(760, 420);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
 
@@ -140,16 +140,21 @@ void main() {
           ),
           home: Scaffold(
             body: Center(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  FilledButton(
-                    onPressed: () {},
-                    child: const Text('点一下'),
-                  ),
-                  FilledButton(
-                    onPressed: () {},
-                    child: const Text('按住'),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      FilledButton(
+                        onPressed: () {},
+                        child: const Text('点一下'),
+                      ),
+                      FilledButton(
+                        onPressed: () {},
+                        child: const Text('按住'),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -166,10 +171,11 @@ void main() {
       ('dark', MiuixColors.dark),
     ]) {
       await pumpPreview(entry.$2);
-      // 左边的按钮点一下，等到叠加色淡出干净。
+      // 左边的按钮点一下（松手后叠加色必须完全消失），右边的按钮按住不放
+      // （按住期间叠加色只出现在右边这一个按钮上——落点错了就会跑到最左边那个，
+      // 也就是用户反馈的「点其他标签时第一个标签也出现点击效果」）。
       await tester.tap(find.text('点一下'));
       await tester.pump(const Duration(seconds: 1));
-      // 右边的按钮按住不放（按住期间应该有叠加色）。
       final gesture = await tester.startGesture(
         tester.getCenter(find.text('按住')),
       );

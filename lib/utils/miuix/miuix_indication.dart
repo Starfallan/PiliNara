@@ -19,6 +19,11 @@ import 'package:PiliPlus/utils/miuix/miuix_motion.dart';
 /// 另外要注意 Flutter 的调用时机：点按成功时 `InkWell` 只调 [InteractiveInkFeature.confirm]，
 /// **不会**再调 [InteractiveInkFeature.cancel]，所以抬手后的淡出必须由 [confirm] 自己安排——
 /// 否则这层叠加色会一直留在被点过的控件上（表现就是「切走以后上一个标签页上还剩一块色」）。
+///
+/// 还有一处容易踩的坑：ink feature 的坐标是**参照盒自己的局部坐标**，画之前必须把 Flutter 传进
+/// [InteractiveInkFeature.paintFeature] 的 `transform` 应用到画布上（SDK 的 `paintInkCircle` 就是
+/// 这么做的）。少了这一步，叠加色会落在共享 `Material` 的局部原点——底栏、标签栏这类多个
+/// `InkWell` 共用一个 Material 的地方，点任何一个标签都会在**第一个**标签上出现点击效果。
 class MiuixIndication extends InteractiveInkFeatureFactory {
   const MiuixIndication(
     this.color, {
@@ -100,6 +105,9 @@ class _MiuixIndicationFeature extends InteractiveInkFeature {
       ..addListener(controller.markNeedsPaint)
       ..addStatusListener(_handleStatusChanged);
     controller.addInkFeature(this);
+    // 按下即出现（miuix 的 PressEnterSpring）：ink feature 是在按下时创建的，所以淡入放在这里，
+    // 而不是等 confirm()——Flutter 只在抬手时才调 confirm()，放在那里按住期间就什么都看不到。
+    _controller.forward();
   }
 
   final double pressAlpha;
@@ -113,20 +121,21 @@ class _MiuixIndicationFeature extends InteractiveInkFeature {
 
   @override
   void confirm() {
-    // 先按 miuix 的进入时长淡入到 pressAlpha，再按退出时长淡出到 0（对应 miuix 的
-    // PressEnterSpring / PressExitSpring）。
-    _controller.duration = enterDuration;
-    _controller.forward().whenComplete(() {
-      if (_disposed) {
-        return;
-      }
-      _controller.duration = exitDuration;
-      _controller.reverse();
-    });
+    // 抬手（点按被确认）后按 miuix 的退出时长淡出——Flutter 不会再调 cancel()，
+    // 所以淡出必须由这里安排，否则叠加色会一直留在被点过的控件上。
+    _fadeOut();
   }
 
   @override
   void cancel() {
+    _fadeOut();
+  }
+
+  /// 按 miuix 的 PressExitSpring 的时长淡出到 0；控制器回到 0 后 ink feature 会自行释放。
+  void _fadeOut() {
+    if (_disposed) {
+      return;
+    }
     _controller
       ..duration = exitDuration
       ..reverse();
@@ -152,22 +161,26 @@ class _MiuixIndicationFeature extends InteractiveInkFeature {
     if (value <= 0) {
       return;
     }
+    // 参照盒的局部坐标；Flutter 传进来的 position 也是同一套坐标。
     final rect = rectCallback?.call() ?? (Offset.zero & referenceBox.size);
     if (rect.isEmpty) {
       return;
     }
     final paint = Paint()
       ..color = color.withValues(alpha: color.a * pressAlpha * value);
-    final border = customBorder;
-    final rrect = border == null ? borderRadius?.toRRect(rect) : null;
-    canvas.save();
-    if (border != null) {
-      canvas.clipPath(border.getOuterPath(rect));
-    } else if (rrect != null) {
-      canvas.clipRRect(rrect);
-    }
-    canvas
-      ..drawRect(rect, paint)
-      ..restore();
+    // 交给 SDK 的 paintInkCircle 画：由它把参照盒的局部坐标映射到 Material 的画布，并把结果裁到
+    // 控件的形状里（InkRipple / InkSplash 走的就是这套，多个 InkWell 共用一个 Material 也没问题）。
+    // 半径取长边就能铺满整个控件，再靠裁剪收成控件形状——视觉上就是 miuix 的整块叠加色，
+    // 而不是圆形波纹。
+    paintInkCircle(
+      canvas: canvas,
+      transform: transform,
+      paint: paint,
+      center: rect.center,
+      radius: rect.longestSide,
+      customBorder: customBorder,
+      borderRadius: borderRadius ?? BorderRadius.zero,
+      clipCallback: () => rect,
+    );
   }
 }

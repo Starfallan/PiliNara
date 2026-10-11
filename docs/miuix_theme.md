@@ -138,10 +138,19 @@ flat 10 % overlay over the whole surface — 200 ms in, 350 ms out — which is 
 folds hover (6 %) and focus (8 %) into the same overlay; in Flutter those remain the job of
 `InkWell.overlayColor`.
 
-The fade-out has to be scheduled by `confirm()` itself: Flutter's `InkWell` calls `confirm()` when
-a tap is recognised and never calls `cancel()` afterwards, so an implementation that only ramps the
-overlay up leaves the 10 % tint behind on every widget that was tapped — which reads as a colour
-block stuck on the tab that was selected before.
+Two details of Flutter's ink pipeline matter here:
+
+* The overlay is a **press** tint, so it has to fade in when the ink feature is *created* (touch
+  down), not in `confirm()`: Flutter only calls `confirm()` when the tap is recognised, i.e. on
+  release, so ramping up there makes the tint invisible while a finger is held down.
+* The fade-out has to be scheduled by `confirm()` (and `cancel()`) itself, because Flutter never
+  calls `cancel()` after a successful tap. Without it the 10 % tint stays on every widget that was
+  tapped — a colour block left behind on the previously selected tab.
+* The drawing itself goes through the SDK's `paintInkCircle`: ink features work in the *reference
+  box's local coordinates* and must apply the transform Flutter passes in. Skipping it paints the
+  overlay at the shared `Material`'s origin, so in a bottom bar or a tab bar (many `InkWell`s on one
+  `Material`) every press appears on the **first** item. A large radius plus a clip to the control's
+  own rect/shape produces miuix's flat block rather than a circular ripple.
 
 ### Text fields
 
