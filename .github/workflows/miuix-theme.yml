@@ -66,24 +66,32 @@ jobs:
         run: flutter test
         continue-on-error: true
 
+      # 只出 arm64-v8a 一份：现在的手机基本都是这个 ABIs，另外两种只是白等构建时间。
       - name: Flutter Build Release Apk
-        run: flutter build apk --release --split-per-abi --dart-define-from-file=pili_release.json --pub
+        run: >-
+          flutter build apk
+          --release
+          --target-platform android-arm64
+          --dart-define-from-file=pili_release.json
+          --pub
 
       - name: Rename the APKs
         shell: bash
         run: |
-          for file in build/app/outputs/flutter-apk/app-*-release.apk; do
-            abi=$(echo "$file" | sed -E 's|.*app-(.*)-release\.apk|\1|')
-            mv "$file" "PiliNara-miuix_android_${{ env.version }}_${abi}.apk"
-          done
+          mv build/app/outputs/flutter-apk/app-release.apk \
+             "PiliNara-miuix_android_${{ env.version }}_arm64-v8a.apk"
 
       # APK 的包名（applicationId）决定它能不能和官方 PiliNara 共存，这里把它打印到日志里。
       - name: Show the application id
+        if: always()
         continue-on-error: true
         run: |
           apk="PiliNara-miuix_android_${{ env.version }}_arm64-v8a.apk"
           echo "APK: $apk"
-          "${ANDROID_HOME}"/build-tools/*/aapt2 dump badging "$apk" | head -2
+          aapt2=$(ls "${ANDROID_HOME}"/build-tools/*/aapt2 2>/dev/null | tail -1)
+          echo "aapt2: $aapt2"
+          ls -l "$apk" || true
+          "$aapt2" dump badging "$apk" | head -2 || true
 
       - name: Upload the APKs
         uses: actions/upload-artifact@v7

@@ -1,5 +1,6 @@
 import 'package:PiliPlus/utils/miuix/miuix_colors.dart';
 import 'package:PiliPlus/utils/miuix/miuix_indication.dart';
+import 'package:PiliPlus/utils/miuix/miuix_motion.dart';
 import 'package:PiliPlus/utils/miuix/miuix_shapes.dart';
 import 'package:PiliPlus/utils/miuix/miuix_squircle.dart';
 import 'package:PiliPlus/utils/miuix/miuix_text_styles.dart';
@@ -36,7 +37,6 @@ abstract final class MiuixTheme {
     required MiuixColors colors,
     String? fontFamily,
     FontWeight? fontWeight,
-    bool isDynamic = false,
   }) {
     final scheme = colors.toColorScheme();
     final textTheme = miuixTextTheme(
@@ -46,9 +46,9 @@ abstract final class MiuixTheme {
       // 必须写进去，否则深色模式下会按黑色渲染。
       color: colors.onSurface,
     );
-    final uncheckedThumbColor = isDynamic
-        ? colors.onSurface.withValues(alpha: 0.38)
-        : colors.onSecondary;
+    // miuix 的开关：未选中滑块用 onSecondary（miuix 的 Monet 模式会换成 onSurface 的 38%，
+    // 本应用不再走动态取色，固定用 onSecondary）。
+    final uncheckedThumbColor = colors.onSecondary;
 
     return ThemeData(
       useMaterial3: true,
@@ -285,6 +285,17 @@ abstract final class MiuixTheme {
       ),
       cupertinoOverrideTheme: CupertinoThemeData(
         selectionHandleColor: colors.primary,
+      ),
+      // 页面过渡也用 miuix 那套：进场页整屏滑入 + 被覆盖页面视差，曲线与时长取自 MiuixMotion。
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: MiuixPageTransitionsBuilder(),
+          TargetPlatform.iOS: MiuixPageTransitionsBuilder(),
+          TargetPlatform.fuchsia: MiuixPageTransitionsBuilder(),
+          TargetPlatform.linux: MiuixPageTransitionsBuilder(),
+          TargetPlatform.macOS: MiuixPageTransitionsBuilder(),
+          TargetPlatform.windows: MiuixPageTransitionsBuilder(),
+        },
       ),
     );
   }

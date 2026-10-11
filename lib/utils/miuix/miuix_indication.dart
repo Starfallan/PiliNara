@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:PiliPlus/utils/miuix/miuix_motion.dart';
 
 /// miuix 的按压反馈：整块表面淡入一层很淡的纯色，而不是水波纹。
 ///
@@ -18,8 +19,8 @@ class MiuixIndication extends InteractiveInkFeatureFactory {
   const MiuixIndication(
     this.color, {
     this.pressAlpha = 0.1,
-    this.enterDuration = const Duration(milliseconds: 200),
-    this.exitDuration = const Duration(milliseconds: 350),
+    this.enterDuration = MiuixMotion.enter,
+    this.exitDuration = MiuixMotion.exit,
   });
 
   /// 叠加色，通常是 `MiuixColors.onSurface`。

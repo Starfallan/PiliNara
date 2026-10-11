@@ -1,8 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:PiliPlus/models/common/theme/theme_color_type.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
 import 'package:PiliPlus/utils/miuix/miuix_colors.dart';
 import 'package:PiliPlus/utils/miuix/miuix_drag_handle.dart';
 import 'package:PiliPlus/utils/miuix/miuix_indication.dart';
+import 'package:PiliPlus/utils/miuix/miuix_motion.dart';
 import 'package:PiliPlus/utils/miuix/miuix_shapes.dart';
 import 'package:PiliPlus/utils/miuix/miuix_squircle.dart';
 import 'package:PiliPlus/utils/miuix/miuix_text_styles.dart';
@@ -272,6 +275,68 @@ void main() {
       expect(MiuixDragHandle.handleHeight, 4);
       expect(MiuixDragHandle.handleRadius, 2);
       expect(MiuixDragHandle.areaHeight, 24);
+    });
+  });
+
+  group('miuix 动效', () {
+    test('过场曲线是 miuix 烘焙的那条弹簧（response 0.8 / damping 0.95）', () {
+      const curve = MiuixMotion.programmatic;
+      expect(curve.transform(0), closeTo(0, 0.0001));
+      // 末帧略小于 1，由动画最后一帧吸附（miuix 的注释里就是这个数）。
+      expect(curve.transform(1), closeTo(0.99933, 0.001));
+      // 中段很快：五分之一处约 48%。
+      expect(curve.transform(0.2), closeTo(0.48, 0.03));
+      // 全程单调，不回弹。
+      var previous = -1.0;
+      for (var i = 0; i <= 20; i++) {
+        final value = curve.transform(i / 20);
+        expect(value, greaterThanOrEqualTo(previous));
+        previous = value;
+      }
+    });
+
+    test('三条缓动与 miuix 的 anim 模块一致', () {
+      expect(MiuixMotion.decelerate.transform(0.5), closeTo(0.75, 0.001));
+      expect(MiuixMotion.accelerate.transform(0.5), closeTo(0.25, 0.001));
+      expect(
+        MiuixMotion.sinOut.transform(0.5),
+        closeTo(math.sin(math.pi / 4), 0.0001),
+      );
+    });
+
+    test('时长取自 miuix 组件自己的值', () {
+      expect(MiuixMotion.fast, const Duration(milliseconds: 100));
+      expect(MiuixMotion.fastExit, const Duration(milliseconds: 150));
+      expect(MiuixMotion.enter, const Duration(milliseconds: 200));
+      expect(MiuixMotion.exit, const Duration(milliseconds: 350));
+      expect(
+        MiuixMotion.programmaticDuration,
+        const Duration(milliseconds: 500),
+      );
+    });
+
+    test('folmeSpring 的刚度与阻尼换算正确', () {
+      final spring = MiuixMotion.spring(damping: 1, response: 0.2);
+      final stiffness = math.pow(2 * math.pi / 0.2, 2).toDouble();
+      expect(spring.mass, 1);
+      expect(spring.stiffness, closeTo(stiffness, 0.001));
+      expect(spring.damping, closeTo(2 * math.sqrt(stiffness), 0.001));
+    });
+
+    test('页面过渡换成 miuix 的 builder', () {
+      final theme = MiuixTheme.getThemeData(colors: MiuixColors.light);
+      for (final platform in [
+        TargetPlatform.android,
+        TargetPlatform.iOS,
+        TargetPlatform.macOS,
+        TargetPlatform.windows,
+        TargetPlatform.linux,
+      ]) {
+        expect(
+          theme.pageTransitionsTheme.builders[platform],
+          isA<MiuixPageTransitionsBuilder>(),
+        );
+      }
     });
   });
 

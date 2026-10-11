@@ -39,7 +39,6 @@ abstract final class ThemeUtils {
   /// miuix 的固定配色，也就是 MIUI 经典主题。
   static ThemeData getThemeData({
     required ColorScheme colorScheme,
-    required bool isDynamic,
     bool isDark = false,
     MiuixColors? miuixColors,
   }) {
@@ -47,15 +46,6 @@ abstract final class ThemeUtils {
       colors: miuixColors ?? MiuixColors.fromColorScheme(colorScheme),
       fontFamily: Pref.appFont,
       fontWeight: Pref.appFontWeight,
-      isDynamic: isDynamic,
-    ).copyWith(
-      pageTransitionsTheme: PageTransitionsTheme(
-        builders: {
-          TargetPlatform.android: Pref.enablePredictiveBack
-              ? const PredictiveBackPageTransitionsBuilder()
-              : const ZoomPageTransitionsBuilder(),
-        },
-      ),
     );
     if (isDark && Pref.isPureBlackTheme) {
       return darkenTheme(theme);

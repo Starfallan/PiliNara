@@ -14,6 +14,13 @@
 - **底栏选中态变成硬色块**：上一版把 `navigationBarTheme.indicatorColor` 设成了不透明的 `surfaceContainer`（浅色模式下就是纯白），而 PiliNara 的底栏本来把选中指示画成 6%（浅色）/ 8%（深色）的叠加色，于是选中项变成一块盖在底栏上的白块；同时底栏底色被设成 `surface`（＝页面底色），整条栏和页面糊在一起。现在底色改为 MIUI 浮动底栏的 `surfaceContainer`，指示块与图标颜色交回应用自己按状态取色，只保留标签样式（footnote2 档）。
 - **`secondary` 作次级文字/图标色时看不清**：miuix 的 `secondary` 是中性填充（浅色模式 `#E6E6E6`），而 PiliNara 把它当次级文字/图标色（也是底栏指示块的兜底色）用。改取 miuix 压在背景上的变体色 `onBackgroundVariant`（Monet 下等于 primary），明暗两种模式都能看清。
 
+### Removed
+- **移除 Material 3 相关的主题字段**：设置里的「调色板风格」（FlexSchemeVariant）、「动态取色」（Monet 壁纸取色）、「页面过渡动画」与「预测性返回动画」四项去掉，`Pref.dynamicColor` / `Pref.schemeVariant` / `Pref.pageTransition` / `Pref.enablePredictiveBack` 及其存储键一并删除，动态取色的平台取色代码也从 `main.dart` 移除。主题只剩两条路径：miuix 的固定配色（MIUI 蓝）或用户挑选的品牌色（经 miuix 的 Monet 规则翻译，固定 tonal spot）。设置需要用应用内的导出/导入搬一次。
+
+### Changed
+- **动画迁移到 miuix**：新增 `lib/utils/miuix/miuix_motion.dart`，曲线与时长取自 miuix 自己的实现——过场曲线是 miuix 导航烘焙的弹簧阶跃响应（response 0.8、damping 0.95，500ms），缓动为 `DecelerateEasing` / `AccelerateEasing` / `SinOutEasing`，弹簧为 `folmeSpring` 的刚度换算，组件时长沿用 miuix 的 100/150/200/350ms；新增 `MiuixPageTransitionsBuilder`（miuix `NavTransitions.MiuixDefault` 的几何：进场整屏滑入、被覆盖页视差 1/4 屏宽 + 10% 透明衰减）并应用到所有平台的 `pageTransitionsTheme`，GetX 的页面转场也改成同款滑入（`rightToLeftWithFade`）。按压反馈与弹层手柄的时长改用这些常量。
+- **CI 只构建 Android arm64-v8a**：`flutter build apk --target-platform android-arm64`，只产出一份 APK；构建后会把包名打印到日志里，方便核对 `com.example.pilinara.miuix`。
+
 ## 2.1.5.1 -[Pearl] - 2026-09-26
 
 这版改动挺杂的。弹幕加了个「人像防挡」，应用内画中画也开了个手动入口。目前AI 对话支持显示思考过程、可调思考强度，设置页和对话界面都按 M3 重做了一遍，往下滑时上下两条控制栏会自己收起来。播放器这边视频参数面板多了音频延迟，全屏顶栏能看当前分 P 的弹幕数。上游这轮更新了综合搜索、醒目留言导出图片、Linux 内嵌网页、Linux/Windows 的链接唤起等。修的问题里比较要紧的是音频中断、小窗缩放写坏记忆、iOS 音量监听把播放类别改掉。

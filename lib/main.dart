@@ -38,6 +38,7 @@ import 'package:audio_service_mpris/audio_service_mpris.dart';
 import 'package:catcher_2/catcher_2.dart';
 import 'package:collection/collection.dart';
 import 'package:dynamic_color/dynamic_color.dart' show DynamicColorPlugin;
+import 'package:flex_seed_scheme/flex_seed_scheme.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
@@ -203,10 +204,6 @@ void main() async {
     });
   }
 
-  if (Pref.dynamicColor) {
-    await MyApp.initPlatformState();
-  }
-
   if (Pref.enableLog) {
     // 异常捕获 logo记录
     final customParameters = {
@@ -262,47 +259,40 @@ void _onBack() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  static ColorScheme? _light, _dark;
-
   static (ThemeData, ThemeData) getAllTheme() {
-    final dynamicColor = _light != null && _dark != null && Pref.dynamicColor;
-
+    final customColor = Pref.customColor;
+    final brandColor =
+        colorThemeTypes.elementAtOrNull(customColor)?.color ??
+        Color(customColor);
     final ColorScheme lightScheme, darkScheme;
     MiuixColors? lightMiuix, darkMiuix;
-    if (dynamicColor) {
-      // 动态取色：壁纸配色先由 Material 的颜色工具算出，再翻译成 miuix 的角色，
-      // 相当于 miuix 的 Monet 模式。
-      lightScheme = _light!;
-      darkScheme = _dark!;
+    if (brandColor == miuixKeyColor) {
+      // MIUI 蓝：使用 miuix 的固定配色，与 miuix 的默认主题一致。
+      lightMiuix = MiuixColors.light;
+      darkMiuix = MiuixColors.dark;
+      lightScheme = lightMiuix.toColorScheme();
+      darkScheme = darkMiuix.toColorScheme();
     } else {
-      final customColor = Pref.customColor;
-      final brandColor =
-          colorThemeTypes.elementAtOrNull(customColor)?.color ??
-          Color(customColor);
-      if (brandColor == miuixKeyColor) {
-        // MIUI 蓝：使用 miuix 的固定配色，与 miuix 的默认主题一致。
-        lightMiuix = MiuixColors.light;
-        darkMiuix = MiuixColors.dark;
-        lightScheme = lightMiuix.toColorScheme();
-        darkScheme = darkMiuix.toColorScheme();
-      } else {
-        final variant = Pref.schemeVariant;
-
-        lightScheme = brandColor.asColorSchemeSeed(variant, .light);
-        darkScheme = brandColor.asColorSchemeSeed(variant, .dark);
-      }
+      // 自定义主题色：先由颜色工具算出一套 Material 配色，再由 MiuixColors 翻译成 miuix 的角色，
+      // 相当于 miuix 的 Monet 模式（这里固定用 tonal spot，也就是 miuix 默认的取色风格）。
+      lightScheme = brandColor.asColorSchemeSeed(
+        FlexSchemeVariant.material,
+        .light,
+      );
+      darkScheme = brandColor.asColorSchemeSeed(
+        FlexSchemeVariant.material,
+        .dark,
+      );
     }
 
     return (
       ThemeUtils.lightTheme = ThemeUtils.getThemeData(
         colorScheme: lightScheme,
-        isDynamic: dynamicColor,
         miuixColors: lightMiuix,
       ),
       ThemeUtils.darkTheme = ThemeUtils.getThemeData(
         isDark: true,
         colorScheme: darkScheme,
-        isDynamic: dynamicColor,
         miuixColors: darkMiuix,
       ),
     );
@@ -322,7 +312,9 @@ class MyApp extends StatelessWidget {
       supportedLocales: const [Locale("zh", "CN"), Locale("en", "US")],
       initialRoute: '/',
       getPages: Routes.getPages,
-      defaultTransition: Pref.pageTransition,
+      // 页面过渡交给 miuix 那套：GetX 这条与 miuix 的整屏滑入最接近，具体曲线与时长见
+      // ThemeData.pageTransitionsTheme（MaterialPageRoute 走 MiuixPageTransitionsBuilder）。
+      defaultTransition: Transition.rightToLeftWithFade,
       builder: FlutterSmartDialog.init(
         toastBuilder: CustomToast.new,
         loadingBuilder: LoadingWidget.new,
@@ -399,53 +391,6 @@ class MyApp extends StatelessWidget {
     );
   }
 
-  /// from [DynamicColorBuilderState.initPlatformState]
-  static Future<bool> initPlatformState() async {
-    if (_light != null || _dark != null) return true;
-    // Platform messages may fail, so we use a try/catch PlatformException.
-    try {
-      final colors = await DynamicColorPlugin.channel.invokeMethod(
-        DynamicColorPlugin.methodName,
-      );
-
-      if (colors != null) {
-        final corePalettes = CorePalettesExt.fromList(colors.toList());
-        if (kDebugMode) {
-          debugPrint('dynamic_color: Core palette detected.');
-        }
-        _light = corePalettes.toColorScheme();
-        _dark = corePalettes.toColorScheme(brightness: Brightness.dark);
-        return true;
-      }
-    } on PlatformException {
-      if (kDebugMode) {
-        debugPrint('dynamic_color: Failed to obtain core palette.');
-      }
-    }
-
-    try {
-      final Color? accentColor = await DynamicColorPlugin.getAccentColor();
-
-      if (accentColor != null) {
-        if (kDebugMode) {
-          debugPrint('dynamic_color: Accent color detected.');
-        }
-        final variant = Pref.schemeVariant;
-        _light = accentColor.asColorSchemeSeed(variant, .light);
-        _dark = accentColor.asColorSchemeSeed(variant, .dark);
-        return true;
-      }
-    } on PlatformException {
-      if (kDebugMode) {
-        debugPrint('dynamic_color: Failed to obtain accent color.');
-      }
-    }
-    if (kDebugMode) {
-      debugPrint('dynamic_color: Dynamic color not detected on this device.');
-    }
-    GStorage.setting.put(SettingBoxKey.dynamicColor, false);
-    return false;
-  }
 }
 
 class _CustomHttpOverrides extends HttpOverrides {

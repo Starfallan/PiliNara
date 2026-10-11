@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:PiliPlus/utils/miuix/miuix_motion.dart';
 
 /// miuix 的底部弹层拖拽手柄。
 ///
@@ -37,8 +38,8 @@ class _MiuixDragHandleState extends State<MiuixDragHandle>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 100),
-    reverseDuration: const Duration(milliseconds: 150),
+    duration: MiuixMotion.fast,
+    reverseDuration: MiuixMotion.fastExit,
   );
 
   late final Animation<double> _pressed = CurvedAnimation(

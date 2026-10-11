@@ -29,12 +29,15 @@ Miuix, the MIUI / HyperOS design system, instead of being derived from Material 
 1. **MIUI blue (the default)** — selecting `MIUI 蓝` uses miuix's fixed palettes
    (`MiuixColors.light` / `MiuixColors.dark`) verbatim. This is what miuix itself renders in its
    default `ColorSchemeMode.System`, and it is what a new install gets.
-2. **Dynamic color** — the wallpaper's Material scheme is translated into MIUI roles by
-   `MiuixColors.fromColorScheme()`, which is the inverse of miuix's
-   `mapMd3RolesToMiuixColorsCommon`. This is miuix's Monet mode. It is off by default, because
-   miuix's own default theme is the fixed palette.
-3. **A brand color** — the chosen seed is turned into a Material scheme by `flex_seed_scheme`
-   (the existing palette style setting still applies) and then translated the same way.
+2. **A brand color** — the chosen seed is turned into a Material scheme by `flex_seed_scheme`
+   (tonal spot, i.e. miuix's default palette style) and then translated into MIUI roles by
+   `MiuixColors.fromColorScheme()`, the inverse of miuix's `mapMd3RolesToMiuixColorsCommon`.
+   That is miuix's Monet mode.
+
+Material 3's own colour features are gone: the dynamic colour (Monet-from-wallpaper) toggle and the
+palette-style picker were removed from the settings, along with the page-transition and predictive
+back switches. The theme is now miuix's fixed palette or the brand colour the user picks, and the
+motion below.
 
 Whatever the path, `ThemeUtils.getThemeData()` ends up with a `MiuixColors` and builds the theme
 from it, so a custom brand color keeps MIUI's neutral fills, dividers and dimming rather than
@@ -153,6 +156,25 @@ press only, so dragging still belongs to the sheet's own gesture recogniser.
 MIUI stretches the scrollable at its ends instead of showing the Android glow. PiliNara's
 `CustomScrollBehavior` already used `StretchingOverscrollIndicator` on Android, which matches
 miuix's `MiuixOverscrollEffect`, so this needed no change.
+
+### Motion
+
+`lib/utils/miuix/miuix_motion.dart` carries miuix's own timing instead of Flutter's defaults:
+
+* `MiuixMotion.programmatic` is the curve miuix bakes for programmatic navigation
+  (`NavProgrammaticEasing`): the step response of an underdamped spring (response 0.8, damping 0.95)
+  solved point by point — a brisk middle and a long tail, played over
+  `MiuixMotion.programmaticDuration` (500 ms, `NavDriverSpec.PROGRAMMATIC_DURATION_MILLIS`).
+* `decelerate` / `accelerate` / `sinOut` are miuix's `DecelerateEasing`, `AccelerateEasing` and
+  `SinOutEasing`.
+* `spring(damping, response)` is `folmeSpring`: stiffness `(2π / response)²`, damping ratio as given.
+* `fast` / `fastExit` / `enter` / `exit` are the durations miuix's own components use (sheet handle
+  100 / 150 ms, press feedback 200 / 350 ms).
+
+The theme installs `MiuixPageTransitionsBuilder` for every platform: the entering page slides in
+full width from the trailing edge and the covered page parallaxes a quarter width with a 10 % alpha
+falloff — miuix's `NavTransitions.MiuixDefault` geometry with the motion above. Page-routed screens
+go through GetX, which mirrors the same slide (its `rightToLeftWithFade`).
 
 ### Bottom navigation bar
 

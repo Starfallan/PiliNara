@@ -17,6 +17,7 @@ import 'package:PiliPlus/models/common/mine_card_type.dart';
 import 'package:PiliPlus/models/common/msg/msg_unread_type.dart';
 import 'package:PiliPlus/models/common/nav_bar_config.dart';
 import 'package:PiliPlus/models/common/theme/theme_color_type.dart';
+import 'package:flex_seed_scheme/flex_seed_scheme.dart';
 import 'package:PiliPlus/models/common/theme/theme_type.dart';
 import 'package:PiliPlus/pages/main/controller.dart';
 import 'package:PiliPlus/pages/mine/controller.dart';
@@ -105,21 +106,6 @@ List<SettingsModel> get styleSettings => [
     leading: const Icon(Icons.zoom_in_outlined),
     onTap: _showUiScaleDialog,
   ),
-  NormalModel(
-    title: '页面过渡动画',
-    leading: const Icon(Icons.animation),
-    getSubtitle: () => '当前：${Pref.pageTransition.name}',
-    onTap: _showTransitionDialog,
-  ),
-  if (Platform.isAndroid)
-    const SwitchModel(
-      title: '预测性返回动画',
-      subtitle: '开启后侧滑返回可原生预览上一页及桌面，需将页面过渡动画设为Native',
-      leading: Icon(Icons.swipe_left_outlined),
-      setKey: SettingBoxKey.enablePredictiveBack,
-      defaultVal: true,
-      needReboot: true,
-    ),
   const SwitchModel(
     title: '优化平板导航栏',
     leading: Icon(Icons.auto_fix_high),
@@ -342,9 +328,10 @@ List<SettingsModel> get styleSettings => [
     onTap: (context, setState) => Get.toNamed('/colorSetting'),
     leading: const Icon(Icons.color_lens_outlined),
     title: '应用主题',
-    getSubtitle: () => '当前主题：${Pref.dynamicColor ? '动态取色' : '指定颜色'}',
+    getSubtitle: () =>
+        '当前主题：${Pref.customColor == miuixColorIndex ? 'MIUI 蓝' : '指定颜色'}',
     getTrailing: (theme) {
-      if (Pref.dynamicColor) {
+      if (Pref.customColor == miuixColorIndex) {
         return Icon(Icons.color_lens_rounded, color: theme.colorScheme.primary);
       }
       final customColor = Pref.customColor;
@@ -355,7 +342,7 @@ List<SettingsModel> get styleSettings => [
         dimension: 20,
         child: ColorPalette(
           colorScheme: color.asColorSchemeSeed(
-            Pref.schemeVariant,
+            FlexSchemeVariant.material,
             theme.brightness,
           ),
           selected: false,
@@ -702,25 +689,6 @@ void _showSpringDialog(BuildContext context, _) {
       ],
     ),
   );
-}
-
-Future<void> _showTransitionDialog(
-  BuildContext context,
-  VoidCallback setState,
-) async {
-  final res = await showDialog<Transition>(
-    context: context,
-    builder: (context) => SelectDialog<Transition>(
-      title: '页面过渡动画',
-      value: Pref.pageTransition,
-      values: Transition.values.map((e) => (e, e.name)).toList(),
-    ),
-  );
-  if (res != null) {
-    Get.rootController.defaultTransition = res;
-    await GStorage.setting.put(SettingBoxKey.pageTransition, res.index);
-    setState();
-  }
 }
 
 Future<void> _showCardWidthDialog(

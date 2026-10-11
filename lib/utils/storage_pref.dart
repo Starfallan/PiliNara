@@ -589,12 +589,6 @@ abstract final class Pref {
   static int get dynamicPeriod =>
       _setting.get(SettingBoxKey.dynamicPeriod, defaultValue: 5);
 
-  static FlexSchemeVariant get schemeVariant =>
-      FlexSchemeVariant.values[_setting.get(
-        SettingBoxKey.schemeVariant,
-        defaultValue: FlexSchemeVariant.material3Legacy.index,
-      )];
-
   static double get danmakuFontScaleFS => _setting.get(
     SettingBoxKey.danmakuFontScaleFS,
     defaultValue: PlatformUtils.isMobile ? 1.2 : 1.7,
@@ -1237,12 +1231,6 @@ abstract final class Pref {
   static int get customColor =>
       _setting.get(SettingBoxKey.customColor, defaultValue: miuixColorIndex);
 
-  // miuix 的默认主题是固定配色（也就是 MIUI 经典），动态取色相当于 miuix 的 Monet 模式，
-  // 需要用户显式开启。
-  static bool get dynamicColor =>
-      !Platform.isIOS &&
-      _setting.get(SettingBoxKey.dynamicColor, defaultValue: false);
-
   static bool get enableSystemProxy =>
       _setting.get(SettingBoxKey.enableSystemProxy, defaultValue: false);
 
@@ -1272,12 +1260,6 @@ abstract final class Pref {
 
   static bool get enableGradientBg =>
       _setting.get(SettingBoxKey.enableGradientBg, defaultValue: false);
-
-  static Transition get pageTransition =>
-      Transition.values[_setting.get(
-        SettingBoxKey.pageTransition,
-        defaultValue: Transition.native.index,
-      )];
 
   static bool get enableQuickDouble =>
       _setting.get(SettingBoxKey.enableQuickDouble, defaultValue: true);
@@ -1375,9 +1357,6 @@ abstract final class Pref {
 
   static bool get enableAi =>
       _setting.get(SettingBoxKey.enableAi, defaultValue: false);
-
-  static bool get enablePredictiveBack =>
-      _setting.get(SettingBoxKey.enablePredictiveBack, defaultValue: true);
 
   static bool get enableOnlineTotal =>
       _setting.get(SettingBoxKey.enableOnlineTotal, defaultValue: false);
