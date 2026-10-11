@@ -10,6 +10,10 @@ on:
     branches:
       - "main"
       - "feat/miuix-theme"
+    # 只改文档（README/CHANGELOG/docs）时不重建 APK。
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
   workflow_dispatch:
 
 permissions:
