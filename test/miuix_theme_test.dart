@@ -338,6 +338,38 @@ void main() {
         );
       }
     });
+
+    test('手势落位按 miuix 的判据：速度阈值 1 屏/秒，死区内看位置', () {
+      expect(MiuixMotion.commitVelocityThreshold, 1);
+      expect(MiuixMotion.positionFallback, 0.5);
+      // 速度够快就由速度决定，与位置无关。
+      expect(
+        MiuixMotion.shouldCommitGesture(velocity: 1.2, progress: 0.1),
+        isTrue,
+      );
+      expect(
+        MiuixMotion.shouldCommitGesture(velocity: -1.2, progress: 0.9),
+        isFalse,
+      );
+      // 死区内看位置。
+      expect(
+        MiuixMotion.shouldCommitGesture(velocity: 0.3, progress: 0.6),
+        isTrue,
+      );
+      expect(
+        MiuixMotion.shouldCommitGesture(velocity: 0.3, progress: 0.4),
+        isFalse,
+      );
+      // 正好等于阈值时也算速度决定。
+      expect(
+        MiuixMotion.shouldCommitGesture(velocity: 1, progress: 0),
+        isTrue,
+      );
+      expect(
+        MiuixMotion.shouldCommitGesture(velocity: -1, progress: 1),
+        isFalse,
+      );
+    });
   });
 
   group('主题里的 miuix 特性', () {

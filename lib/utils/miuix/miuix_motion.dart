@@ -65,6 +65,31 @@ abstract final class MiuixMotion {
     stiffness: 146,
     damping: 2 * 12.0830459736, // 2 * sqrt(146) ≈ 临界阻尼
   );
+
+  /// miuix 导航的落位判定阈值（`NavDriverSpec.COMMIT_VELOCITY_THRESHOLD`，单位是「每秒多少屏」）。
+  ///
+  /// miuix 的规则是：速度的绝对值达到这个阈值就由速度决定；落在死区（|velocity| < 阈值）里才
+  /// 看位置，位置过了一半（[positionFallback]）就算完成。返回手势的落位应当沿用同一套判据。
+  static const double commitVelocityThreshold = 1;
+
+  /// 死区内按位置判定的分界线（过了一半即提交）。
+  static const double positionFallback = 0.5;
+
+  /// 按 miuix 的判据决定一次手势释放是「完成」还是「回退」。
+  ///
+  /// [velocity] 的单位与 miuix 一致（每秒多少屏），向右/向前为正；[progress] 是已经走过的比例。
+  static bool shouldCommitGesture({
+    required double velocity,
+    required double progress,
+  }) {
+    if (velocity >= commitVelocityThreshold) {
+      return true;
+    }
+    if (velocity <= -commitVelocityThreshold) {
+      return false;
+    }
+    return progress >= positionFallback;
+  }
 }
 
 /// miuix 过场曲线：`NavSettleEasing(response = 0.8, damping = 0.95)` 的阶跃响应。
