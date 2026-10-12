@@ -95,12 +95,6 @@ Future<void> _initAppPath() async {
 }
 
 void main() async {
-  // ===== TEMP DEBUG (branch debug/video-reuse-key-contention) 排查完毕整体删除 =====
-  // 打印框架层的 GlobalKey 生命周期事件：元素被跨页“抢走”时
-  // _retakeInactiveElement 会先 forgetChild + deactivateChild，这里会直接
-  // 打出 Deactivated/Attempting to take，是跨页 GlobalKey 冲突的确定性证据
-  debugPrintGlobalKeyedWidgetLifecycle = kDebugMode;
-  // ===== END TEMP DEBUG =====
   ScaledWidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
   await _initAppPath();

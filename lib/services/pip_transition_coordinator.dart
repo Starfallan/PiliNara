@@ -175,6 +175,18 @@ class PipTransitionCoordinator extends ChangeNotifier {
       _notify();
     }
     _onRestorePageReady = onCompleted;
+    // ===== TEMP DEBUG (branch debug/video-reuse-key-contention) 排查完毕整体删除 =====
+    // _onRestorePageReady 是单槽位：若已有未消费的回调被本次覆盖，前一个页面
+    // 的 onCompleted 就永远不会执行，其 _pipRestoreInFlight 卡在 true
+    // → 播放器永久处于 Opacity(0) 透明占位（黑屏但有声的一种成因）
+    if (kDebugMode) {
+      debugPrint(
+        '[DBGREUSE][coordinator] attachRestorePage phase=$_phase '
+        'rect=$targetRect animDone=$_restoreAnimationDone '
+        'overwritingPendingCallback=${_onRestorePageReady != null}',
+      );
+    }
+    // ===== END TEMP DEBUG =====
     _tryFinishRestore();
   }
 
@@ -189,11 +201,28 @@ class PipTransitionCoordinator extends ChangeNotifier {
     if (_phase != PipPhase.restoring ||
         !_restoreAnimationDone ||
         _onRestorePageReady == null) {
+      // ===== TEMP DEBUG =====
+      if (kDebugMode) {
+        debugPrint(
+          '[DBGREUSE][coordinator] tryFinishRestore WAIT phase=$_phase '
+          'animDone=$_restoreAnimationDone '
+          'pageReady=${_onRestorePageReady != null}',
+        );
+      }
+      // ===== END TEMP DEBUG =====
       return;
     }
     final pageReady = _onRestorePageReady;
     _cancelRestoreHandshake();
     _phase = PipPhase.hidden;
+    // ===== TEMP DEBUG =====
+    if (kDebugMode) {
+      debugPrint(
+        '[DBGREUSE][coordinator] tryFinishRestore DONE '
+        'pageReady=${pageReady != null} -> phase=hidden',
+      );
+    }
+    // ===== END TEMP DEBUG =====
     // 先让宿主移除 overlay,再亮出页面播放器,同一帧内完成交接
     onRestoreFinished?.call();
     pageReady?.call();

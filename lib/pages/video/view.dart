@@ -102,14 +102,27 @@ class VideoDetailPageV extends StatefulWidget {
 class _VideoDetailPageVState extends State<VideoDetailPageV>
     with RouteAware, RouteAwareMixin, WidgetsBindingObserver {
   // ===== TEMP DEBUG (branch debug/video-reuse-key-contention) 排查完毕整体删除 =====
+  // 不依赖 debugPrintGlobalKeyedWidgetLifecycle：该开关会在 _retakeInactiveElement
+  // 里对正在 inflate 的元素做字符串插值(toString)→MultiChildRenderObjectElement
+  // .visitChildren 读尚未赋值的 late _children，Debug 下必抛 LateInitializationError，
+  // 反向污染被观测路径。这里只用本页自己的状态做观测。
   static int _dbgSeq = 0;
   static final List<_VideoDetailPageVState> _dbgLivePages = [];
   late final int _dbgId = ++_dbgSeq;
   String get _dbgTag => 'VP#$_dbgId';
-  bool _dbgCheckPending = false;
   Object? _dbgBranch;
   String? _dbgBranchDesc;
   int _dbgBuildCount = 0;
+  int _dbgGateLogs = 0;
+
+  /// 争用期间不限流，用于观察抢/抢回的拉锯（每页封顶，避免刷屏）
+  int _dbgContendedBuilds = 0;
+  static const int _dbgContendedCap = 40;
+
+  /// 逐帧记录 key 归属，用于识别“两个页面来回互抢”
+  final Map<String, String> _dbgLastOwner = {};
+  final Map<String, int> _dbgOwnerFlips = {};
+  bool _dbgLastRestoreInFlight = false;
 
   static void _dbg(String tag, String msg) {
     logger.i('[DBGREUSE][$tag] $msg');
@@ -125,7 +138,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     }
   }
 
-  /// 仍在挂载、且与本页持有同一个 VideoDetailController 的其他页面实例
+  /// 仍在挂载、且与本页持有同一个 VideoDetailController 的其它页面实例
   List<String> _dbgSharers() {
     final me = _dbgCtrl();
     if (me == null) return const [];
@@ -135,7 +148,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     ];
   }
 
-  /// 页面级 GlobalKey 当前挂在哪个页面实例上（元素被跨页抢走时这里会指向别人）
+  /// 页面级 GlobalKey 当前挂在哪个页面实例上（元素被跨页抢走时指向别人）
   String _dbgKeyOwner(GlobalKey key) {
     final ctx = key.currentContext;
     if (ctx == null) return 'none';
@@ -143,12 +156,57 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     return st == null ? 'orphan' : st._dbgTag;
   }
 
-  String _dbgKeys() {
+  /// 本页关心的 GlobalKey：前四个由 controller 持有，复用时会跨页共享；
+  /// 后四个是本页 State 自有，理论上不会被另一页抢，一并观测做对照
+  Map<String, GlobalKey> _dbgWatchedKeys() {
+    final c = _dbgCtrl();
+    return {
+      if (c != null) ...{
+        'playerKey': c.videoPlayerKey,
+        'childKey': c.childKey,
+        'scrollKey': c.scrollKey,
+        'headerKey': c.headerCtrKey,
+      },
+      'replyPanelKey': videoReplyPanelKey,
+      'relatedKey': videoRelatedKey,
+      'introKey': videoIntroKey,
+      'seasonKey': seasonEpisodeKey,
+    };
+  }
+
+  String _dbgKeys() => _dbgWatchedKeys().entries
+      .map((e) => '${e.key}->${_dbgKeyOwner(e.value)}')
+      .join(' ');
+
+  /// 逐帧比对归属，返回本次发生“易主”的 key（无易主返回空串）
+  String _dbgDiffOwners() {
+    final flips = <String>[];
+    _dbgWatchedKeys().forEach((name, key) {
+      final owner = _dbgKeyOwner(key);
+      final prev = _dbgLastOwner[name];
+      if (prev != null && prev != owner) {
+        flips.add('$name:$prev->$owner');
+        _dbgOwnerFlips[name] = (_dbgOwnerFlips[name] ?? 0) + 1;
+      }
+      _dbgLastOwner[name] = owner;
+    });
+    return flips.join(',');
+  }
+
+  /// 播放器黑屏判据：plPlayer 的 Obx 在这三个条件任一成立时直接返回
+  /// SizedBox.shrink()，叠在黑底上即为“黑屏但有声”。
+  /// 该判据与 _pipRestoreInFlight 的透明占位是两条独立的黑屏成因，分开报。
+  String _dbgGate() {
     final c = _dbgCtrl();
     if (c == null) return 'ctrl=null';
-    return 'playerKey->${_dbgKeyOwner(c.videoPlayerKey)} '
-        'childKey->${_dbgKeyOwner(c.childKey)} '
-        'scrollKey->${_dbgKeyOwner(c.scrollKey)}';
+    final p = plPlayerController;
+    return 'videoState=${c.videoState.value} '
+        'autoPlay=${c.autoPlay} '
+        'plCtrlNull=${p == null} '
+        'vidCtlNull=${p?.videoController == null} '
+        'pipMode=${p?.isPipMode} '
+        'restoreInFlight=$_pipRestoreInFlight '
+        'rectAttempts=$_pipRestoreRectAttempts';
   }
 
   String _dbgFlags() {
@@ -157,9 +215,15 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         'phase=${PipOverlayService.transition.phase} '
         'stack=${VideoStackManager.getCount()} '
         'curRoute=${Get.currentRoute} prevRoute=${Get.previousRoute} '
-        'ctrlerHash=${c?.hashCode} '
+        'ctrlerHash=${c?.hashCode} isClosed=${c?.isClosed} '
         'sharers=${_dbgSharers()} '
         '${_dbgKeys()}';
+  }
+
+  void _dbgLogRestoreIfChanged(String where) {
+    if (_dbgLastRestoreInFlight == _pipRestoreInFlight) return;
+    _dbgLastRestoreInFlight = _pipRestoreInFlight;
+    _dbg(_dbgTag, 'restoreInFlight=$_pipRestoreInFlight @$where ${_dbgGate()}');
   }
   // ===== END TEMP DEBUG =====
   late final String heroTag;
@@ -306,16 +370,29 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   /// 始终量不到则上报 null(小窗按预估目标降级收尾)
   void _schedulePipRestoreAttach() {
     _pipRestoreRectAttempts = 0;
+    _dbg(_dbgTag, 'schedulePipRestoreAttach ${_dbgGate()} ${_dbgFlags()}');
     WidgetsBinding.instance.addPostFrameCallback((_) => _attachPipRestore());
   }
 
   void _attachPipRestore() {
-    if (!mounted || !_pipRestoreInFlight) return;
+    if (!mounted || !_pipRestoreInFlight) {
+      _dbg(
+        _dbgTag,
+        'attachPipRestore ABORT mounted=$mounted '
+            'inFlight=$_pipRestoreInFlight',
+      );
+      return;
+    }
     final targetRect = _playerRect(relativeToPage: true);
     if (targetRect == null && _pipRestoreRectAttempts++ < 10) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _attachPipRestore());
       return;
     }
+    _dbg(
+      _dbgTag,
+      'attachPipRestore rect=$targetRect '
+          'attempts=$_pipRestoreRectAttempts ${_dbgGate()}',
+    );
     PipOverlayService.transition.attachRestorePage(
       targetRect: targetRect,
       onCompleted: () {
@@ -325,10 +402,15 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
           return;
         }
         setState(() => _pipRestoreInFlight = false);
+        _dbg(_dbgTag, 'RESTORE COMPLETED setState ${_dbgGate()}');
         // 恢复后控制栏保持收起（一点即出），底部进度/高能条立即可见；
         // 置 true 会让高能条被 offstage 到自动隐藏计时结束
         plPlayerController?.controls = false;
         _resetEnteringPipFlags();
+        _dbg(
+          _dbgTag,
+          'RESTORE COMPLETED done ${_dbgGate()} ${_dbgFlags()}',
+        );
       },
     );
   }
@@ -2024,11 +2106,24 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       key: videoDetailController.videoPlayerKey,
       canPop: _canPopPage,
       onPopInvokedWithResult: _onPopInvokedWithResult,
-      child: Obx(
-        () =>
-            (!isPipMode && !videoDetailController.videoState.value) ||
-                !videoDetailController.autoPlay ||
-                plPlayerController?.videoController == null
+      child: Obx(() {
+        // 黑屏判据本体：命中时返回零尺寸占位，叠在黑底上即“黑屏有声音”。
+        // 三项分开报，以便区分是哪一条把画面挡掉的
+        final bool noVideoState =
+            !isPipMode && !videoDetailController.videoState.value;
+        final bool noAutoPlay = !videoDetailController.autoPlay;
+        final bool noCtrl = plPlayerController?.videoController == null;
+        final bool gateBlocked = noVideoState || noAutoPlay || noCtrl;
+        if (gateBlocked && _dbgGateLogs < 30) {
+          _dbgGateLogs++;
+          _dbg(
+            _dbgTag,
+            'PLAYER GATE BLOCKED [seen=$_dbgGateLogs] '
+                'noVideoState=$noVideoState noAutoPlay=$noAutoPlay noCtrl=$noCtrl '
+                'isPipMode=$isPipMode ${_dbgGate()}',
+          );
+        }
+        return gateBlocked
             ? const SizedBox.shrink()
             : PLVideoPlayer(
                 maxWidth: width,
@@ -2059,8 +2154,8 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                       ),
                 showEpisodes: showEpisodes,
                 showViewPoints: showViewPoints,
-              ),
-      ),
+              );
+      }),
     );
     // 归位动画中：透明占位参与布局（供量取目标矩形）但不可见不可点，
     // 小窗是唯一可见端，恢复握手完成后亮出
@@ -2119,34 +2214,29 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         ? Theme(data: theme, child: child)
         : child;
     _dbgBuildCount++;
-    if (_dbgBuildCount <= 2 || _dbgBuildCount % 60 == 0) {
+    _dbgLogRestoreIfChanged('build#$_dbgBuildCount');
+    // 逐帧轮询而不是只查一次：抢/抢回来回拉锯时归属会反复变，
+    // 只在变化帧打印，既能看出次数也不会刷屏
+    final sharers = _dbgSharers();
+    final flips = _dbgDiffOwners();
+    final contended = sharers.isNotEmpty || flips.isNotEmpty;
+    if (contended) {
+      if (_dbgContendedBuilds < _dbgContendedCap) {
+        _dbgContendedBuilds++;
+        _dbg(
+          _dbgTag,
+          'build #$_dbgBuildCount CONTENDED '
+              '[seen=$_dbgContendedBuilds/$_dbgContendedCap] '
+              'flips=[$flips] flipsTotal=$_dbgOwnerFlips '
+              '$_dbgGate() ${_dbgFlags()}',
+        );
+      }
+    } else if (_dbgBuildCount <= 2 || _dbgBuildCount % 60 == 0) {
       _dbg(
         _dbgTag,
         'build #$_dbgBuildCount branch=$_dbgBranch '
-            '{$_dbgBranchDesc} ${_dbgFlags()}',
+            '{$_dbgBranchDesc} $_dbgGate() ${_dbgFlags()}',
       );
-    }
-    // 构建后检查页面级 GlobalKey 是否已被其他存活的视频页抢走（跨页 GlobalKey
-    // 冲突的确定性信号：小窗以外的场景不应出现 sharers 非空/keys 指向他页）
-    if (_dbgCtrl() != null && !_dbgCheckPending) {
-      _dbgCheckPending = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _dbgCheckPending = false;
-        if (!mounted) return;
-        final c = _dbgCtrl();
-        if (c == null) return;
-        final sharers = _dbgSharers();
-        final o1 = _dbgKeyOwner(c.videoPlayerKey);
-        final o2 = _dbgKeyOwner(c.childKey);
-        if (sharers.isNotEmpty || o1 != _dbgTag || o2 != _dbgTag) {
-          _dbg(
-            _dbgTag,
-            'POSTFRAME KEY CONTENTION '
-                'playerOwner=$o1 childOwner=$o2 expected=$_dbgTag '
-                '${_dbgFlags()}',
-          );
-        }
-      });
     }
     // 页面根参照系：归位目标矩形以此量取（规避路由转场期间的整页偏移）
     return KeyedSubtree(key: _pageRootKey, child: page);
