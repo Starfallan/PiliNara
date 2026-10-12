@@ -123,6 +123,13 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   final Map<String, String> _dbgLastOwner = {};
   final Map<String, int> _dbgOwnerFlips = {};
   bool _dbgLastRestoreInFlight = false;
+  /// 无条件记录每次 build（本页自身计数；跨页对比能定住“横屏多一次 build”）
+  static final Stopwatch _dbgClock = Stopwatch()..start();
+  String get _dbgT => '${_dbgClock.elapsedMilliseconds}ms';
+
+  /// GlobalKey 身份解析：断言只给父 Stack，不给 key 名，靠这里把
+  /// GlobalKey#caa8f 这类句柄钉到具体的 key 与挂载位置上
+  final Map<GlobalKey, String> _dbgKeyIds = {};
 
   static void _dbg(String tag, String msg) {
     logger.i('[DBGREUSE][$tag] $msg');
@@ -156,8 +163,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     return st == null ? 'orphan' : st._dbgTag;
   }
 
-  /// 本页关心的 GlobalKey：前四个由 controller 持有，复用时会跨页共享；
-  /// 后四个是本页 State 自有，理论上不会被另一页抢，一并观测做对照
+  /// 本页关心的 GlobalKey：前五个由 controller 持有，复用时会跨页共享；
+  /// 后四个是本页 State 自有，理论上不会被另一页抢，一并观测做对照。
+  /// listKey 是框架点名过的第三个：BlockMixin 的 AnimatedList key
   Map<String, GlobalKey> _dbgWatchedKeys() {
     final c = _dbgCtrl();
     return {
@@ -166,6 +174,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         'childKey': c.childKey,
         'scrollKey': c.scrollKey,
         'headerKey': c.headerCtrKey,
+        'listKey': c.listKey,
       },
       'replyPanelKey': videoReplyPanelKey,
       'relatedKey': videoRelatedKey,
@@ -191,6 +200,46 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       _dbgLastOwner[name] = owner;
     });
     return flips.join(',');
+  }
+
+  /// key 的稳定短标识（与框架断言里的 [GlobalKey#xxxxx] 可直接对应）
+  String _dbgKeyId(GlobalKey key) =>
+      _dbgKeyIds.putIfAbsent(key, () => key.toString());
+
+  /// key 当前挂载位置："挂载 widget<-直接父 widget/RenderObject"。
+  /// 框架断言里报的就是“父 widget”，所以这里取立即父而不是最近的 Stack
+  String _dbgKeySite(GlobalKey key) {
+    final ctx = key.currentContext;
+    if (ctx == null) return 'none';
+    final w = ctx.widget.runtimeType.toString();
+    String? parentType;
+    ctx.visitAncestorElements((e) {
+      parentType = e.widget.runtimeType.toString();
+      return false;
+    });
+    final renderType = ctx.findRenderObject()?.runtimeType.toString() ?? '-';
+    return '$w<-${parentType ?? '?'}/$renderType';
+  }
+
+  /// 每个监控 key 一行：名称 / 框架句柄 / 当前挂载点 / 归属页
+  String _dbgKeyTable() => _dbgWatchedKeys().entries
+      .map(
+        (e) =>
+            '${e.key}=${_dbgKeyId(e.value)} owner=${_dbgKeyOwner(e.value)} '
+            'site=${_dbgKeySite(e.value)}',
+      )
+      .join(' | ');
+
+  /// 冲突帧判定：任一 key 被别页占着，或本页根本没拿到
+  String _dbgConflictKeys() {
+    final bad = <String>[];
+    _dbgWatchedKeys().forEach((name, key) {
+      final owner = _dbgKeyOwner(key);
+      if (owner != _dbgTag && owner != 'none') {
+        bad.add('$name(${_dbgKeyId(key)})->$owner');
+      }
+    });
+    return bad.join(',');
   }
 
   /// 播放器黑屏判据：plPlayer 的 Obx 在这三个条件任一成立时直接返回
@@ -2186,13 +2235,19 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     } else {
       child = childWhenDisabledAlmostSquare;
     }
-    _dbgBranch ??= child.runtimeType;
-    _dbgBranchDesc ??=
+    // 不再用 ??= 只记首次：分支切换本身就是信息（如横屏从 landscape
+    // 切到 almostSquare），每次都重算并记录变化
+    final prevBranch = _dbgBranch;
+    _dbgBranch = child.runtimeType;
+    _dbgBranchDesc =
         'pip=${videoDetailController.plPlayerController.isPipMode} '
         'horizontalScreen=${videoDetailController.horizontalScreen} '
         'ratio=${(maxWidth / maxHeight).toStringAsFixed(3)} '
         'isPortrait=$isPortrait maxW=${maxWidth.toStringAsFixed(0)} '
-        'maxH=${maxHeight.toStringAsFixed(0)}';
+        'maxH=${maxHeight.toStringAsFixed(0)} '
+        'expand=${videoDetailController.plPlayerController.enableVerticalExpand} '
+        'vp=${videoDetailController.showVP} '
+        'branchChanged=${prevBranch != null && prevBranch != _dbgBranch}';
     if (videoDetailController.plPlayerController.keyboardControl) {
       child = PlayerFocus(
         plPlayerController: videoDetailController.plPlayerController,
@@ -2215,28 +2270,29 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         : child;
     _dbgBuildCount++;
     _dbgLogRestoreIfChanged('build#$_dbgBuildCount');
-    // 逐帧轮询而不是只查一次：抢/抢回来回拉锯时归属会反复变，
-    // 只在变化帧打印，既能看出次数也不会刷屏
     final sharers = _dbgSharers();
     final flips = _dbgDiffOwners();
-    final contended = sharers.isNotEmpty || flips.isNotEmpty;
-    if (contended) {
+    final conflict = _dbgConflictKeys();
+    // 无条件记录每次 build：跨页对比次数/时刻，定住“横屏为何多一次 build”
+    _dbg(
+      _dbgTag,
+      'BUILD #$_dbgBuildCount @$_dbgT branch=$_dbgBranch '
+          'sharers=$sharers flips=[$flips] conflict=[$conflict] '
+          '$_dbgGate()',
+    );
+    // 争用/冲突帧额外展开 key 身份表，把框架断言里的 GlobalKey#xxxxx
+    // 钉到具体的 key 与挂载点上
+    if (sharers.isNotEmpty || flips.isNotEmpty || conflict.isNotEmpty) {
       if (_dbgContendedBuilds < _dbgContendedCap) {
         _dbgContendedBuilds++;
         _dbg(
           _dbgTag,
-          'build #$_dbgBuildCount CONTENDED '
+          'BUILD #$_dbgBuildCount CONTENDED '
               '[seen=$_dbgContendedBuilds/$_dbgContendedCap] '
-              'flips=[$flips] flipsTotal=$_dbgOwnerFlips '
-              '$_dbgGate() ${_dbgFlags()}',
+              'flipsTotal=$_dbgOwnerFlips $_dbgBranchDesc',
         );
+        _dbg(_dbgTag, 'KEYTABLE ${_dbgKeyTable()}');
       }
-    } else if (_dbgBuildCount <= 2 || _dbgBuildCount % 60 == 0) {
-      _dbg(
-        _dbgTag,
-        'build #$_dbgBuildCount branch=$_dbgBranch '
-            '{$_dbgBranchDesc} $_dbgGate() ${_dbgFlags()}',
-      );
     }
     // 页面根参照系：归位目标矩形以此量取（规避路由转场期间的整页偏移）
     return KeyedSubtree(key: _pageRootKey, child: page);
