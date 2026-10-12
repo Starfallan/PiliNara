@@ -101,6 +101,67 @@ class VideoDetailPageV extends StatefulWidget {
 
 class _VideoDetailPageVState extends State<VideoDetailPageV>
     with RouteAware, RouteAwareMixin, WidgetsBindingObserver {
+  // ===== TEMP DEBUG (branch debug/video-reuse-key-contention) 排查完毕整体删除 =====
+  static int _dbgSeq = 0;
+  static final List<_VideoDetailPageVState> _dbgLivePages = [];
+  late final int _dbgId = ++_dbgSeq;
+  String get _dbgTag => 'VP#$_dbgId';
+  bool _dbgCheckPending = false;
+  Object? _dbgBranch;
+  String? _dbgBranchDesc;
+  int _dbgBuildCount = 0;
+
+  static void _dbg(String tag, String msg) {
+    logger.i('[DBGREUSE][$tag] $msg');
+  }
+
+  // late final videoDetailController 未赋值时读取会抛 LateInitializationError，
+  // 诊断期一律走这个安全取值
+  VideoDetailController? _dbgCtrl() {
+    try {
+      return videoDetailController;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 仍在挂载、且与本页持有同一个 VideoDetailController 的其他页面实例
+  List<String> _dbgSharers() {
+    final me = _dbgCtrl();
+    if (me == null) return const [];
+    return [
+      for (final p in _dbgLivePages)
+        if (!identical(p, this) && identical(p._dbgCtrl(), me)) p._dbgTag,
+    ];
+  }
+
+  /// 页面级 GlobalKey 当前挂在哪个页面实例上（元素被跨页抢走时这里会指向别人）
+  String _dbgKeyOwner(GlobalKey key) {
+    final ctx = key.currentContext;
+    if (ctx == null) return 'none';
+    final st = ctx.findAncestorStateOfType<_VideoDetailPageVState>();
+    return st == null ? 'orphan' : st._dbgTag;
+  }
+
+  String _dbgKeys() {
+    final c = _dbgCtrl();
+    if (c == null) return 'ctrl=null';
+    return 'playerKey->${_dbgKeyOwner(c.videoPlayerKey)} '
+        'childKey->${_dbgKeyOwner(c.childKey)} '
+        'scrollKey->${_dbgKeyOwner(c.scrollKey)}';
+  }
+
+  String _dbgFlags() {
+    final c = _dbgCtrl();
+    return 'pip=${PipOverlayService.isInPipMode} '
+        'phase=${PipOverlayService.transition.phase} '
+        'stack=${VideoStackManager.getCount()} '
+        'curRoute=${Get.currentRoute} prevRoute=${Get.previousRoute} '
+        'ctrlerHash=${c?.hashCode} '
+        'sharers=${_dbgSharers()} '
+        '${_dbgKeys()}';
+  }
+  // ===== END TEMP DEBUG =====
   late final String heroTag;
 
   late final VideoDetailController videoDetailController;
@@ -293,6 +354,17 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         ? PipOverlayService.getSavedController<VideoDetailController>()
         : null;
     final bool restoringFromPip = restoredController != null;
+    _dbgLivePages.add(this);
+    _dbg(
+      _dbgTag,
+      'initState: fromPip=$fromPip targetKey=$targetContextKey '
+          'savedKey=${PipOverlayService.savedVideoContextKey} '
+          'isSameVideo=$isSameVideo shouldRestore=$shouldRestoreFromPip '
+          'restoredController=${restoredController?.hashCode} '
+          'restoringFromPip=$restoringFromPip '
+          'argsHeroTag=${Get.arguments is Map ? Get.arguments['heroTag'] : null} '
+          '${_dbgFlags()}',
+    );
 
     // heroTag 是这组 GetX controller 的作用域标识。复用已有 controller
     // 时必须沿用其原 tag；这里只在页面初始化时决定一次，之后保持不变。
@@ -335,6 +407,10 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         videoDetailController.isEnteringPip = false; // 重置标志
         videoDetailController.$reopenLifeCycle(); // 重置 isClosed
         Get.put(savedController, tag: heroTag);
+        _dbg(
+          _dbgTag,
+          'REUSED saved controller: heroTag=$heroTag ${_dbgFlags()}',
+        );
 
         // 点击展开（归位动画中）：小窗仍在飞向本页，非销毁式 stopPip 推迟到
         // 握手完成由协调器触发 _finalizeRestore 执行；本页播放器先透明占位。
@@ -800,6 +876,8 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
   @override
   void dispose() {
+    _dbg(_dbgTag, 'dispose ENTER ${_dbgFlags()}');
+    _dbgLivePages.remove(this);
     VideoStackManager.decrement(); // 减少视频页面层级追踪
     final isInAppPip = PipOverlayService.isInPipMode;
     // 如果 _pipRetryPending=true 但用户没有继续 pop（_onPopInvokedWithResult 未触发），
@@ -856,12 +934,14 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     playerFocusNode.dispose();
     tabContentFocusNode.dispose();
     super.dispose();
+    _dbg(_dbgTag, 'dispose EXIT ${_dbgFlags()}');
   }
 
   @override
   // 离开当前页面时
   void didPushNext() {
     super.didPushNext();
+    _dbg(_dbgTag, 'didPushNext ENTER ${_dbgFlags()}');
     isShowing = false;
 
     removeObserverMobile(this);
@@ -920,11 +1000,17 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         plPlayerController!.pause();
       }
     }
+    _dbg(
+      _dbgTag,
+      'didPushNext EXIT willStartPip=$willStartPip keepAlive=$shouldKeepAlive '
+          '${_dbgFlags()}',
+    );
   }
 
   @override
   // 返回当前页面时
   void didPopNext() async {
+    _dbg(_dbgTag, 'didPopNext ENTER ${_dbgFlags()}');
     super.didPopNext();
 
     if (videoDetailController.plPlayerController.isCloseAll) {
@@ -1127,6 +1213,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     // didPopNext 是"返回到本页面"的回调，无法预知用户接下来是停留还是继续返回。
     // 若立即重试，会在用户停在本页时把视频错误地送入 PiP。
     // _pipRetryPending 留待 _onPopInvokedWithResult 消费——只有用户真正继续 pop 时才重试。
+    _dbg(_dbgTag, 'didPopNext EXIT ${_dbgFlags()}');
   }
 
   @override
@@ -2004,6 +2091,13 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     } else {
       child = childWhenDisabledAlmostSquare;
     }
+    _dbgBranch ??= child.runtimeType;
+    _dbgBranchDesc ??=
+        'pip=${videoDetailController.plPlayerController.isPipMode} '
+        'horizontalScreen=${videoDetailController.horizontalScreen} '
+        'ratio=${(maxWidth / maxHeight).toStringAsFixed(3)} '
+        'isPortrait=$isPortrait maxW=${maxWidth.toStringAsFixed(0)} '
+        'maxH=${maxHeight.toStringAsFixed(0)}';
     if (videoDetailController.plPlayerController.keyboardControl) {
       child = PlayerFocus(
         plPlayerController: videoDetailController.plPlayerController,
@@ -2024,6 +2118,36 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     final page = videoDetailController.plPlayerController.darkVideoPage
         ? Theme(data: theme, child: child)
         : child;
+    _dbgBuildCount++;
+    if (_dbgBuildCount <= 2 || _dbgBuildCount % 60 == 0) {
+      _dbg(
+        _dbgTag,
+        'build #$_dbgBuildCount branch=$_dbgBranch '
+            '{$_dbgBranchDesc} ${_dbgFlags()}',
+      );
+    }
+    // 构建后检查页面级 GlobalKey 是否已被其他存活的视频页抢走（跨页 GlobalKey
+    // 冲突的确定性信号：小窗以外的场景不应出现 sharers 非空/keys 指向他页）
+    if (_dbgCtrl() != null && !_dbgCheckPending) {
+      _dbgCheckPending = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _dbgCheckPending = false;
+        if (!mounted) return;
+        final c = _dbgCtrl();
+        if (c == null) return;
+        final sharers = _dbgSharers();
+        final o1 = _dbgKeyOwner(c.videoPlayerKey);
+        final o2 = _dbgKeyOwner(c.childKey);
+        if (sharers.isNotEmpty || o1 != _dbgTag || o2 != _dbgTag) {
+          _dbg(
+            _dbgTag,
+            'POSTFRAME KEY CONTENTION '
+                'playerOwner=$o1 childOwner=$o2 expected=$_dbgTag '
+                '${_dbgFlags()}',
+          );
+        }
+      });
+    }
     // 页面根参照系：归位目标矩形以此量取（规避路由转场期间的整页偏移）
     return KeyedSubtree(key: _pageRootKey, child: page);
   }
