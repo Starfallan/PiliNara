@@ -180,6 +180,7 @@ abstract final class SettingBoxKey {
       showFsScreenshotBtn = 'showFsScreenshotBtn',
       showFsLockBtn = 'showFsLockBtn',
       showFsLockBtnRight = 'showFsLockBtnRight',
+      lockFsRotation = 'lockFsRotation',
       silentDownImg = 'silentDownImg',
       showMemberShop = 'showMemberShop',
       enablePlayAll = 'enablePlayAll',
@@ -201,7 +202,9 @@ abstract final class SettingBoxKey {
       angleDegrees = 'angleDegrees',
       liveStream = 'liveStream',
       enableDocProvider = 'enableDocProvider',
-      enableEmoteTooltip = 'enableEmoteTooltip';
+      enableEmoteTooltip = 'enableEmoteTooltip',
+      mineTabs = 'mineTabs',
+      buvid = 'buvid';
 
   static const String enableAiChat = 'enableAiChat',
       aiApiUrl = 'aiApiUrl',
@@ -323,6 +326,7 @@ abstract final class SettingBoxKey {
       msgBadgeMode = 'msgBadgeMode',
       msgUnReadTypeV2 = 'msgUnReadTypeV2',
       navBarSort = 'navBarSort',
+      // 旧版「我的页卡片编辑」的键，仅用于首次迁移到 mineTabs（见 Pref.mineTabs）
       mineCardSort = 'mineCardSort',
       tempPlayerConf = 'tempPlayerConf',
       reduceLuxColor = 'reduceLuxColor',
@@ -347,7 +351,6 @@ abstract final class LocalCacheKey {
       lastLocalPlayed = 'lastLocalPlayed',
       mixinKey = 'mixinKey',
       timeStamp = 'timeStamp',
-      buvid = 'buvid',
       remarkMids = 'remarkMids',
       cdnNodeList = 'cdnNodeList',
       cdnNodeListTime = 'cdnNodeListTime',

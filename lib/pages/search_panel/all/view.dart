@@ -49,11 +49,36 @@ class _SearchAllPanelState
   }
 
   @override
-  Widget buildList(List<SearchVideoItemModel> list) {
-    return SliverMainAxisGroup(
-      slivers: [
-        if (controller.searchEsports != null) ...[
-          _buildEsports(controller.searchEsports!),
+  Widget buildSuccess(List<SearchVideoItemModel>? response) {
+    final activities = controller.searchActivity ?? const <SearchActivity>[];
+    final users = controller.searchUser ?? const <SearchUser>[];
+    final media = controller.searchMedia ?? const <SearchPgcItemModel>[];
+    final esports = controller.searchEsports;
+    final hasEsports = esports != null && esports.contest.isNotEmpty;
+    if (activities.isEmpty && users.isEmpty && media.isEmpty && !hasEsports) {
+      return super.buildSuccess(response);
+    }
+
+    final filteredVideos = controller.filterKeywords(
+      response ?? const <SearchVideoItemModel>[], getTitle,
+    );
+    final filteredActivities = controller.filterKeywords(
+      activities, (item) => item.title,
+    );
+    final filteredUsers = controller.filterKeywords(
+      users, (item) => item.uname,
+    );
+    final filteredMedia = controller.filterKeywords(
+      media, (item) => item.title.map((e) => e.text).join(),
+    );
+    final filteredEsports = controller.filterKeywords(
+      [if (hasEsports) esports], (item) => item.contest.first.season?.title,
+    );
+    return buildResults(
+      filteredVideos,
+      leading: [
+        if (filteredEsports.isNotEmpty) ...[
+          _buildEsports(filteredEsports.first),
           SliverToBoxAdapter(
             child: Divider(
               height: 14,
@@ -61,18 +86,12 @@ class _SearchAllPanelState
             ),
           ),
         ],
-        ...?controller.searchActivity?.map((e) {
-          return SliverToBoxAdapter(
-            child: SearchActivityItem(item: e),
-          );
-        }),
-        ...?controller.searchUser?.map((e) {
-          return SliverToBoxAdapter(
-            child: SearchAllUserItem(item: e),
-          );
-        }),
-        if (controller.searchMedia != null) ...[
-          _buildPgc(controller.searchMedia!),
+        for (final item in filteredActivities)
+          SliverToBoxAdapter(child: SearchActivityItem(item: item)),
+        for (final item in filteredUsers)
+          SliverToBoxAdapter(child: SearchAllUserItem(item: item)),
+        if (filteredMedia.isNotEmpty) ...[
+          _buildPgc(filteredMedia),
           SliverToBoxAdapter(
             child: Divider(
               height: 14,
@@ -80,7 +99,6 @@ class _SearchAllPanelState
             ),
           ),
         ],
-        super.buildList(list),
       ],
     );
   }

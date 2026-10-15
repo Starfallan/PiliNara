@@ -188,7 +188,7 @@ Widget _build({
 }) {
   final bottomColor = ColourUtils.parseColor(item.backgroundBottomColor);
   final border = BorderSide(color: bottomColor);
-  final sendTime = showTime ? _formatTime(item.ts) : null;
+  final sendTime = showTime ? _formatTime(item.startSime) : null;
 
   Widget name = Text(
     item.userInfo.uname,

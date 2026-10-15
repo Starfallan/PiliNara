@@ -1,15 +1,18 @@
+import 'package:PiliPlus/common/widgets/custom_icon.dart';
 import 'package:PiliPlus/http/video.dart';
 import 'package:PiliPlus/models/common/rcmd_mode.dart';
 import 'package:PiliPlus/pages/rcmd/controller.dart';
 import 'package:PiliPlus/pages/setting/models/model.dart';
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
 import 'package:PiliPlus/utils/global_data.dart';
+import 'package:PiliPlus/utils/login_utils.dart';
 import 'package:PiliPlus/utils/recommend_filter.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/user_whitelist.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show FilteringTextInputFormatter;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:hive_ce/hive.dart';
@@ -21,6 +24,12 @@ List<SettingsModel> get recommendSettings => [
     leading: const Icon(Icons.model_training_outlined),
     getSubtitle: () => '当前:「${Pref.rcmdMode.label}」',
     onTap: _showRcmdModeDialog,
+  ),
+  NormalModel(
+    title: 'buvid',
+    leading: const Icon(CustomIcons.identifier_circle),
+    getSubtitle: () => LoginUtils.buvid,
+    onTap: _showBuvidDialog,
   ),
   SwitchModel(
     title: '保留首页推荐刷新',
@@ -60,6 +69,7 @@ List<SettingsModel> get recommendSettings => [
     key: SettingBoxKey.minLikeRatioForRecommend,
     values: [0, 1, 2, 3, 4],
     onChanged: (value) => RecommendFilter.minLikeRatioForRecommend = value,
+    filterScope: 'Web推荐、热门、分区',
   ),
   getListBanWordModel(
     title: '标题关键词过滤',
@@ -68,6 +78,7 @@ List<SettingsModel> get recommendSettings => [
       RecommendFilter.rcmdRegExp = value;
       RecommendFilter.enableFilter = value.pattern.isNotEmpty;
     },
+    banScope: '推荐、热门、分区、相关视频',
   ),
   getListBanWordModel(
     title: 'UP名称关键词过滤',
@@ -78,12 +89,13 @@ List<SettingsModel> get recommendSettings => [
     },
   ),
   getListBanWordModel(
-    title: 'App推荐/热门/排行榜: 视频分区关键词过滤',
+    title: '分区关键词过滤',
     key: SettingBoxKey.banWordForZone,
     onChanged: (value) {
       VideoHttp.zoneRegExp = value;
       VideoHttp.enableFilter = value.pattern.isNotEmpty;
     },
+    banScope: 'App推荐、热门、分区',
   ),
   getListUidWithNameModel(
     title: '屏蔽用户',
@@ -114,12 +126,14 @@ List<SettingsModel> get recommendSettings => [
     key: SettingBoxKey.minDurationForRcmd,
     values: [0, 30, 60, 90, 120],
     onChanged: (value) => RecommendFilter.minDurationForRcmd = value,
+    filterScope: '推荐、相关视频',
   ),
   getVideoFilterSelectModel(
     title: '播放量',
     key: SettingBoxKey.minPlayForRcmd,
     values: [0, 50, 100, 500, 1000],
     onChanged: (value) => RecommendFilter.minPlayForRcmd = value,
+    filterScope: '推荐、热门、分区、相关视频',
   ),
   NormalModel(
     title: '屏蔽无权查看视频',
@@ -235,4 +249,46 @@ Future<void> _showRcmdModeDialog(
     SmartDialog.showToast('重启生效');
     setState();
   }
+}
+
+void _showBuvidDialog(BuildContext context, VoidCallback setState) {
+  String buvid = LoginUtils.buvid;
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('buvid'),
+      content: TextFormField(
+        autofocus: true,
+        initialValue: buvid,
+        onChanged: (value) => buvid = value,
+        inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r"\s"))],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Get.back();
+            Pref.buvid = LoginUtils.buvid = LoginUtils.generateBuvid();
+            setState();
+          },
+          child: const Text('随机'),
+        ),
+        TextButton(
+          onPressed: Get.back,
+          child: Text(
+            '取消',
+            style: TextStyle(color: ColorScheme.of(context).outline),
+          ),
+        ),
+        TextButton(
+          onPressed: () {
+            Get.back();
+            if (buvid.isEmpty) return;
+            Pref.buvid = LoginUtils.buvid = buvid;
+            setState();
+          },
+          child: const Text('确定'),
+        ),
+      ],
+    ),
+  );
 }

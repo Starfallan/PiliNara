@@ -13,6 +13,7 @@ import 'package:PiliPlus/models/common/dynamic/dynamics_type.dart';
 import 'package:PiliPlus/models/common/dynamic/up_panel_position.dart';
 import 'package:PiliPlus/models/common/follow_order_type.dart';
 import 'package:PiliPlus/models/common/member/tab_type.dart';
+import 'package:PiliPlus/models/common/mine_tab_type.dart';
 import 'package:PiliPlus/models/common/msg/msg_unread_type.dart';
 import 'package:PiliPlus/models/common/nav_bar_config.dart';
 import 'package:PiliPlus/models/common/rcmd_mode.dart';
@@ -1465,17 +1466,32 @@ abstract final class Pref {
   static bool get showFsLockBtnRight =>
       _setting.get(SettingBoxKey.showFsLockBtnRight, defaultValue: false);
 
+  static bool get lockFsRotation =>
+      _setting.get(SettingBoxKey.lockFsRotation, defaultValue: false);
+
   static bool get silentDownImg =>
       _setting.get(SettingBoxKey.silentDownImg, defaultValue: false);
 
   static String get buvid {
-    String? buvid = _localCache.get(LocalCacheKey.buvid);
-    if (buvid == null) {
-      buvid = LoginUtils.generateBuvid();
-      _localCache.put(LocalCacheKey.buvid, buvid);
+    String? value = _setting.get(SettingBoxKey.buvid);
+    if (value != null) return value;
+
+    value = _localCache.get(SettingBoxKey.buvid);
+    if (value != null) {
+      _setting
+          .put(SettingBoxKey.buvid, value)
+          .whenComplete(() => _localCache.delete(SettingBoxKey.buvid));
+      return value;
     }
-    return buvid;
+
+    if (value == null) {
+      buvid = value = LoginUtils.generateBuvid();
+    }
+
+    return value;
   }
+
+  static set buvid(String value) => _setting.put(SettingBoxKey.buvid, value);
 
   static bool get showMemberShop =>
       _setting.get(SettingBoxKey.showMemberShop, defaultValue: false);
@@ -1721,4 +1737,39 @@ abstract final class Pref {
 
   static bool get enableEmoteTooltip =>
       _setting.get(SettingBoxKey.enableEmoteTooltip, defaultValue: false);
+
+  static Set<MineTabType> get mineTabs {
+    final cache = _setting.get(SettingBoxKey.mineTabs) as List?;
+    if (cache != null && cache.isNotEmpty) {
+      return cache
+          .whereType<int>()
+          .where((i) => i >= 0 && i < MineTabType.values.length)
+          .map((i) => MineTabType.values[i])
+          .toSet();
+    }
+    // 旧版「我的页卡片编辑」键 mineCardSort 存的是 MineCardType 索引：
+    // history=0, fav=1, toView=2 → history / favorite / later
+    final legacy = _setting.get(SettingBoxKey.mineCardSort) as List?;
+    if (legacy != null && legacy.isNotEmpty) {
+      const legacyMap = <int, MineTabType>{
+        0: MineTabType.history,
+        1: MineTabType.favorite,
+        2: MineTabType.later,
+      };
+      final tabs = legacy
+          .whereType<int>()
+          .map((i) => legacyMap[i])
+          .whereType<MineTabType>()
+          .toSet();
+      if (tabs.isNotEmpty) {
+        _setting.put(
+          SettingBoxKey.mineTabs,
+          tabs.map((e) => e.index).toList(),
+        );
+        _setting.delete(SettingBoxKey.mineCardSort);
+        return tabs;
+      }
+    }
+    return MineTabType.kDefault;
+  }
 }

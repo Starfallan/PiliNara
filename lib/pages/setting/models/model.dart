@@ -239,6 +239,7 @@ SettingsModel getListBanWordModel({
   required String title,
   required String key,
   required ValueChanged<RegExp> onChanged,
+  String? banScope,
 }) {
   String banWord = GStorage.setting.get(key, defaultValue: '');
 
@@ -297,7 +298,12 @@ SettingsModel getListBanWordModel({
     getSubtitle: () {
       if (banWord.isEmpty) return "点击添加";
       final items = parseItems(banWord);
-      return items.isEmpty ? "点击添加" : '${items.length} 个关键词';
+      final subtitle = items.isEmpty
+          ? "点击添加"
+          : '${items.length} 个关键词';
+      // banScope 来自上游，用于在副标题里标注过滤作用域
+      if (banScope == null) return subtitle;
+      return '作用域: $banScope\n$subtitle';
     },
     onTap: (context, setState) async {
       final items = parseItems(banWord);
@@ -484,6 +490,7 @@ SettingsModel getVideoFilterSelectModel({
   required List<int> values,
   int defaultValue = 0,
   bool isFilter = true,
+  String? filterScope,
   ValueChanged<int>? onChanged,
 }) {
   assert(!isFilter || onChanged != null);
@@ -493,9 +500,16 @@ SettingsModel getVideoFilterSelectModel({
     leading: const Icon(Icons.timelapse_outlined),
     subtitle: subtitle,
     getSubtitle: subtitle == null
-        ? () => isFilter
-              ? '过滤掉$title小于「$value${suffix ?? ""}」的视频'
-              : '当前$title:「$value${suffix ?? ""}」'
+        ? () {
+            if (isFilter) {
+              final subtitle = '过滤掉$title小于「$value${suffix ?? ""}」的视频';
+              if (filterScope != null) {
+                return '作用域: $filterScope\n$subtitle';
+              }
+              return subtitle;
+            }
+            return '当前$title:「$value${suffix ?? ""}」';
+          }
         : null,
     onTap: (context, setState) async {
       var result = await showDialog<int>(

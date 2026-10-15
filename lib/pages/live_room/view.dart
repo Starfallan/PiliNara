@@ -342,6 +342,11 @@ class _LiveRoomPageState extends State<LiveRoomPage>
   void didPushNext() {
     removeObserverMobile(this);
     plPlayerController.removeStatusLister(playerListener);
+    // 未开播时内容就是弹幕流本身，不能随播放状态关闭
+    if (_liveRoomController.isUnstartedRoom.value) {
+      super.didPushNext();
+      return;
+    }
 
     if (plPlayerController.playerStatus.isPlaying &&
         !isFullScreen &&
@@ -359,6 +364,9 @@ class _LiveRoomPageState extends State<LiveRoomPage>
   }
 
   void playerListener(PlayerStatus status) {
+    if (_liveRoomController.isUnstartedRoom.value) {
+      return;
+    }
     if (status.isPlaying) {
       _liveRoomController
         ..danmakuController?.resume()
@@ -479,6 +487,9 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     Widget player = Obx(
       key: playerKey,
       () {
+        if (_liveRoomController.isUnstartedRoom.value) {
+          return _unstartedPanel(width);
+        }
         if (_liveRoomController.isLoaded.value && plPlayerController.isLive) {
           final roomInfoH5 = _liveRoomController.roomInfoH5.value;
           return PLVideoPlayer(
@@ -603,6 +614,54 @@ class _LiveRoomPageState extends State<LiveRoomPage>
         : result;
   }
 
+  Widget _unstartedPanel(double width) {
+    return Obx(() {
+      final cover = _liveRoomController.roomInfoH5.value?.roomInfo?.cover;
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          if (cover != null && cover.isNotEmpty)
+            CachedNetworkImage(
+              fit: BoxFit.cover,
+              memCacheWidth: width.cacheSize(context),
+              imageUrl: ImageUtils.safeThumbnailUrl(cover),
+              placeholder: (_, _) => const SizedBox.shrink(),
+              errorBuilder: (_, _, _) => const ColoredBox(color: Colors.black),
+            )
+          else
+            Image.asset(
+              Assets.livingBackground,
+              fit: BoxFit.cover,
+              cacheWidth: width.cacheSize(context),
+            ),
+          const ColoredBox(color: Color(0x66000000)),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _liveRoomController.title.value,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 15, color: baseWhite),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _liveRoomController.isRoundRoom ? '直播未开始 轮播中' : '直播未开始',
+                    style: const TextStyle(fontSize: 13, color: baseWhite),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    });
+  }
+
   // 本页能否被 pop 收起：popScope 的 canPop 与手动小窗入口共用同一判定
   bool get _canPopPage => _liveRoomController.canPopPage;
 
@@ -685,6 +744,9 @@ class _LiveRoomPageState extends State<LiveRoomPage>
       return false;
     }
     if (!plPlayerController.isLive) {
+      return false;
+    }
+    if (plPlayerController.videoPlayerController == null) {
       return false;
     }
     // 如果即将进入听视频界面，不开启小窗(没啥用，直播间没有相关入口，但还是留着吧？)
@@ -782,6 +844,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
                     fit: BoxFit.cover,
                     width: maxWidth,
                     height: maxHeight,
+                    gaplessPlayback: true,
                     memCacheWidth: maxWidth.cacheSize(context),
                     imageUrl: ImageUtils.safeThumbnailUrl(appBackground),
                     placeholder: (_, _) => const SizedBox.shrink(),
@@ -792,6 +855,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
                     fit: BoxFit.cover,
                     width: maxWidth,
                     height: maxHeight,
+                    gaplessPlayback: true,
                     cacheWidth: maxWidth.cacheSize(context),
                   );
                 }

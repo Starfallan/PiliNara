@@ -59,3 +59,18 @@ String remarkedName(int? mid, String rawName) {
   final firstLine = remark.split('\n').first.trim();
   return firstLine.isEmpty ? rawName : firstLine;
 }
+
+/// 上游在搜索等结果里统一按本地黑名单过滤用
+///
+/// 同时尊重本地白名单：白名单用户即使进了黑名单也保留，
+/// 与本 fork 在推荐/热门/相关视频里的豁免行为保持一致。
+extension BlockedMidsIterableExt<E> on Iterable<E> {
+  Iterable<E> whereNotBlocked(Object? /* mid */ Function(E element) test) =>
+      where((e) {
+        final mid = test(e);
+        if (mid is int && GlobalData().whitelistMids.containsKey(mid)) {
+          return true;
+        }
+        return !GlobalData().blackMids.contains(mid);
+      });
+}

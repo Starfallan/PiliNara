@@ -74,20 +74,7 @@ abstract class CommonSearchPanelState<
   Widget _buildBody(LoadingState<List<T>?> loadingState) {
     return switch (loadingState) {
       Loading() => buildLoading,
-      Success(:final response) when response != null && response.isNotEmpty =>
-        () {
-          final filtered = controller.filterKeywords(response, getTitle);
-          if (filtered.isEmpty) {
-            return _buildFilteredOut();
-          }
-          final showLoadMore = controller.hasKeywordFilter &&
-              filtered.length <= 5;
-          if (!showLoadMore) return buildList(filtered);
-          return SliverMainAxisGroup(
-            slivers: [buildList(filtered), _buildInlineLoadMore()],
-          );
-        }(),
-      Success() => HttpError(onReload: controller.onReload),
+      Success(:final response) => buildSuccess(response),
       Error(:final errMsg) => HttpError(
         errMsg: errMsg,
         onReload: controller.onReload,
@@ -95,8 +82,31 @@ abstract class CommonSearchPanelState<
     };
   }
 
+  @protected
+  Widget buildSuccess(List<T>? response) {
+    if (response == null || response.isEmpty) {
+      return HttpError(onReload: controller.onReload);
+    }
+    return buildResults(controller.filterKeywords(response, getTitle));
+  }
+
+  @protected
+  Widget buildResults(List<T> list, {List<Widget> leading = const []}) {
+    if (list.isEmpty && leading.isEmpty) return _buildFilteredOut();
+    final showLoadMore = controller.hasKeywordFilter &&
+        !controller.isEnd && list.length <= 5;
+    if (leading.isEmpty && !showLoadMore) return buildList(list);
+    return SliverMainAxisGroup(
+      slivers: [
+        ...leading,
+        if (list.isNotEmpty) buildList(list),
+        if (showLoadMore) _buildInlineLoadMore(),
+      ],
+    );
+  }
+
   Future<void> _onLoadMoreWithCooldown() async {
-    if (_isLoadingMore) return;
+    if (_isLoadingMore || controller.isEnd) return;
     setState(() => _isLoadingMore = true);
     try {
       await controller.onLoadMore();
@@ -131,35 +141,39 @@ abstract class CommonSearchPanelState<
               ),
               const SizedBox(height: 6),
               Text(
-                '可以继续加载更多结果，直到找到符合条件的内容',
+                controller.isEnd
+                    ? '没有更多结果，请调整或清除关键词'
+                    : '可以继续加载更多结果，直到找到符合条件的内容',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 13,
                   color: colorScheme.outline,
                 ),
               ),
-              const SizedBox(height: 16),
-              FilledButton.tonalIcon(
-                onPressed:
-                    _isLoadingMore ? null : _onLoadMoreWithCooldown,
-                icon: _isLoadingMore
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.keyboard_double_arrow_down, size: 18),
-                label: Text(_isLoadingMore ? '加载中...' : '继续加载'),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '加载完成后方可进行下次加载，避免触发频率限制',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: colorScheme.outline,
+              if (!controller.isEnd) ...[
+                const SizedBox(height: 16),
+                FilledButton.tonalIcon(
+                  onPressed:
+                      _isLoadingMore ? null : _onLoadMoreWithCooldown,
+                  icon: _isLoadingMore
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.keyboard_double_arrow_down, size: 18),
+                  label: Text(_isLoadingMore ? '加载中...' : '继续加载'),
                 ),
-              ),
+                const SizedBox(height: 8),
+                Text(
+                  '加载完成后方可进行下次加载，避免触发频率限制',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: colorScheme.outline,
+                  ),
+                ),
+              ],
             ],
           ),
         ),

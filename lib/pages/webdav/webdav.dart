@@ -73,6 +73,11 @@ class WebDav {
   }
 
   String _getFileName() {
+    return 'pilinara_settings_${DeviceUtils.platformName}.json';
+  }
+
+  /// 改名前的备份文件名，恢复时回退读取，避免升级后读不到既有备份
+  String _getLegacyFileName() {
     return 'piliplus_settings_${DeviceUtils.platformName}.json';
   }
 
@@ -109,8 +114,13 @@ class WebDav {
       return;
     }
     try {
-      final path = '${config.directory}/${_getFileName()}';
-      final data = await client.read(path);
+      final base = '${config.directory}/';
+      List<int> data;
+      try {
+        data = await client.read('$base${_getFileName()}');
+      } catch (_) {
+        data = await client.read('$base${_getLegacyFileName()}');
+      }
       await GStorage.importAllSettings(utf8.decode(data));
       SmartDialog.showToast('恢复成功');
     } catch (e) {

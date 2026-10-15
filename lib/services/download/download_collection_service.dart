@@ -73,7 +73,25 @@ class DownloadCollectionService extends GetxService {
       title: title,
       sourceKey: sourceKey,
     );
-    await addVideosToFolders([entry.cid], [folder.id]);
+    final cids = folder.videoCids;
+    if (cids.contains(entry.cid)) {
+      return;
+    }
+    // 有序号时插到第一个序号更大的成员之前，无序号成员不参与比较。
+    final autoFolderIndex = entry.autoFolderIndex;
+    final position = autoFolderIndex == null
+        ? -1
+        : cids.indexWhere((cid) {
+            final other = _autoFolderIndexOf(cid);
+            return other != null && other > autoFolderIndex;
+          });
+    if (position < 0) {
+      cids.add(entry.cid);
+    } else {
+      cids.insert(position, entry.cid);
+    }
+    await _save();
+    flagNotifier.refresh();
   }
 
   Future<void> syncWithDownloads({bool notify = true}) =>
@@ -434,6 +452,37 @@ class DownloadCollectionService extends GetxService {
     await _save();
     flagNotifier.refresh();
   }
+
+  /// 按合集顺序重排文件夹成员：有序号的按序号升序，无序号成员（本次改动之前
+  /// 缓存的视频或非合集来源）保持原有相对顺序排在最后。
+  Future<void> applyAutoFolderOrder(String folderId) async {
+    final folder = getFolder(folderId);
+    if (folder == null || folder.sourceKey == null) {
+      return;
+    }
+    final ordered = <int>[];
+    final unindexed = <int>[];
+    for (final cid in folder.videoCids) {
+      if (_autoFolderIndexOf(cid) == null) {
+        unindexed.add(cid);
+      } else {
+        ordered.add(cid);
+      }
+    }
+    ordered.sort(
+      (a, b) => _autoFolderIndexOf(a)!.compareTo(_autoFolderIndexOf(b)!),
+    );
+    folder.videoCids
+      ..clear()
+      ..addAll(ordered)
+      ..addAll(unindexed);
+    await _save();
+    flagNotifier.refresh();
+  }
+
+  int? _autoFolderIndexOf(int cid) => _downloadService.downloadList
+      .firstWhereOrNull((item) => item.cid == cid)
+      ?.autoFolderIndex;
 
   Future<void> removeVideosFromFolder(String folderId, Iterable<int> cids) async {
     final folder = getFolder(folderId);

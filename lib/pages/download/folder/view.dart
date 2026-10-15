@@ -23,6 +23,7 @@ import 'package:get/get.dart';
 enum _FolderSortAction {
   manual,
   reset,
+  autoFolderOrder,
 }
 
 class DownloadFolderPage extends StatefulWidget {
@@ -102,6 +103,11 @@ class _DownloadFolderPageState extends State<DownloadFolderPage> {
     SmartDialog.showToast('已按缓存时间重置');
   }
 
+  Future<void> _applyAutoFolderOrder() async {
+    await _collectionService.applyAutoFolderOrder(widget.folderId);
+    SmartDialog.showToast('已按合集顺序排列');
+  }
+
   void _onSortSelected(_FolderSortAction action) {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) {
@@ -109,6 +115,8 @@ class _DownloadFolderPageState extends State<DownloadFolderPage> {
       }
       if (action == _FolderSortAction.manual) {
         await _openSortPage();
+      } else if (action == _FolderSortAction.autoFolderOrder) {
+        await _applyAutoFolderOrder();
       } else {
         await _resetOrder();
       }
@@ -219,14 +227,22 @@ class _DownloadFolderPageState extends State<DownloadFolderPage> {
                     tooltip: '排序',
                     icon: const Icon(Icons.sort),
                     onPressed: () {
+                      final folder = _collectionService.getFolder(
+                        widget.folderId,
+                      );
                       showStaticPositionMenu<_FolderSortAction>(
                         context: context,
-                        items: const [
-                          CustomPopupMenuItem(
+                        items: [
+                          const CustomPopupMenuItem(
                             value: _FolderSortAction.manual,
                             child: Text('手动排序'),
                           ),
-                          CustomPopupMenuItem(
+                          if (folder?.sourceKey != null)
+                            const CustomPopupMenuItem(
+                              value: _FolderSortAction.autoFolderOrder,
+                              child: Text('按合集顺序'),
+                            ),
+                          const CustomPopupMenuItem(
                             value: _FolderSortAction.reset,
                             child: Text('按缓存时间'),
                           ),
