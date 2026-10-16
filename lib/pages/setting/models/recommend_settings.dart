@@ -97,6 +97,15 @@ List<SettingsModel> get recommendSettings => [
     },
     banScope: 'App推荐、热门、分区',
   ),
+  getListBanWordModel(
+    title: '视频标签关键词过滤',
+    key: SettingBoxKey.banWordForVideoTag,
+    onChanged: (value) {
+      RecommendFilter.videoTagRegExp = value;
+      RecommendFilter.enableVideoTagFilter = value.pattern.isNotEmpty;
+    },
+    banScope: 'App推荐、热门、排行榜、相关视频',
+  ),
   getListUidWithNameModel(
     title: '推荐屏蔽用户',
     getUidsMap: () => Pref.recommendBlockedMids,

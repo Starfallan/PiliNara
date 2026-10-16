@@ -190,10 +190,20 @@ class VideoPopupMenu extends StatelessWidget {
     );
   }
 
-  void _showLocalBlockDialog(BuildContext context) {
+  Future<void> _showLocalBlockDialog(BuildContext context) async {
     final ownerName = videoItem.owner.name ?? '未知UP';
     final title = videoItem.title.trim();
     final zoneName = _getZoneName()?.trim();
+    final bvid = videoItem.bvid;
+    var tags = RecommendFilter.cachedVideoTags(bvid);
+    if (tags == null && bvid?.isNotEmpty == true) {
+      SmartDialog.showLoading(msg: '正在获取视频标签');
+      tags = await RecommendFilter.fetchVideoTags(bvid);
+      SmartDialog.dismiss();
+    }
+    if (!context.mounted) {
+      return;
+    }
     _showReasonDialog(
       context: context,
       title: '本地屏蔽',
@@ -243,6 +253,23 @@ class VideoPopupMenu extends StatelessWidget {
                 );
               },
             ),
+            for (final tag in tags ?? const <String>[])
+              _DialogChipAction(
+                label: '标签:$tag',
+                onPressed: () {
+                  Get.back();
+                  _appendKeyword(
+                    key: SettingBoxKey.banWordForVideoTag,
+                    value: tag,
+                    applyRegex: (value) {
+                      RecommendFilter.videoTagRegExp = value;
+                      RecommendFilter.enableVideoTagFilter =
+                          value.pattern.isNotEmpty;
+                    },
+                    successMsg: '已加入标签关键词屏蔽',
+                  );
+                },
+              ),
           ],
         ),
       ],

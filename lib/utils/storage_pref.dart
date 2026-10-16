@@ -514,6 +514,9 @@ abstract final class Pref {
   static String get banWordForZone =>
       _setting.get(SettingBoxKey.banWordForZone, defaultValue: '');
 
+  static String get banWordForVideoTag =>
+      _setting.get(SettingBoxKey.banWordForVideoTag, defaultValue: '');
+
   static bool get appRcmd =>
       _setting.get(SettingBoxKey.appRcmd, defaultValue: true);
 
