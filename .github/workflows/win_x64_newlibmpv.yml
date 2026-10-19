@@ -44,14 +44,11 @@ jobs:
         shell: pwsh
         run: lib/scripts/patch.ps1 windows
 
-      # 提交 Patch 修改，避免 git revert 冲突中止，然后 revert 指定 commit 并重新获取依赖
-      - name: Revert specified commit & update dependencies
+      # 重新指向 media-kit 的 upstream 分支并回退 ee148aa 的播放器改动（新版 libmpv）
+      - name: Apply NewLibmpv Patch & update dependencies
+        shell: pwsh
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "chore: temporary commit patches before revert" --allow-empty
-          git revert --no-edit ee148aa640e2da807c3048fde40eff9094ff897a
+          git apply lib/scripts/newlibmpv.patch
           flutter pub get
 
       - name: Build Windows

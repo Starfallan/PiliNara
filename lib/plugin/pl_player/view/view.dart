@@ -995,7 +995,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                       videoDetailController.persistVideoQa(quality);
                     },
                     child: Text(
-                      item.newDesc ?? '',
+                      item.newDesc ?? item.quality.toString(),
                       style: enabled
                           ? const TextStyle(color: Colors.white, fontSize: 13)
                           : const TextStyle(
@@ -1351,13 +1351,12 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
       }
     } else if (_gestureType == .right) {
       // 右边区域
-      final double level = maxHeight * 0.5;
       EasyThrottle.throttle(
         'setVolume',
         const Duration(milliseconds: 20),
         () {
           final double volumeRaw =
-              plPlayerController.volume.value - delta.dy / level;
+              plPlayerController.volume.value - delta.dy / (maxHeight * 0.5);
           final double volume = clampDouble(
             volumeRaw,
             0.0,
@@ -1573,13 +1572,13 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
         return;
       }
 
-      final double level = maxHeight * 0.5;
       EasyThrottle.throttle(
         'setVolume',
         const Duration(milliseconds: 20),
         () {
           final double volumeRaw =
-              plPlayerController.volume.value - event.localPanDelta.dy / level;
+              plPlayerController.volume.value -
+              event.localPanDelta.dy / (maxHeight * 0.5);
           final double volume = clampDouble(
             volumeRaw,
             0.0,

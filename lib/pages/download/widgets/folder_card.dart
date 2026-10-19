@@ -18,6 +18,7 @@ class DownloadFolderCard extends StatelessWidget {
     this.onLongPress,
     this.trailing,
     this.checked = false,
+    this.subtitle,
   });
 
   final String title;
@@ -27,6 +28,9 @@ class DownloadFolderCard extends StatelessWidget {
   final VoidCallback? onLongPress;
   final Widget? trailing;
   final bool checked;
+
+  /// 第三行的说明文字，默认按空 / 非空文件夹给。
+  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -80,7 +84,7 @@ class DownloadFolderCard extends StatelessWidget {
                     ),
                     const Spacer(),
                     Text(
-                      count == 0 ? '空文件夹' : '本地离线缓存',
+                      subtitle ?? (count == 0 ? '空文件夹' : '本地离线缓存'),
                       style: TextStyle(
                         fontSize: 12,
                         color: Theme.of(context).colorScheme.outline,

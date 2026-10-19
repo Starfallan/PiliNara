@@ -69,6 +69,14 @@ List<SettingsModel> get playSettings => [
     setKey: SettingBoxKey.autoPlayEnable,
     defaultVal: false,
   ),
+  if (PlatformUtils.isMobile)
+    const SwitchModel(
+      title: '仅 WiFi 自动播放',
+      subtitle: '仅在 WiFi 下自动播放，蜂窝网络下进入详情页只显示封面（需开启自动播放）',
+      leading: Icon(Icons.wifi),
+      setKey: SettingBoxKey.autoPlayWifiOnly,
+      defaultVal: false,
+    ),
   const SwitchModel(
     title: '全屏显示锁定按钮',
     leading: Icon(Icons.lock_outline),

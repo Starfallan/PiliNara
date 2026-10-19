@@ -1,0 +1,95 @@
+diff --git a/lib/plugin/pl_player/widgets/mpv_convert_webp.dart b/lib/plugin/pl_player/widgets/mpv_convert_webp.dart
+index 65ebdf090..47b39eab0 100644
+--- a/lib/plugin/pl_player/widgets/mpv_convert_webp.dart
++++ b/lib/plugin/pl_player/widgets/mpv_convert_webp.dart
+@@ -41,7 +41,6 @@ class MpvConvertWebp {
+   Future<void> _init() async {
+     final enableHA = Pref.enableHA;
+     _ctx = await Initializer.create(
+-      _mpv,
+       _onEvent,
+       options: {
+         'idle': 'once',
+@@ -51,8 +50,8 @@ class MpvConvertWebp {
+         'of': 'webp',
+         'ovc': 'libwebp_anim',
+         'ofopts': 'loop=0',
+-        'ovcopts': 'preset=${preset.flag}',
+-        if (enableHA) 'vo': 'gpu',
++        'ovcopts': 'preset=${preset.flag},compression_level=6',
++        'vf': 'fps=12',
+         if (enableHA) 'hwdec': '${Pref.hardwareDecoding},auto-copy', // transcode only support copy
+       },
+     );
+@@ -61,12 +60,7 @@ class MpvConvertWebp {
+       generated.mpv_event_id.MPV_EVENT_VIDEO_RECONFIG,
+       0,
+     );
+-    NativePlayer.setHeader(
+-      _mpv,
+-      _ctx,
+-      userAgent: BrowserUa.pc,
+-      referer: HttpString.baseUrl,
+-    );
++    _mpv.setHeader(_ctx, userAgent: BrowserUa.pc, referer: HttpString.baseUrl);
+     if (progress != null) {
+       _observeProperty('time-pos');
+     }
+@@ -77,7 +71,7 @@ class MpvConvertWebp {
+ 
+   void dispose() {
+     Initializer.dispose(_ctx);
+-    _mpv.mpv_terminate_destroy(_ctx);
++    Timer(const Duration(seconds: 5), () => _mpv.mpv_terminate_destroy(_ctx));
+     if (!_completer.isCompleted) _completer.complete(false);
+   }
+ 
+diff --git a/pubspec.yaml b/pubspec.yaml
+index 9c13748cb..38999abab 100644
+--- a/pubspec.yaml
++++ b/pubspec.yaml
+@@ -205,37 +205,37 @@ dependency_overrides:
+     git:
+       url: https://github.com/Starfallan/media-kit.git
+       path: media_kit
+-      ref: native
++      ref: upstream
+   media_kit_libs_android_video:
+     git:
+       url: https://github.com/Starfallan/media-kit.git
+       path: libs/android/media_kit_libs_android_video
+-      ref: native
++      ref: upstream
+   media_kit_libs_ios_video:
+     git:
+       url: https://github.com/Starfallan/media-kit.git
+       path: libs/ios/media_kit_libs_ios_video
+-      ref: native
++      ref: upstream
+   media_kit_libs_video:
+     git:
+       url: https://github.com/Starfallan/media-kit.git
+       path: libs/universal/media_kit_libs_video
+-      ref: native
++      ref: upstream
+   media_kit_libs_windows_video:
+     git:
+       url: https://github.com/Starfallan/media-kit.git
+       path: libs/windows/media_kit_libs_windows_video
+-      ref: native
++      ref: upstream
+   media_kit_native_event_loop:
+     git:
+       url: https://github.com/Starfallan/media-kit.git
+       path: media_kit_native_event_loop
+-      ref: native
++      ref: upstream
+   media_kit_video:
+     git:
+       url: https://github.com/Starfallan/media-kit.git
+       path: media_kit_video
+-      ref: native
++      ref: upstream
+ 
+ dev_dependencies:
+   flutter_test:

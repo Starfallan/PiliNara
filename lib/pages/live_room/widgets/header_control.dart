@@ -5,7 +5,6 @@ import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/draggable_sheet/dyn.dart';
 import 'package:PiliPlus/common/widgets/flutter/popup_menu.dart';
 import 'package:PiliPlus/common/widgets/marquee.dart';
-import 'package:PiliPlus/models/common/video/live_quality.dart';
 import 'package:PiliPlus/pages/live_room/controller.dart';
 import 'package:PiliPlus/pages/setting/models/play_settings.dart'
     show showPlayerVolumeDialog;
@@ -454,7 +453,7 @@ class _LiveHeaderControlState extends State<LiveHeaderControl>
                                 iconColor: codecColor,
                                 collapsedIconColor: codecColor,
                                 title: Text(
-                                  '${codec.codecName ?? ci.toString()} (${LiveQuality.fromCode(codec.currentQn)?.desc ?? codec.currentQn})',
+                                  '${codec.codecName ?? ci.toString()} (${codec.currentQn.desc})',
                                   style: isCurrCodec
                                       ? currStyle
                                       : const TextStyle(fontSize: 14),

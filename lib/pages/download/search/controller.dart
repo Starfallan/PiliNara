@@ -6,7 +6,7 @@ import 'package:PiliPlus/models_new/download/bili_download_entry_info.dart';
 import 'package:PiliPlus/pages/common/multi_select/base.dart'
     show BaseMultiSelectMixin;
 import 'package:PiliPlus/pages/common/search/common_search_controller.dart';
-import 'package:PiliPlus/services/download/download_collection_service.dart';
+import 'package:PiliPlus/services/download/download_library_service.dart';
 import 'package:PiliPlus/services/download/download_service.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:flutter/widgets.dart' show Text;
@@ -21,7 +21,7 @@ class DownloadSearchController
         >
     with BaseMultiSelectMixin<BiliDownloadEntryInfo> {
   final _downloadService = Get.find<DownloadService>();
-  final _collectionService = Get.find<DownloadCollectionService>();
+  final _libraryService = Get.find<DownloadLibraryService>();
 
   @override
   List<BiliDownloadEntryInfo> get list => loadingState.value.data!;
@@ -50,7 +50,7 @@ class DownloadSearchController
     unawaited(
       () async {
         await GStorage.watchProgress.delete(entry.cid.toString());
-        await _collectionService.clearLastLocalPlayedIfCid(entry.cid);
+        await _libraryService.clearLastLocalPlayedIfCid(entry.cid);
         await _downloadService.deleteDownload(
           entry: entry,
           removeList: true,
@@ -69,7 +69,7 @@ class DownloadSearchController
         final allChecked = this.allChecked.toSet();
         for (final entry in allChecked) {
           await GStorage.watchProgress.delete(entry.cid.toString());
-          await _collectionService.clearLastLocalPlayedIfCid(entry.cid);
+          await _libraryService.clearLastLocalPlayedIfCid(entry.cid);
           await _downloadService.deleteDownload(
             entry: entry,
             removeList: true,

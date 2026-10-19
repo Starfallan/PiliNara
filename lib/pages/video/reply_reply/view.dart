@@ -9,10 +9,8 @@ import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
 import 'package:PiliPlus/common/widgets/pendant_avatar.dart';
 import 'package:PiliPlus/common/widgets/scaffold/mini_scaffold.dart';
-import 'package:PiliPlus/common/widgets/scaffold/simple_scaffold.dart';
 import 'package:PiliPlus/common/widgets/simple_colored_box.dart';
 import 'package:PiliPlus/common/widgets/sliver/sliver_pinned_header.dart';
-import 'package:PiliPlus/common/widgets/view_safe_area.dart';
 import 'package:PiliPlus/grpc/bilibili/main/community/reply/v1.pb.dart'
     show ReplyInfo;
 import 'package:PiliPlus/http/loading_state.dart';
@@ -20,11 +18,8 @@ import 'package:PiliPlus/pages/common/slide/common_slide_page.dart';
 import 'package:PiliPlus/pages/video/reply/widgets/reply_item_grpc.dart';
 import 'package:PiliPlus/pages/video/reply_reply/controller.dart';
 import 'package:PiliPlus/pages/video/reply_reply/reply_tree.dart';
-import 'package:PiliPlus/utils/app_scheme.dart';
-import 'package:PiliPlus/utils/extension/widget_ext.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
 import 'package:PiliPlus/utils/num_utils.dart';
-import 'package:PiliPlus/utils/parse_string.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:extended_nested_scroll_view/extended_nested_scroll_view.dart';
@@ -72,53 +67,6 @@ class VideoReplyReplyPanel extends CommonSlidePage {
 
   @override
   State<VideoReplyReplyPanel> createState() => _VideoReplyReplyPanelState();
-
-  static Future<void>? toReply({
-    required int oid,
-    required int rootId,
-    String? rpIdStr,
-    required int type,
-    String? heroTag,
-    Uri? uri,
-  }) {
-    final rpId = parseIntOrNull(rpIdStr);
-    return Get.to(
-      arguments: {
-        'oid': oid,
-        'rpid': rootId,
-        'id': ?rpId,
-        'type': type,
-        'heroTag': heroTag,
-        'enterUri': ?uri?.toString(), // save panel
-      },
-      () => SimpleScaffold(
-        appBar: AppBar(
-          title: const Text('评论详情'),
-          actions: [
-            IconButton(
-              tooltip: '前往',
-              onPressed: uri == null
-                  ? null
-                  : () => PiliScheme.routePush(uri, businessId: type),
-              icon: const Icon(Icons.open_in_browser),
-            ),
-          ],
-        ),
-        body: ViewSafeArea(
-          child: VideoReplyReplyPanel(
-            enableSlide: false,
-            oid: oid,
-            rpid: rootId,
-            isVideoDetail: false,
-            replyType: type,
-            firstFloor: null,
-            id: rpId,
-            heroTag: heroTag,
-          ),
-        ).constraintWidth(),
-      ),
-    );
-  }
 }
 
 class _VideoReplyReplyPanelState extends State<VideoReplyReplyPanel>

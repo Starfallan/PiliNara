@@ -41,6 +41,9 @@ class DownloadService extends GetxService {
   static const _indexFile = 'index.json';
   static const _maxDanmakuConcurrency = 4;
 
+  /// 早期版本把 UGC 合集归属写进 `auto_folder_source_key` 时用的前缀。
+  static const _ugcSeasonKeyPrefix = 'ugc-season:';
+
   final _lock = Lock();
 
   /// 弹幕下载锁：批量更新时外层 Future.wait 会并发调用多次 downloadDanmaku，
@@ -48,7 +51,6 @@ class DownloadService extends GetxService {
   final _danmakuLock = Lock();
 
   final flagNotifier = SetNotifier();
-  final completedEntryNotifier = Set<ValueChanged<BiliDownloadEntryInfo>>();
   final waitDownloadQueue = RxList<BiliDownloadEntryInfo>();
   final downloadList = <BiliDownloadEntryInfo>[];
 
@@ -105,7 +107,11 @@ class DownloadService extends GetxService {
         if (entryFile.existsSync()) {
           try {
             final entryJson = await entryFile.readAsString();
-            final entry = BiliDownloadEntryInfo.fromJson(jsonDecode(entryJson))
+            final json = jsonDecode(entryJson) as Map<String, dynamic>;
+            if (_migrateAutoFolder(json)) {
+              await entryFile.writeAsString(jsonEncode(json));
+            }
+            final entry = BiliDownloadEntryInfo.fromJson(json)
               ..pageDirPath = pageDir.path
               ..entryDirPath = entryDir.path;
             if (entry.isCompleted) {
@@ -121,15 +127,51 @@ class DownloadService extends GetxService {
     return result;
   }
 
+  /// 一次性迁移：早期版本把 UGC 合集归属写成 `auto_folder_*`，这里换算成条目
+  /// 自带的 `season_info`，换算后按 season_info 分组，并删掉旧字段。已有
+  /// `season_info` 的条目直接跳过，因此重复执行无副作用。
+  ///
+  /// 换算不出封面与 UP 主时用条目自身的值兜底；PGC 与分P 的归属由 `pageId` /
+  /// `sortKey` 两个 getter 提供，不经过这里。
+  static bool _migrateAutoFolder(Map<String, dynamic> json) {
+    if (json['season_info'] != null) {
+      return false;
+    }
+    final sourceKey = json['auto_folder_source_key'];
+    final title = json['auto_folder_title'];
+    if (sourceKey is! String ||
+        !sourceKey.startsWith(_ugcSeasonKeyPrefix) ||
+        title is! String ||
+        title.isEmpty) {
+      return false;
+    }
+    final seasonId = int.tryParse(
+      sourceKey.substring(_ugcSeasonKeyPrefix.length),
+    );
+    if (seasonId == null) {
+      return false;
+    }
+    json['season_info'] = SeasonInfo(
+      index: json['auto_folder_index'] as int? ?? 0,
+      id: seasonId,
+      title: title,
+      cover: json['cover'] as String? ?? '',
+      mid: json['owner_id'] as int? ?? 0,
+      uname: json['owner_name'] as String? ?? '',
+    ).toJson();
+    json
+      ..remove('auto_folder_title')
+      ..remove('auto_folder_source_key')
+      ..remove('auto_folder_index');
+    return true;
+  }
+
   void downloadVideo({
     required int index,
     required Part page,
     VideoDetailData? videoDetail,
     ugc.EpisodeItem? videoArc,
     required VideoQuality videoQuality,
-    String? autoFolderTitle,
-    String? autoFolderSourceKey,
-    int? autoFolderIndex,
     SeasonInfo? seasonInfo,
   }) {
     final cid = page.cid!;
@@ -182,9 +224,6 @@ class DownloadService extends GetxService {
       ownerId: videoDetail?.owner?.mid ?? videoArc?.arc?.author?.mid,
       ownerName: videoDetail?.owner?.name ?? videoArc?.arc?.author?.name,
       pageData: pageData,
-      autoFolderTitle: autoFolderTitle,
-      autoFolderSourceKey: autoFolderSourceKey,
-      autoFolderIndex: autoFolderIndex,
       seasonInfo: seasonInfo,
     );
     _createDownload(entry);
@@ -800,7 +839,6 @@ class DownloadService extends GetxService {
     await _updateBiliDownloadEntryJson(entry);
     waitDownloadQueue.remove(entry);
     downloadList.insert(0, entry);
-    completedEntryNotifier.notify(entry);
     flagNotifier.refresh();
     _curCid = null;
     curDownload.value = null;
@@ -992,10 +1030,3 @@ extension SetNotifierExt on SetNotifier {
   }
 }
 
-extension EntryNotifierExt on Set<ValueChanged<BiliDownloadEntryInfo>> {
-  void notify(BiliDownloadEntryInfo entry) {
-    for (final i in this) {
-      i(entry);
-    }
-  }
-}

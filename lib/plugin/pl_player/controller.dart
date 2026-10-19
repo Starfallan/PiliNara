@@ -1489,28 +1489,26 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
           EasyThrottle.throttle(
             'controllerStream.error.listen',
             const Duration(milliseconds: 10000),
-            () {
-              Timer(const Duration(milliseconds: 3000), () {
-                // if (kDebugMode) {
-                //   debugPrint("isBuffering.value: ${isBuffering.value}");
-                // }
-                // if (kDebugMode) {
-                //   debugPrint("_buffered.value: ${_buffered.value}");
-                // }
-                if (isBuffering.value && buffered.value == 0) {
-                  final customHost = VideoUtils.customCDNUrl;
-                  SmartDialog.showToast(
-                    customHost == null
-                        ? '视频链接打开失败，重试中'
-                        : '视频链接打开失败，重试中\n当前自定义CDN节点：$customHost，持续失败可尝试更换或清除',
-                    displayTime: customHost == null
-                        ? const Duration(milliseconds: 500)
-                        : const Duration(milliseconds: 3000),
-                  );
-                  refreshPlayer();
-                }
-              });
-            },
+            () => Timer(const Duration(milliseconds: 3000), () {
+              // if (kDebugMode) {
+              //   debugPrint("isBuffering.value: ${isBuffering.value}");
+              // }
+              // if (kDebugMode) {
+              //   debugPrint("_buffered.value: ${_buffered.value}");
+              // }
+              if (isBuffering.value && buffered.value == 0) {
+                final customHost = VideoUtils.customCDNUrl;
+                SmartDialog.showToast(
+                  customHost == null
+                      ? '视频链接打开失败，重试中'
+                      : '视频链接打开失败，重试中\n当前自定义CDN节点：$customHost，持续失败可尝试更换或清除',
+                  displayTime: customHost == null
+                      ? const Duration(milliseconds: 500)
+                      : const Duration(milliseconds: 3000),
+                );
+                refreshPlayer();
+              }
+            }),
           );
         } else if (event.startsWith('Could not open codec')) {
           SmartDialog.showToast('无法加载解码器, $event，可能会切换至软解');

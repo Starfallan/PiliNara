@@ -96,6 +96,32 @@ mixin BaseDownloadActionMixin<
     toastUpdateResult(dismiss, isSuccess);
   }
 
+  /// 更新一个合集 / PGC 一季的弹幕。
+  Future<void> updateSeasonDm(DownloadSeasonInfo season) async {
+    if (checkUpdateCount(
+      season.pages.fold(0, (a, b) => a + b.entries.length),
+    )) {
+      return;
+    }
+
+    bool dismiss = false;
+    SmartDialog.showLoading(onDismiss: () => dismiss = true);
+
+    bool isSuccess = true;
+    for (final page in season.pages) {
+      for (final chunk in page.entries.mapChunked(
+        kUpdateConcurrency,
+        (e) => downloadService.downloadDanmaku(entry: e, isUpdate: true),
+      )) {
+        final res = await Future.wait(chunk);
+        if (res.any((e) => !e)) isSuccess = false;
+        if (dismiss) break;
+      }
+    }
+
+    toastUpdateResult(dismiss, isSuccess);
+  }
+
   void onUpdate(
     Future<bool> Function(BiliDownloadEntryInfo e) toElement,
   );

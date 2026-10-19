@@ -7,12 +7,20 @@ import 'package:PiliPlus/models_new/dynamic/dyn_mention/item.dart';
 import 'package:PiliPlus/pages/common/reply_controller.dart';
 import 'package:PiliPlus/pages/video/controller.dart';
 import 'package:PiliPlus/pages/video/reply/vote/reply_vote_mixin.dart';
+import 'package:PiliPlus/pages/video/reply_reply/view.dart';
 import 'package:PiliPlus/utils/id_utils.dart';
+import 'package:PiliPlus/utils/reply_scheme_helper.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/widgets.dart' show BoxConstraints, WidgetsBinding;
+import 'package:easy_debounce/easy_throttle.dart';
 import 'package:get/get.dart';
 
 class VideoReplyController extends ReplyController<MainListReply>
-    with ReplyVoteMixin {
+    with
+        ReplyVoteMixin,
+        GetSingleTickerProviderStateMixin,
+        ReplyLocateMixin,
+        MainReplyLocateMixin {
   VideoReplyController({
     required this.aid,
     required this.videoType,
@@ -48,8 +56,40 @@ class VideoReplyController extends ReplyController<MainListReply>
   }
 
   @override
+  void onAnimRootReply(ReplyInfo rootReply) {
+    if (args[secondRpIdKey] case final int secondRpId) {
+      clearTargetRootRpId();
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => replyReply(rootReply, secondRpId),
+      );
+    } else {
+      super.onAnimRootReply(rootReply);
+    }
+  }
+
+  void replyReply(ReplyInfo replyItem, int? id) {
+    EasyThrottle.throttle('replyReply', const Duration(milliseconds: 500), () {
+      videoCtr.childKey.currentState?.showBottomSheet(
+        constraints: const BoxConstraints(),
+        (context) => VideoReplyReplyPanel(
+          id: id,
+          oid: replyItem.oid.toInt(),
+          rpid: replyItem.id.toInt(),
+          firstFloor: replyItem.replyControl.isNote ? null : replyItem,
+          replyType: videoCtr.videoType.replyType,
+          isVideoDetail: true,
+          isNested: videoCtr.scrollKey.currentContext != null,
+          heroTag: heroTag,
+          upMid: upMid,
+        ),
+      );
+    });
+  }
+
+  @override
   Future<LoadingState<MainListReply>> customGetData() => ReplyGrpc.mainList(
     oid: isPugv ? videoCtr.epId! : aid,
+    rpid: rootRpId,
     type: videoType.replyType,
     mode: mode,
     cursorNext: cursorNext,

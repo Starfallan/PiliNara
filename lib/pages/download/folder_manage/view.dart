@@ -1,20 +1,17 @@
-import 'package:PiliPlus/common/widgets/dialog/dialog.dart';
 import 'package:PiliPlus/models_new/download/bili_download_entry_info.dart';
-import 'package:PiliPlus/models_new/download/download_collection.dart';
+import 'package:PiliPlus/models_new/download/download_folder.dart';
+import 'package:PiliPlus/pages/download/utils/cache_delete_confirm.dart';
 import 'package:PiliPlus/pages/download/widgets/folder_card.dart';
 import 'package:PiliPlus/pages/download/widgets/folder_dialog.dart';
-import 'package:PiliPlus/services/download/download_collection_service.dart';
-import 'package:material_ui/material_ui.dart';
+import 'package:PiliPlus/services/download/download_folder_service.dart';
+import 'package:collection/collection.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
+import 'package:material_ui/material_ui.dart';
 
+/// 文件夹顺序管理：拖动决定文件夹在缓存页里的先后。
 class DownloadFolderManagePage extends StatefulWidget {
-  const DownloadFolderManagePage({
-    super.key,
-    required this.collectionService,
-  });
-
-  final DownloadCollectionService collectionService;
+  const DownloadFolderManagePage({super.key});
 
   @override
   State<DownloadFolderManagePage> createState() =>
@@ -22,12 +19,13 @@ class DownloadFolderManagePage extends StatefulWidget {
 }
 
 class _DownloadFolderManagePageState extends State<DownloadFolderManagePage> {
+  final _folderService = Get.find<DownloadFolderService>();
   late final List<DownloadFolder> _folders = List<DownloadFolder>.from(
-    widget.collectionService.folders,
+    _folderService.folders,
   );
 
   List<BiliDownloadEntryInfo> _entriesOf(String folderId) =>
-      widget.collectionService.resolveFolderEntries(folderId);
+      _folderService.resolveFolderEntries(folderId);
 
   void _onReorder(int oldIndex, int newIndex) {
     if (newIndex > oldIndex) {
@@ -47,7 +45,7 @@ class _DownloadFolderManagePageState extends State<DownloadFolderManagePage> {
     if (name == null || name == folder.title) {
       return;
     }
-    await widget.collectionService.renameFolder(folder.id, name);
+    await _folderService.renameFolder(folder.id, name);
     folder.title = name;
     if (mounted) {
       setState(() {});
@@ -55,18 +53,16 @@ class _DownloadFolderManagePageState extends State<DownloadFolderManagePage> {
   }
 
   Future<void> _deleteFolder(DownloadFolder folder) async {
-    showConfirmDialog(
+    final deleted = await confirmDeleteFolders(
       context: context,
-      title: const Text('确定删除该文件夹？'),
-      content: const Text('只会删除文件夹关联，不会删除本地缓存文件。'),
-      onConfirm: () async {
-        await widget.collectionService.deleteFolder(folder.id);
-        _folders.removeWhere((item) => item.id == folder.id);
-        if (mounted) {
-          setState(() {});
-        }
-      },
+      folders: [folder],
     );
+    if (deleted) {
+      _folders.removeWhere((item) => item.id == folder.id);
+      if (mounted) {
+        setState(() {});
+      }
+    }
   }
 
   @override
@@ -77,7 +73,7 @@ class _DownloadFolderManagePageState extends State<DownloadFolderManagePage> {
         actions: [
           TextButton(
             onPressed: () async {
-              await widget.collectionService.reorderFolders(
+              await _folderService.reorderFolders(
                 _folders.map((item) => item.id).toList(),
               );
               if (mounted) {

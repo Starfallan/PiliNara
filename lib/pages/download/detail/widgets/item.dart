@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/badge.dart';
-import 'package:PiliPlus/common/widgets/dialog/dialog.dart';
 import 'package:PiliPlus/common/widgets/flutter/popup_menu.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/progress_bar/video_progress_indicator.dart';
@@ -11,16 +10,16 @@ import 'package:PiliPlus/common/widgets/select_mask.dart';
 import 'package:PiliPlus/models/common/badge_type.dart';
 import 'package:PiliPlus/models/common/sponsor_block/segment_type.dart';
 import 'package:PiliPlus/models/common/video/video_type.dart';
-import 'package:PiliPlus/models/common/video/video_quality.dart';
 import 'package:PiliPlus/models_new/download/bili_download_entry_info.dart';
-import 'package:PiliPlus/models_new/download/download_collection.dart';
+import 'package:PiliPlus/models_new/download/download_playback.dart';
 import 'package:PiliPlus/pages/common/multi_select/base.dart';
 import 'package:PiliPlus/pages/download/downloading/view.dart';
+import 'package:PiliPlus/pages/download/utils/cache_delete_confirm.dart';
+import 'package:PiliPlus/pages/download/utils/cache_export.dart';
 import 'package:PiliPlus/pages/download/utils/open_download_entry.dart';
 import 'package:PiliPlus/services/download/download_service.dart';
 import 'package:PiliPlus/utils/duration_utils.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
-import 'package:PiliPlus/utils/image_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/path_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
@@ -37,13 +36,10 @@ class DetailItem extends StatelessWidget {
     this.progress,
     required this.downloadService,
     this.onDelete,
-    this.onDeleteRequested,
     required this.showTitle,
     this.isCurr = false,
     this.playContext,
     this.onPlayReturned,
-    this.deleteLabel = '删除',
-    this.deleteConfirmText,
     this.customOnLongPress,
     this.extraMoreItemsBuilder,
     this.enableTap = true,
@@ -58,13 +54,10 @@ class DetailItem extends StatelessWidget {
   final ChangeNotifier? progress;
   final DownloadService downloadService;
   final VoidCallback? onDelete;
-  final Future<void> Function(BuildContext context)? onDeleteRequested;
   final bool showTitle;
   final bool isCurr;
   final DownloadVideoPlayContext? playContext;
   final Future<void> Function()? onPlayReturned;
-  final String deleteLabel;
-  final String? deleteConfirmText;
   final VoidCallback? customOnLongPress;
   final List<PopupMenuEntry<void>> Function(BuildContext context)?
   extraMoreItemsBuilder;
@@ -101,7 +94,7 @@ class DetailItem extends StatelessWidget {
     final theme = Theme.of(context);
     final outline = theme.colorScheme.outline;
     final cid = entry.source?.cid ?? entry.pageData?.cid;
-    final canDel = onDelete != null || onDeleteRequested != null;
+    final canDel = entry.isCompleted;
     final enableMultiSelect = controller.enableMultiSelect.value;
     void onLongPress() {
       if (enableMultiSelect) {
@@ -212,13 +205,12 @@ class DetailItem extends StatelessWidget {
                       },
                     ),
                   ),
-                  if (entry.videoQuality case final videoQuality?)
-                    PBadge(
-                      text: VideoQuality.fromCode(videoQuality).shortDesc,
-                      right: 6.0,
-                      top: 6.0,
-                      type: PBadgeType.gray,
-                    ),
+                  PBadge(
+                    text: entry.qualityPithyDescription,
+                    right: 6.0,
+                    top: 6.0,
+                    type: PBadgeType.gray,
+                  ),
                   if (progress != null)
                     ListenableBuilder(
                       listenable: progress!,
@@ -462,7 +454,7 @@ class DetailItem extends StatelessWidget {
   }
 
   Widget _buildMoreBtn(BuildContext context, ThemeData theme) {
-    final canDel = onDelete != null || onDeleteRequested != null;
+    final canDel = entry.isCompleted;
     return SizedBox(
       width: 29,
       height: 29,
@@ -545,50 +537,29 @@ class DetailItem extends StatelessWidget {
                   CustomPopupMenuItem<void>(
                     height: 38,
                     child: const Text('导出', style: TextStyle(fontSize: 13)),
-                    onTap: () async {
-                      if (!await ImageUtils.checkPermissionDependOnSdkInt()) {
-                        return;
-                      }
-                      final title = entry.showTitle;
-                      SmartDialog.show(
-                        tag: 'export',
-                        clickMaskDismiss: false,
-                        builder: (_) => _ExportDialog(title: title),
-                        maskColor: Colors.black.withValues(alpha: 0.35),
-                      );
-                      try {
-                        final dest = await DownloadService.exportEntry(entry, (
-                          progress,
-                        ) {
-                          _ExportDialog.progressNotifier.value = progress;
-                        });
-                        SmartDialog.showToast('已导出到 $dest');
-                      } catch (e) {
-                        SmartDialog.showToast('导出失败: $e');
-                      } finally {
-                        SmartDialog.dismiss(tag: 'export');
-                      }
-                    },
+                    onTap: () => exportDownloadEntry(entry),
                   ),
                 ...?extraMoreItemsBuilder?.call(menuContext),
                 if (canDel) const PopupMenuDivider(height: 8),
                 if (canDel)
                   CustomPopupMenuItem<void>(
                     height: 38,
-                    child: Text(
-                      deleteLabel,
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                    onTap: () {
-                      if (onDeleteRequested != null) {
-                        onDeleteRequested!(menuContext);
+                    child: const Text('删除', style: TextStyle(fontSize: 13)),
+                    onTap: () async {
+                      if (!await showDeleteConfirm(
+                        context: menuContext,
+                        entries: [entry],
+                      )) {
                         return;
                       }
-                      showConfirmDialog(
-                        context: menuContext,
-                        title: Text(deleteConfirmText ?? '确定删除该视频？'),
-                        onConfirm: onDelete,
-                      );
+                      if (onDelete case final onDelete?) {
+                        onDelete();
+                      } else {
+                        await deleteLocalEntries(
+                          downloadService: downloadService,
+                          entries: [entry],
+                        );
+                      }
                     },
                   ),
                 if (canDel)
@@ -603,82 +574,27 @@ class DetailItem extends StatelessWidget {
                       SmartDialog.showToast(res ? '更新成功' : '更新失败');
                     },
                   ),
+                if (canDel && entry.segments != null)
+                  CustomPopupMenuItem<void>(
+                    height: 38,
+                    child: const Text('空降片段', style: TextStyle(fontSize: 13)),
+                    onTap: () => showSegmentsDetail(menuContext),
+                  ),
+                if (canDel)
+                  CustomPopupMenuItem<void>(
+                    height: 38,
+                    child: const Text(
+                      '更新空降片段',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                    onTap: () async {
+                      final res = await downloadService.updateSegments(entry);
+                      SmartDialog.showToast(res ? '更新成功' : '更新失败');
+                    },
+                  ),
               ],
             );
           },
-        ),
-      ),
-    );
-  }
-}
-
-class _ExportDialog extends StatelessWidget {
-  _ExportDialog({required this.title}) {
-    progressNotifier.value = 0;
-  }
-
-  static final progressNotifier = ValueNotifier<double>(0);
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Material(
-        color: theme.colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(28),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '正在导出',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 16),
-              ValueListenableBuilder<double>(
-                valueListenable: progressNotifier,
-                builder: (_, progress, _) {
-                  return Column(
-                    children: [
-                      LinearProgressIndicator(
-                        year2023: true,
-                        value: progress,
-                        minHeight: 4,
-                        borderRadius: BorderRadius.circular(2),
-                        color: theme.colorScheme.primary,
-                        backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '${(progress * 100).toStringAsFixed(0)}%',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: theme.colorScheme.outline,
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ],
-          ),
         ),
       ),
     );
