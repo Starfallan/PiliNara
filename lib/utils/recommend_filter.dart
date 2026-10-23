@@ -93,8 +93,8 @@ abstract final class RecommendFilter {
   );
   static bool enableVideoTagFilter = videoTagRegExp.pattern.isNotEmpty;
 
-  /// bvid -> 标签名列表（会话内缓存，超出上限按插入顺序淘汰）
-  static final Map<String, List<String>> videoTagCache = {};
+  /// bvid -> 标签名列表（会话内 LRU 缓存，命中后移到表尾）
+  static final Map<String, List<String>> _videoTagCache = {};
 
   /// 正在拉取的 bvid -> Future，同一视频的并发请求只发一次
   static final Map<String, Future<List<String>?>> _videoTagInflight = {};
@@ -102,8 +102,20 @@ abstract final class RecommendFilter {
   static const int _videoTagCacheMax = 1000;
   static const int _videoTagConcurrency = 6;
 
-  static List<String>? cachedVideoTags(String? bvid) =>
-      bvid == null || bvid.isEmpty ? null : videoTagCache[bvid];
+  /// 单次列表加载最多等待标签预取的时间，超时后剩余请求转入后台完成
+  static const Duration _videoTagWaitBudget = Duration(milliseconds: 1200);
+
+  static List<String>? cachedVideoTags(String? bvid) {
+    if (bvid == null || bvid.isEmpty) {
+      return null;
+    }
+    final tags = _videoTagCache.remove(bvid);
+    if (tags != null) {
+      // 命中后移到表尾，实现 LRU 淘汰
+      _videoTagCache[bvid] = tags;
+    }
+    return tags;
+  }
 
   /// 读取（必要时拉取）单个视频的标签，失败返回 null
   static Future<List<String>?> fetchVideoTags(
@@ -113,8 +125,11 @@ abstract final class RecommendFilter {
     if (bvid == null || bvid.isEmpty) {
       return Future.value(null);
     }
-    if (!refresh && videoTagCache.containsKey(bvid)) {
-      return Future.value(videoTagCache[bvid]);
+    if (!refresh) {
+      final cached = cachedVideoTags(bvid);
+      if (cached != null) {
+        return Future.value(cached);
+      }
     }
     return _videoTagInflight[bvid] ??= _fetchVideoTags(bvid);
   }
@@ -124,52 +139,57 @@ abstract final class RecommendFilter {
       final res = await UserHttp.videoTags(bvid: bvid);
       final data = res.dataOrNull;
       if (data == null) {
-        return videoTagCache[bvid];
+        return _videoTagCache[bvid];
       }
-      final tags = <String>[];
-      for (final item in data) {
-        final name = item.tagName;
-        if (name != null && name.isNotEmpty) {
-          tags.add(name);
-        }
+      final tags = <String>[
+        for (final item in data)
+          if (item.tagName?.isNotEmpty == true) item.tagName!,
+      ];
+      if (_videoTagCache.length >= _videoTagCacheMax) {
+        // 淘汰最久未访问的一条
+        _videoTagCache.remove(_videoTagCache.keys.first);
       }
-      if (videoTagCache.length >= _videoTagCacheMax) {
-        videoTagCache.remove(videoTagCache.keys.first);
-      }
-      videoTagCache[bvid] = tags;
+      _videoTagCache.remove(bvid);
+      _videoTagCache[bvid] = tags;
       return tags;
     } catch (_) {
-      return videoTagCache[bvid];
+      return _videoTagCache[bvid];
     } finally {
       _videoTagInflight.remove(bvid);
     }
   }
 
-  /// 批量预取标签（仅开启标签过滤时生效，限并发，失败静默）
-  static Future<void> prefetchVideoTags(Iterable<String?>? bvids) async {
+  /// 批量预取标签：仅开启标签过滤时生效；固定并发，最多等待 [budget]，
+  /// 超时后剩余请求转入后台继续，下次渲染直接命中缓存
+  static Future<void> prefetchVideoTags(
+    Iterable<String?>? bvids, {
+    Duration budget = _videoTagWaitBudget,
+  }) async {
     if (!enableVideoTagFilter || bvids == null) {
       return;
     }
     final pending = <String>{};
     for (final bvid in bvids) {
-      if (bvid == null || bvid.isEmpty) {
-        continue;
-      }
-      if (videoTagCache.containsKey(bvid) ||
-          _videoTagInflight.containsKey(bvid)) {
+      if (bvid == null || bvid.isEmpty || cachedVideoTags(bvid) != null) {
         continue;
       }
       pending.add(bvid);
     }
     final list = pending.toList();
-    for (var i = 0; i < list.length; i += _videoTagConcurrency) {
-      final end = i + _videoTagConcurrency;
-      await Future.wait(
-        list
-            .sublist(i, end > list.length ? list.length : end)
-            .map(fetchVideoTags),
-      );
+    // 固定并发的工作池：任意一条完成立刻取下一条，不必等整批
+    var next = 0;
+    Future<void> worker() async {
+      while (next < list.length) {
+        await fetchVideoTags(list[next++]);
+      }
     }
+
+    final size = list.length < _videoTagConcurrency
+        ? list.length
+        : _videoTagConcurrency;
+    await Future.wait(<Future<void>>[
+      for (var i = 0; i < size; i++) worker(),
+    ]).timeout(budget, onTimeout: () => const <void>[]);
   }
 
   /// 标签命中黑名单则返回 true（调用方据此过滤掉该视频）

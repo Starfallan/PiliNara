@@ -85,10 +85,21 @@ abstract final class VideoHttp {
       final items = res.data['data']['item'] as List;
       // 先做廉价过滤（live/ad/拉黑用户），只给真正要展示的视频预取标签
       final candidates = items.where((i) => !_filterWebRcmd(i)).toList();
-      await RecommendFilter.prefetchVideoTags(candidates.map(_rawBvid));
+      final enableTagFilter = RecommendFilter.enableVideoTagFilter;
+      if (enableTagFilter) {
+        // 白名单用户不受标签过滤影响，跳过其标签请求
+        await RecommendFilter.prefetchVideoTags(
+          candidates.map(
+            (i) => RecommendFilter.isWhitelisted(safeToInt(i['owner']?['mid']))
+                ? null
+                : _rawBvid(i),
+          ),
+        );
+      }
       for (final i in candidates) {
-        //标签关键词过滤
-        if (!RecommendFilter.isWhitelisted(safeToInt(i['owner']?['mid'])) &&
+        //标签关键词过滤（白名单用户豁免）
+        if (enableTagFilter &&
+            !RecommendFilter.isWhitelisted(safeToInt(i['owner']?['mid'])) &&
             RecommendFilter.filterVideoTags(_rawBvid(i))) {
           continue;
         }
@@ -197,13 +208,26 @@ abstract final class VideoHttp {
       final items = res.data['data']['items'] as List;
       // 先做廉价过滤（广告/拉黑/分区），只给候选视频预取标签
       final candidates = items.where((i) => !_filterAppRcmd(i)).toList();
-      await RecommendFilter.prefetchVideoTags(candidates.map(_rawBvid));
+      final enableTagFilter = RecommendFilter.enableVideoTagFilter;
+      if (enableTagFilter) {
+        // 白名单用户不受标签过滤影响，跳过其标签请求
+        await RecommendFilter.prefetchVideoTags(
+          candidates.map(
+            (i) =>
+                RecommendFilter.isWhitelisted(safeToInt(i['args']?['up_id']))
+                ? null
+                : _rawBvid(i),
+          ),
+        );
+      }
       for (final i in candidates) {
         final isWhitelisted = RecommendFilter.isWhitelisted(
           safeToInt(i['args']?['up_id']),
         );
         //标签关键词过滤
-        if (!isWhitelisted && RecommendFilter.filterVideoTags(_rawBvid(i))) {
+        if (enableTagFilter &&
+            !isWhitelisted &&
+            RecommendFilter.filterVideoTags(_rawBvid(i))) {
           continue;
         }
         final videoItem = RcmdVideoItemAppModel.fromJson(i);
@@ -230,19 +254,35 @@ abstract final class VideoHttp {
       List<HotVideoItemModel> list = <HotVideoItemModel>[];
       final applyFullFilter = RecommendFilter.applyFilterToHotVideos;
       final items = res.data['data']['list'] as List;
-      await RecommendFilter.prefetchVideoTags(items.map(_rawBvid));
+      final enableTagFilter = RecommendFilter.enableVideoTagFilter;
+      // 先做分区关键词过滤（始终生效，上游原始行为），只给候选视频预取标签
+      final candidates = <dynamic>[];
       for (final i in items) {
-        final mid = safeToInt(i['owner']?['mid']);
-        final isWhitelisted = RecommendFilter.isWhitelisted(mid);
-        // 分区关键词过滤（始终生效，上游原始行为）
-        if (enableFilter &&
-            !isWhitelisted &&
+        if (!RecommendFilter.isWhitelisted(safeToInt(i['owner']?['mid'])) &&
+            enableFilter &&
             i['tname'] != null &&
             zoneRegExp.hasMatch(i['tname'])) {
           continue;
         }
+        candidates.add(i);
+      }
+      if (enableTagFilter) {
+        // 白名单用户不受标签过滤影响，跳过其标签请求
+        await RecommendFilter.prefetchVideoTags(
+          candidates.map(
+            (i) => RecommendFilter.isWhitelisted(safeToInt(i['owner']?['mid']))
+                ? null
+                : _rawBvid(i),
+          ),
+        );
+      }
+      for (final i in candidates) {
+        final mid = safeToInt(i['owner']?['mid']);
+        final isWhitelisted = RecommendFilter.isWhitelisted(mid);
         //标签关键词过滤
-        if (!isWhitelisted && RecommendFilter.filterVideoTags(_rawBvid(i))) {
+        if (enableTagFilter &&
+            !isWhitelisted &&
+            RecommendFilter.filterVideoTags(_rawBvid(i))) {
           continue;
         }
         if (applyFullFilter) {
@@ -442,7 +482,14 @@ abstract final class VideoHttp {
           .toList();
       // 标签过滤：先给候选视频预取标签，再按标签黑名单剔除
       if (items != null && RecommendFilter.enableVideoTagFilter) {
-        await RecommendFilter.prefetchVideoTags(items.map(_rawBvid));
+        // 白名单用户不受标签过滤影响，跳过其标签请求
+        await RecommendFilter.prefetchVideoTags(
+          items.map(
+            (i) => RecommendFilter.isWhitelisted(safeToInt(i['owner']?['mid']))
+                ? null
+                : _rawBvid(i),
+          ),
+        );
       }
       final list = items
           ?.map((i) => HotVideoItemModel.fromJson(i))
@@ -1078,18 +1125,30 @@ abstract final class VideoHttp {
       List<HotVideoItemModel> list = <HotVideoItemModel>[];
       final applyFullFilter = RecommendFilter.applyFilterToRankVideos;
       final items = res.data['data']['list'] as List;
+      final enableTagFilter = RecommendFilter.enableVideoTagFilter;
       // 先做廉价过滤（分区），只给候选视频预取标签
       final candidates = <dynamic>[];
       for (final i in items) {
         if (_canAddRank(i)) candidates.add(i);
       }
-      await RecommendFilter.prefetchVideoTags(candidates.map(_rawBvid));
+      if (enableTagFilter) {
+        // 白名单用户不受标签过滤影响，跳过其标签请求
+        await RecommendFilter.prefetchVideoTags(
+          candidates.map(
+            (i) => RecommendFilter.isWhitelisted(safeToInt(i['owner']?['mid']))
+                ? null
+                : _rawBvid(i),
+          ),
+        );
+      }
       for (final i in candidates) {
         final isWhitelisted = RecommendFilter.isWhitelisted(
           safeToInt(i['owner']?['mid']),
         );
         //标签关键词过滤
-        if (!isWhitelisted && RecommendFilter.filterVideoTags(_rawBvid(i))) {
+        if (enableTagFilter &&
+            !isWhitelisted &&
+            RecommendFilter.filterVideoTags(_rawBvid(i))) {
           continue;
         }
         if (applyFullFilter) {
