@@ -21,7 +21,8 @@ abstract final class ReplyGrpc {
   static bool keepUpTopReply = Pref.keepUpTopReply;
   static bool keepUpLikeReply = Pref.keepUpLikeReply;
   static bool keepUpReplyReply = Pref.keepUpReplyReply;
-
+  static final RegExp _replyAtPrefixRegExp = RegExp(r'回复\s*@\s*\S+?\s*[:：]\s*');
+  
   // static Future replyInfo({required int rpid}) {
   //   return _request(
   //     GrpcUrl.replyInfo,
@@ -140,8 +141,9 @@ abstract final class ReplyGrpc {
     if (keepUpTopReply && replyControl.isUpTop) return false;
     if (keepUpLikeReply && replyControl.upLike) return false;
     if (keepUpReplyReply && replyControl.upReply) return false;
+    var message = reply.content.message.replaceAll(_replyAtPrefixRegExp, '');
     return (replyMinLevel > 0 && reply.member.level.toInt() < replyMinLevel) ||
-        (enableFilter && replyRegExp.hasMatch(reply.content.message));
+        (enableFilter && replyRegExp.hasMatch(message));
   }
 
   static Future<LoadingState<MainListReply>> mainList({
