@@ -5,6 +5,7 @@
 import 'dart:io' show Platform;
 import 'dart:math' as math;
 
+import 'package:PiliPlus/common/widgets/gesture/player_gesture_diagnostics.dart';
 import 'package:flutter/foundation.dart' show clampDouble;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/physics.dart';
@@ -16,6 +17,7 @@ import 'package:vector_math/vector_math_64.dart' show Quad, Vector3;
 class MouseInteractiveViewer extends StatefulWidget {
   const MouseInteractiveViewer({
     super.key,
+    this.diagnostics,
     this.clipBehavior = .hardEdge,
     this.panAxis = .free,
     this.boundaryMargin = .zero,
@@ -49,6 +51,7 @@ class MouseInteractiveViewer extends StatefulWidget {
        assert(maxScale >= minScale);
 
   final Alignment? alignment;
+  final PlayerGestureDiagnostics? diagnostics;
   final Clip clipBehavior;
   final PanAxis panAxis;
   final EdgeInsets boundaryMargin;
@@ -314,6 +317,12 @@ class _MouseInteractiveViewerState extends State<MouseInteractiveViewer>
   // Handle the start of a gesture. All of pan, scale, and rotate are handled
   // with GestureDetector's scale gesture.
   void _onScaleStart(ScaleStartDetails details) {
+    widget.diagnostics?.log(
+      'viewer.start',
+      () => 'count=${details.pointerCount} kind=${details.kind?.name} '
+          'focal=${details.localFocalPoint} '
+          'sourceUs=${details.sourceTimeStamp?.inMicroseconds}',
+    );
     if (_isSinglePointer = details.pointerCount == 1) {
       widget.onPanStart(details);
       return;
@@ -352,6 +361,14 @@ class _MouseInteractiveViewerState extends State<MouseInteractiveViewer>
   // Handle an update to an ongoing gesture. All of pan, scale, and rotate are
   // handled with GestureDetector's scale gesture.
   void _onScaleUpdate(ScaleUpdateDetails details) {
+    widget.diagnostics?.log(
+      'viewer.update',
+      () => 'count=${details.pointerCount} single=$_isSinglePointer '
+          'scale=${details.scale} rotation=${details.rotation} '
+          'focal=${details.localFocalPoint} delta=${details.focalPointDelta} '
+          'rotateEnabled=${widget.rotateEnabled} scaleEnabled=${widget.scaleEnabled}',
+      sample: true,
+    );
     if (_isSinglePointer) {
       widget.onPanUpdate(details);
       return;
@@ -439,6 +456,11 @@ class _MouseInteractiveViewerState extends State<MouseInteractiveViewer>
   // Handle the end of a gesture of _GestureType. All of pan, scale, and rotate
   // are handled with GestureDetector's scale gesture.
   void _onScaleEnd(ScaleEndDetails details) {
+    widget.diagnostics?.log(
+      'viewer.end',
+      () => 'remaining=${details.pointerCount} single=$_isSinglePointer '
+          'matrix=${_transformer.value.storage}',
+    );
     if (_isSinglePointer) {
       widget.onPanEnd(details);
       return;

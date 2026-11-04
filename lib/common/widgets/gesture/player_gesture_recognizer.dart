@@ -1,5 +1,7 @@
+import 'package:PiliPlus/common/widgets/gesture/player_gesture_diagnostics.dart';
 import 'package:flutter/gestures.dart'
-    show ScaleGestureRecognizer, RecognizerCallback, GestureRecognizer;
+    show ScaleGestureRecognizer, LongPressGestureRecognizer,
+        RecognizerCallback, GestureRecognizer;
 
 mixin PlayerGestureMixin on GestureRecognizer {
   bool isPosAllowed = true;
@@ -16,7 +18,7 @@ mixin PlayerGestureMixin on GestureRecognizer {
 }
 
 class PlayerScaleGestureRecognizer extends ScaleGestureRecognizer
-    with PlayerGestureMixin {
+    with PlayerGestureMixin, PlayerGestureTrace {
   PlayerScaleGestureRecognizer({
     super.debugOwner,
     super.supportedDevices,
@@ -24,5 +26,18 @@ class PlayerScaleGestureRecognizer extends ScaleGestureRecognizer
     super.dragStartBehavior,
     super.trackpadScrollCausesScale,
     super.trackpadScrollToScaleFactor,
-  });
+    PlayerGestureDiagnostics? diagnostics,
+  }) {
+    this.diagnostics = diagnostics;
+  }
+}
+
+class PlayerLongPressGestureRecognizer extends LongPressGestureRecognizer
+    with PlayerGestureTrace {
+  PlayerLongPressGestureRecognizer({
+    super.duration,
+    PlayerGestureDiagnostics? diagnostics,
+  }) {
+    this.diagnostics = diagnostics;
+  }
 }

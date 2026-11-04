@@ -12,6 +12,7 @@ import 'package:PiliPlus/common/widgets/disabled_icon.dart';
 import 'package:PiliPlus/common/widgets/flutter/popup_menu.dart';
 import 'package:PiliPlus/common/widgets/gesture/immediate_tap_gesture_recognizer.dart';
 import 'package:PiliPlus/common/widgets/gesture/mouse_interactive_viewer.dart';
+import 'package:PiliPlus/common/widgets/gesture/player_gesture_diagnostics.dart';
 import 'package:PiliPlus/common/widgets/gesture/player_gesture_recognizer.dart';
 import 'package:PiliPlus/common/widgets/loading_widget.dart';
 import 'package:PiliPlus/common/widgets/pair.dart';
@@ -158,6 +159,22 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
 
   GestureType? _gestureType;
   Offset? _initialFocalPoint;
+
+  late final _gestureDiagnostics = PlayerGestureDiagnostics(
+    describeState: () => 'controller=${identityHashCode(plPlayerController)} '
+        'scaleCount=${_scaleGestureRecognizer.pointerCount} '
+        'scaleTracked=${_scaleGestureRecognizer.tracedPointers} '
+        'longPrimary=${_longPressRecognizer?.primaryPointer} '
+        'longState=${_longPressRecognizer?.state.name} '
+        'longTracked=${_longPressRecognizer?.tracedPointers} '
+        'longPress=${plPlayerController.longPressStatus.value} '
+        'speedLocked=${plPlayerController.speedLocked} '
+        'hint=${plPlayerController.speedLockHint.value.name} '
+        'speed=${plPlayerController.playbackSpeed} '
+        'controlsLock=${plPlayerController.controlsLock.value} '
+        'fullscreen=$isFullScreen gesture=${_gestureType?.name}',
+  );
+  final List<StreamSubscription<dynamic>> _gestureDiagnosticSubscriptions = [];
 
   bool _pauseDueToPauseUponEnteringBackgroundMode = false;
 
@@ -373,6 +390,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
       ..onDoubleTapDown = _onDoubleTapDown;
 
     _scaleGestureRecognizer = PlayerScaleGestureRecognizer(
+      diagnostics: _gestureDiagnostics,
       debugOwner: this,
       dragStartBehavior: .start,
       allowedButtonsFilter: (buttons) => buttons == kPrimaryButton,
@@ -380,6 +398,23 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
       trackpadScrollToScaleFactor: Offset.zero,
       trackpadScrollCausesScale: true,
     );
+    if (_gestureDiagnostics.enabled) {
+      _gestureDiagnostics.attach();
+      _gestureDiagnosticSubscriptions.addAll([
+        plPlayerController.longPressStatus.listen((value) {
+          _gestureDiagnostics.log('state.longPress', () => '$value');
+        }),
+        plPlayerController.speedLockHint.listen((value) {
+          _gestureDiagnostics.log('state.speedHint', () => value.name);
+        }),
+        plPlayerController.isFullScreen.listen((value) {
+          _gestureDiagnostics.log('state.fullscreen', () => '$value');
+        }),
+        plPlayerController.controlsLock.listen((value) {
+          _gestureDiagnostics.log('state.controlsLock', () => '$value');
+        }),
+      ]);
+    }
   }
 
   @override
@@ -431,12 +466,17 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
 
   @override
   void dispose() {
+    _gestureDiagnostics.log('player.dispose', () => 'disposing recognizers');
+    for (final subscription in _gestureDiagnosticSubscriptions) {
+      subscription.cancel();
+    }
     removeObserverMobile(this);
     _danmakuListener?.cancel();
     _tapGestureRecognizer.dispose();
     _longPressRecognizer?.dispose();
     _doubleTapGestureRecognizer.dispose();
     _scaleGestureRecognizer.dispose();
+    _gestureDiagnostics.dispose();
     _brightnessListener?.cancel();
     _resetSubPaddingIfNeeded();
     _controlsListener?.cancel();
@@ -1072,6 +1112,11 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
         oldWidget.maxHeight != widget.maxHeight ||
         oldWidget.isPipMode != widget.isPipMode ||
         oldWidget.alignment != widget.alignment) {
+      _gestureDiagnostics.log(
+        'player.layout',
+        () => '${oldWidget.maxWidth}x${oldWidget.maxHeight} -> '
+            '${widget.maxWidth}x${widget.maxHeight} pip=${widget.isPipMode}',
+      );
       // 同步调用即可：它标脏的是子树里的 ValueListenableBuilder，
       // Flutter 允许在祖先 build 期间标脏后代
       _maskDriver?.update();
@@ -1305,6 +1350,11 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
       double cumulativeDy = details.localFocalPoint.dy - _initialFocalPoint!.dy;
 
       void fullScreenTrigger(bool status) {
+        _gestureDiagnostics.log(
+          'fullscreen.swipe.request',
+          () => 'target=$status dy=$cumulativeDy '
+              'sourceUs=${details.sourceTimeStamp?.inMicroseconds}',
+        );
         plPlayerController.triggerFullScreen(status: status);
       }
 
@@ -1430,20 +1480,36 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
   /// 淡出动画期间冻结的锁定提示内容（图标 + 文案）
   (Widget?, String) _speedLockToastContent = (null, '');
 
-  LongPressGestureRecognizer? _longPressRecognizer;
-  LongPressGestureRecognizer get longPressRecognizer => _longPressRecognizer ??=
-      LongPressGestureRecognizer(
+  PlayerLongPressGestureRecognizer? _longPressRecognizer;
+  PlayerLongPressGestureRecognizer get longPressRecognizer => _longPressRecognizer ??=
+      PlayerLongPressGestureRecognizer(
+          diagnostics: _gestureDiagnostics,
           duration: plPlayerController.enableTapDm
               ? const Duration(milliseconds: 300)
               : null,
         )
         ..onLongPressStart = ((_) =>
-            plPlayerController.setLongPressStatus(true))
+            _setLongPressStatusWithTrace(true))
         ..onLongPressMoveUpdate = ((details) => plPlayerController
             .onLongPressMove(details.offsetFromOrigin.dy, maxHeight))
-        ..onLongPressEnd = ((_) => plPlayerController.setLongPressStatus(false))
+        ..onLongPressEnd = ((_) => _setLongPressStatusWithTrace(false))
         ..onLongPressCancel = (() =>
-            plPlayerController.setLongPressStatus(false, isCancel: true));
+            _setLongPressStatusWithTrace(false, isCancel: true));
+
+  Future<void> _setLongPressStatusWithTrace(
+    bool value, {
+    bool isCancel = false,
+  }) async {
+    _gestureDiagnostics.log(
+      'longPress.request',
+      () => 'target=$value cancel=$isCancel live=${plPlayerController.isLive}',
+    );
+    await plPlayerController.setLongPressStatus(value, isCancel: isCancel);
+    _gestureDiagnostics.log(
+      'longPress.completed',
+      () => 'target=$value cancel=$isCancel mounted=$mounted',
+    );
+  }
   late final ImmediateTapGestureRecognizer _tapGestureRecognizer;
   late final DoubleTapGestureRecognizer _doubleTapGestureRecognizer;
   late final PlayerScaleGestureRecognizer _scaleGestureRecognizer;
@@ -1467,6 +1533,11 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
   (bool, bool)? _pendingFullScreenToggle;
 
   void _onPointerDown(PointerDownEvent event) {
+    _gestureDiagnostics.log(
+      'player.down',
+      () => 'pointer=${event.pointer} kind=${event.kind.name} '
+          'buttons=${event.buttons} local=${event.localPosition}',
+    );
     if (PlatformUtils.isDesktop) {
       final buttons = event.buttons;
       final isSecondaryBtn = buttons == kSecondaryMouseButton;
@@ -1501,6 +1572,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
   }
 
   void _onPointerUp(PointerUpEvent event) {
+    _gestureDiagnostics.log('player.up', () => 'pointer=${event.pointer}');
     final pending = _pendingFullScreenToggle;
     if (pending == null || event.buttons != 0) {
       return;
@@ -1518,6 +1590,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
   }
 
   void _onPointerCancel(PointerCancelEvent event) {
+    _gestureDiagnostics.log('player.cancel', () => 'pointer=${event.pointer}');
     _pendingFullScreenToggle = null;
   }
 
@@ -2067,6 +2140,10 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                         ),
                       ),
                       onPressed: () async {
+                        _gestureDiagnostics.log(
+                          'restoreScreen',
+                          () => 'matrix=${_transformationController.value.storage}',
+                        );
                         final animController = AnimationController(
                           vsync: this,
                           duration: const Duration(milliseconds: 255),
@@ -2435,6 +2512,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
           color: widget.fill,
           child: Obx(
             () => MouseInteractiveViewer(
+              diagnostics: _gestureDiagnostics,
               scaleEnabled: !plPlayerController.controlsLock.value,
               rotateEnabled: plPlayerController.enablePinchRotate,
               pointerSignalFallback: plPlayerController.enableScrollVolume
