@@ -2,11 +2,11 @@ import 'package:PiliPlus/grpc/bilibili/main/community/reply/v1.pb.dart'
     show MainListReply, ReplyInfo;
 import 'package:PiliPlus/grpc/reply.dart';
 import 'package:PiliPlus/http/loading_state.dart';
-import 'package:PiliPlus/models/common/video/video_type.dart';
 import 'package:PiliPlus/models_new/dynamic/dyn_mention/item.dart';
-import 'package:PiliPlus/pages/common/reply_controller.dart';
+import 'package:PiliPlus/pages/common/reply/fold/reply_fold_mixin.dart';
+import 'package:PiliPlus/pages/common/reply/reply_controller.dart';
+import 'package:PiliPlus/pages/common/reply/vote/reply_vote_mixin.dart';
 import 'package:PiliPlus/pages/video/controller.dart';
-import 'package:PiliPlus/pages/video/reply/vote/reply_vote_mixin.dart';
 import 'package:PiliPlus/pages/video/reply_reply/view.dart';
 import 'package:PiliPlus/utils/id_utils.dart';
 import 'package:PiliPlus/utils/reply_scheme_helper.dart';
@@ -20,15 +20,19 @@ class VideoReplyController extends ReplyController<MainListReply>
         ReplyVoteMixin,
         GetSingleTickerProviderStateMixin,
         ReplyLocateMixin,
-        MainReplyLocateMixin {
+        MainReplyLocateMixin,
+        BaseReplyFoldMixin<MainListReply>,
+        ReplyFoldMixin {
   VideoReplyController({
-    required this.aid,
-    required this.videoType,
     required this.heroTag,
   });
-  int aid;
-  final VideoType videoType;
-  late final isPugv = videoType == VideoType.pugv;
+  late final isPugv = videoCtr.videoType == .pugv;
+
+  @override
+  int get oid => isPugv ? videoCtr.epId! : videoCtr.aid;
+
+  @override
+  int get replyType => videoCtr.videoType.replyType;
 
   final String heroTag;
   late final videoCtr = Get.find<VideoDetailController>(tag: heroTag);
@@ -48,12 +52,7 @@ class VideoReplyController extends ReplyController<MainListReply>
   }
 
   @override
-  dynamic get sourceId => IdUtils.av2bv(aid);
-
-  @override
-  List<ReplyInfo>? getDataList(MainListReply response) {
-    return response.replies;
-  }
+  dynamic get sourceId => IdUtils.av2bv(videoCtr.aid);
 
   @override
   void onAnimRootReply(ReplyInfo rootReply) {
@@ -88,12 +87,11 @@ class VideoReplyController extends ReplyController<MainListReply>
 
   @override
   Future<LoadingState<MainListReply>> customGetData() => ReplyGrpc.mainList(
-    oid: isPugv ? videoCtr.epId! : aid,
+    oid: oid,
     rpid: rootRpId,
-    type: videoType.replyType,
+    type: replyType,
     mode: mode,
-    cursorNext: cursorNext,
-    offset: paginationReply?.nextOffset,
+    offset: nextOffset,
   );
 
   @override

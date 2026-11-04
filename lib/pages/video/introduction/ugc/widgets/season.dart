@@ -1,27 +1,20 @@
-import 'dart:async';
-
 import 'package:PiliPlus/common/assets.dart';
-import 'package:PiliPlus/models_new/video/video_detail/data.dart';
 import 'package:PiliPlus/models_new/video/video_detail/episode.dart';
-import 'package:PiliPlus/models_new/video/video_detail/section.dart';
-import 'package:PiliPlus/pages/video/controller.dart';
+import 'package:PiliPlus/models_new/video/video_detail/ugc_season.dart';
 import 'package:PiliPlus/pages/video/introduction/ugc/controller.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
-import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
 
-// TODO refa
 class SeasonPanel extends StatefulWidget {
   const SeasonPanel({
     super.key,
-    required this.heroTag,
-    required this.showEpisodes,
     this.canTap = true,
+    required this.showEpisodes,
     required this.ugcIntroController,
   });
-  final String heroTag;
-  final Function showEpisodes;
+
   final bool canTap;
+  final ShowEpisodes showEpisodes;
   final UgcIntroController ugcIntroController;
 
   @override
@@ -29,101 +22,65 @@ class SeasonPanel extends StatefulWidget {
 }
 
 class _SeasonPanelState extends State<SeasonPanel> {
-  RxInt currentIndex = 0.obs;
-  late VideoDetailController _videoDetailController;
-  StreamSubscription? _listener;
-  List<EpisodeItem> episodes = <EpisodeItem>[];
+  late UgcSeason _ugcSeason;
+  int get _sectionIndex => _ugcController.sectionIndex;
+  int get _seasonIndex => _ugcController.seasonIndex;
 
-  UgcIntroController get ugcIntroController => widget.ugcIntroController;
-  VideoDetailData get videoDetail =>
-      widget.ugcIntroController.videoDetail.value;
+  late ColorScheme colorScheme;
+  late final _ugcController = widget.ugcIntroController;
 
-  void _updateIndex() {
-    currentIndex.value = episodes.indexWhere(
-      (e) => e.cid == _videoDetailController.seasonCid,
-    );
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    colorScheme = ColorScheme.of(context);
+  }
+
+  @override
+  void dispose() {
+    _ugcController.indexNotifier.removeListener(_listener);
+    super.dispose();
   }
 
   @override
   void initState() {
     super.initState();
-    _videoDetailController = Get.find<VideoDetailController>(
-      tag: widget.heroTag,
-    );
-
-    _videoDetailController.seasonCid = ugcIntroController.cid.value != 0
-        ? (videoDetail.pages?.isNotEmpty == true
-              ? videoDetail.listOrder.isDesc
-                    ? videoDetail.pages!.last.cid
-                    : videoDetail.pages!.first.cid
-              : ugcIntroController.cid.value)
-        : videoDetail.listOrder.isDesc
-        ? videoDetail.pages!.last.cid
-        : videoDetail.pages!.first.cid;
-
-    /// 根据 cid 找到对应集，找到对应 episodes
-    /// 有多个episodes时，只显示其中一个
-    _findEpisode();
-    if (episodes.isEmpty) {
-      return;
-    }
-
-    /// 取对应 season_id 的 episodes
-    _updateIndex();
-    _listener = _videoDetailController.cid.listen((int cid) {
-      if (_videoDetailController.seasonCid != cid) {
-        bool isPart =
-            videoDetail.pages?.indexWhere((item) => item.cid == cid) != -1;
-        if (!isPart) {
-          _videoDetailController.seasonCid = cid;
-        }
-      }
-      _findEpisode();
-      _updateIndex();
-    });
+    _initIfNeeded();
+    _ugcController.indexNotifier.addListener(_listener);
   }
 
-  @override
-  void dispose() {
-    _listener?.cancel();
-    super.dispose();
+  bool _initIfNeeded() {
+    final ugcSeason = _ugcController.videoDetail.rawValue.ugcSeason;
+    if (ugcSeason == null) return true;
+    _ugcSeason = ugcSeason;
+    return false;
+  }
+
+  void _listener() {
+    final dispose = _initIfNeeded();
+    if (dispose || !mounted) return;
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    if (episodes.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(
-        top: 8,
-        left: 2,
-        right: 2,
-      ),
+      padding: const .only(top: 8, left: 2, right: 2),
       child: Material(
-        color: theme.colorScheme.onInverseSurface,
-        borderRadius: const BorderRadius.all(Radius.circular(6)),
+        color: colorScheme.onInverseSurface,
+        borderRadius: const .all(.circular(6)),
         child: InkWell(
-          borderRadius: const BorderRadius.all(Radius.circular(6)),
+          borderRadius: const .all(.circular(6)),
           onTap: widget.canTap
-              ? () => widget.showEpisodes(
-                  _videoDetailController.seasonIndex.value,
-                  videoDetail.ugcSeason,
-                  null,
-                  _videoDetailController.bvid,
-                  null,
-                  _videoDetailController.seasonCid,
-                )
+              ? () => widget.showEpisodes(type: .season)
               : null,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
+            padding: const .fromLTRB(8, 12, 8, 12),
             child: Row(
-              children: <Widget>[
+              children: [
                 Expanded(
                   child: Text(
-                    '合集：${videoDetail.ugcSeason!.title}',
-                    style: theme.textTheme.labelMedium,
+                    '合集：${_ugcSeason.title}',
+                    style: const TextStyle(fontSize: 12),
                     maxLines: 1,
                     overflow: .ellipsis,
                   ),
@@ -131,19 +88,15 @@ class _SeasonPanelState extends State<SeasonPanel> {
                 const SizedBox(width: 15),
                 Image.asset(
                   Assets.livingStatic,
-                  color: theme.colorScheme.primary,
+                  color: colorScheme.primary,
                   height: 12,
                   cacheHeight: 12.cacheSize(context),
                   semanticLabel: "正在播放：",
                 ),
                 const SizedBox(width: 10),
-                Obx(
-                  () => Text(
-                    '${currentIndex.value + 1}/${episodes.length}',
-                    style: theme.textTheme.labelMedium,
-                    semanticsLabel:
-                        '第${currentIndex.value + 1}集，共${episodes.length}集',
-                  ),
+                Text(
+                  '${_seasonIndex + 1}/${_ugcSeason.sections![_sectionIndex].episodes!.length}',
+                  style: const TextStyle(fontSize: 12),
                 ),
                 const SizedBox(width: 6),
                 const Icon(
@@ -157,21 +110,5 @@ class _SeasonPanelState extends State<SeasonPanel> {
         ),
       ),
     );
-  }
-
-  void _findEpisode() {
-    final List<SectionItem> sections = videoDetail.ugcSeason!.sections!;
-    for (int i = 0; i < sections.length; i++) {
-      final List<EpisodeItem> episodesList = sections[i].episodes!;
-      for (int j = 0; j < episodesList.length; j++) {
-        if (episodesList[j].cid == _videoDetailController.seasonCid) {
-          if (_videoDetailController.seasonIndex.value != i) {
-            _videoDetailController.seasonIndex.value = i;
-          }
-          episodes = episodesList;
-          break;
-        }
-      }
-    }
   }
 }

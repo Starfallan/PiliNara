@@ -161,6 +161,7 @@ abstract final class SettingBoxKey {
       showDynActionBar = 'showDynActionBar',
       darkVideoPage = 'darkVideoPage',
       enableSlideVolumeBrightness = 'enableSlideVolumeBrightness',
+      enableScrollVolume = 'enableScrollVolume',
       enableSlideFS = 'enableSlideFS',
       retryCount = 'retryCount',
       retryDelay = 'retryDelay',
@@ -219,6 +220,10 @@ abstract final class SettingBoxKey {
       aiPromptTemplates = 'aiPromptTemplates',
       aiAutoScroll = 'aiAutoScroll',
       aiReasoningEffort = 'aiReasoningEffort';
+
+  static const String enableFullScreenSC = 'enableFullScreenSC',
+      fullScreenSCOpacity = 'fullScreenSCOpacity',
+      fullScreenSCScale = 'fullScreenSCScale';
 
   static const String minimizeOnExit = 'minimizeOnExit',
       windowSize = 'windowSize',
@@ -320,6 +325,7 @@ abstract final class SettingBoxKey {
       useSideBar = 'useSideBar',
       autoSideBar = 'autoSideBar',
       sideBarThreshold = 'sideBarThreshold',
+      hideSideBarLabel = 'hideSideBarLabel',
       enableMYBar = 'enableMYBar',
       enableGradientBg = 'enableGradientBg',
       hideTopBar = 'hideSearchBar',

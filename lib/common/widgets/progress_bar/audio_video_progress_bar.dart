@@ -953,6 +953,18 @@ class RenderProgressBar extends RenderBox implements MouseTrackerAnnotation {
       onHoverEnd == null ? null : _onHoverEnd;
 
   @override
-  bool get validForMouseTracker =>
-      onHoverStart != null || onHoverUpdate != null || onHoverEnd != null;
+  bool get validForMouseTracker => _validForMouseTracker;
+  bool _validForMouseTracker = false;
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _validForMouseTracker = true;
+  }
+
+  @override
+  void detach() {
+    _validForMouseTracker = false;
+    super.detach();
+  }
 }

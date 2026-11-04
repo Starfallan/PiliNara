@@ -9,7 +9,7 @@ import 'package:PiliPlus/http/live.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/http/video.dart';
 import 'package:PiliPlus/models/common/super_chat_type.dart';
-import 'package:PiliPlus/models/common/video/live_quality.dart';
+import 'package:PiliPlus/models/common/video/base_quality.dart';
 import 'package:PiliPlus/models/model_owner.dart';
 import 'package:PiliPlus/models_new/live/live_danmaku/danmaku_msg.dart';
 import 'package:PiliPlus/models_new/live/live_danmaku/live_emote.dart';
@@ -132,11 +132,16 @@ class LiveRoomController extends GetxController {
   int builtLength = 0;
   final messages = <dynamic>[].obs;
   bool get shouldRefresh => builtLength != messages.length;
-  late final fsSC = Rxn<SuperChatItem>();
   late final RxList<SuperChatItem> superChatMsg = <SuperChatItem>[].obs;
   final disableAutoScroll = false.obs;
   bool autoScroll = true;
   LiveMessageStream? _msgStream;
+
+  late final fsSC = Rxn<SuperChatItem>();
+  late final enableFSSC = Pref.enableFullScreenSC;
+  late final fsSCScale = Pref.fullScreenSCScale;
+  late final fsSCOpacity = Pref.fullScreenSCOpacity;
+
   List<String> _keywordList = const [];
   Set<int> _shieldUids = const {};
   late final ScrollController scrollController;
@@ -146,7 +151,9 @@ class LiveRoomController extends GetxController {
   final RxBool isPortrait = false.obs;
   late List<LiveQuality> acceptQnList = [];
   final Rxn<LiveQuality> currentQn = Rxn<LiveQuality>(
-    PlatformUtils.isMobile ? null : .fromCode(Pref.liveQuality),
+    PlatformUtils.isMobile || Platform.isLinux
+        ? null
+        : .fromCode(Pref.liveQuality),
   );
 
   late final bool isLogin;
@@ -855,6 +862,7 @@ class LiveRoomController extends GetxController {
           final item = SuperChatItem.fromJson(obj['data'], roomId);
           superChatMsg.insert(0, item);
           addDm(item);
+          if (!enableFSSC) return;
           if (Platform.isAndroid && AndroidHelper.isPipMode) return;
           if (plPlayerController.showDanmaku &&
               (isFullScreen || plPlayerController.isDesktopPip)) {
@@ -956,10 +964,10 @@ class LiveRoomController extends GetxController {
           return Theme(
             data: ThemeUtils.darkTheme,
             child: LiveSendDmPanel(
-              fromEmote: fromEmote,
               liveRoomController: this,
               items: savedDanmaku,
               autofocus: !fromEmote,
+              panelType: fromEmote ? .emoji : .none,
               onSave: (msg) {
                 if (msg.isEmpty) {
                   savedDanmaku?.clear();

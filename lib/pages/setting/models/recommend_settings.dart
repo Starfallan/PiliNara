@@ -1,18 +1,15 @@
-import 'package:PiliPlus/common/widgets/custom_icon.dart';
 import 'package:PiliPlus/http/video.dart';
 import 'package:PiliPlus/models/common/rcmd_mode.dart';
 import 'package:PiliPlus/pages/rcmd/controller.dart';
 import 'package:PiliPlus/pages/setting/models/model.dart';
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
 import 'package:PiliPlus/utils/global_data.dart';
-import 'package:PiliPlus/utils/login_utils.dart';
 import 'package:PiliPlus/utils/recommend_filter.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/user_whitelist.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show FilteringTextInputFormatter;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:hive_ce/hive.dart';
@@ -24,12 +21,6 @@ List<SettingsModel> get recommendSettings => [
     leading: const Icon(Icons.model_training_outlined),
     getSubtitle: () => '当前:「${Pref.rcmdMode.label}」',
     onTap: _showRcmdModeDialog,
-  ),
-  NormalModel(
-    title: 'buvid',
-    leading: const Icon(CustomIcons.identifier_circle),
-    getSubtitle: () => LoginUtils.buvid,
-    onTap: _showBuvidDialog,
   ),
   SwitchModel(
     title: '保留首页推荐刷新',
@@ -249,46 +240,4 @@ Future<void> _showRcmdModeDialog(
     SmartDialog.showToast('重启生效');
     setState();
   }
-}
-
-void _showBuvidDialog(BuildContext context, VoidCallback setState) {
-  String buvid = LoginUtils.buvid;
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('buvid'),
-      content: TextFormField(
-        autofocus: true,
-        initialValue: buvid,
-        onChanged: (value) => buvid = value,
-        inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r"\s"))],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () {
-            Get.back();
-            Pref.buvid = LoginUtils.buvid = LoginUtils.generateBuvid();
-            setState();
-          },
-          child: const Text('随机'),
-        ),
-        TextButton(
-          onPressed: Get.back,
-          child: Text(
-            '取消',
-            style: TextStyle(color: ColorScheme.of(context).outline),
-          ),
-        ),
-        TextButton(
-          onPressed: () {
-            Get.back();
-            if (buvid.isEmpty) return;
-            Pref.buvid = LoginUtils.buvid = buvid;
-            setState();
-          },
-          child: const Text('确定'),
-        ),
-      ],
-    ),
-  );
 }

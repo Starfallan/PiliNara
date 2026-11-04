@@ -7,8 +7,7 @@ import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/stat/stat.dart';
 import 'package:PiliPlus/models/common/badge_type.dart';
 import 'package:PiliPlus/models/common/stat_type.dart';
-import 'package:PiliPlus/models/common/video/audio_quality.dart';
-import 'package:PiliPlus/models/common/video/video_quality.dart';
+import 'package:PiliPlus/models/common/video/base_quality.dart';
 import 'package:PiliPlus/models_new/download/bili_download_entry_info.dart';
 import 'package:PiliPlus/models_new/pgc/pgc_info_model/episode.dart' as pgc;
 import 'package:PiliPlus/models_new/pgc/pgc_info_model/result.dart';
@@ -20,7 +19,6 @@ import 'package:PiliPlus/pages/video/controller.dart';
 import 'package:PiliPlus/pages/video/introduction/ugc/controller.dart';
 import 'package:PiliPlus/pages/video/introduction/ugc/widgets/page.dart';
 import 'package:PiliPlus/services/download/download_service.dart';
-import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/date_utils.dart';
 import 'package:PiliPlus/utils/duration_utils.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
@@ -29,7 +27,7 @@ import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart' show kDebugMode, kReleaseMode;
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
@@ -269,14 +267,13 @@ class _DownloadPanelState extends State<DownloadPanel> {
                             horizontal: 12,
                             vertical: 5,
                           ),
-                          child: PagesPanel(
-                            list: episode.pages,
+                          child: PagePanel(
+                            parts: episode.pages,
                             cover: episode.arc?.pic,
-                            heroTag: widget.heroTag,
                             ugcIntroController: widget.ugcIntroController!,
                             bvid: episode.bvid ?? IdUtils.av2bv(episode.aid!),
                             cidSet: cidSet,
-                            onDownload: (Part part) => _onDownload(
+                            onDownload: (part) => _onDownload(
                               index: index,
                               episode: part,
                               parent: episode,
@@ -296,7 +293,6 @@ class _DownloadPanelState extends State<DownloadPanel> {
     );
   }
 
-  late final int? vipStatus = Pref.userInfoCache?.vipStatus;
   @pragma('vm:notify-debugger-on-exception')
   bool _onDownload({
     required int index,
@@ -317,15 +313,6 @@ class _DownloadPanelState extends State<DownloadPanel> {
         SmartDialog.showToast('downloaded');
       }
       return false;
-    }
-
-    if (kReleaseMode && episode.badge == '会员' && Accounts.mainEqVideo) {
-      if (vipStatus != 1) {
-        if (!isDownloadAll) {
-          SmartDialog.showToast('需要大会员');
-        }
-        return false;
-      }
     }
 
     if (episode is ugc.EpisodeItem) {
@@ -506,11 +493,7 @@ class _DownloadPanelState extends State<DownloadPanel> {
                                 text: episode.badge,
                                 top: 6,
                                 right: 6,
-                                type: switch (episode.badge) {
-                                  '预告' => PBadgeType.gray,
-                                  '限免' => PBadgeType.free,
-                                  _ => PBadgeType.primary,
-                                },
+                                type: episode.badgeType,
                               ),
                           ],
                         )

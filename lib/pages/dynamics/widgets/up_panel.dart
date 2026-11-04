@@ -246,6 +246,7 @@ class _UpPanelState extends State<UpPanel> {
                   isTop ? '${remarkedName(item.mid, item.uname!)}\n' : remarkedName(item.mid, item.uname!),
                   maxLines: 2,
                   textAlign: .center,
+                  overflow: .ellipsis,
                   style: TextStyle(
                     color: currentMid == item.mid
                         ? theme.colorScheme.primary

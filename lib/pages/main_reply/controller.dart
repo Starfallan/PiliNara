@@ -1,12 +1,16 @@
 import 'package:PiliPlus/grpc/bilibili/main/community/reply/v1.pb.dart'
-    show MainListReply, ReplyInfo;
+    show MainListReply;
 import 'package:PiliPlus/grpc/reply.dart';
 import 'package:PiliPlus/http/loading_state.dart';
-import 'package:PiliPlus/pages/common/reply_controller.dart';
+import 'package:PiliPlus/pages/common/reply/fold/reply_fold_mixin.dart';
+import 'package:PiliPlus/pages/common/reply/reply_controller.dart';
 import 'package:get/get.dart';
 
-class MainReplyController extends ReplyController<MainListReply> {
+class MainReplyController extends ReplyController<MainListReply>
+    with BaseReplyFoldMixin<MainListReply>, ReplyFoldMixin {
+  @override
   late final int oid;
+  @override
   late final int replyType;
   late final String? heroTag;
 
@@ -29,10 +33,6 @@ class MainReplyController extends ReplyController<MainListReply> {
     type: replyType,
     oid: oid,
     mode: mode,
-    cursorNext: cursorNext,
-    offset: paginationReply?.nextOffset,
+    offset: nextOffset,
   );
-
-  @override
-  List<ReplyInfo>? getDataList(MainListReply response) => response.replies;
 }

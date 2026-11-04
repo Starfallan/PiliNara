@@ -14,11 +14,15 @@ class KeyboardScrollable extends StatefulWidget {
     super.key,
     required this.controller,
     this.focusNode,
+    this.position,
     required this.child,
   });
 
   /// 按当前状态返回滚动目标（如按激活 tab 解析）
   final ScrollController? Function() controller;
+
+  /// 同一 controller 管理多个列表时，指定当前列表的 position。
+  final ScrollPosition? Function()? position;
 
   /// 外部焦点节点（页面持有，切 tab 时主动 requestFocus 实现免点击）
   final FocusNode? focusNode;
@@ -61,13 +65,21 @@ class _KeyboardScrollableState extends State<KeyboardScrollable> {
     super.dispose();
   }
 
+  ScrollPosition? get _position {
+    if (widget.position != null) return widget.position!();
+    final controller = widget.controller();
+    return controller != null && controller.hasClients
+        ? controller.position
+        : null;
+  }
+
   void _scrollBy(double delta) {
-    final ctr = widget.controller();
-    if (ctr == null || !ctr.hasClients) return;
+    final position = _position;
+    if (position == null) return;
     // 走滚轮同路径：ExtendedNestedScrollView 的 animateTo 会把内层内容重置到
     // 顶部（nestOffset 对范围内值返回 inner.minScrollExtent），pointerScroll
     // 则正确分配 delta（竖屏滚轮正常即走此路径）
-    ctr.position.pointerScroll(delta);
+    position.pointerScroll(delta);
   }
 
   void _startRepeat(double delta) {
@@ -97,7 +109,8 @@ class _KeyboardScrollableState extends State<KeyboardScrollable> {
     // OS 重复事件是 KeyRepeatEvent（不是 KeyDownEvent），同样触发滚动；
     // 仅 KeyUp 停止长按定时器
     if (event is KeyDownEvent || event is KeyRepeatEvent) {
-      final ctr = widget.controller();
+      final position = _position;
+      if (position == null) return KeyEventResult.ignored;
       switch (key) {
         case LogicalKeyboardKey.arrowUp:
           _scrollBy(-_arrowStep);
@@ -108,16 +121,12 @@ class _KeyboardScrollableState extends State<KeyboardScrollable> {
           _startRepeat(_arrowStep);
           break;
         case LogicalKeyboardKey.pageUp:
-          if (ctr != null && ctr.hasClients) {
-            _scrollBy(-ctr.position.viewportDimension * 0.9);
-            _startRepeat(-ctr.position.viewportDimension * 0.9);
-          }
+          _scrollBy(-position.viewportDimension * 0.9);
+          _startRepeat(-position.viewportDimension * 0.9);
           break;
         case LogicalKeyboardKey.pageDown:
-          if (ctr != null && ctr.hasClients) {
-            _scrollBy(ctr.position.viewportDimension * 0.9);
-            _startRepeat(ctr.position.viewportDimension * 0.9);
-          }
+          _scrollBy(position.viewportDimension * 0.9);
+          _startRepeat(position.viewportDimension * 0.9);
           break;
       }
     } else if (event is KeyUpEvent) {

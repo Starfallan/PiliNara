@@ -310,7 +310,7 @@ class _AiChatPageState extends State<AiChatPage>
   }
 
   @override
-  Widget buildPage(ThemeData theme) {
+  Widget buildPage() {
     _templates = AiChatService.getTemplates();
     final colorScheme = theme.colorScheme;
     return FocusScope(
@@ -404,7 +404,7 @@ class _AiChatPageState extends State<AiChatPage>
 
           // Content area (slideable)
           Expanded(
-            child: enableSlide ? slideList(theme) : buildList(theme),
+            child: enableSlide ? slideList() : buildList(),
           ),
 
           // Input bar
@@ -441,7 +441,7 @@ class _AiChatPageState extends State<AiChatPage>
   }
 
   @override
-  Widget buildList(ThemeData theme) {
+  Widget buildList() {
     return Listener(
       // 鼠标滚轮/触控板滚动没有 dragDetails，由指针信号单独跟随
       onPointerSignal: _onPointerSignal,

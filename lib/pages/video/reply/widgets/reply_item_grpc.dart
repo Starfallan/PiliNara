@@ -218,30 +218,25 @@ class ReplyItemGrpc extends StatelessWidget {
                       ),
                   ],
                 ),
-                Row(
-                  mainAxisSize: .min,
-                  children: [
-                    Text(
-                      replyLevel == 0
-                          ? DateFormatUtils.format(
-                              replyItem.ctime.toInt(),
-                              format: DateFormatUtils.longFormatDs,
-                            )
-                          : DateFormatUtils.dateFormat(replyItem.ctime.toInt()),
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: colorScheme.outline,
-                      ),
-                    ),
-                    if (replyItem.replyControl.hasLocation())
-                      Text(
-                        ' • ${replyItem.replyControl.location}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: colorScheme.outline,
-                        ),
-                      ),
-                  ],
+                Text.rich(
+                  maxLines: 1,
+                  overflow: .ellipsis,
+                  style: TextStyle(fontSize: 11, color: colorScheme.outline),
+                  TextSpan(
+                    text: replyLevel == 0
+                        ? DateFormatUtils.format(
+                            replyItem.ctime.toInt(),
+                            format: DateFormatUtils.longFormatDs,
+                          )
+                        : DateFormatUtils.dateFormat(replyItem.ctime.toInt()),
+                    children: replyItem.replyControl.hasLocation()
+                        ? [
+                            TextSpan(
+                              text: ' • ${replyItem.replyControl.location}',
+                            ),
+                          ]
+                        : null,
+                  ),
                 ),
               ],
             ),
@@ -879,21 +874,21 @@ class ReplyItemGrpc extends StatelessWidget {
           if (kDebugMode) {
             debugPrint('Validating timestamp: $matchStr with tag: $heroTag');
           }
-          try {
-            final ctr = Get.find<AudioController>(tag: heroTag);
-            isValid =
-                DurationUtils.parseDuration(matchStr) * 1000 <=
-                ctr.duration.value * 1000;
-            if (kDebugMode) debugPrint('Found AudioController, isValid: $isValid');
-          } catch (_) {
+          if (heroTag != null) {
             try {
-              final ctr = Get.find<VideoDetailController>(tag: heroTag);
+              final ctr = Get.find<AudioController>(tag: heroTag);
               isValid =
                   DurationUtils.parseDuration(matchStr) * 1000 <=
-                  ctr.data.timeLength!;
-              if (kDebugMode) debugPrint('Found VideoDetailController, isValid: $isValid');
-            } catch (e) {
-              if (kDebugMode) debugPrint('No controller found for tag: $heroTag, error: $e');
+                  ctr.duration.value * 1000;
+            } catch (_) {
+              try {
+                final ctr = Get.find<VideoDetailController>(tag: heroTag);
+                isValid =
+                    DurationUtils.parseDuration(matchStr) * 1000 <=
+                    ctr.data.timeLength!;
+              } catch (e) {
+                if (kDebugMode) debugPrint('failed to validate: $e');
+              }
             }
           }
           spanChildren.add(

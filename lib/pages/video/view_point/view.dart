@@ -36,7 +36,7 @@ class _ViewPointsPageState extends State<ViewPointsPage>
   int currentIndex = -1;
 
   @override
-  Widget buildPage(ThemeData theme) {
+  Widget buildPage() {
     return SimpleScaffold(
       appBar: Container(
         height: 45,
@@ -83,7 +83,7 @@ class _ViewPointsPageState extends State<ViewPointsPage>
           ],
         ),
       ),
-      body: enableSlide ? slideList(theme) : buildList(theme),
+      body: enableSlide ? slideList() : buildList(),
     );
   }
 
@@ -97,7 +97,7 @@ class _ViewPointsPageState extends State<ViewPointsPage>
   }
 
   @override
-  Widget buildList(ThemeData theme) {
+  Widget buildList() {
     return ListView.builder(
       key: _key,
       physics: const AlwaysScrollableScrollPhysics(),

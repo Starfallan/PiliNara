@@ -28,7 +28,7 @@ class SearchPanelController<R extends SearchNumData<T>, T>
   SearchType get searchType_ => searchType;
 
   @override
-  bool? get hasFooter => true;
+  bool get hasFooter => true;
 
   // sort
   // common

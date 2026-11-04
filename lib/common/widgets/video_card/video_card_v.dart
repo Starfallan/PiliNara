@@ -220,7 +220,7 @@ class VideoCardV extends StatelessWidget {
                       videoItem.owner.name.toString(),
                     ),
                     maxLines: 1,
-                    overflow: .clip,
+                    overflow: .ellipsis,
                     semanticsLabel: 'UP：${remarkedName(
                       videoItem.owner.mid,
                       videoItem.owner.name.toString(),

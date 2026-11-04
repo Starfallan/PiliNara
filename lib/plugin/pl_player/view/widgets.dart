@@ -444,6 +444,7 @@ class VideoShotImage extends StatefulWidget {
     required this.height,
     required this.onSetSize,
     required this.isMounted,
+    this.position,
   });
 
   final Map<String, ui.Image?> imageCache;
@@ -455,6 +456,7 @@ class VideoShotImage extends StatefulWidget {
   final double height;
   final Function(double imgXSize, double imgYSize) onSetSize;
   final ValueGetter<bool> isMounted;
+  final String? position;
 
   @override
   State<VideoShotImage> createState() => _VideoShotImageState();
@@ -579,7 +581,7 @@ class _VideoShotImageState extends State<VideoShotImage> {
   late final _borderPaint = Paint()
     ..color = Colors.white
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 1.5;
+    ..strokeWidth = kPreviewStroke;
 
   @override
   Widget build(BuildContext context) {
@@ -592,6 +594,7 @@ class _VideoShotImageState extends State<VideoShotImage> {
         rrect: _rrect,
         imgPaint: _imgPaint,
         borderPaint: _borderPaint,
+        position: widget.position,
       );
     }
     return const SizedBox.shrink();
@@ -692,8 +695,11 @@ class _VideoTime extends LeafRenderObjectWidget {
   final String position;
   final String duration;
 
+  static final double _fontSize = PlatformUtils.isDesktop ? 12 : 10;
+
   @override
   _RenderVideoTime createRenderObject(BuildContext context) => _RenderVideoTime(
+    fontSize: MediaQuery.textScalerOf(context).scale(_fontSize),
     position: position,
     duration: duration,
   );
@@ -711,15 +717,18 @@ class _VideoTime extends LeafRenderObjectWidget {
 
 class _RenderVideoTime extends RenderBox {
   _RenderVideoTime({
+    required this._fontSize,
     required this._position,
     required this._duration,
   });
+
+  final double _fontSize;
 
   String _duration;
   set duration(String value) {
     if (_duration == value) return;
     _duration = value;
-    final paragraph = _buildParagraph(const Color(0xFFD0D0D0), _duration);
+    final paragraph = _buildParagraph(_durationColor, _duration, _fontSize);
     if (paragraph.maxIntrinsicWidth != _cache?.maxIntrinsicWidth) {
       markNeedsLayout();
     } else {
@@ -736,13 +745,20 @@ class _RenderVideoTime extends RenderBox {
     markNeedsSemanticsUpdate();
   }
 
+  static const _positionColor = Colors.white;
+  static const _durationColor = Color(0xFFD0D0D0);
+
   ui.Paragraph? _cache;
 
-  static ui.Paragraph _buildParagraph(Color color, String time) {
+  static ui.Paragraph _buildParagraph(
+    Color color,
+    String time,
+    double fontSize,
+  ) {
     final builder =
         ui.ParagraphBuilder(
             ui.ParagraphStyle(
-              fontSize: 10,
+              fontSize: fontSize,
               height: 1.4,
               fontFamily: 'Monospace',
             ),
@@ -750,7 +766,7 @@ class _RenderVideoTime extends RenderBox {
           ..pushStyle(
             ui.TextStyle(
               color: color,
-              fontSize: 10,
+              fontSize: fontSize,
               height: 1.4,
               fontFamily: 'Monospace',
               fontFeatures: const [FontFeature.tabularFigures()],
@@ -764,8 +780,9 @@ class _RenderVideoTime extends RenderBox {
   @override
   ui.Size computeDryLayout(covariant BoxConstraints constraints) {
     final paragraph = _cache ??= _buildParagraph(
-      const Color(0xFFD0D0D0),
+      _durationColor,
       _duration,
+      _fontSize,
     );
     return Size(paragraph.maxIntrinsicWidth, paragraph.height * 2);
   }
@@ -785,7 +802,7 @@ class _RenderVideoTime extends RenderBox {
 
   @override
   void paint(PaintingContext context, ui.Offset offset) {
-    final para = _buildParagraph(Colors.white, _position);
+    final para = _buildParagraph(_positionColor, _position, _fontSize);
     context.canvas
       ..drawParagraph(
         para,
