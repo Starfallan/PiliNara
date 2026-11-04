@@ -376,11 +376,9 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
       debugOwner: this,
       dragStartBehavior: .start,
       allowedButtonsFilter: (buttons) => buttons == kPrimaryButton,
-      trackpadScrollToScaleFactor: const Offset(
-        0,
-        -1 / kDefaultMouseScrollToScaleFactor,
-      ),
-      trackpadScrollCausesScale: false,
+      // 触控板滑动交给进度/音量回调；固定画面焦点，保留捏合缩放。
+      trackpadScrollToScaleFactor: Offset.zero,
+      trackpadScrollCausesScale: true,
     );
   }
 
