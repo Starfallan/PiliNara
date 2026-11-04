@@ -1,5 +1,6 @@
+import 'package:PiliPlus/common/widgets/gesture/device_kind_scale_gesture_recognizer.dart';
 import 'package:flutter/gestures.dart'
-    show ScaleGestureRecognizer, RecognizerCallback, GestureRecognizer;
+    show RecognizerCallback, GestureRecognizer;
 
 mixin PlayerGestureMixin on GestureRecognizer {
   bool isPosAllowed = true;
@@ -15,7 +16,7 @@ mixin PlayerGestureMixin on GestureRecognizer {
   }
 }
 
-class PlayerScaleGestureRecognizer extends ScaleGestureRecognizer
+class PlayerScaleGestureRecognizer extends DeviceKindScaleGestureRecognizer
     with PlayerGestureMixin {
   PlayerScaleGestureRecognizer({
     super.debugOwner,
