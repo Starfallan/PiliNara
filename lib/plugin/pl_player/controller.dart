@@ -1036,7 +1036,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   }) async {
     try {
       _processing = true;
-      // 换视频/换P：解除倍速锁定并恢复锁定前速度。
+      // 换视频/换P：结束长按及倍速锁定，恢复长按前速度。
       // 必须先于临时配置重置执行，否则 lastPlaybackSpeed 会被先行覆盖
       await releaseSpeedLock();
       final nextVideoContextKey = PipOverlayService.buildVideoContextKey(
@@ -1979,11 +1979,12 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     await setPlaybackSpeed(speed);
   }
 
-  /// 解除倍速锁定；[restoreSpeed] 为 true 时恢复锁定前速度
+  /// 结束长按及倍速锁定；[restoreSpeed] 为 true 时恢复长按前速度
   Future<void> releaseSpeedLock({bool restoreSpeed = true}) async {
-    if (!speedLocked) {
+    if (!speedLocked && !longPressStatus.value) {
       return;
     }
+    longPressStatus.value = false;
     speedLocked = false;
     _speedLockArmed = false;
     _cancelSpeedLockHintTimer();
