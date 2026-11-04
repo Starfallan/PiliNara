@@ -466,6 +466,8 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
 
   @override
   void dispose() {
+    _pendingTouchFullScreenToggle = null;
+    _activeTouchPointers.clear();
     _gestureDiagnostics.log('player.dispose', () => 'disposing recognizers');
     for (final subscription in _gestureDiagnosticSubscriptions) {
       subscription.cancel();
@@ -1194,6 +1196,9 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
   }
 
   void _onPanStart(ScaleStartDetails details) {
+    _isDesktopTouchPan = PlatformUtils.isDesktop &&
+        details.kind == ui.PointerDeviceKind.touch;
+    _pendingTouchFullScreenToggle = null;
     _gestureType = null;
     _initialFocalPoint = details.localFocalPoint;
   }
@@ -1355,7 +1360,17 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
           () => 'target=$status dy=$cumulativeDy '
               'sourceUs=${details.sourceTimeStamp?.inMicroseconds}',
         );
-        plPlayerController.triggerFullScreen(status: status);
+        if (_isDesktopTouchPan) {
+          if (_activeTouchPointers.length == 1) {
+            _pendingTouchFullScreenToggle = (
+              pointer: _activeTouchPointers.single,
+              target: status,
+              wasFullScreen: isFullScreen,
+            );
+          }
+        } else {
+          plPlayerController.triggerFullScreen(status: status);
+        }
       }
 
       if (cumulativeDy > threshold) {
@@ -1400,6 +1415,10 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
   }
 
   void _onPanEnd(ScaleEndDetails details) {
+    if (details.pointerCount != 0) {
+      _pendingTouchFullScreenToggle = null;
+    }
+    _isDesktopTouchPan = false;
     if (_gestureType == .horizontal) {
       _onHorizontalDragEnd();
     }
@@ -1532,7 +1551,15 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
   /// 导致鼠标事件失效，因此延后到抬起后执行。
   (bool, bool)? _pendingFullScreenToggle;
 
+  final Set<int> _activeTouchPointers = {};
+  bool _isDesktopTouchPan = false;
+  ({int pointer, bool target, bool wasFullScreen})? _pendingTouchFullScreenToggle;
+
   void _onPointerDown(PointerDownEvent event) {
+    if (PlatformUtils.isDesktop && event.kind == ui.PointerDeviceKind.touch) {
+      _pendingTouchFullScreenToggle = null;
+      _activeTouchPointers.add(event.pointer);
+    }
     _gestureDiagnostics.log(
       'player.down',
       () => 'pointer=${event.pointer} kind=${event.kind.name} '
@@ -1573,6 +1600,20 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
 
   void _onPointerUp(PointerUpEvent event) {
     _gestureDiagnostics.log('player.up', () => 'pointer=${event.pointer}');
+    _activeTouchPointers.remove(event.pointer);
+    final touchPending = _pendingTouchFullScreenToggle;
+    if (touchPending != null && touchPending.pointer == event.pointer) {
+      // Listener 先于识别器收到 Up，等其清除触点后再改变原生窗口。
+      scheduleMicrotask(() {
+        if (!mounted || _pendingTouchFullScreenToggle != touchPending) return;
+        _pendingTouchFullScreenToggle = null;
+        if (_activeTouchPointers.isEmpty &&
+            !plPlayerController.controlsLock.value &&
+            isFullScreen == touchPending.wasFullScreen) {
+          plPlayerController.triggerFullScreen(status: touchPending.target);
+        }
+      });
+    }
     final pending = _pendingFullScreenToggle;
     if (pending == null || event.buttons != 0) {
       return;
@@ -1591,6 +1632,8 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
 
   void _onPointerCancel(PointerCancelEvent event) {
     _gestureDiagnostics.log('player.cancel', () => 'pointer=${event.pointer}');
+    _activeTouchPointers.remove(event.pointer);
+    _pendingTouchFullScreenToggle = null;
     _pendingFullScreenToggle = null;
   }
 
