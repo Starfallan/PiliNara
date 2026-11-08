@@ -180,7 +180,11 @@ class AiChatService {
   }
 
   /// 将 Dio 异常翻译为带实际请求地址的 [AiApiException]
-  static Future<AiApiException> _requestError(String url, DioException e) async {
+  static Future<AiApiException> _requestError(
+    String url,
+    DioException e, {
+    CancelToken? cancelToken,
+  }) async {
     String detail;
     if (e.type == DioExceptionType.badResponse) {
       detail = _snippet(await _responseText(e.response));
@@ -196,6 +200,8 @@ class AiChatService {
         _ => '无法连接（${e.message ?? e.error ?? e.type.name}）',
       };
     }
+    final cancellation = cancelToken?.cancelError;
+    if (cancellation != null) throw cancellation;
     return _logged(
       AiApiException(
         url: url,
@@ -241,6 +247,7 @@ class AiChatService {
   /// 内容（`reasoning_content` 字段或 `content` 中包裹的 `<think>`）
   static Stream<AiStreamDelta> streamChat({
     required List<Map<String, String>> messages,
+    required CancelToken cancelToken,
     String? model,
     String? reasoningEffort,
   }) async* {
@@ -252,9 +259,9 @@ class AiChatService {
     final url = '$baseUrl/chat/completions';
     final opts = _options(receiveTimeout: const Duration(minutes: 10))
       ..responseType = ResponseType.stream;
-    final Response<ResponseBody> response;
+    final dio = Dio();
     try {
-      response = await Dio().post<ResponseBody>(
+      final response = await dio.post<ResponseBody>(
         url,
         data: jsonEncode({
           'model': useModel,
@@ -268,11 +275,22 @@ class AiChatService {
             'reasoning_effort': reasoningEffort,
         }),
         options: opts,
+        cancelToken: cancelToken,
       );
+      yield* _parseResponse(response, url, cancelToken);
     } on DioException catch (e) {
-      throw await _requestError(url, e);
+      if (CancelToken.isCancel(e) || cancelToken.isCancelled) rethrow;
+      throw await _requestError(url, e, cancelToken: cancelToken);
+    } finally {
+      dio.close(force: true);
     }
+  }
 
+  static Stream<AiStreamDelta> _parseResponse(
+    Response<ResponseBody> response,
+    String url,
+    CancelToken cancelToken,
+  ) async* {
     final stream = response.data!.stream;
 
     // 记录是否出现过 SSE data 行：200 但响应不是 SSE（如填错地址时服务器
@@ -298,6 +316,7 @@ class AiChatService {
         .cast<List<int>>()
         .transform(utf8.decoder)
         .transform(const LineSplitter())) {
+      if (cancelToken.isCancelled) return;
       final trimmed = line.trim();
       if (trimmed.isEmpty) continue;
       if (!trimmed.startsWith('data:')) {
@@ -357,7 +376,8 @@ class AiChatService {
       }
     }
 
-    // 没有 [DONE] 就断流时同样冲刷解析器暂存内容
+    if (cancelToken.isCancelled) return;
+    // 没有 [DONE] 就断流时同样冲刷解析器暂存内容；主动停止不冲刷。
     final split = parser.flush();
     final reasoning = acceptReasoning(
       split.reasoning,

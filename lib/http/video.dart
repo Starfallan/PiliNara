@@ -996,8 +996,11 @@ abstract final class VideoHttp {
   );
 
   /// Fetch raw subtitle body JSON list from URL.
-  static Future<List?> fetchSubtitleBody(String subtitleUrl) async {
-    final res = await Request().get("https:$subtitleUrl");
+  static Future<List?> fetchSubtitleBody(
+    String subtitleUrl, {
+    CancelToken? cancelToken,
+  }) async {
+    final res = await Request().get("https:$subtitleUrl", cancelToken: cancelToken);
     return res.data?['body'] as List?;
   }
 

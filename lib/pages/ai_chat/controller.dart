@@ -6,12 +6,13 @@ import 'package:PiliPlus/pages/video/controller.dart';
 import 'package:PiliPlus/pages/video/introduction/ugc/controller.dart';
 import 'package:PiliPlus/services/ai_chat/ai_chat_service.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 
 class AiChatController extends GetxController {
   final messages = <ChatMessage>[].obs;
-  final isAnalyzing = false.obs;
+  final isRequesting = false.obs;
   final subtitleWarning = false.obs;
   final hasVideoContext = false.obs;
 
@@ -44,7 +45,8 @@ class AiChatController extends GetxController {
   // --- Cached video context for system message injection ---
   String? _cachedVideoContext;
   int _contextLoadIndex = -1;
-  bool _isLoadingContext = false;
+  CancelToken? _requestToken;
+  ChatMessage? _responseMessage;
 
   // --- 思考耗时计时器（约 100ms 刷新，正文首字或流结束时冻结）---
   Timer? _reasoningTimer;
@@ -58,6 +60,7 @@ class AiChatController extends GetxController {
 
   @override
   void onClose() {
+    cancelRequest();
     _stopReasoningTimer();
     super.onClose();
   }
@@ -82,40 +85,44 @@ class AiChatController extends GetxController {
     return info;
   }
 
-  /// Load video context locally (no API call). Injects divider and local bubble.
+  /// 只载入上下文，不请求 AI；字幕下载与分析请求共用取消入口。
   Future<void> loadVideoContext() async {
-    if (hasVideoContext.value || isAnalyzing.value || _isLoadingContext) return;
-    _isLoadingContext = true;
+    if (hasVideoContext.value) return;
+    await _runRequest(loadContext: true, errorPrefix: '载入失败');
+  }
 
-    try {
-      final videoInfo = _buildVideoInfo();
-      String? subtitleText;
+  Future<void> _loadVideoContext(CancelToken token) async {
+    final videoInfo = _buildVideoInfo();
+    final hasSubs = hasSubtitles;
+    String? subtitleText;
 
-      if (hasSubtitles) {
-        final subtitle = _videoCtl.subtitles.first;
-        final body = await VideoHttp.fetchSubtitleBody(subtitle.subtitleUrl!);
-        if (body == null || body.isEmpty) {
-          SmartDialog.showToast('获取字幕数据失败');
-          return;
-        }
-        final processed = VideoHttp.preprocessSubtitlesForAi(body);
-        subtitleText = processed.text;
-        subtitleWarning.value = processed.isTooLong;
+    if (hasSubs) {
+      final subtitle = _videoCtl.subtitles.first;
+      final body = await VideoHttp.fetchSubtitleBody(
+        subtitle.subtitleUrl!,
+        cancelToken: token,
+      );
+      if (!_isCurrentRequest(token)) return;
+      if (body == null || body.isEmpty) {
+        SmartDialog.showToast('获取字幕数据失败');
+        return;
       }
+      final processed = VideoHttp.preprocessSubtitlesForAi(body);
+      subtitleText = processed.text;
+      subtitleWarning.value = processed.isTooLong;
+    }
 
-      _cachedVideoContext = _assembleVideoContext(videoInfo, subtitleText);
-      hasVideoContext.value = true;
+    if (!_isCurrentRequest(token)) return;
+    _cachedVideoContext = _assembleVideoContext(videoInfo, subtitleText);
+    hasVideoContext.value = true;
 
-      _contextLoadIndex = messages.length;
-      messages.add(ChatMessage(role: 'system', content: '', isDivider: true));
-      if (!hasSubtitles) {
-        messages.add(ChatMessage(
-          role: 'assistant',
-          content: '⚠️ 已载入视频标题与简介。由于未获取到字幕，AI 分析深度可能受限，请提问。',
-        ));
-      }
-    } finally {
-      _isLoadingContext = false;
+    _contextLoadIndex = messages.length;
+    messages.add(ChatMessage(role: 'system', content: '', isDivider: true));
+    if (!hasSubs) {
+      messages.add(ChatMessage(
+        role: 'assistant',
+        content: '⚠️ 已载入视频标题与简介。由于未获取到字幕，AI 分析深度可能受限，请提问。',
+      ));
     }
   }
 
@@ -133,69 +140,93 @@ class AiChatController extends GetxController {
     return sb.toString();
   }
 
-  /// Auto-load video context if not already loaded.
-  Future<void> _ensureVideoContext() async {
-    if (!hasVideoContext.value) {
-      SmartDialog.showLoading(msg: '正在载入视频上下文...');
-      try {
-        await loadVideoContext();
-      } finally {
-        SmartDialog.dismiss(status: SmartStatus.loading);
-      }
-    }
-  }
-
   /// Start analysis with a template prompt.
-  Future<void> startAnalysis(String templatePrompt, {String? templateName}) async {
-    if (isAnalyzing.value) return;
-
-    try {
-      await _ensureVideoContext();
-      if (!hasVideoContext.value) {
-        // Subtitle fetch failed in loadVideoContext
-        return;
-      }
-
-      isAnalyzing.value = true;
-
-      messages.addAll([
-        ChatMessage(
-          role: 'user',
-          content: templatePrompt,
-          templateName: templateName,
-        ),
-        ChatMessage(role: 'assistant', content: '', isStreaming: true),
-      ]);
-
-      await _streamResponse();
-    } catch (e) {
-      SmartDialog.showToast('分析失败: $e');
-      _removeLastIfStreaming();
-    } finally {
-      isAnalyzing.value = false;
-    }
-  }
+  Future<void> startAnalysis(String templatePrompt, {String? templateName}) =>
+      _runRequest(
+        prompt: templatePrompt,
+        templateName: templateName,
+        loadContext: true,
+        errorPrefix: '分析失败',
+      );
 
   /// Send a follow-up message.
   Future<void> sendFollowUp(String text) async {
-    if (isAnalyzing.value || text.trim().isEmpty) return;
+    if (text.trim().isEmpty) return;
+    await _runRequest(prompt: text.trim(), errorPrefix: '请求失败');
+  }
 
-    messages
-      ..add(ChatMessage(role: 'user', content: text.trim()))
-      ..add(ChatMessage(role: 'assistant', content: '', isStreaming: true));
-    isAnalyzing.value = true;
+  bool _isCurrentRequest(CancelToken token) =>
+      identical(_requestToken, token) && !token.isCancelled && !isClosed;
+
+  Future<void> _runRequest({
+    String? prompt,
+    String? templateName,
+    bool loadContext = false,
+    required String errorPrefix,
+  }) async {
+    if (_requestToken != null || isClosed) return;
+    final token = CancelToken();
+    _requestToken = token;
+    isRequesting.value = true;
+    var removeEmpty = false;
 
     try {
-      await _streamResponse();
+      if (loadContext && !hasVideoContext.value) {
+        await _loadVideoContext(token);
+        if (!_isCurrentRequest(token) || !hasVideoContext.value) return;
+      }
+      if (prompt == null || !_isCurrentRequest(token)) return;
+
+      final response = ChatMessage(role: 'assistant', content: '', isStreaming: true);
+      _responseMessage = response;
+      messages.addAll([
+        ChatMessage(
+          role: 'user',
+          content: prompt,
+          templateName: templateName,
+        ),
+        response,
+      ]);
+
+      await _streamResponse(token, response);
     } catch (e) {
-      SmartDialog.showToast('请求失败: $e');
-      _removeLastIfStreaming();
+      if (_isCurrentRequest(token)) {
+        removeEmpty = true;
+        if (e is! DioException || !CancelToken.isCancel(e)) {
+          SmartDialog.showToast('$errorPrefix: $e');
+        }
+      }
     } finally {
-      isAnalyzing.value = false;
+      _finishRequest(token, removeEmpty: removeEmpty);
     }
   }
 
-  Future<void> _streamResponse() async {
+  void cancelRequest() {
+    final token = _requestToken;
+    if (token == null) return;
+    token.cancel('用户停止请求');
+    _finishRequest(token, removeEmpty: true);
+  }
+
+  void _finishRequest(CancelToken token, {bool removeEmpty = false}) {
+    // 停止后可以立即重发，旧请求的 finally 不能结束新请求。
+    if (!identical(_requestToken, token)) return;
+    final response = _responseMessage;
+    _requestToken = null;
+    _responseMessage = null;
+    if (response != null) {
+      response.isStreaming = false;
+      _freezeReasoningDuration(response);
+      if (removeEmpty && response.content.isEmpty && !response.hasReasoning) {
+        messages.remove(response);
+      } else {
+        messages.refresh();
+      }
+    }
+    isRequesting.value = false;
+  }
+
+  Future<void> _streamResponse(CancelToken token, ChatMessage response) async {
     subtitleWarning.value = false;
 
     final chatMessages = <Map<String, String>>[
@@ -226,28 +257,18 @@ class AiChatController extends GetxController {
       chatMessages.add({'role': m.role, 'content': m.content});
     }
 
-    final lastMsg = messages.last;
-    try {
-      await for (final delta in AiChatService.streamChat(
-        messages: chatMessages,
-        reasoningEffort: Pref.aiReasoningEffort,
-      )) {
-        if (delta.reasoningDelta.isNotEmpty) {
-          _appendReasoningDelta(lastMsg, delta.reasoningDelta);
-        }
-        if (delta.contentDelta.isNotEmpty) {
-          _appendContentDelta(lastMsg, delta.contentDelta);
-        }
+    await for (final delta in AiChatService.streamChat(
+      messages: chatMessages,
+      reasoningEffort: Pref.aiReasoningEffort,
+      cancelToken: token,
+    )) {
+      if (!_isCurrentRequest(token)) return;
+      if (delta.reasoningDelta.isNotEmpty) {
+        _appendReasoningDelta(response, delta.reasoningDelta);
       }
-      lastMsg.isStreaming = false;
-      // 流正常结束仍无正文时保持卡片形态与当时高度档，不自动收成胶囊
-      _freezeReasoningDuration(lastMsg);
-      messages.refresh();
-    } catch (e) {
-      lastMsg.isStreaming = false;
-      _freezeReasoningDuration(lastMsg);
-      messages.refresh();
-      rethrow;
+      if (delta.contentDelta.isNotEmpty) {
+        _appendContentDelta(response, delta.contentDelta);
+      }
     }
   }
 
@@ -305,25 +326,13 @@ class AiChatController extends GetxController {
     if (identical(_reasoningTimerMsg, msg)) _stopReasoningTimer();
   }
 
-  /// 请求失败时删掉这条助手消息：思考内容（含只有空白/标签的情况）和
-  /// 正文都为空才删；已有非空内容时保留，思考卡片留给用户看
-  void _removeLastIfStreaming() {
-    if (messages.isEmpty) return;
-    final last = messages.last;
-    if (last.role == 'assistant' &&
-        last.content.isEmpty &&
-        !last.hasReasoning) {
-      messages.removeLast();
-    }
-  }
-
   void clearMessages() {
+    cancelRequest();
     _stopReasoningTimer();
     messages.clear();
     subtitleWarning.value = false;
     hasVideoContext.value = false;
     _cachedVideoContext = null;
     _contextLoadIndex = -1;
-    _isLoadingContext = false;
   }
 }
