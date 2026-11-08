@@ -57,6 +57,13 @@ mixin SearchVideoPanelMixin<S extends SearchVideoPanel>
   String? getTitle(SearchVideoItemModel item) => item.title;
 
   @override
+  Iterable<String>? getTags(SearchVideoItemModel item) {
+    if (item.isLive == true || item.isPugv == true) return null;
+    return item.tag?.split(',').map((tag) => tag.trim())
+        .where((tag) => tag.isNotEmpty) ?? const <String>[];
+  }
+
+  @override
   Widget buildHeader() {
     return SliverFloatingHeaderWidget(
       backgroundColor: colorScheme.surface,

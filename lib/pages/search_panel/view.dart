@@ -87,7 +87,9 @@ abstract class CommonSearchPanelState<
     if (response == null || response.isEmpty) {
       return HttpError(onReload: controller.onReload);
     }
-    return buildResults(controller.filterKeywords(response, getTitle));
+    return buildResults(controller.filterKeywords(
+      response, getTitle, getTags: getTags,
+    ));
   }
 
   @protected
@@ -206,6 +208,8 @@ abstract class CommonSearchPanelState<
   }
 
   String? getTitle(T item) => null;
+
+  Iterable<String>? getTags(T item) => null;
 
   Widget buildList(List<T> list);
 }

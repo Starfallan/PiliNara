@@ -53,7 +53,10 @@ class SearchPanelController<R extends SearchNumData<T>, T>
   final RxList<String> includeKeywords = <String>[].obs;
   final RxList<String> excludeKeywords = <String>[].obs;
 
-  RegExp? _buildRegex(List<String> keywords) {
+  bool get supportsVideoTagFilter =>
+      searchType == SearchType.all || searchType == SearchType.video;
+
+  RegExp? _buildRegex(Iterable<String> keywords) {
     if (keywords.isEmpty) return null;
     try {
       final pattern = keywords
@@ -65,17 +68,44 @@ class SearchPanelController<R extends SearchNumData<T>, T>
     }
   }
 
-  List<E> filterKeywords<E>(List<E> list, String? Function(E) getTitle) {
+  List<String> _tagKeywords(List<String> keywords) => keywords
+      .where((keyword) => keyword.startsWith('#'))
+      .map((keyword) => keyword.substring(1).trim().toLowerCase())
+      .where((keyword) => keyword.isNotEmpty)
+      .toList();
+
+  List<E> filterKeywords<E>(
+    List<E> list,
+    String? Function(E) getTitle, {
+    Iterable<String>? Function(E)? getTags,
+  }) {
     final hasInc = includeKeywords.isNotEmpty;
     final hasExc = excludeKeywords.isNotEmpty;
     if (!hasInc && !hasExc) return list;
-    final inc = hasInc ? _buildRegex(includeKeywords) : null;
-    final exc = hasExc ? _buildRegex(excludeKeywords) : null;
+    final inc = _buildRegex(
+      includeKeywords.where((keyword) => !keyword.startsWith('#')),
+    );
+    final exc = _buildRegex(
+      excludeKeywords.where((keyword) => !keyword.startsWith('#')),
+    );
+    final incTags = _tagKeywords(includeKeywords);
+    final excTags = _tagKeywords(excludeKeywords);
+    final hasTagFilter = incTags.isNotEmpty || excTags.isNotEmpty;
     return list.where((item) {
       final title = getTitle(item);
-      if (title == null) return true;
-      if (inc != null && !inc.hasMatch(title)) return false;
-      if (exc != null && exc.hasMatch(title)) return false;
+      // null 表示不支持标签，空集合表示视频未返回标签。
+      final tags = hasTagFilter
+          ? getTags?.call(item)?.map((tag) => tag.toLowerCase()).toList()
+          : null;
+      final needsInclude = (title != null && inc != null) ||
+          (tags != null && incTags.isNotEmpty);
+      if (needsInclude &&
+          !(title != null && (inc?.hasMatch(title) ?? false)) &&
+          !(tags?.any((tag) => incTags.any(tag.contains)) ?? false)) {
+        return false;
+      }
+      if (title != null && (exc?.hasMatch(title) ?? false)) return false;
+      if (tags?.any((tag) => excTags.any(tag.contains)) ?? false) return false;
       return true;
     }).toList();
   }
@@ -95,6 +125,12 @@ class SearchPanelController<R extends SearchNumData<T>, T>
       children: [
         const SizedBox(height: 20),
         const Text('关键词过滤', style: TextStyle(fontSize: 16)),
+        const SizedBox(height: 6),
+        Text(
+          '${supportsVideoTagFilter ? '普通内容匹配标题，支持正则；以 # 开头匹配视频标签中的文字，如 #历史。\n' : ''}'
+          '包含项任一匹配即可，排除项任一匹配即隐藏。',
+          style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+        ),
         const SizedBox(height: 10),
         if (hasAny) ...[
           Wrap(
@@ -212,10 +248,16 @@ class SearchPanelController<R extends SearchNumData<T>, T>
       builder: (context) => ListEditorDialog(
         title: title,
         initialItems: List.from(keywords),
-        hintText: '输入关键词或正则表达式',
+        hintText: supportsVideoTagFilter
+            ? '输入关键词、正则或 #标签文字'
+            : '输入关键词或正则表达式',
         itemLabel: isInclude ? '包含词' : '排除词',
         validator: (value) {
           if (value.isEmpty) return '请输入关键词';
+          if (value.startsWith('#')) {
+            if (!supportsVideoTagFilter) return '标签筛选仅适用于综合和视频搜索';
+            return value.substring(1).trim().isEmpty ? '请输入 # 后的标签文字' : null;
+          }
           try {
             RegExp(value);
             return null;

@@ -18,6 +18,7 @@ import 'package:PiliPlus/pages/search_panel/controller.dart';
 import 'package:PiliPlus/pages/search_panel/pgc/widgets/item.dart';
 import 'package:PiliPlus/pages/search_panel/video/controller.dart';
 import 'package:PiliPlus/pages/search_panel/video/view.dart';
+import 'package:PiliPlus/pages/setting/widgets/list_editor_dialog.dart';
 import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/recommend_filter.dart';
 import 'package:PiliPlus/utils/storage.dart';
@@ -65,10 +66,11 @@ class _PagingController
   }
 }
 
-SearchVideoItemModel _video(String title, [int aid = 1]) =>
+SearchVideoItemModel _video(String title, [int aid = 1, String? tag]) =>
     SearchVideoItemModel.fromJson({
       'aid': aid,
       'title': title,
+      'tag': tag,
       'mid': 100,
       'author': '作者',
       'duration': '01:00',
@@ -186,6 +188,201 @@ void main() {
       ['CAT', 'dog 2', null],
     );
     expect(titles, ['CAT', 'dog 2', 'cat ad', 'fish', null]);
+  });
+
+  test('视频模型读取单数 tag，允许缺失和空值', () {
+    expect(_video('标题', 1, '世界历史,C++').tag, '世界历史,C++');
+    expect(_video('标题').tag, isNull);
+    expect(_video('标题', 1, '').tag, isEmpty);
+    expect(SearchVideoItemModel.fromJson({'title': '标题'}).tag, isNull);
+  });
+
+  test('标签按字面子串匹配，忽略大小写，不跨标签或匹配标题', () {
+    final controller = _SearchController();
+    addTearDown(controller.onClose);
+    final items = [
+      (title: '普通标题', tags: ['世界历史', 'C++入门', '[VLOG]']),
+      (title: '历史 C++ [vlog]', tags: ['生活']),
+      (title: '普通标题', tags: ['C语言', '历史知识分享']),
+    ];
+    List<({String title, List<String> tags})> filtered() =>
+        controller.filterKeywords(
+          items, (item) => item.title, getTags: (item) => item.tags,
+        );
+    controller.includeKeywords.add('#历史');
+    expect(filtered(), [items[0], items[2]]);
+    controller.includeKeywords.assignAll(['#c++']);
+    expect(filtered(), [items[0]]);
+    controller.includeKeywords.assignAll(['#[vlog]']);
+    expect(filtered(), [items[0]]);
+    controller.includeKeywords.assignAll(['#历史,C++']);
+    expect(filtered(), isEmpty);
+    controller.includeKeywords.assignAll(['#历史.*']);
+    expect(filtered(), isEmpty);
+  });
+
+  test('标题和标签包含项为 OR，任一排除项命中均隐藏', () {
+    final controller = _SearchController();
+    addTearDown(controller.onClose);
+    final items = [
+      (title: '教程 1', tags: <String>[]),
+      (title: '应用展示', tags: ['Flutter实战']),
+      (title: '教程 2', tags: ['广告推广']),
+      (title: '付费课程', tags: ['Flutter']),
+      (title: '其他内容', tags: ['生活']),
+    ];
+    controller.includeKeywords.addAll([r'^教程 \d$', '#flutter']);
+    controller.excludeKeywords.addAll(['付费', '#广告']);
+    expect(
+      controller.filterKeywords(
+        items, (item) => item.title, getTags: (item) => item.tags,
+      ),
+      [items[0], items[1]],
+    );
+    expect(items, hasLength(5));
+  });
+
+  test('无标签视频不命中标签规则，非视频忽略标签，空标题仍参与标签过滤', () {
+    final controller = _SearchController();
+    addTearDown(controller.onClose);
+    final items = <({String? title, List<String>? tags})>[
+      (title: '视频', tags: []),
+      (title: null, tags: ['世界历史']),
+      (title: null, tags: []),
+      (title: '用户', tags: null),
+    ];
+    List<({String? title, List<String>? tags})> filtered() =>
+        controller.filterKeywords(
+          items, (item) => item.title, getTags: (item) => item.tags,
+        );
+    controller.includeKeywords.add('#历史');
+    expect(filtered(), [items[1], items[3]]);
+    controller.includeKeywords.add('不匹配');
+    expect(filtered(), [items[1]]);
+    controller.includeKeywords.clear();
+    controller.excludeKeywords.add('#历史');
+    expect(filtered(), [items[0], items[2], items[3]]);
+  });
+
+  test('转义井号仍匹配标题，不读取标签', () {
+    final controller = _SearchController();
+    addTearDown(controller.onClose);
+    controller.includeKeywords.add(r'\#历史');
+    expect(
+      controller.filterKeywords(['#历史故事', '历史故事'], (title) => title),
+      ['#历史故事'],
+    );
+  });
+
+  for (final type in [SearchType.all, SearchType.video]) {
+    testWidgets('$type 标签过滤接入显示、逐个标签匹配并可清除恢复', (tester) async {
+      final shown = _video('标签命中', 1, ' 世界历史 , C++入门 ');
+      final titleOnly = _video('历史', 2, '生活');
+      final missing = _video('无标签', 3);
+      final excluded = _video('标签排除', 4, '历史知识分享,广告');
+      final data = SearchVideoData(list: [shown, titleOnly, missing, excluded]);
+      final controller = _SearchController(searchType: type)..seed(data);
+      controller.includeKeywords.add('#历史');
+      controller.excludeKeywords.add('#广告');
+      await _pumpPanel(tester, controller);
+      expect(_visibleVideos(tester), [shown]);
+      expect(controller.loadingState.value.data, data.list);
+      expect(find.text('继续加载'), findsOneWidget);
+
+      controller.includeKeywords.assignAll(['#c++']);
+      await tester.pumpAndSettle();
+      expect(_visibleVideos(tester), [shown]);
+
+      controller.includeKeywords.assignAll(['#历史 , C++']);
+      await tester.pumpAndSettle();
+      expect(_visibleVideos(tester), isEmpty);
+      expect(find.text('当前页结果已被关键词过滤'), findsOneWidget);
+
+      controller.includeKeywords.clear();
+      controller.excludeKeywords.clear();
+      await tester.pumpAndSettle();
+      expect(_visibleVideos(tester), data.list);
+      expect(controller.requests, 1);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('综合搜索标签条件保留非视频分区，普通词仍筛选这些分区', (tester) async {
+    final data = _mixedData();
+    final controller = _SearchController()..seed(data);
+    controller.includeKeywords.add('#历史');
+    controller.excludeKeywords.add('#保留');
+    await _pumpPanel(tester, controller);
+    expect(_visibleVideos(tester), isEmpty);
+    expect(find.byType(SearchActivityItem), findsNWidgets(2));
+    expect(find.byType(SearchAllUserItem), findsNWidgets(2));
+    expect(find.byType(SearchPgcItem), findsNWidgets(2));
+    expect(find.byType(SearchEsportsItem), findsOneWidget);
+
+    controller.includeKeywords.add('保留');
+    controller.excludeKeywords.add('排除');
+    await tester.pumpAndSettle();
+    expect(_visibleVideos(tester), [data.list!.first]);
+    expect(find.byType(SearchActivityItem), findsOneWidget);
+    expect(find.byType(SearchAllUserItem), findsOneWidget);
+    expect(find.byType(SearchPgcItem), findsOneWidget);
+    expect(find.byType(SearchEsportsItem), findsOneWidget);
+  });
+
+  testWidgets('视频列表混入的直播和课堂忽略标签条件', (tester) async {
+    final live = _video('直播', 1)..isLive = true;
+    final course = _video('课堂', 2)..isPugv = true;
+    final video = _video('普通视频', 3);
+    final controller = _SearchController(searchType: SearchType.video)
+      ..seed(SearchVideoData(list: [live, course, video]));
+    controller.includeKeywords.add('#历史');
+    await _pumpPanel(tester, controller);
+    expect(_visibleVideos(tester), [live, course]);
+  });
+
+  testWidgets('标签筛选后追加分页仍过滤新结果，清除可恢复全部已加载视频', (tester) async {
+    final first = _video('首屏视频', 1, '生活');
+    final shown = _video('后续视频', 2, '世界历史');
+    final hidden = _video('后续无标签', 3);
+    final controller = _SearchController()
+      ..seed(SearchVideoData(list: [first]));
+    controller.includeKeywords.add('#历史');
+    await _pumpPanel(tester, controller);
+    expect(_visibleVideos(tester), isEmpty);
+    controller.seed(SearchVideoData(list: [shown, hidden]));
+    await controller.queryData(false);
+    await tester.pumpAndSettle();
+    expect(_visibleVideos(tester), [shown]);
+    expect(controller.page, 3);
+
+    controller.includeKeywords.clear();
+    await tester.pumpAndSettle();
+    expect(_visibleVideos(tester), [first, shown, hidden]);
+    expect(controller.requests, 2);
+  });
+
+  testWidgets('编辑器拒绝空标签，标签特殊字符按字面接受，标题仍校验正则', (tester) async {
+    final controller = _SearchController();
+    addTearDown(controller.onClose);
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: StatefulBuilder(
+          builder: (context, setState) => controller.buildKeywordFilterSection(
+            context, Theme.of(context), setState,
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('添加包含词'));
+    await tester.pumpAndSettle();
+    final editor = tester.widget<ListEditorDialog>(find.byType(ListEditorDialog));
+    expect(editor.hintText, contains('#'));
+    expect(editor.validator!('#'), '请输入 # 后的标签文字');
+    expect(editor.validator!('#   '), '请输入 # 后的标签文字');
+    expect(editor.validator!('#C++'), isNull);
+    expect(editor.validator!('#['), isNull);
+    expect(editor.validator!('['), '无效的正则表达式');
+    expect(editor.validator!(r'\#历史'), isNull);
   });
 
   testWidgets('各顶层类型过滤，原始结果不变，清空词条恢复', (tester) async {
