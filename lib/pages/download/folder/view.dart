@@ -404,6 +404,8 @@ class _DownloadFolderPageState extends State<DownloadFolderPage>
         enableMultiSelect: multiSelect,
         progress: _progress,
         updateSeasonDm: updateSeasonDm,
+        updateSeasonSeg: updateSeasonSeg,
+        updateSeasonPlayInfo: updateSeasonPlayInfo,
       );
     }
 
@@ -418,6 +420,8 @@ class _DownloadFolderPageState extends State<DownloadFolderPage>
         enableMultiSelect: multiSelect,
         progress: _progress,
         updatePageDm: updatePageDm,
+        updatePageSeg: updatePageSeg,
+        updatePagePlayInfo: updatePagePlayInfo,
       );
     }
 

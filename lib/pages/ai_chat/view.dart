@@ -904,7 +904,6 @@ class _AiChatPageState extends State<AiChatPage>
       }
       videoCtl.plPlayerController.seekTo(
         Duration(seconds: seconds),
-        isSeek: false,
       );
     } catch (_) {
       SmartDialog.showToast('跳转失败');

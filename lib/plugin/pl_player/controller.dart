@@ -18,8 +18,6 @@ import 'package:PiliPlus/models/user/danmaku_rule.dart';
 import 'package:PiliPlus/models/video/play/url.dart';
 import 'package:PiliPlus/models_new/video/video_shot/data.dart';
 import 'package:PiliPlus/pages/danmaku/danmaku_model.dart';
-import 'package:PiliPlus/pages/setting/models/play_settings.dart'
-    show kMaxVolume;
 import 'package:PiliPlus/pages/sponsor_block/block_mixin.dart';
 import 'package:PiliPlus/plugin/pl_player/models/data_source.dart';
 import 'package:PiliPlus/plugin/pl_player/models/data_status.dart';
@@ -187,7 +185,6 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   late DataSource dataSource;
 
   Timer? _timer;
-  StreamSubscription? _subForSeek;
 
   Box setting = GStorage.setting;
 
@@ -262,6 +259,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
       (Platform.isAndroid && AndroidHelper.isPipMode) ||
       (PlatformUtils.isDesktop && isDesktopPip);
   late bool isDesktopPip = false;
+  late nativeapi.Size _lastMinSize;
   late nativeapi.Rectangle _lastWindowBounds;
   static nativeapi.Rectangle? _lastPipBounds;
 
@@ -335,7 +333,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     isDesktopPip = false;
     if (showWindowTitleBar) window.titleBarStyle = .normal;
     window
-      ..minimumSize = DeviceUtils.desktopMinSize
+      ..minimumSize = _lastMinSize
       ..bounds = _lastWindowBounds
       ..aspectRatio = 0;
     setAlwaysOnTop(false, window: window);
@@ -349,6 +347,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
 
     isDesktopPip = true;
 
+    _lastMinSize = window.minimumSize;
     _lastWindowBounds = window.bounds;
 
     if (showWindowTitleBar) window.titleBarStyle = .hidden;
@@ -722,11 +721,8 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     return null;
   }
 
-  static Future<void>? seekToIfExists(
-    Duration position, {
-    bool isSeek = true,
-  }) {
-    return _instance?.seekTo(position, isSeek: isSeek);
+  static Future<void>? seekToIfExists(Duration position) {
+    return _instance?.seekTo(position);
   }
 
   static double? getVolumeIfExists() {
@@ -1202,11 +1198,6 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     final opt = {
       'video-sync': Pref.videoSync,
       if (Platform.isAndroid) 'ao': Pref.audioOutput,
-      'volume': (PlatformUtils.isMobile
-              ? (Pref.enableAppVolume ? volume.value * 100 : Pref.playerVolume)
-              : volume.value * 100)
-          .toString(),
-      'volume-max': kMaxVolume.toString(),
     };
     final autosync = Pref.autosync;
     if (autosync != '0') {
@@ -1218,6 +1209,14 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
         logLevel: kDebugMode ? .warn : .error,
         options: opt,
       ),
+    );
+
+    // >100% 的音量走 af 增益+限幅，避免直接放大 mpv volume 导致削波
+    await setVolumeCapped(
+      player,
+      PlatformUtils.isMobile && !Pref.enableAppVolume
+          ? Pref.playerVolume / 100
+          : volume.value,
     );
 
     assert(_videoController == null);
@@ -1544,46 +1543,18 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     _subscriptions = null;
   }
 
-  void _cancelSubForSeek() {
-    if (_subForSeek != null) {
-      _subForSeek!.cancel();
-      _subForSeek = null;
-    }
-  }
+  /// 跳转至指定位置
+  Future<void> seekTo(Duration position) async {
+    if (_playerCount == 0) return;
 
-  Future<void> seek(Duration position, {bool isSeek = false}) async {
-    if (isSeek) {
-      /// 拖动进度条调节时，不等待第一帧，防止抖动
-      await _videoPlayerController?.stream.buffer.first;
-    }
+    _heartDuration = position.inSeconds;
+
     danmakuController?.clear();
     try {
       await _videoPlayerController?.seek(position);
       _updateIOSPip(position);
     } catch (e) {
       if (kDebugMode) debugPrint('seek failed: $e');
-    }
-  }
-
-  /// 跳转至指定位置
-  Future<void> seekTo(Duration position, {bool isSeek = true}) async {
-    if (_playerCount == 0) {
-      return;
-    }
-    if (position < Duration.zero) {
-      position = Duration.zero;
-    }
-    _heartDuration = position.inSeconds;
-
-    if (duration.value != 0) {
-      seek(position, isSeek: isSeek);
-    } else {
-      // if (kDebugMode) debugPrint('seek duration else');
-      _subForSeek?.cancel();
-      _subForSeek = duration.listen((_) {
-        seek(position, isSeek: isSeek);
-        _cancelSubForSeek();
-      });
     }
   }
 
@@ -1641,10 +1612,14 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     if (_playerCount == 0) return;
     // 播放时自动隐藏控制条
     final showControlsOnNextPlay = _consumeShowControlsOnNextPlay();
-    controls = !hideControls || showControlsOnNextPlay;
+    if (showControlsOnNextPlay) {
+      controls = true;
+    } else if (hideControls) {
+      controls = false;
+    }
     // repeat为true，将从头播放
     if (repeat) {
-      await seekTo(Duration.zero, isSeek: false);
+      await seekTo(Duration.zero);
     }
 
     await _rawPlay();
@@ -1723,12 +1698,12 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
       this.volume.value = volume;
       try {
         if (PlatformUtils.isDesktop) {
-          await _videoPlayerController!.setVolume(volume * 100);
+          await setVolumeCapped(_videoPlayerController, volume);
         } else {
           // 移动平台：根据设置选择音量控制方式
           if (Pref.enableAppVolume) {
             // 应用内音量模式：使用 media_kit 控制应用内音量
-            _videoPlayerController?.setVolume(volume * 100);
+            await setVolumeCapped(_videoPlayerController, volume);
           } else {
             // 默认模式：控制系统音量
             FlutterVolumeController.updateShowSystemUI(false);
@@ -1781,7 +1756,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
       volumeBoostUnlocked = false;
 
       // 关闭上游固定增益，避免和应用内音量叠加
-      _videoPlayerController?.setVolume(appVolume * 100);
+      await setVolumeCapped(_videoPlayerController, appVolume);
 
       // 显示提示
       SmartDialog.showToast('已切换到应用内音量模式');
@@ -1797,7 +1772,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
 
       await FlutterVolumeController.updateShowSystemUI(false);
       await FlutterVolumeController.setVolume(newSystemVolume);
-      await _videoPlayerController?.setVolume(Pref.playerVolume);
+      await setVolumeCapped(_videoPlayerController, Pref.playerVolume / 100);
       volumeBoostUnlocked = false;
 
       // 更新状态
@@ -1815,14 +1790,16 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     if (Pref.enableAppVolume) {
       // 应用内音量模式：使用临时音量，不影响持久化值
       if (begin) {
+        if (_isDucked) return;
         _isDucked = true;
         _preDuckVolume = volume.value;
         volume.value = volume.value * 0.5;
-        _videoPlayerController?.setVolume(volume.value * 100);
+        await setVolumeCapped(_videoPlayerController, volume.value);
       } else {
+        if (!_isDucked) return;
         _isDucked = false;
         volume.value = _preDuckVolume;
-        _videoPlayerController?.setVolume(volume.value * 100);
+        await setVolumeCapped(_videoPlayerController, volume.value);
       }
     }
     // 同步模式：使用原有逻辑，直接调用 setVolume 即可
@@ -2061,7 +2038,6 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   void onForwardBackward(Duration duration) {
     seekTo(
       duration.clamp(Duration.zero, videoPlayerController!.state.duration),
-      isSeek: false,
     ).whenComplete(play);
   }
 
@@ -2663,7 +2639,6 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     speedLocked = false;
     _speedLockArmed = false;
     speedLockHint.value = SpeedLockHint.none;
-    _cancelSubForSeek();
     if (!_isCloseAll && _playerCount > 1) {
       _playerCount -= 1;
       _heartDuration = 0;

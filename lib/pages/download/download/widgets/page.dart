@@ -32,6 +32,8 @@ class PageInfoItem<T extends MultiSelectData> extends StatelessWidget {
     required this.enableMultiSelect,
     required this.progress,
     required this.updatePageDm,
+    required this.updatePageSeg,
+    required this.updatePagePlayInfo,
   });
 
   final BaseMultiSelectMixin<T> controller;
@@ -44,6 +46,8 @@ class PageInfoItem<T extends MultiSelectData> extends StatelessWidget {
   final bool enableMultiSelect;
   final ChangeNotifier progress;
   final ValueChanged<DownloadPageInfo> updatePageDm;
+  final ValueChanged<DownloadPageInfo> updatePageSeg;
+  final ValueChanged<DownloadPageInfo> updatePagePlayInfo;
 
   @override
   Widget build(BuildContext context) {
@@ -78,6 +82,20 @@ class PageInfoItem<T extends MultiSelectData> extends StatelessWidget {
                 updatePageDm(pageInfo);
               },
               child: const Text('更新弹幕', style: TextStyle(fontSize: 14)),
+            ),
+            DialogOption(
+              onPressed: () {
+                Get.back();
+                updatePageSeg(pageInfo);
+              },
+              child: const Text('更新片段'),
+            ),
+            DialogOption(
+              onPressed: () {
+                Get.back();
+                updatePagePlayInfo(pageInfo);
+              },
+              child: const Text('更新字幕、分段信息'),
             ),
           ],
         ),

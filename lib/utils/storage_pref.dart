@@ -16,7 +16,7 @@ import 'package:PiliPlus/models/common/member/tab_type.dart';
 import 'package:PiliPlus/models/common/mine_tab_type.dart';
 import 'package:PiliPlus/models/common/msg/msg_unread_type.dart';
 import 'package:PiliPlus/models/common/nav_bar_config.dart';
-import 'package:PiliPlus/models/common/rcmd_mode.dart';
+import 'package:PiliPlus/models/common/rcmd_source.dart';
 import 'package:PiliPlus/models/common/reply/reply_sort_type.dart';
 import 'package:PiliPlus/models/common/sponsor_block/segment_type.dart';
 import 'package:PiliPlus/models/common/sponsor_block/skip_type.dart';
@@ -527,14 +527,33 @@ abstract final class Pref {
   static bool get appRcmd =>
       _setting.get(SettingBoxKey.appRcmd, defaultValue: true);
 
-  /// 推荐流模式，首次读取时从旧 key appRcmd 迁移
-  static RcmdMode get rcmdMode {
-    final index = _setting.get(SettingBoxKey.rcmdMode);
-    if (index != null) {
-      return RcmdMode.values.elementAtOrNull(index) ?? RcmdMode.app;
+  static List<RcmdSource> get rcmdSources {
+    final stored = _setting.get(SettingBoxKey.rcmdSources);
+    if (stored is List) {
+      final sources = <RcmdSource>[];
+      for (final name in stored) {
+        final source = RcmdSource.values.where((e) => e.name == name).firstOrNull;
+        if (source != null && !sources.contains(source)) sources.add(source);
+      }
+      if (sources.isNotEmpty) return sources;
     }
-    // 旧版迁移：appRcmd true→App, false→Web
-    return appRcmd ? RcmdMode.app : RcmdMode.web;
+    // 本地旧模式的 2 是 App+Web，上游旧来源的 2 是 PC。
+    switch (_setting.get(SettingBoxKey.rcmdMode)) {
+      case 0: return [RcmdSource.app];
+      case 1: return [RcmdSource.web];
+      case 2: return [RcmdSource.app, RcmdSource.web];
+    }
+    final legacy = _setting.get(SettingBoxKey.rcmdSource);
+    if (legacy is int && legacy >= 0 && legacy < RcmdSource.values.length) {
+      return [RcmdSource.values[legacy]];
+    }
+    return [appRcmd ? RcmdSource.app : RcmdSource.web];
+  }
+
+  static Future<void> setRcmdSources(List<RcmdSource> sources) async {
+    if (sources.isEmpty) return;
+    await _setting.put(SettingBoxKey.rcmdSources,
+        sources.map((e) => e.name).toSet().toList());
   }
 
   static bool get removeBlockedRcmd =>
@@ -1809,4 +1828,13 @@ abstract final class Pref {
 
   static bool get filterIntro =>
       _setting.get(SettingBoxKey.filterIntro, defaultValue: false);
+
+  static int get foldDepth =>
+      _setting.get(SettingBoxKey.foldDepth, defaultValue: 0);
+
+  static bool get showRefreshFAB =>
+      _setting.get(SettingBoxKey.showRefreshFAB, defaultValue: true);
+
+  static bool get cachePlayInfo =>
+      _setting.get(SettingBoxKey.cachePlayInfo, defaultValue: true);
 }

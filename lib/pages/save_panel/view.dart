@@ -90,6 +90,8 @@ class _SavePanelState extends State<SavePanel> {
     } else if (_item case final DynamicItemModel i) {
       uri = _parseDyn(i);
       if (kDebugMode) debugPrint(uri);
+    } else if (_item case final Iterable<ReplyInfo> i) {
+      _parseReply(i.first);
     }
   }
 
@@ -337,12 +339,53 @@ class _SavePanelState extends State<SavePanel> {
     }
   }
 
+  ReplyItemGrpc _handleReply(ReplyInfo i, [divider = true]) => ReplyItemGrpc(
+    replyItem: i,
+    replyLevel: 0,
+    upMid: widget.upMid,
+    needDivider: divider,
+  );
+
   @override
   Widget build(BuildContext context) {
-    final colorScheme = ColorScheme.of(context);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final padding = MediaQuery.viewPaddingOf(context);
     final maxWidth = MediaQuery.sizeOf(context).shortestSide;
     late final coverSize = MediaQuery.textScalerOf(context).scale(65);
+
+    final Widget child;
+
+    switch (_item) {
+      case ReplyInfo reply:
+        child = _handleReply(reply, false);
+      case DynamicItemModel dyn:
+        child = DynamicPanel(
+          item: dyn,
+          isDetail: true,
+          isSave: true,
+        );
+      case Iterable<ReplyInfo> chain:
+        final first = chain.first;
+        final List<Widget> children;
+        if (first.parent == .ZERO) {
+          children = [
+            _handleReply(first, false),
+            Divider(
+              height: 20,
+              color: theme.dividerColor.withValues(alpha: 0.1),
+              thickness: 3.5,
+            ),
+            ...chain.skip(1).map(_handleReply),
+          ];
+        } else {
+          children = chain.map(_handleReply).toList();
+        }
+        child = Column(children: children);
+      default:
+        throw UnsupportedError(_item.toString());
+    }
+
     return Stack(
       clipBehavior: .none,
       alignment: .center,
@@ -363,9 +406,7 @@ class _SavePanelState extends State<SavePanel> {
                   color: colorScheme.surface,
                   borderRadius: const .all(.circular(12)),
                 ),
-                // PublishRoute 是 PopupRoute，链上没有 Material，裸 Text 拿不到
-                // 主题的 DefaultTextStyle，自定义字体会回退到系统字体。此处显式
-                // 补上，使其与 Material 内的文本表现一致（截图同样受益）。
+                // PopupRoute 没有 Material，显式继承主题字体供预览和截图使用。
                 child: DefaultTextStyle(
                   style: TextTheme.of(context).bodyMedium!,
                   child: AnimatedSize(
@@ -376,22 +417,7 @@ class _SavePanelState extends State<SavePanel> {
                       mainAxisSize: .min,
                       crossAxisAlignment: .start,
                       children: [
-                        IgnorePointer(
-                          child: switch (_item) {
-                            ReplyInfo reply => ReplyItemGrpc(
-                              replyItem: reply,
-                              replyLevel: 0,
-                              needDivider: false,
-                              upMid: widget.upMid,
-                            ),
-                            DynamicItemModel dyn => DynamicPanel(
-                              item: dyn,
-                              isDetail: true,
-                              isSave: true,
-                            ),
-                            _ => throw UnsupportedError(_item.toString()),
-                          },
-                        ),
+                        IgnorePointer(child: child),
                         if (cover?.isNotEmpty == true &&
                             title?.isNotEmpty == true)
                           Container(
@@ -427,6 +453,7 @@ class _SavePanelState extends State<SavePanel> {
                                       ),
                                       if (pubdate != null)
                                         Text(
+                                          softWrap: false,
                                           DateFormatUtils.format(
                                             pubdate,
                                             format: dateFormat,

@@ -24,6 +24,8 @@ abstract final class PathUtils {
   static const subtitlesDirName = 'subtitles';
   static const subtitleIndexName = 'index.json';
   static String subtitleVttName(String lan) => '$lan.vtt';
+  static const subtitleDir = 'subtitles';
+  static const subtitleExt = '.subtitle';
 
   static String buildShadersAbsolutePath(
     String baseDirectory,

@@ -1,24 +1,20 @@
-import 'dart:math';
-
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/http/video.dart';
-import 'package:PiliPlus/models/common/rcmd_mode.dart';
+import 'package:PiliPlus/models/common/rcmd_source.dart';
 import 'package:PiliPlus/models/model_rec_video_item.dart';
 import 'package:PiliPlus/pages/common/common_list_controller.dart';
 import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 
-class RcmdController extends CommonListController {
+class RcmdController extends CommonListController<
+    List<BaseRcmdVideoItemModel>, BaseRcmdVideoItemModel> {
   late bool enableSaveLastData = Pref.enableSaveLastData;
-  final RcmdMode rcmdMode = Pref.rcmdMode;
-  bool get appRcmd => rcmdMode == RcmdMode.app;
-
+  List<RcmdSource> rcmdSources = Pref.rcmdSources;
   int? lastRefreshAt;
   late bool savedRcmdTip = Pref.savedRcmdTip;
 
-  // 合并模式专用页码：Web端由基类 page 管理（自动 ++），App端在此自管
-  int _appPage = 0;
-  bool _isFirstPage = false;
+  final _sourcePages = <RcmdSource, int>{};
+  int _generation = 0;
 
   @override
   bool get isEnd => false;
@@ -27,98 +23,114 @@ class RcmdController extends CommonListController {
   void onInit() {
     super.onInit();
     page = 0;
-    _appPage = 0;
     queryData();
   }
 
+  Future<LoadingState<List<BaseRcmdVideoItemModel>>> _fetch(
+    RcmdSource source,
+    int freshIdx,
+  ) async {
+    try {
+      return await switch (source) {
+        RcmdSource.app => VideoHttp.rcmdVideoListApp(freshIdx: freshIdx),
+        RcmdSource.web => VideoHttp.rcmdVideoList(freshIdx: freshIdx, ps: 20),
+        RcmdSource.desktop => VideoHttp.rcmdVideoList(
+          freshIdx: freshIdx, ps: 30, desktop: true,
+        ),
+      };
+    } catch (e) {
+      return Error(e.toString());
+    }
+  }
+
   @override
-  Future<LoadingState> customGetData() async {
-    if (rcmdMode != RcmdMode.merged) {
-      // 单源模式
-      _isFirstPage = (page == 0);
-      return appRcmd
-          ? VideoHttp.rcmdVideoListApp(freshIdx: page)
-          : VideoHttp.rcmdVideoList(freshIdx: page, ps: 20);
-    }
-
-    // 合并模式：并行请求
-    _isFirstPage = (page == 0 && _appPage == 0);
+  Future<LoadingState<List<BaseRcmdVideoItemModel>>> customGetData() async {
+    final generation = _generation;
+    final sources = List<RcmdSource>.of(rcmdSources);
     final results = await Future.wait([
-      VideoHttp.rcmdVideoList(freshIdx: page, ps: 20),
-      VideoHttp.rcmdVideoListApp(freshIdx: _appPage),
+      for (final source in sources) _fetch(source, _sourcePages[source] ?? 0),
     ]);
+    if (isClosed || generation != _generation) return const Success([]);
 
-    // 静默降级：一个成功就展示
-    List<BaseRcmdVideoItemModel> webList = [];
-    List<BaseRcmdVideoItemModel> appList = [];
-    if (results[0] case Success(:final response)) {
-      webList = response;
-    } else {
-      logger.w('Web端推荐获取失败: ${results[0]}');
+    final lists = <List<BaseRcmdVideoItemModel>>[];
+    Error? error;
+    for (var i = 0; i < results.length; i++) {
+      switch (results[i]) {
+        case Success(:final response):
+          lists.add(response);
+          _sourcePages[sources[i]] = (_sourcePages[sources[i]] ?? 0) + 1;
+        case Error failure:
+          error = failure;
+          logger.w('${sources[i].label}推荐获取失败: $failure');
+        default:
+      }
     }
-    if (results[1] case Success(:final response)) {
-      appList = response;
-    } else {
-      logger.w('App端推荐获取失败: ${results[1]}');
-    }
+    if (lists.isEmpty) return error ?? const Error('推荐获取失败');
+    if (sources.length == 1) return Success(lists.single);
 
-    // 交错排列 + 按 aid 去重
-    final seen = <int>{};
+    final seen = <String>{};
     final merged = <BaseRcmdVideoItemModel>[];
-    final minLen = min(appList.length, webList.length);
-    for (int i = 0; i < minLen; i++) {
-      if (appList[i].aid != null && seen.add(appList[i].aid!)) {
-        merged.add(appList[i]);
-      }
-      if (webList[i].aid != null && seen.add(webList[i].aid!)) {
-        merged.add(webList[i]);
-      }
-    }
-    // 多出的部分追加到末尾
-    for (int i = minLen; i < appList.length; i++) {
-      if (appList[i].aid != null && seen.add(appList[i].aid!)) {
-        merged.add(appList[i]);
+    for (var index = 0; lists.any((list) => index < list.length); index++) {
+      for (final list in lists) {
+        if (index >= list.length) continue;
+        final item = list[index];
+        final key = item.aid != null ? 'av${item.aid}' : item.bvid;
+        if (key == null || seen.add(key)) merged.add(item);
       }
     }
-    for (int i = minLen; i < webList.length; i++) {
-      if (webList[i].aid != null && seen.add(webList[i].aid!)) {
-        merged.add(webList[i]);
-      }
-    }
-
-    _appPage++; // App端页码自增（Web端由基类 page++ 管理）
-
     return Success(merged);
   }
 
   @override
-  bool handleError(String? errMsg) {
-    return enableSaveLastData;
-  }
-
-  @override
-  void handleListResponse(List dataList) {
-    if (enableSaveLastData && _isFirstPage) {
-      if (loadingState.value case Success(:final response)) {
-        if (response != null && response.isNotEmpty) {
-          if (savedRcmdTip) {
-            lastRefreshAt = dataList.length;
+  Future<void> queryData([bool isRefresh = true]) async {
+    if (isLoading || isClosed) return;
+    final generation = _generation;
+    isLoading = true;
+    try {
+      final res = await customGetData();
+      if (isClosed || generation != _generation) return;
+      if (res case Success(:final response)) {
+        final items = List<BaseRcmdVideoItemModel>.of(response);
+        if (isRefresh) {
+          if (enableSaveLastData) {
+            if (loadingState.value case Success(:final response)) {
+              if (response != null && response.isNotEmpty) {
+                lastRefreshAt = savedRcmdTip ? items.length : null;
+                items.addAll(response.length > 200 ? response.take(50) : response);
+              }
+            }
           }
-          if (response.length > 200) {
-            dataList.addAll(response.take(50));
-          } else {
-            dataList.addAll(response);
-          }
+          loadingState.value = Success(items);
+        } else if (loadingState.value case Success(:final response)) {
+          response?.addAll(items);
+          loadingState.refresh();
+        }
+        page++;
+      } else if (res case Error failure) {
+        if (isRefresh && !(enableSaveLastData &&
+            loadingState.value is Success<List<BaseRcmdVideoItemModel>?>)) {
+          loadingState.value = failure;
+        } else {
+          failure.toast();
         }
       }
+    } finally {
+      if (generation == _generation) isLoading = false;
     }
   }
 
   @override
   Future<void> onRefresh() {
+    _generation++;
+    _sourcePages.clear();
     page = 0;
-    _appPage = 0; // 重置 App 端页码
-    isEnd = false;
+    lastRefreshAt = null;
+    isLoading = false;
     return queryData();
+  }
+
+  Future<void> switchSources(List<RcmdSource> sources) {
+    rcmdSources = List.of(sources);
+    return onReload();
   }
 }

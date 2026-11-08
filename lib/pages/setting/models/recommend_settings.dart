@@ -1,8 +1,8 @@
 import 'package:PiliPlus/http/video.dart';
-import 'package:PiliPlus/models/common/rcmd_mode.dart';
+import 'package:PiliPlus/models/common/rcmd_source.dart';
 import 'package:PiliPlus/pages/rcmd/controller.dart';
 import 'package:PiliPlus/pages/setting/models/model.dart';
-import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
+import 'package:PiliPlus/pages/setting/widgets/ordered_multi_select_dialog.dart';
 import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/recommend_filter.dart';
 import 'package:PiliPlus/utils/storage.dart';
@@ -17,9 +17,9 @@ import 'package:material_ui/material_ui.dart';
 
 List<SettingsModel> get recommendSettings => [
   NormalModel(
-    title: '首页推荐模式',
+    title: '首页推荐来源',
     leading: const Icon(Icons.model_training_outlined),
-    getSubtitle: () => '当前:「${Pref.rcmdMode.label}」',
+    getSubtitle: () => Pref.rcmdSources.map((e) => e.label).join(' → '),
     onTap: _showRcmdModeDialog,
   ),
   SwitchModel(
@@ -129,18 +129,18 @@ List<SettingsModel> get recommendSettings => [
   NormalModel(
     title: '屏蔽无权查看视频',
     leading: const Icon(Icons.block_outlined),
-    getSubtitle: () => Pref.rcmdMode != RcmdMode.web
+    getSubtitle: () => Pref.rcmdSources.contains(RcmdSource.app)
         ? '仅对首页 app 端推荐生效，屏蔽无权查看的视频(如充电专属视频)'
-        : '仅对首页 app 端推荐生效，请先切换为App端推荐或合并模式',
+        : '仅对首页 app 端推荐生效，请先在推荐来源中选择App端',
     getTrailing: (_) => StreamBuilder<BoxEvent>(
       stream: GStorage.setting.watch().where(
         (event) =>
-            event.key == SettingBoxKey.rcmdMode ||
+            event.key == SettingBoxKey.rcmdSources ||
             event.key == SettingBoxKey.removeBlockedRcmd,
       ),
       builder: (_, _) => Switch(
         value: Pref.removeBlockedRcmd,
-        onChanged: Pref.rcmdMode != RcmdMode.web
+        onChanged: Pref.rcmdSources.contains(RcmdSource.app)
             ? (value) {
                 GStorage.setting.put(SettingBoxKey.removeBlockedRcmd, value);
               }
@@ -148,7 +148,7 @@ List<SettingsModel> get recommendSettings => [
       ),
     ),
     onTap: (context, setState) {
-      if (Pref.rcmdMode == RcmdMode.web) {
+      if (!Pref.rcmdSources.contains(RcmdSource.app)) {
         return;
       }
       GStorage.setting.put(
@@ -227,17 +227,25 @@ Future<void> _showRcmdModeDialog(
   BuildContext context,
   VoidCallback setState,
 ) async {
-  final res = await showDialog<RcmdMode>(
+  final res = await showDialog<List<RcmdSource>>(
     context: context,
-    builder: (context) => SelectDialog<RcmdMode>(
-      title: '首页推荐模式',
-      value: Pref.rcmdMode,
-      values: RcmdMode.values.map((e) => (e, e.label)).toList(),
+    builder: (context) => OrderedMultiSelectDialog<RcmdSource>(
+      title: const Text('推荐来源（按勾选顺序混排）'),
+      initValues: Pref.rcmdSources,
+      values: {for (final source in RcmdSource.values) source: source.label},
+      minSelections: 1,
+      subtitleBuilder: (context, source) => Text(switch (source) {
+        RcmdSource.app => '使用 App 端推荐',
+        RcmdSource.web => '使用网页首页推荐',
+        RcmdSource.desktop => '使用官方 Windows 客户端的推荐参数',
+      }),
     ),
   );
-  if (res != null) {
-    await GStorage.setting.put(SettingBoxKey.rcmdMode, res.index);
-    SmartDialog.showToast('重启生效');
-    setState();
+  if (res == null || res.isEmpty) return;
+  await Pref.setRcmdSources(res);
+  setState();
+  if (Get.isRegistered<RcmdController>()) {
+    Get.find<RcmdController>().switchSources(res);
   }
+  SmartDialog.showToast('已切换为${res.map((e) => e.label).join(' → ')}');
 }

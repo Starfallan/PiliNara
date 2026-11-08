@@ -42,6 +42,7 @@ class MineController extends GetxController
   @override
   final ScrollController scrollController = ScrollController();
 
+  @override
   final GlobalKey<RefreshIndicatorState> refreshKey =
       GlobalKey<RefreshIndicatorState>();
 

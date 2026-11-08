@@ -492,6 +492,8 @@ class _DownloadPageState extends State<DownloadPage>
                                     enableMultiSelect: enableMultiSelect,
                                     progress: _progress,
                                     updateSeasonDm: updateSeasonDm,
+        updateSeasonSeg: updateSeasonSeg,
+        updateSeasonPlayInfo: updateSeasonPlayInfo,
                                   );
                                 }
 
@@ -536,6 +538,8 @@ class _DownloadPageState extends State<DownloadPage>
                                   enableMultiSelect: enableMultiSelect,
                                   progress: _progress,
                                   updatePageDm: updatePageDm,
+        updatePageSeg: updatePageSeg,
+        updatePagePlayInfo: updatePagePlayInfo,
                                 );
                               },
                               itemCount: _controller.seasons.length,

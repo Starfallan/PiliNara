@@ -8,8 +8,18 @@ import 'package:easy_debounce/easy_throttle.dart';
 import 'package:flutter/widgets.dart' show GlobalKey, ScrollController;
 import 'package:get/get.dart';
 
+mixin RefreshImplMixin on ScrollOrRefreshMixin {
+  @override
+  final GlobalKey<RefreshIndicatorState> refreshKey = .new();
+
+  @override
+  Future<void> showRefresh() => refreshKey.currentState?.show() ?? onRefresh();
+}
+
 mixin ScrollOrRefreshMixin {
   ScrollController get scrollController;
+
+  GlobalKey<RefreshIndicatorState>? get refreshKey => null;
 
   String get topOrRefreshThrottleKey =>
       'topOrRefresh_${identityHashCode(this)}';
@@ -53,16 +63,9 @@ mixin ScrollOrRefreshMixin {
 }
 
 abstract class CommonController<R, T> extends GetxController
-    with ScrollOrRefreshMixin {
+    with ScrollOrRefreshMixin, RefreshImplMixin {
   @override
   final ScrollController scrollController = ScrollController();
-
-  final GlobalKey<RefreshIndicatorState> refreshKey =
-      GlobalKey<RefreshIndicatorState>();
-
-  @override
-  Future<void> showRefresh() =>
-      refreshKey.currentState?.show() ?? onRefresh();
 
   bool isLoading = false;
   Rx<LoadingState> get loadingState;

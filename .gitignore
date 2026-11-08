@@ -167,3 +167,5 @@ test*
 /pubspec_overrides.yaml
 .mindfs
 .agents 
+!/test/
+!/test/**

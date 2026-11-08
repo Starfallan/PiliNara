@@ -387,16 +387,16 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
     // Keep playing in the PiP window.
     if (Platform.isIOS && IOSPipHelper.isActive) return;
     if (!plPlayerController.continuePlayInBackground.value) {
-      late final player = plPlayerController.videoPlayerController;
       if (const <AppLifecycleState>[.paused, .detached].contains(state)) {
+        final player = plPlayerController.videoPlayerController;
         if (player != null && player.state.playing) {
           _pauseDueToPauseUponEnteringBackgroundMode = true;
-          player.pause();
+          plPlayerController.pause();
         }
       } else {
         if (_pauseDueToPauseUponEnteringBackgroundMode) {
           _pauseDueToPauseUponEnteringBackgroundMode = false;
-          player?.play();
+          plPlayerController.play();
         }
       }
       // 后台播放关了，本功能不运行，转发生命周期以取消定时器
@@ -1200,7 +1200,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
       feedBack();
       plPlayerController
         ..position.value = seekToPos.inSeconds
-        ..seekTo(seekToPos, isSeek: false)
+        ..seekTo(seekToPos)
         ..seekToPos = null;
     } else {
       plPlayerController.position.value =
@@ -2227,10 +2227,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                                     if (!plPlayerController
                                         .controlsLock
                                         .value) {
-                                      plPlayerController.seekTo(
-                                        position,
-                                        isSeek: false,
-                                      );
+                                      plPlayerController.seekTo(position);
                                     }
                                   }
                                 : null,
@@ -2839,10 +2836,8 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                     Icons.gps_fixed_outlined,
                     color: Colors.white,
                   ),
-                  onTap: () => plPlayerController.seekTo(
-                    Duration(seconds: seekOffset),
-                    isSeek: false,
-                  ),
+                  onTap: () =>
+                      plPlayerController.seekTo(Duration(seconds: seekOffset)),
                 ),
             ],
             LiveDanmaku() => [

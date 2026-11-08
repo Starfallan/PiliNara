@@ -23,8 +23,6 @@ import 'package:PiliPlus/pages/common/common_intro_controller.dart'
     show FavMixin;
 import 'package:PiliPlus/pages/dynamics_repost/view.dart';
 import 'package:PiliPlus/pages/main_reply/view.dart';
-import 'package:PiliPlus/pages/setting/models/play_settings.dart'
-    show kMaxVolume;
 import 'package:PiliPlus/pages/sponsor_block/block_mixin.dart';
 import 'package:PiliPlus/pages/video/controller.dart';
 import 'package:PiliPlus/pages/video/introduction/ugc/widgets/triple_mixin.dart';
@@ -147,14 +145,16 @@ class AudioController extends GetxController
       _lastVolume = null;
     }
     desktopVolume.value = volume;
-    player?.setVolume(volume * 100);
+    setVolumeCapped(player, volume);
   }
 
   void syncVolume([_]) {
     final volume = desktopVolume.value;
-    PlPlayerController.instance
-      ?..volume.value = volume
-      ..videoPlayerController?.setVolume(volume * 100);
+    final videoController = PlPlayerController.instance;
+    if (videoController != null) {
+      videoController.volume.value = volume;
+      videoController.setVolumeCapped(videoController.videoPlayerController, volume);
+    }
     GStorage.setting.put(SettingBoxKey.desktopVolume, volume.toPrecision(3));
   }
 
@@ -204,7 +204,8 @@ class AudioController extends GetxController
       ..onPause = onPause
       ..onSeek = onSeek
       ..onSkipToNext = playNext
-      ..onSkipToPrevious = playPrev;
+      ..onSkipToPrevious = playPrev
+      ..isPlaying = () => player?.state.playing ?? false;
 
     animController = AnimationController(
       vsync: this,
@@ -222,12 +223,25 @@ class AudioController extends GetxController
     return player?.state.playing ?? false;
   }
 
-  Future<void>? onPlay() {
-    return player?.play();
+  Future<void>? onPlay() async {
+    if (player == null) return;
+    await player?.play();
+    await audioSessionHandler?.setActive(true);
   }
 
-  Future<void>? onPause() {
-    return player?.pause();
+  Future<void>? onPause() async {
+    if (player == null) return;
+    await player?.pause();
+    await audioSessionHandler?.setActive(false);
+  }
+
+  Future<void>? playOrPause() {
+    if (player == null) return null;
+    if (player!.state.playing) {
+      return onPause();
+    } else {
+      return onPlay();
+    }
   }
 
   Future<void>? onSeek(Duration duration) {
@@ -367,14 +381,17 @@ class AudioController extends GetxController
     http_model.Volume? volume,
   }) async {
     await _initPlayerIfNeeded();
-    final extras = audioFilterExtras(volume);
-    player
-      ?..setMediaHeader(
-        userAgent: ua,
-        // mpv cannot clear referer option
-        headers: {'Referer': ?referer},
-      )
-      ..open(Media(url, start: _start, extras: extras));
+    if (player == null) return;
+    player!.setMediaHeader(
+      userAgent: ua,
+      // mpv cannot clear referer option
+      headers: {'Referer': ?referer},
+    );
+    await player!.open(
+      Media(url, start: _start, extras: audioFilterExtras(volume)),
+      play: false,
+    );
+    await onPlay();
     _start = null;
   }
 
@@ -398,10 +415,6 @@ class AudioController extends GetxController
       configuration: PlayerConfiguration(
         options: {
           if (Platform.isAndroid) 'ao': Pref.audioOutput,
-          'volume': PlatformUtils.isDesktop
-              ? (desktopVolume.value * 100).toString()
-              : (Pref.enableAppVolume ? 100.0 : Pref.playerVolume).toString(),
-          'volume-max': kMaxVolume.toString(),
           ...Pref.initBuffer(),
         },
       ),
@@ -411,6 +424,13 @@ class AudioController extends GetxController
       player = null;
       return;
     }
+    // >100% 的音量走 af 增益+限幅，避免直接放大 mpv volume 导致削波
+    await setVolumeCapped(
+      player,
+      PlatformUtils.isDesktop
+          ? desktopVolume.value
+          : (Pref.enableAppVolume ? 1.0 : Pref.playerVolume / 100),
+    );
     final stream = player!.stream;
     _subscriptions = [
       stream.position.listen((position) {
@@ -700,10 +720,6 @@ class AudioController extends GetxController
     );
   }
 
-  Future<void>? playOrPause() {
-    return player?.playOrPause();
-  }
-
   bool playPrev() {
     if (index != null && playlist != null && player != null) {
       final prev = index! - 1;
@@ -814,8 +830,7 @@ class AudioController extends GetxController
   int? get timeLength => player?.state.duration.inMilliseconds ?? 0;
 
   @override
-  Future<void>? seekTo(Duration duration, {required bool isSeek}) =>
-      onSeek(duration);
+  Future<void>? seekTo(Duration duration) => onSeek(duration);
 
   @override
   bool get autoPlay => true;
@@ -830,14 +845,18 @@ class AudioController extends GetxController
       ..onPause = null
       ..isPlaying = null
       ..reset();
-    videoPlayerServiceHandler
-      ?..onPlay = null
-      ..onPause = null
-      ..onSeek = null
-      ..onSkipToNext = null
-      ..onSkipToPrevious = null
-      ..onVideoDetailDispose(heroTag)
-      ..clearIfNeeded();
+    final handler = videoPlayerServiceHandler;
+    if (handler?.onPlay == onPlay) {
+      handler!
+        ..onPlay = null
+        ..onPause = null
+        ..onSeek = null
+        ..onSkipToNext = null
+        ..onSkipToPrevious = null
+        ..isPlaying = null
+        ..onVideoDetailDispose(heroTag)
+        ..clearIfNeeded();
+    }
     _subscriptions?.forEach((e) => e.cancel());
     _subscriptions?.clear();
     _subscriptions = null;

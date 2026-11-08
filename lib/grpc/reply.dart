@@ -149,12 +149,13 @@ abstract final class ReplyGrpc {
     if (res case Success(:final response)) {
       final upMid = response.subjectControl.upMid;
       // keyword filter
-      if (response.hasUpTop() &&
-          needRemoveGrpc(
-            response.upTop,
-            upMid: upMid,
-          )) {
-        response.clearUpTop();
+      if (response.hasUpTop()) {
+        final topReply = response.upTop;
+        if (needRemoveGrpc(topReply, upMid: upMid)) {
+          response.clearUpTop();
+        } else {
+          topReply.replies.removeWhere((item) => needRemoveGrpc(item, upMid: upMid));
+        }
       }
 
       if (response.replies.isNotEmpty) {
@@ -171,6 +172,19 @@ abstract final class ReplyGrpc {
           return hasMatch;
         });
       }
+
+      if (response.replies.isEmpty && !response.hasUpTop()) {
+        final offset = response.paginationReply.nextOffset;
+        if (offset.isNotEmpty && !response.cursor.isEnd) {
+          return mainList(
+            type: type,
+            oid: oid,
+            rpid: rpid,
+            mode: mode,
+            offset: offset,
+          );
+        }
+      }
     }
     return res;
   }
@@ -182,6 +196,7 @@ abstract final class ReplyGrpc {
     required int rpid,
     required Mode mode,
     required String? offset,
+    Map<Int64, ReplyInfo>? removed,
   }) async {
     final res = await GrpcReq.request(
       GrpcUrl.detailList,
@@ -199,7 +214,9 @@ abstract final class ReplyGrpc {
     if (res case Success(:final response)) {
       final upMid = response.subjectControl.upMid;
       response.root.replies.removeWhere((item) {
-        return needRemoveGrpc(item, upMid: upMid);
+        final flag = needRemoveGrpc(item, upMid: upMid);
+        if (flag) removed?[item.id] = item;
+        return flag;
       });
     }
     return res;

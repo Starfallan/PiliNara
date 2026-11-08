@@ -48,7 +48,7 @@ class BottomControl extends StatelessWidget {
     controller
       ..position.value = milliseconds ~/ 1000
       ..onSeekEnd()
-      ..seekTo(Duration(milliseconds: milliseconds), isSeek: false);
+      ..seekTo(Duration(milliseconds: milliseconds));
   }
 
   void _onHoverStart(ThumbDragDetails details) {
@@ -153,7 +153,7 @@ class BottomControl extends StatelessWidget {
                           child: ViewPointSegmentProgressBar(
                             segments: videoDetailController.viewPointList,
                             onSeek: (position) =>
-                                controller.seekTo(position, isSeek: false),
+                                controller.seekTo(position),
                           ),
                         )
                       else
