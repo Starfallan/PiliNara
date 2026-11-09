@@ -147,7 +147,7 @@ void main() async {
   SmartDialog.config.toast = SmartConfigToast(displayType: .onlyRefresh);
 
   // ESC 全平台注册：平板/手机外接键盘也可用（PageRoute 默认不消费 escape）
-  FocusManager.instance.addEarlyKeyEventHandler(_onKeyEvent);
+  FocusManager.instance.addEarlyKeyEventHandler(onAppKeyEvent);
 
   if (PlatformUtils.isMobile) {
     SystemChrome.setEnabledSystemUIMode(.edgeToEdge);
@@ -236,32 +236,21 @@ void main() async {
   }
 }
 
-KeyEventResult _onKeyEvent(KeyEvent event) {
+KeyEventResult onAppKeyEvent(KeyEvent event) {
   if (event is KeyDownEvent && event.logicalKey == .escape) {
-    _onBack();
+    onAppBack();
     return .handled;
   }
   return .ignored;
 }
 
-void _onBack() {
+void onAppBack() {
   if (SmartDialog.checkExist()) {
     SmartDialog.dismiss();
     return;
   }
 
-  final route = Get.routing.route;
-  if (route is GetPageRoute) {
-    if (route.popDisposition == .doNotPop) {
-      route.onPopInvokedWithResult(false, null);
-      return;
-    }
-  }
-
-  final navigator = Get.key.currentState!;
-  if (navigator.canPop()) {
-    navigator.pop();
-  }
+  Get.key.currentState?.maybePop();
 }
 
 class MyApp extends StatelessWidget {
@@ -386,7 +375,7 @@ class MyApp extends StatelessWidget {
       );
     }
     return BackDetector(
-      onBack: _onBack,
+      onBack: onAppBack,
       child: child,
     );
   }

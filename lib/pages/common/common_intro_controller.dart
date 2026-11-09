@@ -73,6 +73,20 @@ abstract class CommonIntroController extends GetxController
   final bool isShowOnlineTotal = Pref.enableOnlineTotal;
   // 当前分P弹幕数
   final bool isShowDmCount = Pref.enableDmCount;
+  bool _fullscreenOnlineTotal = false;
+  bool get _needsOnlineTotal => isShowOnlineTotal || _fullscreenOnlineTotal;
+
+  void setFullscreenOnlineTotal(bool show) {
+    if (_fullscreenOnlineTotal == show) return;
+    final wasNeeded = _needsOnlineTotal;
+    _fullscreenOnlineTotal = show;
+    if (!wasNeeded && _needsOnlineTotal) {
+      startTimer();
+    } else if (wasNeeded && !_needsOnlineTotal) {
+      cancelTimer();
+      timer = null;
+    }
+  }
   late final RxString total = '1'.obs;
   Timer? timer;
 
@@ -90,7 +104,7 @@ abstract class CommonIntroController extends GetxController
   }
 
   void startTimer() {
-    if (isShowOnlineTotal) {
+    if (_needsOnlineTotal) {
       queryOnlineTotal();
       timer ??= Timer.periodic(const Duration(seconds: 10), (Timer timer) {
         queryOnlineTotal();
@@ -105,7 +119,7 @@ abstract class CommonIntroController extends GetxController
 
   // 查看同时在看人数
   Future<void> queryOnlineTotal() async {
-    if (!isShowOnlineTotal) {
+    if (!_needsOnlineTotal) {
       return;
     }
     final result = await VideoHttp.onlineTotal(

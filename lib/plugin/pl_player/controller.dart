@@ -24,6 +24,7 @@ import 'package:PiliPlus/plugin/pl_player/models/data_status.dart';
 import 'package:PiliPlus/plugin/pl_player/models/double_tap_type.dart';
 import 'package:PiliPlus/plugin/pl_player/models/duration.dart';
 import 'package:PiliPlus/plugin/pl_player/models/fullscreen_mode.dart';
+import 'package:PiliPlus/plugin/pl_player/models/fullscreen_layout.dart';
 import 'package:PiliPlus/plugin/pl_player/models/heart_beat_type.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
@@ -153,6 +154,17 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   final RxBool controlsLock = false.obs;
 
   final RxBool isFullScreen = false.obs;
+  late final Rx<FullscreenLayout> fullscreenLayout = Pref.fullscreenLayout.obs;
+  bool editingFullscreenLayout = false;
+
+  bool get usesFullscreenLayout =>
+      isFullScreen.value && !isLive && !isPipMode;
+
+  Future<void> saveFullscreenLayout(FullscreenLayout layout) async {
+    await Pref.saveFullscreenLayout(layout);
+    fullscreenLayout.value = layout;
+  }
+
   void Function(bool isFullScreen)? onFullScreenChanged;
   // 系统原生 PiP 状态
   final RxBool isNativePip = false.obs;
@@ -743,6 +755,16 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   DeviceOrientation? _orientation;
   late final checkIsAutoRotate = Platform.isAndroid && mode != .gravity;
   StreamSubscription<OrientationParams>? _orientationListener;
+  OrientationParams? _pendingLayoutOrientation;
+
+  void finishFullscreenLayoutEditing({required bool applyOrientation}) {
+    editingFullscreenLayout = false;
+    final pending = _pendingLayoutOrientation;
+    _pendingLayoutOrientation = null;
+    if (applyOrientation && pending != null) {
+      _onOrientationChanged(pending);
+    }
+  }
 
   void _stopOrientationListener() {
     _orientationListener?.cancel();
@@ -751,6 +773,10 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
 
   void _onOrientationChanged(OrientationParams param) {
     _orientation = param.orientation;
+    if (editingFullscreenLayout) {
+      _pendingLayoutOrientation = param;
+      return;
+    }
     if (Platform.isIOS && !visible) return;
     if (controlsLock.value) return;
     final orientation = param.orientation;

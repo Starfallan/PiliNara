@@ -104,6 +104,7 @@ class PlayerFocus extends StatelessWidget {
   }
 
   bool _handleKey(BuildContext context, KeyEvent event) {
+    if (plPlayerController.editingFullscreenLayout) return false;
     final key = event.logicalKey;
 
     final isKeyQ = key == LogicalKeyboardKey.keyQ;

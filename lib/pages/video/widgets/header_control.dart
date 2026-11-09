@@ -34,7 +34,9 @@ import 'package:PiliPlus/pages/video/introduction/ugc/widgets/menu_row.dart';
 import 'package:PiliPlus/pages/video/widgets/header_mixin.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/data_source.dart';
+import 'package:PiliPlus/plugin/pl_player/models/fullscreen_layout.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
+import 'package:PiliPlus/plugin/pl_player/widgets/fullscreen_layout_editor.dart';
 import 'package:PiliPlus/services/shutdown_timer_service.dart'
     show shutdownTimerService, ShutdownPanel;
 import 'package:PiliPlus/utils/accounts.dart';
@@ -101,19 +103,59 @@ mixin TimeBatteryMixin<T extends StatefulWidget> on State<T> {
   bool get horizontalScreen;
 
   Timer? _clock;
+  StreamSubscription? _layoutSubscription;
+  StreamSubscription? _fullscreenSubscription;
   RxString now = ''.obs;
 
   static final _format = DateFormat('HH:mm');
 
   @override
+  void initState() {
+    super.initState();
+    _layoutSubscription = plPlayerController.fullscreenLayout.listen((_) {
+      if (mounted) {
+        setState(() {});
+        _refreshLayout();
+      }
+    });
+    _fullscreenSubscription = plPlayerController.isFullScreen.listen((_) {
+      if (mounted) _refreshLayout();
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant T oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _refreshLayout();
+  }
+
+  void onFullscreenLayoutChanged() {}
+
+  void _refreshLayout() {
+    showCurrTimeIfNeeded(isFullScreen);
+    if (plPlayerController.showControls.value &&
+        !plPlayerController.controlsLock.value) {
+      if (_showClock) {
+        startClock();
+      } else {
+        stopClock();
+      }
+      updateBatteryInfoIfNeeded();
+    }
+    onFullscreenLayoutChanged();
+  }
+
+  @override
   void dispose() {
+    _layoutSubscription?.cancel();
+    _fullscreenSubscription?.cancel();
     stopBatteryInfoListener();
     stopClock();
     super.dispose();
   }
 
   void startClock() {
-    if (!_showCurrTime) return;
+    if (!_showClock) return;
     if (_clock == null) {
       now.value = _format.format(DateTime.now());
       _clock ??= Timer.periodic(const Duration(seconds: 1), (Timer t) {
@@ -132,6 +174,9 @@ mixin TimeBatteryMixin<T extends StatefulWidget> on State<T> {
   }
 
   bool _showCurrTime = false;
+  bool get _showClock => _showCurrTime &&
+      (!plPlayerController.usesFullscreenLayout ||
+          plPlayerController.fullscreenLayout.value.shows(PlayerLayoutControl.clock));
   void showCurrTimeIfNeeded(bool isFullScreen) {
     _showCurrTime = !isPortrait && (isFullScreen || !horizontalScreen);
     if (!_showCurrTime) {
@@ -143,7 +188,9 @@ mixin TimeBatteryMixin<T extends StatefulWidget> on State<T> {
   late final _battery = Battery();
   late final Rxn<_BatteryInfo> _batteryInfo = Rxn<_BatteryInfo>();
   StreamSubscription<BatteryState>? _batterySubscription;
-  late final _showBatteryLevel = Pref.showBatteryLevel;
+  bool get _showBatteryLevel => plPlayerController.usesFullscreenLayout
+      ? plPlayerController.fullscreenLayout.value.shows(PlayerLayoutControl.battery)
+      : Pref.showBatteryLevel;
 
   Future<void> _updateBatteryInfo([BatteryState? state]) async {
     try {
@@ -238,9 +285,9 @@ mixin TimeBatteryMixin<T extends StatefulWidget> on State<T> {
               );
             },
           ),
-          const SizedBox(width: 10),
+          if (_showClock) const SizedBox(width: 10),
         ],
-        Obx(
+        if (_showClock) Obx(
           () => Text(
             now.value,
             style: const TextStyle(
@@ -438,6 +485,71 @@ class HeaderControlState extends State<HeaderControl>
     } else {
       introController = Get.find<PgcIntroController>(tag: heroTag);
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) onFullscreenLayoutChanged();
+    });
+  }
+
+  @override
+  void onFullscreenLayoutChanged() {
+    if (introController.isClosed || videoDetailCtr.isClosed) return;
+    final layout = plPlayerController.usesFullscreenLayout
+        ? plPlayerController.fullscreenLayout.value
+        : null;
+    introController.setFullscreenOnlineTotal(
+      !isFileSource && (layout?.shows(PlayerLayoutControl.online) ?? false),
+    );
+    if (layout?.shows(PlayerLayoutControl.dmCount) ?? false) {
+      videoDetailCtr.ensureDmCount();
+    }
+  }
+
+  @override
+  void dispose() {
+    if (!introController.isClosed) introController.setFullscreenOnlineTotal(false);
+    super.dispose();
+  }
+
+  Future<void> _editFullscreenLayout() async {
+    final controller = plPlayerController;
+    if (!controller.usesFullscreenLayout || controller.editingFullscreenLayout) return;
+    final player = controller.videoPlayerController;
+    final source = controller.dataSource;
+    final resume = controller.playerStatus.isPlaying;
+    controller.editingFullscreenLayout = true;
+    try {
+      if (resume) await controller.pause();
+      if (!mounted) return;
+      await showGeneralDialog<void>(
+        context: context,
+        requestFocus: true,
+        transitionDuration: const Duration(milliseconds: 150),
+        pageBuilder: (context, animation, secondaryAnimation) => FullscreenLayoutEditor(
+          initial: controller.fullscreenLayout.value,
+          title: introController.videoDetail.value.title ?? '视频标题',
+          removeSafeArea: controller.removeSafeArea,
+          isMobile: PlatformUtils.isMobile,
+          supportsPip: (Platform.isAndroid && PiliAndroidHelper.isPipAvailable) ||
+              (Platform.isIOS && IOSPipHelper.isAvailable),
+          onSave: controller.saveFullscreenLayout,
+        ),
+      );
+    } finally {
+      final sameSession = mounted && !videoDetailCtr.isClosed &&
+          identical(player, controller.videoPlayerController) &&
+          identical(source, controller.dataSource);
+      final isResumed = WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+      controller.finishFullscreenLayoutEditing(
+        applyOrientation: sameSession && isResumed && controller.usesFullscreenLayout &&
+            !controller.isNativePip.value,
+      );
+      if (sameSession) {
+        controller.controls = true;
+        if (resume && isResumed) {
+          await controller.play(hideControls: false);
+        }
+      }
+    }
   }
 
   /// 设置面板
@@ -455,6 +567,16 @@ class HeaderControlState extends State<HeaderControl>
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 14),
               children: [
+                if (plPlayerController.usesFullscreenLayout)
+                  ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.dashboard_customize_outlined, size: 20),
+                    title: const Text('编辑播放器布局', style: titleStyle),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      _editFullscreenLayout();
+                    },
+                  ),
                 ListTile(
                   dense: true,
                   onTap: () {
@@ -1797,9 +1919,204 @@ class HeaderControlState extends State<HeaderControl>
   Widget build(BuildContext context) {
     final isFullScreen = this.isFullScreen;
     final isFSOrPip = isFullScreen || plPlayerController.isDesktopPip;
-    final showFSActionItem =
-        !isFileSource && plPlayerController.showFSActionItem && isFSOrPip;
+    final layout = plPlayerController.usesFullscreenLayout
+        ? plPlayerController.fullscreenLayout.value
+        : null;
+    final showFSActionItem = !isFileSource && isFSOrPip &&
+        (layout != null || plPlayerController.showFSActionItem);
+    final showOnline = !isFileSource &&
+        (layout?.shows(PlayerLayoutControl.online) ?? introController.isShowOnlineTotal);
+    final showDmCount = !isFileSource &&
+        (layout?.shows(PlayerLayoutControl.dmCount) ?? introController.isShowDmCount);
     showCurrTimeIfNeeded(isFullScreen);
+
+    final actionWidgets = <PlayerLayoutControl, Widget>{
+      PlayerLayoutControl.like: SizedBox(
+        width: btnWidth,
+        height: btnHeight,
+        child: Obx(
+          () => ActionItem(
+            expand: false,
+            icon: const Icon(
+              FontAwesomeIcons.thumbsUp,
+              color: Colors.white,
+            ),
+            selectIcon: const Icon(FontAwesomeIcons.solidThumbsUp),
+            selectStatus: introController.hasLike.value,
+            semanticsLabel: '点赞',
+            animation: introController.tripleAnimation,
+            onStartTriple: () {
+              plPlayerController.tripling = true;
+              introController.onStartTriple();
+            },
+            onCancelTriple: ([bool isTapUp = false]) {
+              plPlayerController
+                ..tripling = false
+                ..hideTaskControls();
+              introController.onCancelTriple(isTapUp);
+            },
+          ),
+        ),
+      ),
+      PlayerLayoutControl.coin: SizedBox(
+        width: btnWidth,
+        height: btnHeight,
+        child: Obx(
+          () => ActionItem(
+            expand: false,
+            animation: introController.tripleAnimation,
+            icon: const Icon(
+              FontAwesomeIcons.b,
+              color: Colors.white,
+            ),
+            selectIcon: const Icon(FontAwesomeIcons.b),
+            onTap: introController.actionCoinVideo,
+            selectStatus: introController.hasCoin,
+            semanticsLabel: '投币',
+          ),
+        ),
+      ),
+      PlayerLayoutControl.favorite: SizedBox(
+        width: btnWidth,
+        height: btnHeight,
+        child: Obx(
+          () => ActionItem(
+            expand: false,
+            animation: introController.tripleAnimation,
+            icon: const Icon(
+              FontAwesomeIcons.star,
+              color: Colors.white,
+            ),
+            selectIcon: const Icon(FontAwesomeIcons.solidStar),
+            onTap: () => introController.showFavBottomSheet(context),
+            onLongPress: () => introController.showFavBottomSheet(
+              context,
+              isLongPress: true,
+            ),
+            selectStatus: introController.hasFav.value,
+            semanticsLabel: '收藏',
+          ),
+        ),
+      ),
+      PlayerLayoutControl.download: SizedBox(
+        width: btnWidth,
+        height: btnHeight,
+        child: ActionItem(
+          expand: false,
+          icon: const Icon(CustomIcons.download, color: Colors.white),
+          onTap: () => videoDetailCtr.onDownload(context),
+          text: '缓存',
+          semanticsLabel: '缓存',
+        ),
+      ),
+      PlayerLayoutControl.share: SizedBox(
+        width: btnWidth,
+        height: btnHeight,
+        child: ActionItem(
+          expand: false,
+          icon: const Icon(
+            FontAwesomeIcons.shareFromSquare,
+            color: Colors.white,
+          ),
+          onTap: () => introController.actionShareVideo(context),
+          semanticsLabel: '分享',
+        ),
+      ),
+    };
+
+    final headerWidgets = <PlayerLayoutControl, Widget>{
+      if (PlatformUtils.isDesktop && !plPlayerController.isDesktopPip)
+        PlayerLayoutControl.pin: Obx(() {
+          final isAlwaysOnTop =
+              plPlayerController.isAlwaysOnTop.value;
+          return SizedBox(
+            width: btnWidth,
+            height: btnHeight,
+            child: IconButton(
+              style: btnStyle,
+              tooltip: '${isAlwaysOnTop ? '取消' : ''}置顶',
+              onPressed: () =>
+                  plPlayerController.setAlwaysOnTop(!isAlwaysOnTop),
+              icon: isAlwaysOnTop
+                  ? const Icon(
+                      size: 19,
+                      Icons.push_pin,
+                      color: Colors.white,
+                    )
+                  : const Icon(
+                      size: 19,
+                      Icons.push_pin_outlined,
+                      color: Colors.white,
+                    ),
+            ),
+          );
+        }),
+      if (!isFileSource && (kDebugMode || plPlayerController.enableSponsorBlock))
+        PlayerLayoutControl.sponsorSubmit: SizedBox(
+          width: btnWidth,
+          height: btnHeight,
+          child: IconButton(
+            tooltip: '提交片段',
+            style: btnStyle,
+            onPressed: () => videoDetailCtr.onBlock(context),
+            icon: const Icon(
+              CustomIcons.shield_play_arrow,
+              size: 20,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      if (plPlayerController.enableBlock)
+        PlayerLayoutControl.sponsorInfo: Obx(
+          () => videoDetailCtr.segmentProgressList.isNotEmpty
+              ? SizedBox(
+                  width: btnWidth,
+                  height: btnHeight,
+                  child: IconButton(
+                    tooltip: '片段信息',
+                    style: btnStyle,
+                    onPressed: videoDetailCtr.showSBDetail,
+                    icon: const Icon(
+                      MdiIcons.advertisements,
+                      size: 19,
+                      color: Colors.white,
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
+      if ((Platform.isAndroid && PiliAndroidHelper.isPipAvailable) ||
+          (Platform.isIOS && IOSPipHelper.isAvailable) ||
+          (PlatformUtils.isDesktop && !isFullScreen))
+        PlayerLayoutControl.pip: SizedBox(
+          width: btnWidth,
+          height: btnHeight,
+          child: IconButton(
+            tooltip: '画中画',
+            style: btnStyle,
+            onPressed: () {
+              if (PlatformUtils.isDesktop) {
+                plPlayerController.toggleDesktopPip();
+              } else {
+                plPlayerController.enterPip();
+              }
+            },
+            icon: const Icon(
+              Icons.picture_in_picture_outlined,
+              size: 19,
+              color: Colors.white,
+            ),
+          ),
+        ),
+    };
+
+    Iterable<Widget> headerControls(Iterable<PlayerLayoutControl> items) sync* {
+      for (final item in items) {
+        if (layout!.shows(item)) {
+          if (headerWidgets[item] case final child?) yield child;
+        }
+      }
+    }
 
     Widget? title;
     if (introController.videoDetail.value.title != null &&
@@ -1840,7 +2157,7 @@ class HeaderControlState extends State<HeaderControl>
               },
             ),
           ),
-          if (introController.isShowOnlineTotal || introController.isShowDmCount)
+          if (showOnline || showDmCount)
             Positioned(
               left: 0,
               bottom: 0,
@@ -1848,9 +2165,9 @@ class HeaderControlState extends State<HeaderControl>
                 translation: const Offset(0, 1),
                 child: Obx(() {
                   final parts = <String>[
-                    if (introController.isShowOnlineTotal)
+                    if (showOnline)
                       '${introController.total.value}人正在看',
-                    if (introController.isShowDmCount &&
+                    if (showDmCount &&
                         videoDetailCtr.dmCount.value != null)
                       '${videoDetailCtr.dmCount.value}条弹幕',
                   ];
@@ -1915,32 +2232,10 @@ class HeaderControlState extends State<HeaderControl>
               children: [
                 // show current datetime
                 ...?timeBatteryWidgets,
-                if (PlatformUtils.isDesktop && !plPlayerController.isDesktopPip)
-                  Obx(() {
-                    final isAlwaysOnTop =
-                        plPlayerController.isAlwaysOnTop.value;
-                    return SizedBox(
-                      width: btnWidth,
-                      height: btnHeight,
-                      child: IconButton(
-                        style: btnStyle,
-                        tooltip: '${isAlwaysOnTop ? '取消' : ''}置顶',
-                        onPressed: () =>
-                            plPlayerController.setAlwaysOnTop(!isAlwaysOnTop),
-                        icon: isAlwaysOnTop
-                            ? const Icon(
-                                size: 19,
-                                Icons.push_pin,
-                                color: Colors.white,
-                              )
-                            : const Icon(
-                                size: 19,
-                                Icons.push_pin_outlined,
-                                color: Colors.white,
-                              ),
-                      ),
-                    );
-                  }),
+                if (layout != null)
+                  ...headerControls(layout.items(PlayerLayoutRegion.header).take(3))
+                else
+                  ?headerWidgets[PlayerLayoutControl.pin],
                 if (!isFileSource) ...[
                   if (!isFSOrPip) ...[
                     if (videoDetailCtr.isUgc)
@@ -1973,41 +2268,11 @@ class HeaderControlState extends State<HeaderControl>
                       ),
                     ),
                   ],
-                  if (kDebugMode || plPlayerController.enableSponsorBlock)
-                    SizedBox(
-                      width: btnWidth,
-                      height: btnHeight,
-                      child: IconButton(
-                        tooltip: '提交片段',
-                        style: btnStyle,
-                        onPressed: () => videoDetailCtr.onBlock(context),
-                        icon: const Icon(
-                          CustomIcons.shield_play_arrow,
-                          size: 20,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
                 ],
-                if (plPlayerController.enableBlock)
-                  Obx(
-                    () => videoDetailCtr.segmentProgressList.isNotEmpty
-                        ? SizedBox(
-                            width: btnWidth,
-                            height: btnHeight,
-                            child: IconButton(
-                              tooltip: '片段信息',
-                              style: btnStyle,
-                              onPressed: videoDetailCtr.showSBDetail,
-                              icon: const Icon(
-                                MdiIcons.advertisements,
-                                size: 19,
-                                color: Colors.white,
-                              ),
-                            ),
-                          )
-                        : const SizedBox.shrink(),
-                  ),
+                if (layout == null) ...[
+                  ?headerWidgets[PlayerLayoutControl.sponsorSubmit],
+                  ?headerWidgets[PlayerLayoutControl.sponsorInfo],
+                ],
                 if (!isPortrait || isFullScreen || PlatformUtils.isDesktop) ...[
                   SizedBox(
                     width: btnWidth,
@@ -2073,29 +2338,10 @@ class HeaderControlState extends State<HeaderControl>
                     ),
                   ),
                 ),
-                if ((Platform.isAndroid && PiliAndroidHelper.isPipAvailable) ||
-                    (Platform.isIOS && IOSPipHelper.isAvailable) ||
-                    (PlatformUtils.isDesktop && !isFullScreen))
-                  SizedBox(
-                    width: btnWidth,
-                    height: btnHeight,
-                    child: IconButton(
-                      tooltip: '画中画',
-                      style: btnStyle,
-                      onPressed: () {
-                        if (PlatformUtils.isDesktop) {
-                          plPlayerController.toggleDesktopPip();
-                        } else {
-                          plPlayerController.enterPip();
-                        }
-                      },
-                      icon: const Icon(
-                        Icons.picture_in_picture_outlined,
-                        size: 19,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
+                if (layout != null)
+                  ...headerControls(layout.items(PlayerLayoutRegion.header).skip(3))
+                else
+                  ?headerWidgets[PlayerLayoutControl.pip],
                 SizedBox(
                   width: btnWidth,
                   height: btnHeight,
@@ -2119,101 +2365,13 @@ class HeaderControlState extends State<HeaderControl>
               mainAxisAlignment: .end,
               crossAxisAlignment: .start,
               children: [
-                SizedBox(
-                  width: btnWidth,
-                  height: btnHeight,
-                  child: Obx(
-                    () => ActionItem(
-                      expand: false,
-                      icon: const Icon(
-                        FontAwesomeIcons.thumbsUp,
-                        color: Colors.white,
-                      ),
-                      selectIcon: const Icon(FontAwesomeIcons.solidThumbsUp),
-                      selectStatus: introController.hasLike.value,
-                      semanticsLabel: '点赞',
-                      animation: introController.tripleAnimation,
-                      onStartTriple: () {
-                        plPlayerController.tripling = true;
-                        introController.onStartTriple();
-                      },
-                      onCancelTriple: ([bool isTapUp = false]) {
-                        plPlayerController
-                          ..tripling = false
-                          ..hideTaskControls();
-                        introController.onCancelTriple(isTapUp);
-                      },
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: btnWidth,
-                  height: btnHeight,
-                  child: Obx(
-                    () => ActionItem(
-                      expand: false,
-                      animation: introController.tripleAnimation,
-                      icon: const Icon(
-                        FontAwesomeIcons.b,
-                        color: Colors.white,
-                      ),
-                      selectIcon: const Icon(FontAwesomeIcons.b),
-                      onTap: introController.actionCoinVideo,
-                      selectStatus: introController.hasCoin,
-                      semanticsLabel: '投币',
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: btnWidth,
-                  height: btnHeight,
-                  child: Obx(
-                    () => ActionItem(
-                      expand: false,
-                      animation: introController.tripleAnimation,
-                      icon: const Icon(
-                        FontAwesomeIcons.star,
-                        color: Colors.white,
-                      ),
-                      selectIcon: const Icon(FontAwesomeIcons.solidStar),
-                      onTap: () => introController.showFavBottomSheet(context),
-                      onLongPress: () => introController.showFavBottomSheet(
-                        context,
-                        isLongPress: true,
-                      ),
-                      selectStatus: introController.hasFav.value,
-                      semanticsLabel: '收藏',
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: btnWidth,
-                  height: btnHeight,
-                  child: ActionItem(
-                    expand: false,
-                    icon: const Icon(CustomIcons.download, color: Colors.white),
-                    onTap: () => videoDetailCtr.onDownload(context),
-                    text: '缓存',
-                    semanticsLabel: '缓存',
-                  ),
-                ),
-                SizedBox(
-                  width: btnWidth,
-                  height: btnHeight,
-                  child: ActionItem(
-                    expand: false,
-                    icon: const Icon(
-                      FontAwesomeIcons.shareFromSquare,
-                      color: Colors.white,
-                    ),
-                    onTap: () => introController.actionShareVideo(context),
-                    semanticsLabel: '分享',
-                  ),
-                ),
+                for (final item in layout?.items(PlayerLayoutRegion.actions) ??
+                    actionWidgets.keys)
+                  if (layout?.shows(item) ?? true) actionWidgets[item]!,
               ],
             ),
           // 计入人数行的高度，收起顶部控制栏时避免溢出内容残留。
-          if (introController.isShowOnlineTotal || introController.isShowDmCount)
+          if (showOnline || showDmCount)
             const Visibility(
               visible: false,
               maintainAnimation: true,

@@ -35,6 +35,7 @@ import 'package:PiliPlus/pages/setting/pages/fullscreen_sc.dart'
 import 'package:PiliPlus/plugin/pl_player/models/audio_output_type.dart';
 import 'package:PiliPlus/plugin/pl_player/models/bottom_progress_behavior.dart';
 import 'package:PiliPlus/plugin/pl_player/models/fullscreen_mode.dart';
+import 'package:PiliPlus/plugin/pl_player/models/fullscreen_layout.dart';
 import 'package:PiliPlus/plugin/pl_player/models/hwdec_type.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
 import 'package:PiliPlus/utils/device_utils.dart';
@@ -930,6 +931,31 @@ abstract final class Pref {
 
   static bool get showFSActionItem =>
       _setting.get(SettingBoxKey.showFSActionItem, defaultValue: true);
+
+  static bool get hasFullscreenLayout =>
+      _setting.containsKey(SettingBoxKey.fullscreenLayout);
+
+  static FullscreenLayout get fullscreenLayout {
+    final legacy = FullscreenLayout.legacy(
+      isMobile: PlatformUtils.isMobile,
+      showActions: showFSActionItem,
+      showLock: showFsLockBtn,
+      showScreenshot: showFsScreenshotBtn,
+      lockOnRight: showFsLockBtnRight,
+      showBattery: showBatteryLevel,
+      showOnline: enableOnlineTotal,
+      showDmCount: enableDmCount,
+    );
+    return FullscreenLayout.fromJson(
+      _setting.get(SettingBoxKey.fullscreenLayout),
+      fallback: hasFullscreenLayout
+          ? FullscreenLayout.defaults(isMobile: PlatformUtils.isMobile)
+          : legacy,
+    );
+  }
+
+  static Future<void> saveFullscreenLayout(FullscreenLayout layout) =>
+      _setting.put(SettingBoxKey.fullscreenLayout, layout.toJson());
 
   static bool get enableShrinkVideoSize =>
       _setting.get(SettingBoxKey.enableShrinkVideoSize, defaultValue: true);

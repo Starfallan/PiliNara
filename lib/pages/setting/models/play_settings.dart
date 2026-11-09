@@ -85,9 +85,10 @@ List<SettingsModel> get playSettings => [
       setKey: SettingBoxKey.autoPlayWifiOnly,
       defaultVal: false,
     ),
-  const SwitchModel(
-    title: '全屏显示锁定按钮',
-    leading: Icon(Icons.lock_outline),
+  SwitchModel(
+    title: Pref.hasFullscreenLayout ? '直播及小窗显示锁定按钮' : '全屏显示锁定按钮',
+    subtitle: Pref.hasFullscreenLayout ? '视频全屏请通过三点菜单编辑播放器布局' : null,
+    leading: const Icon(Icons.lock_outline),
     setKey: SettingBoxKey.showFsLockBtn,
     defaultVal: true,
   ),
@@ -98,21 +99,25 @@ List<SettingsModel> get playSettings => [
     setKey: SettingBoxKey.lockFsRotation,
     defaultVal: false,
   ),
-  const SwitchModel(
+  SwitchModel(
     title: '锁定按钮显示在右侧',
-    subtitle: '开启后锁定按钮移至右侧，与截图按钮一同垂直居中排列',
-    leading: Icon(Icons.keyboard_double_arrow_right),
+    subtitle: Pref.hasFullscreenLayout
+        ? '用于直播及小窗；视频全屏请通过三点菜单编辑播放器布局'
+        : '开启后锁定按钮移至右侧，与截图按钮一同垂直居中排列',
+    leading: const Icon(Icons.keyboard_double_arrow_right),
     setKey: SettingBoxKey.showFsLockBtnRight,
     defaultVal: false,
   ),
-  const SwitchModel(
-    title: '全屏显示截图按钮',
-    leading: Icon(Icons.photo_camera_outlined),
+  SwitchModel(
+    title: Pref.hasFullscreenLayout ? '直播及小窗显示截图按钮' : '全屏显示截图按钮',
+    subtitle: Pref.hasFullscreenLayout ? '视频全屏请通过三点菜单编辑播放器布局' : null,
+    leading: const Icon(Icons.photo_camera_outlined),
     setKey: SettingBoxKey.showFsScreenshotBtn,
     defaultVal: true,
   ),
   SwitchModel(
-    title: '全屏显示电池电量',
+    title: Pref.hasFullscreenLayout ? '其他播放界面显示电池电量' : '全屏显示电池电量',
+    subtitle: Pref.hasFullscreenLayout ? '视频全屏请通过三点菜单编辑播放器布局' : null,
     leading: const Icon(Icons.battery_3_bar),
     setKey: SettingBoxKey.showBatteryLevel,
     defaultVal: PlatformUtils.isMobile,
@@ -448,23 +453,31 @@ List<SettingsModel> get playSettings => [
     setKey: SettingBoxKey.fullScreenGestureReverse,
     defaultVal: false,
   ),
-  const SwitchModel(
-    title: '全屏展示点赞/投币/收藏等操作按钮',
-    leading: Icon(MdiIcons.dotsHorizontalCircleOutline),
-    setKey: SettingBoxKey.showFSActionItem,
-    defaultVal: true,
-  ),
-  const SwitchModel(
+  if (!Pref.hasFullscreenLayout || PlatformUtils.isDesktop)
+    SwitchModel(
+      title: Pref.hasFullscreenLayout
+          ? '桌面小窗展示点赞/投币/收藏等操作按钮'
+          : '全屏展示点赞/投币/收藏等操作按钮',
+      subtitle: Pref.hasFullscreenLayout ? '视频全屏请通过三点菜单编辑播放器布局' : null,
+      leading: const Icon(MdiIcons.dotsHorizontalCircleOutline),
+      setKey: SettingBoxKey.showFSActionItem,
+      defaultVal: true,
+    ),
+  SwitchModel(
     title: '观看人数',
-    subtitle: '展示同时在看人数',
-    leading: Icon(Icons.people_outlined),
+    subtitle: Pref.hasFullscreenLayout
+        ? '视频全屏的显示由播放器布局独立控制'
+        : '展示同时在看人数',
+    leading: const Icon(Icons.people_outlined),
     setKey: SettingBoxKey.enableOnlineTotal,
     defaultVal: false,
   ),
-  const SwitchModel(
+  SwitchModel(
     title: '弹幕数',
-    subtitle: '展示当前播放视频的具体弹幕数',
-    leading: Icon(CustomIcons.dm_on),
+    subtitle: Pref.hasFullscreenLayout
+        ? '视频全屏的显示由播放器布局独立控制'
+        : '展示当前播放视频的具体弹幕数',
+    leading: const Icon(CustomIcons.dm_on),
     setKey: SettingBoxKey.enableDmCount,
     defaultVal: false,
   ),

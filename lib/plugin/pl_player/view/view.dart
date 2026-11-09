@@ -43,6 +43,7 @@ import 'package:PiliPlus/plugin/pl_player/models/bottom_control_type.dart';
 import 'package:PiliPlus/plugin/pl_player/models/data_status.dart';
 import 'package:PiliPlus/plugin/pl_player/models/double_tap_type.dart';
 import 'package:PiliPlus/plugin/pl_player/models/fullscreen_mode.dart';
+import 'package:PiliPlus/plugin/pl_player/models/fullscreen_layout.dart';
 import 'package:PiliPlus/plugin/pl_player/models/gesture_type.dart';
 import 'package:PiliPlus/plugin/pl_player/models/speed_lock_hint.dart';
 import 'package:PiliPlus/plugin/pl_player/models/video_fit_type.dart';
@@ -212,6 +213,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
   }
 
   StreamSubscription? _controlsListener;
+  StreamSubscription? _layoutListener;
   void _onControlChanged(bool val) {
     final visible = val && !plPlayerController.controlsLock.value;
     if (!visible && PlatformUtils.isDesktop) {
@@ -280,6 +282,9 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
     _controlsListener = plPlayerController.showControls.listen(
       _onControlChanged,
     );
+    _layoutListener = plPlayerController.fullscreenLayout.listen((_) {
+      if (mounted) setState(() {});
+    });
 
     _transformationController = TransformationController()
       ..addListener(_onTransformChanged);
@@ -442,6 +447,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
     _brightnessListener?.cancel();
     _resetSubPaddingIfNeeded();
     _controlsListener?.cancel();
+    _layoutListener?.cancel();
     _animationController.dispose();
     _disposeDanmakuMask();
     _transformationController
@@ -1021,7 +1027,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
 
     final flag =
         isFullScreen || plPlayerController.isDesktopPip || maxWidth >= 500;
-    final List<BottomControlType> userSpecifyItemRight = [
+    List<BottomControlType> userSpecifyItemRight = [
       if (plPlayerController.showViewPoints) .viewPoints,
       if (isNotFileSource && plPlayerController.showDmChart) .dmChart,
       if (plPlayerController.isAnim) .superResolution,
@@ -1033,6 +1039,17 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
       if (isNotFileSource && flag) .qa,
       if (!plPlayerController.isDesktopPip) .fullscreen,
     ];
+    if (plPlayerController.usesFullscreenLayout) {
+      final layout = plPlayerController.fullscreenLayout.value;
+      final available = userSpecifyItemRight.toSet();
+      userSpecifyItemRight = [
+        for (final item in layout.items(PlayerLayoutRegion.bottom))
+          if (layout.shows(item))
+            if (BottomControlType.values.byName(item.name) case final control)
+              if (available.contains(control)) control,
+        .fullscreen,
+      ];
+    }
     return PlayerBar(
       left: Row(
         mainAxisSize: .min,
@@ -1688,6 +1705,38 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
     );
   }
 
+  Widget _buildLayoutSide(PlayerLayoutRegion region) {
+    final isLeft = region == PlayerLayoutRegion.left;
+    return ViewSafeArea(
+      left: isLeft && !plPlayerController.removeSafeArea,
+      right: !isLeft && !plPlayerController.removeSafeArea,
+      child: Align(
+        alignment: isLeft ? Alignment.centerLeft : Alignment.centerRight,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 34),
+          child: Obx(() {
+            final layout = plPlayerController.fullscreenLayout.value;
+            final locked = plPlayerController.controlsLock.value;
+            final items = layout.items(region).where(
+              (item) => layout.shows(item) || (item == .lock && locked),
+            );
+            return Offstage(
+              offstage: !plPlayerController.showControls.value,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                spacing: 20,
+                children: [
+                  for (final item in items)
+                    item == .lock ? _buildLockBtn() : _buildScreenshotBtn(),
+                ],
+              ),
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     maxWidth = widget.maxWidth;
@@ -2257,7 +2306,10 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
             ),
           ),
 
-        if (isFullScreen || plPlayerController.isDesktopPip) ...[
+        if (plPlayerController.usesFullscreenLayout) ...[
+          _buildLayoutSide(PlayerLayoutRegion.left),
+          _buildLayoutSide(PlayerLayoutRegion.right),
+        ] else if (isFullScreen || plPlayerController.isDesktopPip) ...[
           // 锁（左侧）
           if (plPlayerController.showFsLockBtn && !lockBtnOnRight)
             ViewSafeArea(

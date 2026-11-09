@@ -57,6 +57,7 @@ import 'package:PiliPlus/pages/video/send_danmaku/view.dart';
 import 'package:PiliPlus/pages/video/widgets/header_control.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/data_source.dart';
+import 'package:PiliPlus/plugin/pl_player/models/fullscreen_layout.dart';
 import 'package:PiliPlus/plugin/pl_player/models/heart_beat_type.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/services/download/download_library_service.dart';
@@ -1051,7 +1052,10 @@ class VideoDetailController extends GetxController
         _getDmTrend();
       }
 
-      if (Pref.enableDmCount && dmCount.value == null) {
+      if ((Pref.enableDmCount ||
+          (plPlayerController.usesFullscreenLayout &&
+              plPlayerController.fullscreenLayout.value.shows(PlayerLayoutControl.dmCount))) &&
+          dmCount.value == null) {
         _getDmCount();
       }
 
@@ -1938,9 +1942,16 @@ class VideoDetailController extends GetxController
 
   Future<void> _getDmCount() async {
     if (isFileSource) return;
+    final requestCid = cid.value;
     final elems = await _fetchAllDanmaku();
-    if (elems == null || isClosed) return;
+    if (elems == null || isClosed || cid.value != requestCid) return;
     dmCount.value = elems.length;
+  }
+
+  Future<void> ensureDmCount() async {
+    if (!isClosed && !isFileSource && dmCount.value == null && videoState.value) {
+      await _getDmCount();
+    }
   }
 
   Future<void> _getDmTrend() async {
