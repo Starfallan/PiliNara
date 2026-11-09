@@ -531,12 +531,13 @@ class _UgcIntroPanelState extends State<UgcIntroPanel> {
               text: !isLoading ? NumUtils.numFormat(stat!.favorite) : null,
             ),
           ),
-          ActionItem(
-            icon: const Icon(CustomIcons.download),
-            onTap: () => videoDetailCtr.onDownload(context),
-            text: '缓存',
-            semanticsLabel: '缓存',
-          ),
+          if (Pref.showCacheBtn)
+            ActionItem(
+              icon: const Icon(CustomIcons.download),
+              onTap: () => videoDetailCtr.onDownload(context),
+              text: '缓存',
+              semanticsLabel: '缓存',
+            ),
           Obx(
             () => ActionItem(
               icon: const Icon(FontAwesomeIcons.clock),

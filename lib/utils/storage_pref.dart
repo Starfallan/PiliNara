@@ -850,6 +850,9 @@ abstract final class Pref {
   static bool get showMedal =>
       _setting.get(SettingBoxKey.showMedal, defaultValue: true);
 
+  static bool get showCacheBtn =>
+      _setting.get(SettingBoxKey.showCacheBtn, defaultValue: true);
+
   static bool get showRcmdReason =>
       _setting.get(SettingBoxKey.showRcmdReason, defaultValue: true);
 

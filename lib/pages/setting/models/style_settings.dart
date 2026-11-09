@@ -163,7 +163,6 @@ List<SettingsModel> get styleSettings => [
     leading: Icon(Icons.gradient_outlined),
     setKey: SettingBoxKey.enableGradientBg,
     defaultVal: false,
-    needReboot: true,
   ),
   const SwitchModel(
     title: '悬浮底栏',
@@ -178,6 +177,12 @@ List<SettingsModel> get styleSettings => [
     setKey: SettingBoxKey.showMedal,
     defaultVal: true,
     onChanged: (value) => GlobalData().showMedal = value,
+  ),
+  const SwitchModel(
+    title: '显示缓存按钮',
+    leading: Icon(Icons.download_outlined),
+    setKey: SettingBoxKey.showCacheBtn,
+    defaultVal: true,
   ),
   SwitchModel(
     title: '展示头像/评论/动态装饰',

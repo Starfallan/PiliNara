@@ -23,6 +23,7 @@ import 'package:PiliPlus/pages/video/introduction/ugc/widgets/action_item.dart';
 import 'package:PiliPlus/utils/extension/get_ext.dart';
 import 'package:PiliPlus/utils/num_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
@@ -447,12 +448,13 @@ class _PgcIntroPageState extends State<PgcIntroPage> {
               text: NumUtils.numFormat(stat.favorite),
             ),
           ),
-          ActionItem(
-            icon: const Icon(CustomIcons.download),
-            onTap: () => videoDetailCtr.onDownload(context),
-            text: '缓存',
-            semanticsLabel: '缓存',
-          ),
+          if (Pref.showCacheBtn)
+            ActionItem(
+              icon: const Icon(CustomIcons.download),
+              onTap: () => videoDetailCtr.onDownload(context),
+              text: '缓存',
+              semanticsLabel: '缓存',
+            ),
           Obx(
             () => ActionItem(
               icon: const Icon(FontAwesomeIcons.clock),

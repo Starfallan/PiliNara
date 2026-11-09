@@ -134,6 +134,7 @@ abstract final class SettingBoxKey {
       searchSuggestion = 'searchSuggestion',
       showDecorate = 'showDynDecorate',
       showMedal = 'showMedal',
+      showCacheBtn = 'showCacheBtn',
       showRcmdReason = 'showRcmdReason',
       enableLivePhoto = 'enableLivePhoto',
       showSeekPreview = 'showSeekPreview',
