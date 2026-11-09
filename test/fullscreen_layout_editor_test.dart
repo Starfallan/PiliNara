@@ -22,12 +22,21 @@ void main() {
     FullscreenLayout? layout,
     required Future<void> Function(FullscreenLayout) onSave,
     Size size = const Size(1100, 620),
+    EdgeInsets viewPadding = EdgeInsets.zero,
+    bool removeSafeArea = false,
   }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = size;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(MaterialApp(
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          viewPadding: viewPadding,
+          padding: EdgeInsets.zero,
+        ),
+        child: child!,
+      ),
       home: Builder(builder: (context) => Scaffold(
         body: TextButton(
           onPressed: () => showGeneralDialog<void>(
@@ -36,6 +45,7 @@ void main() {
               initial: layout ?? initial,
               isMobile: true,
               supportsPip: true,
+              removeSafeArea: removeSafeArea,
               onSave: onSave,
             ),
           ),
@@ -327,6 +337,70 @@ void main() {
     await tester.pumpAndSettle();
     expect(saved!.shows(PlayerLayoutControl.online), isTrue);
     expect(saved!.shows(PlayerLayoutControl.dmCount), isTrue);
+  });
+
+  testWidgets('portrait editor avoids the cutout and omits landscape-only header controls', (tester) async {
+    FullscreenLayout? saved;
+    final layout = initial.toggle(PlayerLayoutControl.clock)
+        .toggle(PlayerLayoutControl.battery);
+    await openEditor(
+      tester,
+      size: const Size(390, 844),
+      viewPadding: const EdgeInsets.only(top: 48),
+      layout: layout,
+      onSave: (value) async { saved = value; },
+    );
+    expect(find.byIcon(FontAwesomeIcons.house), findsNothing);
+    expect(find.byKey(const ValueKey('layout-clock')), findsNothing);
+    expect(find.byKey(const ValueKey('layout-battery')), findsNothing);
+    final back = tester.getRect(find.byTooltip('返回（固定）'));
+    expect(back.top, closeTo(60, 0.1));
+    final info = tester.getRect(find.byKey(const ValueKey('layout-online')));
+    expect(info.left, closeTo(back.right, 0.1));
+    for (final control in ['sponsorSubmit', 'pip', 'like', 'online', 'dmCount']) {
+      final item = find.byKey(ValueKey('layout-$control'));
+      expect(item.hitTestable(), findsOneWidget);
+      expect(tester.getRect(item).top, greaterThanOrEqualTo(48));
+    }
+    for (final control in ['subtitle', 'qa', 'fit', 'episode', 'viewPoints', 'superResolution']) {
+      expect(find.byKey(ValueKey('layout-$control')).hitTestable(), findsOneWidget);
+    }
+    await tester.tap(find.byKey(const ValueKey('layout-online')));
+    await tester.tap(find.text('完成编辑'));
+    await tester.pumpAndSettle();
+    expect(saved!.shows(PlayerLayoutControl.online), isTrue);
+    expect(saved!.shows(PlayerLayoutControl.clock), isFalse);
+    expect(saved!.shows(PlayerLayoutControl.battery), isFalse);
+    expect(saved!.regions, layout.regions);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('portrait editor respects the existing remove-safe-area setting', (tester) async {
+    await openEditor(
+      tester,
+      size: const Size(390, 844),
+      viewPadding: const EdgeInsets.only(top: 48),
+      removeSafeArea: true,
+      onSave: (_) async {},
+    );
+    expect(tester.getTopLeft(find.byTooltip('返回（固定）')).dy, closeTo(12, 0.1));
+    expect(find.byKey(const ValueKey('layout-clock')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('landscape keeps header controls and both side safe areas', (tester) async {
+    await openEditor(
+      tester,
+      size: const Size(844, 390),
+      viewPadding: const EdgeInsets.only(left: 48, right: 24),
+      onSave: (_) async {},
+    );
+    expect(find.byIcon(FontAwesomeIcons.house), findsOneWidget);
+    expect(find.byKey(const ValueKey('layout-clock')).hitTestable(), findsOneWidget);
+    expect(find.byKey(const ValueKey('layout-battery')).hitTestable(), findsOneWidget);
+    expect(tester.getTopLeft(find.byTooltip('返回（固定）')).dx, closeTo(48, 0.1));
+    expect(tester.getTopRight(find.byTooltip('更多（固定）')).dx, closeTo(820, 0.1));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('header drag can move pip before the other optional controls', (tester) async {

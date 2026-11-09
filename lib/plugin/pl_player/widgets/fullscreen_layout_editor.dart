@@ -40,6 +40,11 @@ class _FullscreenLayoutEditorState extends State<FullscreenLayoutEditor> {
   PlayerLayoutControl? _dragging;
   ({PlayerLayoutControl control, bool after})? _hover;
 
+  bool get _isPortrait {
+    final size = MediaQuery.sizeOf(context);
+    return size.height >= size.width;
+  }
+
   Color get _accent {
     final colors = Theme.of(context).colorScheme;
     return colors.brightness == Brightness.light
@@ -255,7 +260,7 @@ class _FullscreenLayoutEditorState extends State<FullscreenLayoutEditor> {
 
   Widget _face(PlayerLayoutControl item) => PlayerControlFace(
     control: item,
-    bottomWidth: MediaQuery.sizeOf(context).aspectRatio > 1 ? 42 : 35,
+    bottomWidth: _isPortrait ? 35 : 42,
   );
 
   Widget _standalone(PlayerLayoutControl item) => _check(
@@ -274,9 +279,11 @@ class _FullscreenLayoutEditorState extends State<FullscreenLayoutEditor> {
   Widget _header() {
     final header = _draft.items(PlayerLayoutRegion.header);
     final right = <Widget>[
-      _standalone(PlayerLayoutControl.battery),
-      const SizedBox(width: 2),
-      _standalone(PlayerLayoutControl.clock),
+      if (!_isPortrait) ...[
+        _standalone(PlayerLayoutControl.battery),
+        const SizedBox(width: 2),
+        _standalone(PlayerLayoutControl.clock),
+      ],
       for (final item in header.take(3).where(_supported)) _slot(item, PlayerLayoutRegion.header),
       _fixed(const Icon(Icons.comment_outlined, size: 19, color: Colors.white), '发弹幕'),
       _fixed(const Icon(CustomIcons.dm_on, size: 20, color: Colors.white), '弹幕开关'),
@@ -289,7 +296,8 @@ class _FullscreenLayoutEditorState extends State<FullscreenLayoutEditor> {
         mainAxisSize: MainAxisSize.min,
         children: [
           _fixed(const Icon(FontAwesomeIcons.arrowLeft, size: 15, color: Colors.white), '返回'),
-          _fixed(const Icon(FontAwesomeIcons.house, size: 15, color: Colors.white), '返回主页'),
+          if (!_isPortrait)
+            _fixed(const Icon(FontAwesomeIcons.house, size: 15, color: Colors.white), '返回主页'),
         ],
       ),
       title: Padding(
@@ -419,15 +427,15 @@ class _FullscreenLayoutEditorState extends State<FullscreenLayoutEditor> {
               color: Colors.white,
             )), '播放'),
             _time(),
-            _fixed(const Icon(Icons.skip_previous, size: 22, color: Colors.white), '上一集'),
-            _fixed(const Icon(Icons.skip_next, size: 22, color: Colors.white), '下一集'),
+            _fixed(const Icon(Icons.skip_previous, size: 22, color: Colors.white), '上一集', width: _isPortrait ? 35 : 42),
+            _fixed(const Icon(Icons.skip_next, size: 22, color: Colors.white), '下一集', width: _isPortrait ? 35 : 42),
           ],
         ),
         right: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             for (final item in controls) _slot(item, PlayerLayoutRegion.bottom),
-            _fixed(const Icon(Icons.fullscreen_exit, size: 24, color: Colors.white), '退出全屏'),
+            _fixed(const Icon(Icons.fullscreen_exit, size: 24, color: Colors.white), '退出全屏', width: _isPortrait ? 35 : 42),
           ],
         ),
       ),
@@ -446,13 +454,13 @@ class _FullscreenLayoutEditorState extends State<FullscreenLayoutEditor> {
             fit: BoxFit.scaleDown,
             alignment: Alignment.topCenter,
             child: SizedBox(
-              width: constraints.maxWidth.clamp(600, double.infinity),
+              width: constraints.maxWidth.clamp(_isPortrait ? 460 : 600, double.infinity),
               child: Stack(
                 children: [
                   Column(children: [_header(), const SizedBox(height: 6), _actions()]),
                   Positioned(
                     top: 29,
-                    left: 84,
+                    left: _isPortrait ? 42 : 84,
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -505,6 +513,7 @@ class _FullscreenLayoutEditorState extends State<FullscreenLayoutEditor> {
       child: Scaffold(
         backgroundColor: Colors.black,
         body: ViewSafeArea(
+          top: widget.isMobile && _isPortrait && !widget.removeSafeArea,
           left: !widget.removeSafeArea,
           right: !widget.removeSafeArea,
           child: _preview(),
