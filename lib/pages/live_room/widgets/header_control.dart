@@ -5,6 +5,7 @@ import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/draggable_sheet/dyn.dart';
 import 'package:PiliPlus/common/widgets/flutter/popup_menu.dart';
 import 'package:PiliPlus/common/widgets/marquee.dart';
+import 'package:PiliPlus/models/common/audio_normalization.dart';
 import 'package:PiliPlus/pages/live_room/controller.dart';
 import 'package:PiliPlus/pages/setting/models/play_settings.dart'
     show showPlayerVolumeDialog;
@@ -317,6 +318,18 @@ class _LiveHeaderControlState extends State<LiveHeaderControl>
                       player: player,
                     ),
                   ),
+                  if (AudioNormalization.isPlatformSupported)
+                    PopupMenuItem(
+                      height: 42,
+                      onTap: showLoudnessBalanceSheet,
+                      child: const Row(
+                        spacing: 8,
+                        children: [
+                          Icon(Icons.graphic_eq, size: 20),
+                          Text('音量均衡', style: TextStyle(fontSize: 14)),
+                        ],
+                      ),
+                    ),
                   if (!plPlayerController.onlyPlayAudio.value)
                     PopupMenuItem(
                       height: 42,
@@ -345,7 +358,12 @@ class _LiveHeaderControlState extends State<LiveHeaderControl>
                       onTap: () => showPlayerVolumeDialog(
                         context,
                         () {},
-                        onChanged: player.setVolume,
+                        onChanged: (v) => plPlayerController.setVolumeCapped(
+                          player,
+                          v / 100,
+                          reapplyFilters:
+                              plPlayerController.applyAudioNormalization,
+                        ),
                       ),
                     ),
                 ],

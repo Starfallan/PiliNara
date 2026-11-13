@@ -15,6 +15,7 @@ import 'package:PiliPlus/common/widgets/scroll_physics.dart'
     show platformClampingPhysics;
 import 'package:PiliPlus/common/widgets/selection_text.dart';
 import 'package:PiliPlus/grpc/bilibili/app/listener/v1.pb.dart';
+import 'package:PiliPlus/models/common/audio_normalization.dart';
 import 'package:PiliPlus/models/common/image_preview_type.dart';
 import 'package:PiliPlus/models/common/image_type.dart';
 import 'package:PiliPlus/pages/audio/controller.dart';
@@ -663,6 +664,17 @@ class _AudioPageState extends State<AudioPage> {
                     HeaderControlState.showPlayerInfo(context, player: player);
                   },
                 ),
+                if (AudioNormalization.isPlatformSupported)
+                  ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.graphic_eq, size: 20),
+                    title: const Text('音量均衡', style: TextStyle(fontSize: 14)),
+                    onTap: () {
+                      Get
+                        ..back()
+                        ..toNamed('/loudnessSetting');
+                    },
+                  ),
                 if (PlatformUtils.isMobile)
                   ListTile(
                     dense: true,
@@ -676,7 +688,7 @@ class _AudioPageState extends State<AudioPage> {
                       showPlayerVolumeDialog(
                         context,
                         () {},
-                        onChanged: player.setVolume,
+                        onChanged: (v) => _controller.applyVolumeCapped(v / 100),
                       );
                     },
                   ),
