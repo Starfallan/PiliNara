@@ -17,6 +17,7 @@ import 'package:PiliPlus/models/common/video/video_type.dart';
 import 'package:PiliPlus/models/user/danmaku_rule.dart';
 import 'package:PiliPlus/models/video/play/url.dart';
 import 'package:PiliPlus/models_new/video/video_shot/data.dart';
+import 'package:PiliPlus/pages/audio/controller.dart' show AudioController;
 import 'package:PiliPlus/pages/danmaku/danmaku_model.dart';
 import 'package:PiliPlus/pages/sponsor_block/block_mixin.dart';
 import 'package:PiliPlus/plugin/pl_player/models/data_source.dart';
@@ -996,6 +997,183 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     });
   }
 
+  static const Duration _loudnessSaveDelay = Duration(milliseconds: 250);
+  late final RxString audioNormalizationMode = Pref.audioNormalization.obs;
+  late final RxInt loudnessTarget = Pref.loudnessTarget.obs;
+  late final RxInt loudnessStrength = Pref.loudnessStrength.obs;
+  late final RxBool showPlayerLoudnessBtn = Pref.showPlayerLoudnessBtn.obs;
+  final Rxn<Volume> currentVolume = Rxn<Volume>();
+  Timer? _loudnessSaveTimer;
+
+  bool get enableAudioNormalization =>
+      AudioNormalization.isPlatformSupported &&
+      AudioNormalization.isEnabledConfig(audioNormalizationMode.value);
+
+  LoudnessActiveSummary get loudnessActiveSummary =>
+      AudioNormalization.describeActiveState(
+        config: audioNormalizationMode.value,
+        targetLufs: loudnessTarget.value,
+        strength: loudnessStrength.value,
+        volume: currentVolume.value,
+        fallbackConfig: Pref.fallbackNormalization,
+        isLive: isLive,
+      );
+
+  /// 实时下发 mpv 音频滤镜（支持普通播放、后台播放、听视频、后台自动纯音频、画中画、缓存视频与直播）
+  void applyAudioNormalization([Player? target]) {
+    final player = target ?? _videoPlayerController;
+    if (player == null) return;
+    applyCombinedAudioFilters(
+      player,
+      config: audioNormalizationMode.value,
+      targetLufs: loudnessTarget.value,
+      strength: loudnessStrength.value,
+      volume: currentVolume.value,
+      fallbackConfig: Pref.fallbackNormalization,
+      isLive: isLive,
+    );
+  }
+
+  void toggleLoudnessBalance([bool? enable]) {
+    final nextEnabled = enable ?? !enableAudioNormalization;
+    if (nextEnabled) {
+      final mode = Pref.lastEnabledAudioNormalization;
+      audioNormalizationMode.value = mode;
+      setting.putAllNE({
+        SettingBoxKey.audioNormalization: mode,
+        SettingBoxKey.lastEnabledAudioNormalization: mode,
+      });
+    } else {
+      if (enableAudioNormalization) {
+        setting.put(
+          SettingBoxKey.lastEnabledAudioNormalization,
+          audioNormalizationMode.value,
+        );
+      }
+      audioNormalizationMode.value = AudioNormalization.disableCode;
+      setting.put(
+        SettingBoxKey.audioNormalization,
+        AudioNormalization.disableCode,
+      );
+    }
+    applyAudioNormalization();
+    AudioController.syncAllAudioNormalization();
+  }
+
+  void setAudioNormalizationMode(String mode) {
+    final normalized = mode.trim().isEmpty
+        ? AudioNormalization.disableCode
+        : mode.trim();
+    audioNormalizationMode.value = normalized;
+    setting.putAllNE({
+      SettingBoxKey.audioNormalization: normalized,
+      if (AudioNormalization.isEnabledConfig(normalized))
+        SettingBoxKey.lastEnabledAudioNormalization: normalized,
+    });
+    applyAudioNormalization();
+    AudioController.syncAllAudioNormalization();
+  }
+
+  void setLoudnessTarget(num value, {bool persist = true}) {
+    final clamped = value
+        .round()
+        .clamp(
+          AudioNormalization.minTargetLufs,
+          AudioNormalization.maxTargetLufs,
+        )
+        .toInt();
+    loudnessTarget.value = clamped;
+    if (!enableAudioNormalization) {
+      audioNormalizationMode.value = AudioNormalization.bewlyCode;
+      setting.putAllNE({
+        SettingBoxKey.audioNormalization: AudioNormalization.bewlyCode,
+        SettingBoxKey.lastEnabledAudioNormalization:
+            AudioNormalization.bewlyCode,
+      });
+    }
+    applyAudioNormalization();
+    if (persist) {
+      _scheduleLoudnessSettingsSave();
+    }
+  }
+
+  void setLoudnessStrength(num value, {bool persist = true}) {
+    final clamped = value
+        .round()
+        .clamp(
+          AudioNormalization.minStrength,
+          AudioNormalization.maxStrength,
+        )
+        .toInt();
+    loudnessStrength.value = clamped;
+    if (!enableAudioNormalization) {
+      audioNormalizationMode.value = AudioNormalization.bewlyCode;
+      setting.putAllNE({
+        SettingBoxKey.audioNormalization: AudioNormalization.bewlyCode,
+        SettingBoxKey.lastEnabledAudioNormalization:
+            AudioNormalization.bewlyCode,
+      });
+    }
+    applyAudioNormalization();
+    if (persist) {
+      _scheduleLoudnessSettingsSave();
+    }
+  }
+
+  void resetLoudnessTarget() =>
+      setLoudnessTarget(AudioNormalization.defaultTargetLufs);
+
+  void resetLoudnessStrength() =>
+      setLoudnessStrength(AudioNormalization.defaultStrength);
+
+  void resetLoudnessSettings() {
+    audioNormalizationMode.value = AudioNormalization.bewlyCode;
+    loudnessTarget.value = AudioNormalization.defaultTargetLufs;
+    loudnessStrength.value = AudioNormalization.defaultStrength;
+    showPlayerLoudnessBtn.value = false;
+    persistLoudnessSettings();
+    applyAudioNormalization();
+    AudioController.syncAllAudioNormalization();
+  }
+
+  void setShowPlayerLoudnessBtn(bool show) {
+    showPlayerLoudnessBtn.value = show;
+    setting.put(SettingBoxKey.showPlayerLoudnessBtn, show);
+  }
+
+  void syncAudioNormalizationFromPref() {
+    audioNormalizationMode.value = Pref.audioNormalization;
+    loudnessTarget.value = Pref.loudnessTarget;
+    loudnessStrength.value = Pref.loudnessStrength;
+    showPlayerLoudnessBtn.value = Pref.showPlayerLoudnessBtn;
+    applyAudioNormalization();
+  }
+
+  void _scheduleLoudnessSettingsSave() {
+    _loudnessSaveTimer?.cancel();
+    _loudnessSaveTimer = Timer(
+      _loudnessSaveDelay,
+      () {
+        persistLoudnessSettings();
+        AudioController.syncAllAudioNormalization();
+      },
+    );
+  }
+
+  void persistLoudnessSettings() {
+    _loudnessSaveTimer?.cancel();
+    _loudnessSaveTimer = null;
+    setting.putAllNE({
+      SettingBoxKey.audioNormalization: audioNormalizationMode.value,
+      if (enableAudioNormalization)
+        SettingBoxKey.lastEnabledAudioNormalization:
+            audioNormalizationMode.value,
+      SettingBoxKey.loudnessTarget: loudnessTarget.value,
+      SettingBoxKey.loudnessStrength: loudnessStrength.value,
+      SettingBoxKey.showPlayerLoudnessBtn: showPlayerLoudnessBtn.value,
+    });
+  }
+
   bool _processing = false;
   bool get processing => _processing;
 
@@ -1217,6 +1395,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
       PlatformUtils.isMobile && !Pref.enableAppVolume
           ? Pref.playerVolume / 100
           : volume.value,
+      reapplyFilters: () => applyAudioNormalization(player),
     );
 
     assert(_videoController == null);
@@ -1252,6 +1431,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     Volume? volume,
     int? rotate,
   ) async {
+    currentVolume.value = volume;
     isBuffering.value = false;
     _heartDuration = 0;
     position.value = seekTo?.inSeconds ?? 0;
@@ -1300,7 +1480,6 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
             // '!delay_open,media_type=audio;'
             '%${isFileSource ? utf8.encode(audio).length : audio.length}%$audio');
       }
-      audioFilterExtras(volume, map: extras);
     }
 
     assert(!isLive || seekTo == null);
@@ -1313,6 +1492,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
       play: false,
     );
     applyVideoPictureParameters(player);
+    applyAudioNormalization(player);
   }
 
   Future<void>? refreshPlayer() {
@@ -1322,7 +1502,10 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     if (_videoPlayerController case final ctr? when (ctr.current.isNotEmpty)) {
       var media = ctr.current.last;
       if (!isLive) media = media.copyWith(start: ctr.state.position);
-      return ctr.open(media, play: true);
+      return ctr.open(media, play: true).whenComplete(() {
+        applyVideoPictureParameters(ctr);
+        applyAudioNormalization(ctr);
+      });
     }
     return null;
   }
@@ -1698,12 +1881,20 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
       this.volume.value = volume;
       try {
         if (PlatformUtils.isDesktop) {
-          await setVolumeCapped(_videoPlayerController, volume);
+          await setVolumeCapped(
+            _videoPlayerController,
+            volume,
+            reapplyFilters: applyAudioNormalization,
+          );
         } else {
           // 移动平台：根据设置选择音量控制方式
           if (Pref.enableAppVolume) {
             // 应用内音量模式：使用 media_kit 控制应用内音量
-            await setVolumeCapped(_videoPlayerController, volume);
+            await setVolumeCapped(
+              _videoPlayerController,
+              volume,
+              reapplyFilters: applyAudioNormalization,
+            );
           } else {
             // 默认模式：控制系统音量
             FlutterVolumeController.updateShowSystemUI(false);
@@ -1756,7 +1947,11 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
       volumeBoostUnlocked = false;
 
       // 关闭上游固定增益，避免和应用内音量叠加
-      await setVolumeCapped(_videoPlayerController, appVolume);
+      await setVolumeCapped(
+        _videoPlayerController,
+        appVolume,
+        reapplyFilters: applyAudioNormalization,
+      );
 
       // 显示提示
       SmartDialog.showToast('已切换到应用内音量模式');
@@ -1772,7 +1967,11 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
 
       await FlutterVolumeController.updateShowSystemUI(false);
       await FlutterVolumeController.setVolume(newSystemVolume);
-      await setVolumeCapped(_videoPlayerController, Pref.playerVolume / 100);
+      await setVolumeCapped(
+        _videoPlayerController,
+        Pref.playerVolume / 100,
+        reapplyFilters: applyAudioNormalization,
+      );
       volumeBoostUnlocked = false;
 
       // 更新状态
@@ -1794,12 +1993,20 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
         _isDucked = true;
         _preDuckVolume = volume.value;
         volume.value = volume.value * 0.5;
-        await setVolumeCapped(_videoPlayerController, volume.value);
+        await setVolumeCapped(
+          _videoPlayerController,
+          volume.value,
+          reapplyFilters: applyAudioNormalization,
+        );
       } else {
         if (!_isDucked) return;
         _isDucked = false;
         volume.value = _preDuckVolume;
-        await setVolumeCapped(_videoPlayerController, volume.value);
+        await setVolumeCapped(
+          _videoPlayerController,
+          volume.value,
+          reapplyFilters: applyAudioNormalization,
+        );
       }
     }
     // 同步模式：使用原有逻辑，直接调用 setVolume 即可
@@ -2399,6 +2606,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
         return;
       }
       applyVideoPictureParameters();
+      applyAudioNormalization(player);
 
       final restoredByTrackSwitch = await _waitForVideoOutput(
         restoreGeneration,
@@ -2526,6 +2734,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
         play: shouldResumePlayback,
       );
       applyVideoPictureParameters(player);
+      applyAudioNormalization(player);
     } catch (_) {
       return false;
     }
@@ -2666,6 +2875,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     }
     _timer?.cancel();
     persistVideoPictureSettings();
+    persistLoudnessSettings();
     // _position.close();
     // _playerEventSubs?.cancel();
     // _sliderPosition.close();
