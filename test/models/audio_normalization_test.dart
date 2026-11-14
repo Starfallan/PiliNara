@@ -41,7 +41,7 @@ void main() {
       expect(AudioNormalization.isEnabledConfig('bewly'), isTrue);
     });
 
-    test('使用全平台兼容的 alimiter 预增益替代 volume 滤镜（防止 Android 静音）', () {
+    test('使用全平台兼容的 alimiter 预增益替代 volume 滤镜，且不含非法或畸变参数', () {
       final volume = _makeVolume(measuredI: -11.0);
       final af = AudioNormalization.buildMpvAfFilter(
         config: AudioNormalization.bewlyCode,
@@ -51,12 +51,19 @@ void main() {
       );
 
       expect(af.contains('volume='), isFalse);
+      expect(af.contains('asc_coeff'), isFalse);
+      expect(af.contains('asc='), isFalse);
+      expect(af.contains(':s='), isFalse);
+      expect(af.contains(':c=1'), isFalse);
+      expect(af.contains(':t='), isFalse);
       expect(af, startsWith('lavfi=[alimiter=level_in='));
       expect(af, contains(',dynaudnorm=f=150:'));
-      expect(af, contains(':c=1:b=1:t='));
+      expect(af, contains(':n=1:b=1,'));
       expect(
         af,
-        endsWith('alimiter=limit=0.89125:attack=4:release=100:asc=1:asc_coeff=0.5:level=0]'),
+        endsWith(
+          'alimiter=limit=0.89125:attack=5:release=80:level=0:latency=1]',
+        ),
       );
 
       final baseGain = AudioNormalization.computeBaseGainDb(
@@ -78,7 +85,13 @@ void main() {
 
       expect(af, startsWith('lavfi=[alimiter=level_in='));
       expect(af, contains('dynaudnorm='));
-      expect(af, contains('asc=1:asc_coeff=0.5:level=0,alimiter=level_in='));
+      expect(
+        af,
+        contains(
+          'alimiter=limit=0.89125:attack=5:release=80:level=0:latency=1,alimiter=level_in=',
+        ),
+      );
+      expect(af.contains('asc_coeff'), isFalse);
     });
 
     test('过轻/过响视频预增益严格钳制在 [-18 dB, +10 dB] 安全区间', () {
@@ -99,14 +112,18 @@ void main() {
       expect(negativeGain, -18.0);
     });
 
-    test('强度 0% 且已有服务端响度时跳过 dynaudnorm 以彻底保留原始动态', () {
+    test('强度 0% 且已有服务端响度时合并为单级 alimiter 以彻底保留原始动态', () {
       final afStrength0 = AudioNormalization.buildMpvAfFilter(
         config: AudioNormalization.bewlyCode,
         targetLufs: -18,
         strength: 0,
         volume: _makeVolume(measuredI: -22.0),
       );
-      expect(afStrength0, contains('alimiter=level_in='));
+      expect(afStrength0, startsWith('lavfi=[alimiter=level_in='));
+      expect(
+        afStrength0,
+        endsWith('limit=0.89125:attack=5:release=80:level=0:latency=1]'),
+      );
       expect(afStrength0.contains('dynaudnorm='), isFalse);
     });
 
@@ -129,7 +146,7 @@ void main() {
         strength: 75,
         isLive: true,
       );
-      expect(liveGraph, contains('dynaudnorm=f=80:g=7:'));
+      expect(liveGraph, contains('dynaudnorm=f=80:g=5:'));
     });
 
     test('无服务端响度数据（缓存视频/直播/空 Volume）时跳过预增益并保留完整参数边界', () {
@@ -145,18 +162,19 @@ void main() {
       expect(AudioNormalization.hasValidMeasuredLoudness(emptyVolume), isFalse);
     });
 
-    test('所有强度档位 (0%~100%) 生成的 dynaudnorm 高斯窗口帧数 g 恒为合法奇数', () {
+    test('所有强度档位 (0%~100%) 生成的 dynaudnorm 高斯窗口帧数 g 恒为合法奇数且无非法参数', () {
       final gRegex = RegExp(r'dynaudnorm=f=150:g=(\d+):');
       for (int s = 0; s <= 100; s++) {
         final graph = AudioNormalization.buildBewlyFilterGraph(
           targetLufs: -18,
           strength: s,
         );
+        expect(graph.contains('asc_coeff'), isFalse);
         final match = gRegex.firstMatch(graph);
         expect(match, isNotNull, reason: 'strength=$s missing g parameter');
         final g = int.parse(match!.group(1)!);
         expect(g.isOdd, isTrue, reason: 'strength=$s produced even g=$g');
-        expect(g, inInclusiveRange(11, 15));
+        expect(g, inInclusiveRange(5, 9));
       }
     });
 

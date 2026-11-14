@@ -79,9 +79,6 @@ enum AudioNormalization {
   /// -1.0 dBFS 采样峰值上限 (10^(-1/20) ≈ 0.89125)
   static const double peakLimitLinear = 0.89125;
 
-  /// -44 dBFS 基准静音/底噪冻结门限（减少人声停顿期间的底噪/BGM 抽吸）
-  static const double _baseSilenceGateRms = 0.0063;
-
   /// 默认版 iOS media_kit 预编译包裁剪了 libavfilter，因此规范化滤镜在正式版 iOS 上默认门控关闭
   static bool get isPlatformSupported => kDebugMode || !Platform.isIOS;
 
@@ -159,15 +156,13 @@ enum AudioNormalization {
     return 0.55 + 0.45 * t;
   }
 
-  /// 估算局部有效均衡参数，供真实滤镜图与波形模拟器严格保持同源一致。
+  /// 估算局部有效均衡参数，供真实滤镜图与设置页严格保持同源一致。
   static ({
     double? baseGainDb,
     double targetRms,
     int frameMs,
     int gaussFrames,
     double maxGainLinear,
-    double compressFactor,
-    double silenceGate,
     double lraFactor,
   }) resolveBewlyParameters({
     required int targetLufs,
@@ -194,35 +189,25 @@ enum AudioNormalization {
         .toDouble()
         .clamp(0.02, 0.35);
 
-    // 直播采用低延迟窗口（f=80, g=7 ≈ 560ms）；
-    // 点播采用长平滑窗口（f=150, g=11..15 ≈ 1.65s..2.25s），彻底消除字句间的 BGM 抽吸感。
+    // 直播采用低延迟窗口（f=80, g=5 ≈ 400ms）；
+    // 点播采用适中平滑窗口（f=150, g=5..9 ≈ 0.75s..1.35s），兼顾平滑度与切歌/拖动响应速度。
     final int frameMs = isLive ? 80 : 150;
     int gaussFrames;
     if (isLive) {
-      gaussFrames = 7;
+      gaussFrames = 5;
     } else {
-      gaussFrames = (15 - effectiveNorm * 4).round();
+      gaussFrames = (9 - effectiveNorm * 4).round();
       if (gaussFrames.isEven) gaussFrames -= 1;
-      gaussFrames = gaussFrames.clamp(11, 15);
+      gaussFrames = gaussFrames.clamp(5, 9);
     }
 
     // 最大局部提亮增益：
-    // - strength=0 且有服务端预增益时外层会跳过 dynaudnorm；无服务端数据时保留柔和 +3 dB
-    // - 有服务端预增益时，仅补充视频内局部提亮：+1.5 ~ +8.0 dB (经 LRA 自适应缩放)
-    // - 无服务端预增益时兼顾整体拉齐：+3.0 ~ +11.0 dB
+    // - 有服务端预增益时，补充视频内局部提亮：+3.0 ~ +9.0 dB (经 LRA 自适应缩放)
+    // - 无服务端预增益时兼顾整体拉齐：+5.0 ~ +12.0 dB
     final double maxBoostDb = baseGainDb != null
-        ? (1.5 + 6.5 * effectiveNorm)
-        : (3.0 + 8.0 * effectiveNorm);
+        ? (3.0 + 6.0 * effectiveNorm)
+        : (5.0 + 7.0 * effectiveNorm);
     final maxGainLinear = math.pow(10.0, maxBoostDb / 20.0).toDouble();
-
-    // 启用 dynaudnorm 软膝压缩 (s = 1.5 ~ 4.5)：在计算增益前柔化孤立突发尖峰，防止整句音量突然下蹲
-    final compressFactor = 1.5 + 3.0 * effectiveNorm;
-
-    // 基于噪声门限和预增益方向微调冻结门限：防止前置放大后将录音底噪误当对话提亮
-    final gateBoostAdjust =
-        (baseGainDb != null && baseGainDb > 0) ? (baseGainDb / 24.0) : 0.0;
-    final silenceGate = (_baseSilenceGateRms * (1.0 + 0.35 * gateBoostAdjust))
-        .clamp(0.0040, 0.0095);
 
     return (
       baseGainDb: baseGainDb,
@@ -230,17 +215,15 @@ enum AudioNormalization {
       frameMs: frameMs,
       gaussFrames: gaussFrames,
       maxGainLinear: maxGainLinear,
-      compressFactor: compressFactor,
-      silenceGate: silenceGate,
       lraFactor: lraFactor,
     );
   }
 
-  /// 构建全平台兼容的 BewlyCat 风格三级音频滤镜链（仅使用 Android / iOS / Desktop
+  /// 构建全平台兼容的 BewlyCat 风格音频滤镜链（仅使用 Android / iOS / Desktop
   /// 全平台 libmpv 均内置的 `alimiter` 与 `dynaudnorm`，绝不使用 Android 缺失的 `volume` 滤镜）：
-  /// 1) 跨视频基准响度预增益（`alimiter=level_in=...:limit=1:attack=4:release=50:level=0`，可选）
-  /// 2) LRA 自适应平滑 + 软膝峰压 + 底噪冻结门限（`dynaudnorm`，`strength == 0` 且已有预增益时跳过）
-  /// 3) 自适应释放 `-1.0 dBFS` 峰值防爆音限制器（`alimiter` + `asc=1`）
+  /// 1) 跨视频基准响度预增益（`alimiter=level_in=...:limit=1:attack=5:release=50:level=0:latency=1`，可选）
+  /// 2) LRA 自适应动态平衡（`dynaudnorm`，`strength == 0` 且已有预增益时跳过；由 `m` 上限自然约束底噪放大）
+  /// 3) `-1.0 dBFS` 前瞻峰值防爆音限制器（`alimiter`，带 `latency=1` 自动延迟补偿）
   static String buildBewlyFilterGraph({
     required int targetLufs,
     required int strength,
@@ -254,51 +237,59 @@ enum AudioNormalization {
       isLive: isLive,
     );
     final clampedStrength = strength.clamp(minStrength, maxStrength);
+    final hasPreGain =
+        params.baseGainDb != null && params.baseGainDb!.abs() >= 0.05;
+    final preGainLinear = hasPreGain
+        ? math
+            .pow(10.0, params.baseGainDb! / 20.0)
+            .toDouble()
+            .clamp(0.015625, 64.0)
+        : null;
 
-    final stages = <String>[];
-
-    if (params.baseGainDb != null && params.baseGainDb!.abs() >= 0.05) {
-      final preGainLinear = math
-          .pow(10.0, params.baseGainDb! / 20.0)
-          .toDouble()
-          .clamp(0.015625, 64.0);
-      stages.add(
-        'alimiter='
-        'level_in=${preGainLinear.toStringAsFixed(4)}:'
-        'limit=1:'
-        'attack=4:'
-        'release=50:'
-        'level=0',
-      );
-    }
-
-    // 强度为 0% 且具备服务端精准响度时，跳过视频内局部压缩，保持原汁原味动态范围
+    // 强度为 0% 且具备服务端精准响度时，合并为单级 alimiter，同时完成预增益与 -1.0 dBFS 峰值限幅
     final applyDynamicStage = clampedStrength > 0 || params.baseGainDb == null;
-    if (applyDynamicStage) {
-      stages.add(
-        'dynaudnorm='
-        'f=${params.frameMs}:'
-        'g=${params.gaussFrames}:'
-        'p=${peakLimitLinear.toStringAsFixed(5)}:'
-        'm=${params.maxGainLinear.toStringAsFixed(2)}:'
-        'r=${params.targetRms.toStringAsFixed(4)}:'
-        's=${params.compressFactor.toStringAsFixed(2)}:'
-        'n=1:'
-        'c=1:'
-        'b=1:'
-        't=${params.silenceGate.toStringAsFixed(4)}',
-      );
+    if (!applyDynamicStage) {
+      if (preGainLinear != null) {
+        return 'alimiter='
+            'level_in=${preGainLinear.toStringAsFixed(4)}:'
+            'limit=${peakLimitLinear.toStringAsFixed(5)}:'
+            'attack=5:'
+            'release=80:'
+            'level=0:'
+            'latency=1';
+      }
+      return 'alimiter='
+          'limit=${peakLimitLinear.toStringAsFixed(5)}:'
+          'attack=5:'
+          'release=80:'
+          'level=0:'
+          'latency=1';
     }
 
-    stages.add(
+    final stages = <String>[
+      if (preGainLinear != null)
+        'alimiter='
+            'level_in=${preGainLinear.toStringAsFixed(4)}:'
+            'limit=1:'
+            'attack=5:'
+            'release=50:'
+            'level=0:'
+            'latency=1',
+      'dynaudnorm='
+          'f=${params.frameMs}:'
+          'g=${params.gaussFrames}:'
+          'p=${peakLimitLinear.toStringAsFixed(5)}:'
+          'm=${params.maxGainLinear.toStringAsFixed(2)}:'
+          'r=${params.targetRms.toStringAsFixed(4)}:'
+          'n=1:'
+          'b=1',
       'alimiter='
-      'limit=${peakLimitLinear.toStringAsFixed(5)}:'
-      'attack=4:'
-      'release=100:'
-      'asc=1:'
-      'asc_coeff=0.5:'
-      'level=0',
-    );
+          'limit=${peakLimitLinear.toStringAsFixed(5)}:'
+          'attack=5:'
+          'release=80:'
+          'level=0:'
+          'latency=1',
+    ];
 
     return stages.join(',');
   }
@@ -464,7 +455,7 @@ enum AudioNormalization {
 
 mixin AudioNormalizationMixin {
   Player? _afPlayer;
-  String? _lastAppliedAf;
+  String? _lastBoostAf;
   double _volumeFactor = 1.0;
   String _cachedNormConfig = AudioNormalization.disableCode;
   int _cachedTargetLufs = AudioNormalization.defaultTargetLufs;
@@ -501,10 +492,8 @@ mixin AudioNormalizationMixin {
     _cachedIsLive = isLive;
 
     if (player == null) return;
-    if (!identical(_afPlayer, player)) {
-      _afPlayer = player;
-      _lastAppliedAf = null;
-    }
+    _afPlayer = player;
+    _lastBoostAf = AudioNormalization.buildVolumeBoostFilter(_volumeFactor);
     final nextAf = AudioNormalization.buildMpvAfFilter(
       config: config,
       targetLufs: targetLufs,
@@ -514,10 +503,8 @@ mixin AudioNormalizationMixin {
       isLive: isLive,
       volumeFactor: _volumeFactor,
     );
-    if (_lastAppliedAf == nextAf) return;
     try {
       player.setProperty('af', nextAf);
-      _lastAppliedAf = nextAf;
     } catch (_) {}
   }
 
@@ -537,22 +524,27 @@ mixin AudioNormalizationMixin {
       } catch (_) {}
       if (!identical(_afPlayer, player)) {
         _afPlayer = player;
-        _lastAppliedAf = null;
+        _lastBoostAf = null;
       }
       _volumeFactor = volume;
+      final nextBoostAf = AudioNormalization.buildVolumeBoostFilter(volume);
+      final boostChanged = _lastBoostAf != nextBoostAf;
       await player.setVolume(volume <= 1 ? volume * 100 : 100);
-      if (reapplyFilters != null) {
-        reapplyFilters();
-      } else {
-        applyCombinedAudioFilters(
-          player,
-          config: _cachedNormConfig,
-          targetLufs: _cachedTargetLufs,
-          strength: _cachedStrength,
-          volume: _cachedVolume,
-          fallbackConfig: _cachedFallbackConfig,
-          isLive: _cachedIsLive,
-        );
+      if (boostChanged) {
+        _lastBoostAf = nextBoostAf;
+        if (reapplyFilters != null) {
+          reapplyFilters();
+        } else {
+          applyCombinedAudioFilters(
+            player,
+            config: _cachedNormConfig,
+            targetLufs: _cachedTargetLufs,
+            strength: _cachedStrength,
+            volume: _cachedVolume,
+            fallbackConfig: _cachedFallbackConfig,
+            isLive: _cachedIsLive,
+          );
+        }
       }
     }();
   }
