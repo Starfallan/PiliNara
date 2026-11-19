@@ -173,6 +173,15 @@ List<SettingsModel> get replySettings => [
       ReplyGrpc.enableFilter = value.isNotEmpty;
     },
   ),
+  getListBanWordModel(
+    title: '评论用户名称关键词过滤',
+    key: SettingBoxKey.banWordForReplyUpName,
+    onChanged: (value) {
+      ReplyGrpc.replyUpNameRegExp = value;
+      ReplyGrpc.enableUpNameFilter = value.isNotEmpty;
+    },
+    banScope: '评论作者的原始昵称（不含本地备注）',
+  ),
   getListUidWithNameModel(
     title: '评论屏蔽用户',
     getUidsMap: () => Pref.replyBlockedMids,

@@ -15,6 +15,10 @@ abstract final class ReplyGrpc {
   static var blockReplyAtCount = Pref.blockReplyAtCount;
   static List<RegExp> replyRegExp = Pref.compileBanWord(Pref.banWordForReply);
   static bool enableFilter = replyRegExp.isNotEmpty;
+  static List<RegExp> replyUpNameRegExp = Pref.compileBanWord(
+    Pref.banWordForReplyUpName,
+  );
+  static bool enableUpNameFilter = replyUpNameRegExp.isNotEmpty;
   static Map<int, String> replyBlockedMids = Pref.replyBlockedMids;
   static int replyMinLevel = Pref.replyMinLevel;
   static bool keepUpOwnerReply = Pref.keepUpOwnerReply;
@@ -120,7 +124,10 @@ abstract final class ReplyGrpc {
     if (keepUpLikeReply && replyControl.upLike) return false;
     if (keepUpReplyReply && replyControl.upReply) return false;
     return (replyMinLevel > 0 && reply.member.level.toInt() < replyMinLevel) ||
-        (enableFilter && replyRegExp.hasMatch(reply.content.message));
+        (enableFilter && replyRegExp.hasMatch(reply.content.message)) ||
+        (enableUpNameFilter &&
+            reply.member.name.isNotEmpty &&
+            replyUpNameRegExp.hasMatch(reply.member.name));
   }
 
   static Future<LoadingState<MainListReply>> mainList({
