@@ -1107,10 +1107,10 @@ abstract final class Pref {
   static String get banWordForDyn =>
       _setting.get(SettingBoxKey.banWordForDyn, defaultValue: '');
 
-  /// 解析关键词存储串，返回列表项。
+  /// 解析关键词存储串，返回可追加的独立列表。
   /// 支持旧格式（`|` 分隔）与新格式（`\n` 分隔）。
   static List<String> parseBanWordItems(String stored) {
-    if (stored.isEmpty) return const [];
+    if (stored.isEmpty) return [];
     // 不含换行但含 `|`：可能是旧格式的多关键词，也可能是用户手写的一条正则
     if (!stored.contains('\n') && stored.contains('|')) {
       final parts = stored
