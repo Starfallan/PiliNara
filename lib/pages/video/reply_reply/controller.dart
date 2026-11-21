@@ -229,10 +229,20 @@ class VideoReplyReplyController extends ReplyController
     assert(index != -1 || replyItem.root == replyItem.id);
 
     if (await _sendReply(replyItem) case final replyInfo?) {
+      _clearReplyTree();
       loadingState
         ..value.dataOrNull?.insert(index + 1, replyInfo)
         ..refresh();
     }
+  }
+
+  @override
+  void onRemove(int index, ReplyInfo item, int? subIndex) {
+    final data = loadingState.rawValue.dataOrNull;
+    final currentIndex = data?.reverseIdentityIndexOf(item) ?? -1;
+    if (currentIndex == -1) return;
+    super.onRemove(currentIndex, item, subIndex);
+    _clearReplyTree();
   }
 
   Timer? _replyTimer;
@@ -299,15 +309,16 @@ class VideoReplyReplyController extends ReplyController
 
   @override
   void queryBySort() {
-    if (replyTree.rawValue != null) return;
+    if (showReplyTree) return;
     super.queryBySort();
   }
 
   @override
   Future<void> onRefresh() async {
-    if (replyTree.rawValue != null) return Future.syncValue(null);
+    if (showReplyTree) return;
     if (_inflightReply != null) await _inflightReply;
     _cancelReplyTimer();
+    _clearReplyTree();
     return super.onRefresh();
   }
 
@@ -318,9 +329,24 @@ class VideoReplyReplyController extends ReplyController
   }
 
   final replyTree = Rxn<ReplyTree>();
+  final _showReplyTree = false.obs;
+  bool get showReplyTree => _showReplyTree.value;
+
+  bool toggleReplyTree() {
+    if (replyTree.rawValue == null) return false;
+    index.value = null;
+    _showReplyTree.value = !_showReplyTree.rawValue;
+    return true;
+  }
+
+  void _clearReplyTree() {
+    _showReplyTree.value = false;
+    replyTree.value = null;
+  }
 
   void buildTree() {
-    final data = loadingState.rawValue.data!;
+    final data = loadingState.rawValue.dataOrNull;
+    if (data == null || data.isEmpty) return;
     final seen = HashSet<Int64>();
     data.retainWhere((i) => seen.add(i.id));
     replyTree.value = ReplyTree.build(
@@ -330,6 +356,8 @@ class VideoReplyReplyController extends ReplyController
       removed: removedReply,
       foldDepth: Pref.foldDepth,
     );
+    index.value = null;
+    _showReplyTree.value = true;
   }
 
   void toggleCollapseTree(int index) {
@@ -352,27 +380,42 @@ class VideoReplyReplyController extends ReplyController
 
   Future<void> onReplyByTreeNode(int index, ReplyInfo replyItem) async {
     if (await _sendReply(replyItem) case final replyInfo?) {
-      replyTree
-        ..rawValue!.appendLeaf(replyInfo, index)
-        ..refresh();
+      if (_treeForReply(index, replyItem) case final tree?) {
+        tree.appendLeaf(replyInfo, index);
+        replyTree.refresh();
+      }
 
       final data = loadingState.rawValue.dataOrNull;
       if (data != null) {
-        final index = data.reverseIdentityIndexOf(replyItem);
-        data.insert(index + 1, replyInfo);
+        final flatIndex = data.reverseIdentityIndexOf(replyItem);
+        if (flatIndex != -1) {
+          data.insert(flatIndex + 1, replyInfo);
+          loadingState.refresh();
+        }
       }
     }
   }
 
   void onRemoveByTreeNode(int index, ReplyInfo replyItem) {
-    replyTree
-      ..rawValue!.remove(index)
-      ..refresh();
+    if (_treeForReply(index, replyItem) case final tree?) {
+      tree.remove(index);
+      replyTree.refresh();
+    }
 
     final data = loadingState.rawValue.dataOrNull;
-    if (data != null) {
-      final index = data.reverseIdentityIndexOf(replyItem);
-      onRemove(index, replyItem, null);
+    final flatIndex = data?.reverseIdentityIndexOf(replyItem) ?? -1;
+    if (flatIndex != -1) {
+      super.onRemove(flatIndex, replyItem, null);
     }
+  }
+
+  ReplyTree? _treeForReply(int index, ReplyInfo replyItem) {
+    final tree = replyTree.rawValue;
+    if (tree == null) return null;
+    if (index < tree.length && identical(tree[index].reply, replyItem)) {
+      return tree;
+    }
+    _clearReplyTree();
+    return null;
   }
 }
