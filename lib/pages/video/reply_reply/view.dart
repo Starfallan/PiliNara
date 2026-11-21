@@ -264,31 +264,30 @@ class _VideoReplyReplyPanelState extends State<VideoReplyReplyPanel>
               },
             ),
             Obx(
-              () => controller.replyTree.value == null
-                  ? IconButton(
-                      visualDensity: .compact,
-                      onPressed: () {
-                        if (controller.isEnd && controller.foldCard == null) {
-                          controller.buildTree();
-                        } else if (controller.inFetchReply) {
-                          SmartDialog.showToast('正在拉取评论，请稍后');
-                        } else {
-                          showConfirmDialog(
-                            context: context,
-                            title: const Text('是否加载全部评论以显示线程化评论？'),
-                            content: const Text('这将消耗一定流量\n且可能导致IP或账号风控'),
-                            onConfirm: controller.nextReplyRound,
-                          );
-                        }
-                      },
-                      icon: const Icon(
-                        Icons.view_comfortable_outlined,
-                        size: 22,
-                      ),
-                      color: colorScheme.outline,
-                      tooltip: '线程化展示',
-                    )
-                  : const SizedBox.shrink(),
+              () => IconButton(
+                visualDensity: .compact,
+                onPressed: () {
+                  if (controller.toggleReplyTree()) return;
+                  if (controller.isEnd && controller.foldCard == null) {
+                    controller.buildTree();
+                  } else if (controller.inFetchReply) {
+                    SmartDialog.showToast('正在拉取评论，请稍后');
+                  } else {
+                    showConfirmDialog(
+                      context: context,
+                      title: const Text('是否加载全部评论以显示线程化评论？'),
+                      content: const Text('这将消耗一定流量\n且可能导致IP或账号风控'),
+                      onConfirm: controller.nextReplyRound,
+                    );
+                  }
+                },
+                icon: const Icon(
+                  Icons.view_comfortable_outlined,
+                  size: 22,
+                ),
+                color: colorScheme.outline,
+                tooltip: controller.showReplyTree ? '平铺展示' : '线程化展示',
+              ),
             ),
             Expanded(
               child: Obx(
@@ -330,7 +329,8 @@ class _VideoReplyReplyPanelState extends State<VideoReplyReplyPanel>
           ),
         );
       case Success(:final response!):
-        if (controller.replyTree.value case final tree?) {
+        if (controller.replyTree.value case final tree?
+            when controller.showReplyTree) {
           return SuperSliverList.builder(
             listController: controller.listController,
             itemCount: tree.length + 1,
