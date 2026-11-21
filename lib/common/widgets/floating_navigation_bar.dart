@@ -3,15 +3,18 @@
 // found in the LICENSE file.
 
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:material_ui/material_ui.dart';
 
 const double _kMaxLabelTextScaleFactor = 1.3;
 
 const _kNavigationHeight = 64.0;
 const _kIndicatorHeight = _kNavigationHeight - 2 * _kIndicatorPaddingInt;
-const _kIndicatorWidth = 86.0;
+const _kIndicatorWidth = 92.0;
 const _kIndicatorPaddingInt = 4.0;
 const _kIndicatorPadding = EdgeInsets.all(_kIndicatorPaddingInt);
+const _kContentPadding = EdgeInsets.symmetric(horizontal: 4);
+const _kHorizontalMargin = 16.0;
 const _kBorderRadius = BorderRadius.all(.circular(_kNavigationHeight / 2));
 const _kNavigationShape = RoundedSuperellipseBorder(
   borderRadius: _kBorderRadius,
@@ -56,10 +59,10 @@ class FloatingNavigationBar extends StatelessWidget {
   final EdgeInsetsGeometry? labelPadding;
   final double bottomPadding;
 
-  VoidCallback _handleTap(int index) {
+  VoidCallback? _handleTap(int index) {
     return onDestinationSelected != null
         ? () => onDestinationSelected!(index)
-        : () {};
+        : null;
   }
 
   @override
@@ -76,14 +79,15 @@ class FloatingNavigationBar extends StatelessWidget {
 
     return Padding(
       padding: .fromLTRB(
-        padding.left,
+        padding.left + _kHorizontalMargin,
         0,
-        padding.right,
+        padding.right + _kHorizontalMargin,
         bottomPadding + padding.bottom,
       ),
       child: SizedBox(
         height: _kNavigationHeight,
-        width: destinations.length * _kIndicatorWidth,
+        width:
+            destinations.length * _kIndicatorWidth + 2 * _kIndicatorPaddingInt,
         child: DecoratedBox(
           decoration: ShapeDecoration(
             color: ElevationOverlay.applySurfaceTint(
@@ -102,33 +106,38 @@ class FloatingNavigationBar extends StatelessWidget {
           ),
           child: Padding(
             padding: _kIndicatorPadding,
-            child: Row(
-              crossAxisAlignment: .stretch,
-              children: <Widget>[
-                for (int i = 0; i < destinations.length; i++)
-                  Expanded(
-                    child: _SelectableAnimatedBuilder(
-                      duration: animationDuration,
-                      isSelected: i == selectedIndex,
-                      builder: (context, animation) {
-                        return _NavigationDestinationInfo(
-                          index: i,
-                          selectedIndex: selectedIndex,
-                          totalNumberOfDestinations: destinations.length,
-                          selectedAnimation: animation,
-                          labelBehavior: effectiveLabelBehavior,
-                          indicatorColor: indicatorColor,
-                          indicatorShape: indicatorShape,
-                          overlayColor: overlayColor,
-                          onTap: _handleTap(i),
-                          labelTextStyle: labelTextStyle,
-                          labelPadding: labelPadding,
-                          child: destinations[i],
-                        );
-                      },
+            child: Semantics(
+              role: .tabBar,
+              explicitChildNodes: true,
+              container: true,
+              child: Row(
+                crossAxisAlignment: .stretch,
+                children: <Widget>[
+                  for (int i = 0; i < destinations.length; i++)
+                    Expanded(
+                      child: _SelectableAnimatedBuilder(
+                        duration: animationDuration,
+                        isSelected: i == selectedIndex,
+                        builder: (context, animation) {
+                          return _NavigationDestinationInfo(
+                            index: i,
+                            selectedIndex: selectedIndex,
+                            totalNumberOfDestinations: destinations.length,
+                            selectedAnimation: animation,
+                            labelBehavior: effectiveLabelBehavior,
+                            indicatorColor: indicatorColor,
+                            indicatorShape: indicatorShape,
+                            overlayColor: overlayColor,
+                            onTap: _handleTap(i),
+                            labelTextStyle: labelTextStyle,
+                            labelPadding: labelPadding,
+                            child: destinations[i],
+                          );
+                        },
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -167,6 +176,7 @@ class FloatingNavigationDestination extends StatelessWidget {
     final navigationBarTheme = NavigationBarTheme.of(context);
     final defaults = _NavigationBarDefaultsM3(context);
     final animation = info.selectedAnimation;
+    final enabled = this.enabled && info.onTap != null;
 
     return Stack(
       alignment: .center,
@@ -174,6 +184,10 @@ class FloatingNavigationDestination extends StatelessWidget {
       children: [
         NavigationIndicator(
           animation: animation,
+          shape:
+              info.indicatorShape ??
+              navigationBarTheme.indicatorShape ??
+              defaults.indicatorShape!,
           color:
               info.indicatorColor ??
               navigationBarTheme.indicatorColor ??
@@ -280,22 +294,71 @@ class _NavigationDestinationBuilderState
   @override
   Widget build(BuildContext context) {
     final info = _NavigationDestinationInfo.of(context);
+    final navigationBarTheme = NavigationBarTheme.of(context);
+    final defaults = _NavigationBarDefaultsM3(context);
+    final selected = info.index == info.selectedIndex;
+    final colors = Theme.of(context).colorScheme;
+    final overlayColor =
+        info.overlayColor ??
+        navigationBarTheme.overlayColor ??
+        WidgetStateProperty.resolveWith<Color?>((states) {
+          final color = selected
+              ? colors.onSecondaryContainer
+              : colors.onSurfaceVariant;
+          if (states.contains(WidgetState.pressed) ||
+              states.contains(WidgetState.focused)) {
+            return color.withValues(alpha: .1);
+          }
+          if (states.contains(WidgetState.hovered)) {
+            return color.withValues(alpha: .08);
+          }
+          return Colors.transparent;
+        });
 
-    final child = GestureDetector(
-      behavior: .opaque,
-      onTap: widget.enabled ? info.onTap : null,
-      child: _NavigationBarDestinationLayout(
-        icon: widget.buildIcon(context),
-        iconKey: iconKey,
-        label: widget.buildLabel(context),
+    // Paint ink above the indicator so the selected background cannot hide it.
+    final child = Material(
+      type: .transparency,
+      child: InkWell(
+        customBorder:
+            info.indicatorShape ??
+            navigationBarTheme.indicatorShape ??
+            defaults.indicatorShape,
+        overlayColor: overlayColor,
+        onTap: widget.enabled ? info.onTap : null,
+        canRequestFocus: widget.enabled,
+        child: Padding(
+          padding: _kContentPadding,
+          child: _NavigationBarDestinationLayout(
+            icon: widget.buildIcon(context),
+            iconKey: iconKey,
+            label: widget.buildLabel(context),
+          ),
+        ),
       ),
     );
-    if (info.labelBehavior == .alwaysShow) {
-      return child;
-    }
-    return _NavigationBarDestinationTooltip(
-      message: widget.tooltip ?? widget.label,
-      child: child,
+    return MergeSemantics(
+      child: Semantics(
+        role: .tab,
+        selected: selected,
+        enabled: widget.enabled,
+        button: true,
+        child: Stack(
+          alignment: .center,
+          children: [
+            _NavigationBarDestinationTooltip(
+              message: widget.tooltip ?? widget.label,
+              child: child,
+            ),
+            if (!kIsWeb)
+              Semantics(
+                label: MaterialLocalizations.of(context).tabLabel(
+                  tabIndex: info.index + 1,
+                  tabCount: info.totalNumberOfDestinations,
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -332,7 +395,7 @@ class _NavigationDestinationInfo extends InheritedWidget {
 
   final WidgetStateProperty<Color?>? overlayColor;
 
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   final WidgetStateProperty<TextStyle?>? labelTextStyle;
 
@@ -352,9 +415,15 @@ class _NavigationDestinationInfo extends InheritedWidget {
   @override
   bool updateShouldNotify(_NavigationDestinationInfo oldWidget) {
     return index != oldWidget.index ||
+        selectedIndex != oldWidget.selectedIndex ||
         totalNumberOfDestinations != oldWidget.totalNumberOfDestinations ||
         selectedAnimation != oldWidget.selectedAnimation ||
         labelBehavior != oldWidget.labelBehavior ||
+        indicatorColor != oldWidget.indicatorColor ||
+        indicatorShape != oldWidget.indicatorShape ||
+        overlayColor != oldWidget.overlayColor ||
+        labelTextStyle != oldWidget.labelTextStyle ||
+        labelPadding != oldWidget.labelPadding ||
         onTap != oldWidget.onTap;
   }
 }
@@ -364,6 +433,7 @@ class NavigationIndicator extends StatelessWidget {
     super.key,
     required this.animation,
     this.color,
+    this.shape = _kNavigationShape,
     this.width = _kIndicatorWidth,
     this.height = _kIndicatorHeight,
   });
@@ -371,6 +441,8 @@ class NavigationIndicator extends StatelessWidget {
   final Animation<double> animation;
 
   final Color? color;
+
+  final ShapeBorder shape;
 
   final double width;
 
@@ -409,12 +481,12 @@ class NavigationIndicator extends StatelessWidget {
                 opacity: fadeAnimation,
                 child: DecoratedBox(
                   decoration: ShapeDecoration(
-                    shape: _kNavigationShape,
+                    shape: shape,
                     color: color ?? Theme.of(context).colorScheme.secondary,
                   ),
-                  child: const SizedBox(
-                    width: _kIndicatorWidth,
-                    height: _kIndicatorHeight,
+                  child: SizedBox(
+                    width: width,
+                    height: height,
                   ),
                 ),
               );
@@ -705,9 +777,6 @@ class _CurvedAnimationBuilderState extends State<_CurvedAnimationBuilder> {
   }
 }
 
-const _indicatorDark = Color(0x15FFFFFF);
-const _indicatorLight = Color(0x10000000);
-
 class _NavigationBarDefaultsM3 extends NavigationBarThemeData {
   _NavigationBarDefaultsM3(this.context)
     : super(
@@ -749,10 +818,10 @@ class _NavigationBarDefaultsM3 extends NavigationBarThemeData {
 
   @override
   Color? get indicatorColor =>
-      _colors.isDark ? _indicatorDark : _indicatorLight;
+      _colors.secondaryContainer.withValues(alpha: .8);
 
   @override
-  ShapeBorder? get indicatorShape => const StadiumBorder();
+  ShapeBorder? get indicatorShape => _kNavigationShape;
 
   @override
   WidgetStateProperty<TextStyle?>? get labelTextStyle {
@@ -762,7 +831,7 @@ class _NavigationBarDefaultsM3 extends NavigationBarThemeData {
         color: states.contains(WidgetState.disabled)
             ? _colors.onSurfaceVariant.withValues(alpha: 0.38)
             : states.contains(WidgetState.selected)
-            ? _colors.onSurface
+            ? _colors.onSecondaryContainer
             : _colors.onSurfaceVariant,
       );
     });
