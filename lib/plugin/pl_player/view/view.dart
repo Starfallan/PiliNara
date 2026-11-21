@@ -375,7 +375,9 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
     }
 
     _doubleTapGestureRecognizer = DoubleTapGestureRecognizer()
-      ..onDoubleTapDown = _onDoubleTapDown;
+      ..onDoubleTapDown = _onDoubleTapDown
+      ..onDoubleTap = _onDoubleTap
+      ..onDoubleTapCancel = () => _pendingMouseDoubleTapFullScreen = null;
 
     _scaleGestureRecognizer = PlayerScaleGestureRecognizer(
       debugOwner: this,
@@ -436,6 +438,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
 
   @override
   void dispose() {
+    _pendingMouseDoubleTapFullScreen = null;
     _pendingTouchFullScreenToggle = null;
     _activeTouchPointers.clear();
     removeObserverMobile(this);
@@ -1454,13 +1457,35 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
     }
   }
 
+  bool? _pendingMouseDoubleTapFullScreen;
+
   void _onDoubleTapDown(TapDownDetails details) {
+    _pendingMouseDoubleTapFullScreen = null;
     switch (details.kind) {
       case ui.PointerDeviceKind.mouse when PlatformUtils.isDesktop:
-        plPlayerController.triggerFullScreen(status: !isFullScreen);
+        if (Platform.isMacOS) {
+          _pendingMouseDoubleTapFullScreen = !isFullScreen;
+        } else {
+          plPlayerController.triggerFullScreen(status: !isFullScreen);
+        }
       default:
         onDoubleTapDownMobile(details);
     }
+  }
+
+  void _onDoubleTap() {
+    final target = _pendingMouseDoubleTapFullScreen;
+    _pendingMouseDoubleTapFullScreen = null;
+    if (target == null) return;
+
+    // macOS 全屏过渡可能丢失鼠标 Up，等双击确认及本次指针路由结束后再切换。
+    scheduleMicrotask(() {
+      if (mounted &&
+          !plPlayerController.controlsLock.value &&
+          isFullScreen != target) {
+        plPlayerController.triggerFullScreen(status: target);
+      }
+    });
   }
 
   /// 淡出动画期间冻结的锁定提示内容（图标 + 文案）
