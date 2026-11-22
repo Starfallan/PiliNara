@@ -18,12 +18,14 @@ import 'package:PiliPlus/pages/mine/widgets/fav_item.dart';
 import 'package:PiliPlus/pages/mine/widgets/history_item.dart';
 import 'package:PiliPlus/pages/mine/widgets/later_item.dart';
 import 'package:PiliPlus/pages/mine/widgets/sub_item.dart';
+import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/bili_utils.dart';
 import 'package:PiliPlus/utils/extension/get_ext.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
+import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
@@ -152,13 +154,40 @@ class _MediaPageState extends CommonPageState<MinePage>
     const iconSize = 22.0;
     const padding = EdgeInsets.all(8);
     const style = ButtonStyle(tapTargetSize: .shrinkWrap);
+    // 扫码授权入口：用本机已登录账号确认其它端的登录二维码
+    // 登录/切换账号不会重建本页面，用 Obx 订阅登录态，避免必须重启才可点
+    final scanAuthBtn = Obx(() {
+      final canScanAuth = controller.isLogin || Accounts.account.isNotEmpty;
+      return IconButton(
+        iconSize: iconSize,
+        padding: padding,
+        style: style,
+        tooltip: canScanAuth ? '扫码授权' : '请先登录',
+        onPressed: canScanAuth
+            ? () => Get.toNamed('/scanAuth')
+            : () => SmartDialog.showToast('请先登录'),
+        icon: Icon(
+          Icons.qr_code_scanner,
+          color: canScanAuth ? null : Theme.of(context).disabledColor,
+        ),
+      );
+    });
     return PlayerBar(
       left: widget.showBackBtn
-          ? const Padding(
-              padding: EdgeInsets.only(left: 8),
-              child: BackButton(),
+          ? Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Row(
+                mainAxisSize: .min,
+                children: [
+                  const BackButton(),
+                  scanAuthBtn,
+                ],
+              ),
             )
-          : const SizedBox.shrink(),
+          : Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: scanAuthBtn,
+            ),
       right: Row(
         spacing: 5,
         mainAxisSize: .min,

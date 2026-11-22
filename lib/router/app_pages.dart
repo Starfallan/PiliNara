@@ -53,7 +53,9 @@ import 'package:PiliPlus/pages/popular_precious/view.dart';
 import 'package:PiliPlus/pages/popular_series/view.dart';
 import 'package:PiliPlus/pages/search/view.dart';
 import 'package:PiliPlus/pages/search_result/view.dart';
+import 'package:PiliPlus/pages/device_fp/view.dart';
 import 'package:PiliPlus/pages/search_trending/view.dart';
+import 'package:PiliPlus/pages/scan_auth/view.dart';
 import 'package:PiliPlus/pages/setting/pages/bar_set.dart';
 import 'package:PiliPlus/pages/setting/pages/color_select.dart';
 import 'package:PiliPlus/pages/setting/pages/display_mode.dart';
@@ -113,6 +115,7 @@ class Routes {
     GetPage(name: '/memberSearch', page: () => const MemberSearchPage()),
     //
     GetPage(name: '/blackListPage', page: () => const BlackListPage()),
+    GetPage(name: '/deviceFp', page: () => const DeviceFpPage()),
     GetPage(name: '/colorSetting', page: () => const ColorSelectPage()),
     GetPage(name: '/fontSetting', page: () => const FontSettingPage()),
     // 屏幕帧率
@@ -142,6 +145,8 @@ class Routes {
     GetPage(name: '/sysMsg', page: () => const SysMsgPage()),
     // 登录页面
     GetPage(name: '/loginPage', page: () => const LoginPage()),
+    // 扫码授权（用本机账号确认其它端的登录二维码）
+    GetPage(name: '/scanAuth', page: () => const ScanAuthPage()),
     // 用户动态
     GetPage(name: '/memberDynamics', page: () => const MemberDynamicsPage()),
     // 日志

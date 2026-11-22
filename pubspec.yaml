@@ -126,6 +126,7 @@ dependencies:
   hive_ce: ^2.19.3
   html: ^0.15.4
   http2: ^2.3.1
+  image: ^4.12.0
   image_cropper: ^12.0.0
   image_picker: ^1.1.2
   intl: ^0.20.2
@@ -144,6 +145,7 @@ dependencies:
   media_kit_libs_video: 1.0.5
   media_kit_video: 1.2.5
   mime: ^2.0.0
+  mobile_scanner: ^7.4.2
   nativeapi: ^0.5.2
   native_device_orientation:
     git:
@@ -185,6 +187,7 @@ dependencies:
   webview_platform_interface: ^1.4.9
   win32: ^6.3.0
   window_manager: ^0.6.0
+  zxing2: ^0.2.4
 
 dependency_overrides:
   clipboard:
