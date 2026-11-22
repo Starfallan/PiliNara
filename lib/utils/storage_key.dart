@@ -213,6 +213,10 @@ abstract final class SettingBoxKey {
       blockAtOnlyReply = 'blockAtOnlyReply',
       blockReplyAtCount = 'blockReplyAtCount',
       filterIntro = 'filterIntro',
+      deviceId = 'deviceId',
+      loginSessionId = 'loginSessionId',
+      deviceName = 'deviceName',
+      devicePlatform = 'devicePlatform',
       showRefreshFAB = 'showRefreshFAB';
 
   static const String enableAiChat = 'enableAiChat',
