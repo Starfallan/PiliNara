@@ -1837,4 +1837,45 @@ abstract final class Pref {
 
   static bool get cachePlayInfo =>
       _setting.get(SettingBoxKey.cachePlayInfo, defaultValue: true);
+
+  // 小站帖子已读：总开关、持久模式、停留阈值（秒）
+  /// 小站帖子已读记录总开关
+  static bool get bubbleReadEnable =>
+      _setting.get(SettingBoxKey.bubbleReadEnable, defaultValue: false);
+
+  static set bubbleReadEnable(bool value) =>
+      _setting.put(SettingBoxKey.bubbleReadEnable, value);
+
+  /// true = 持久（读过的帖子一直显示已读）
+  /// false = 单次（退出小站页后清空）
+  static bool get bubbleReadPersistent =>
+      _setting.get(SettingBoxKey.bubbleReadPersistent, defaultValue: false);
+
+  static set bubbleReadPersistent(bool value) =>
+      _setting.put(SettingBoxKey.bubbleReadPersistent, value);
+
+  static int get bubbleReadDelay =>
+      _setting.get(SettingBoxKey.bubbleReadDelay, defaultValue: 3);
+
+  static set bubbleReadDelay(int value) =>
+      _setting.put(SettingBoxKey.bubbleReadDelay, value);
+
+  static Set<String> get bubbleReadDynIds {
+    final data = _localCache.get(
+      LocalCacheKey.bubbleReadDynIds,
+      defaultValue: <String>{},
+    );
+    // 处理 JSON 导入时可能为 List 的情况
+    if (data is List) {
+      final set = data.whereType<String>().toSet();
+      if (set.isNotEmpty) {
+        _localCache.put(LocalCacheKey.bubbleReadDynIds, set);
+      }
+      return set;
+    }
+    return data is Set<String> ? data : <String>{};
+  }
+
+  static set bubbleReadDynIds(Set<String> dynIds) =>
+      _localCache.put(LocalCacheKey.bubbleReadDynIds, dynIds);
 }
