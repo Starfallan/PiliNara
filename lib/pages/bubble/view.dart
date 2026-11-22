@@ -9,6 +9,7 @@ import 'package:PiliPlus/common/widgets/scroll_physics.dart' show tabBarView;
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/models_new/bubble/dyn_list.dart';
 import 'package:PiliPlus/pages/bubble/controller.dart';
+import 'package:PiliPlus/utils/bili_colors.dart';
 import 'package:PiliPlus/utils/extension/scroll_controller_ext.dart';
 import 'package:PiliPlus/utils/grid.dart';
 import 'package:collection/collection.dart';
@@ -261,12 +262,19 @@ class _BubblePageState extends State<BubblePage>
     ],
   );
 
-  /// 解析接口给的 '#RRGGBB' 色值，非法时返回 null 由调用方回落语义色
-  static Color? _parseColor(String? hex) {
-    if (hex == null || hex.length != 7 || hex[0] != '#') {
+  /// 解析接口给的 '#RRGGBB' 或 'var(--Xxx)'，无法识别时返回 null 由调用方回落语义色
+  static Color? _parseColor(String? raw) {
+    if (raw == null || raw.isEmpty) {
       return null;
     }
-    final value = int.tryParse(hex.substring(1), radix: 16);
+    final named = BiliColors.bubbleReplyColorVars[raw];
+    if (named != null) {
+      return named;
+    }
+    if (raw.length != 7 || raw[0] != '#') {
+      return null;
+    }
+    final value = int.tryParse(raw.substring(1), radix: 16);
     return value == null ? null : Color(0xFF000000 | value);
   }
 
