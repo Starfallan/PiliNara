@@ -210,8 +210,8 @@ class _BubblePageState extends State<BubblePage>
   );
 
   /// 精品标。SVG 内是粉色底加白字，染色会让字消失，所以不加 colorFilter。
-  Widget _featuredTag() => const Padding(
-    padding: EdgeInsets.only(left: 4),
+  Widget _featuredTag() => Padding(
+    padding: const EdgeInsets.only(left: 4),
     child: SvgPicture.asset(Assets.bubbleFeatured, width: 15, height: 17),
   );
 
