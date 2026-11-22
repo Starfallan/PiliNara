@@ -15,6 +15,10 @@ abstract final class Assets {
   static const ai = 'assets/images/ai.png';
   static const error = 'assets/images/error.svg';
 
+  static const bubbleTop = 'assets/images/ic_bubble_top.svg';
+  static const bubbleFeatured = 'assets/images/ic_bubble_featured.svg';
+  static const bubbleReply = 'assets/images/ic_bubble_reply.svg';
+
   static const livingChart = 'assets/images/live.gif';
   static const livingStatic = 'assets/images/live.png';
   static const livingRect = 'assets/images/live/live.gif';

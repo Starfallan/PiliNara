@@ -1,3 +1,4 @@
+import 'package:PiliPlus/common/assets.dart';
 import 'package:PiliPlus/common/widgets/flutter/list_tile.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/keep_alive_wrapper.dart';
@@ -11,6 +12,7 @@ import 'package:PiliPlus/pages/bubble/controller.dart';
 import 'package:PiliPlus/utils/extension/scroll_controller_ext.dart';
 import 'package:PiliPlus/utils/grid.dart';
 import 'package:collection/collection.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart'
     hide ListTile, SliverGridDelegateWithMaxCrossAxisExtent;
@@ -62,7 +64,7 @@ class _BubblePageState extends State<BubblePage>
           SliverPadding(
             padding: EdgeInsets.only(bottom: padding.bottom + 100),
             sliver: Obx(
-              () => _buildBody(_controller.loadingState.value),
+              () => _buildBody(context, _controller.loadingState.value),
             ),
           ),
         ],
@@ -183,12 +185,99 @@ class _BubblePageState extends State<BubblePage>
     maxCrossAxisExtent: 2 * Grid.smallCardWidth,
   );
 
-  Widget _buildBody(LoadingState<List<DynList>?> loadingState) {
+  /// 置顶标。箭头在 web 端是 rotate(180deg)，这里用 RotatedBox 对应。
+  Widget _topTag(ThemeData theme) => Container(
+    width: 18,
+    height: 18,
+    margin: const EdgeInsets.only(right: 4),
+    decoration: BoxDecoration(
+      color: theme.colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(4),
+    ),
+    alignment: Alignment.center,
+    child: RotatedBox(
+      quarterTurns: 2,
+      child: SvgPicture.asset(
+        Assets.bubbleTop,
+        width: 12,
+        height: 12,
+        colorFilter: ColorFilter.mode(
+          theme.colorScheme.onSurfaceVariant,
+          BlendMode.srcIn,
+        ),
+      ),
+    ),
+  );
+
+  /// 精品标。SVG 内是粉色底加白字，染色会让字消失，所以不加 colorFilter。
+  Widget _featuredTag() => const Padding(
+    padding: EdgeInsets.only(left: 4),
+    child: SvgPicture.asset(Assets.bubbleFeatured, width: 15, height: 17),
+  );
+
+  Widget? _trailing(DynList item, ThemeData theme) {
+    final replyCount = item.meta?.replyIcon?.text ?? item.meta?.replyCount;
+    final timeText = item.meta?.timeText;
+    if (replyCount == null && timeText == null) {
+      return null;
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (replyCount != null)
+          _replyCount(
+            replyCount,
+            _parseColor(item.meta?.replyIcon?.color) ??
+                theme.colorScheme.onSurfaceVariant,
+            theme,
+          ),
+        if (timeText != null) ...[
+          if (replyCount != null) const SizedBox(width: 8),
+          Text(
+            timeText,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.outline,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// 评论数。气泡配色接口已按评论数分好档，直接用它给的色值。
+  Widget _replyCount(String count, Color color, ThemeData theme) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      SvgPicture.asset(
+        Assets.bubbleReply,
+        width: 16,
+        height: 16,
+        colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+      ),
+      const SizedBox(width: 2),
+      Text(count, style: theme.textTheme.labelSmall?.copyWith(color: color)),
+    ],
+  );
+
+  /// 解析接口给的 '#RRGGBB' 色值，非法时返回 null 由调用方回落语义色
+  static Color? _parseColor(String? hex) {
+    if (hex == null || hex.length != 7 || hex[0] != '#') {
+      return null;
+    }
+    final value = int.tryParse(hex.substring(1), radix: 16);
+    return value == null ? null : Color(0xFF000000 | value);
+  }
+
+  Widget _buildBody(
+    BuildContext context,
+    LoadingState<List<DynList>?> loadingState,
+  ) {
     switch (loadingState) {
       case Loading():
         return const SliverFillRemaining(child: m3eLoading);
       case Success(:final response):
         if (response != null && response.isNotEmpty) {
+          final theme = Theme.of(context);
           return SliverGrid.builder(
             gridDelegate: gridDelegate,
             itemBuilder: (context, index) {
@@ -209,17 +298,21 @@ class _BubblePageState extends State<BubblePage>
                       'type': 'opus',
                     },
                   ),
-                  title: Text(
-                    item.title!,
-                    maxLines: 1,
-                    overflow: .ellipsis,
-                  ),
-                  trailing: item.meta?.timeText == null
-                      ? null
-                      : Text(
-                          item.meta!.timeText!,
-                          style: const TextStyle(fontSize: 13),
+                  title: Row(
+                    children: [
+                      if (item.isTop) _topTag(theme),
+                      Flexible(
+                        child: Text(
+                          item.title!,
+                          maxLines: 1,
+                          overflow: .ellipsis,
+                          style: theme.textTheme.bodyMedium,
                         ),
+                      ),
+                      if (item.isFeatured) _featuredTag(),
+                    ],
+                  ),
+                  trailing: _trailing(item, theme),
                 ),
               );
             },
