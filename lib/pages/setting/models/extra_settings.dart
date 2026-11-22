@@ -88,6 +88,19 @@ List<SettingsModel> get extraSettings => [
     getSubtitle: () => '配置 OpenAI 兼容 API 和提示词模板',
     onTap: (context, _) => Get.toNamed('/aiSetting'),
   ),
+  NormalModel(
+    title: '小站已读记录',
+    leading: const Icon(Icons.visibility_outlined),
+    getSubtitle: () {
+      if (!Pref.bubbleReadEnable) {
+        return '未开启';
+      }
+      final mode = Pref.bubbleReadPersistent ? '持久' : '单次';
+      return '$mode，停留 ${Pref.bubbleReadDelay} 秒算已读';
+    },
+    onTap: (context, setState) =>
+        Get.toNamed('/bubbleReadSetting')?.then((_) => setState()),
+  ),
   const SwitchModel(
     title: '禁用 SSL 证书验证',
     subtitle: '谨慎开启，禁用容易受到中间人攻击',

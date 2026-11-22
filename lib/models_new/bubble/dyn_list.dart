@@ -1,4 +1,5 @@
 import 'package:PiliPlus/models_new/bubble/meta.dart';
+import 'package:PiliPlus/services/bubble_read_service.dart';
 
 class DynList {
   String? dynId;
@@ -24,4 +25,7 @@ class DynList {
 
   bool get isTop => meta?.tags?.contains('TOP') ?? false;
   bool get isFeatured => meta?.tags?.contains('FEATURE') ?? false;
+
+  /// 接口的 is_read 从不下发 true，实际已读以本地记录为准
+  bool get read => isRead == true || BubbleReadService.isRead(dynId);
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:PiliPlus/common/assets.dart';
 import 'package:PiliPlus/common/widgets/flutter/list_tile.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
@@ -9,9 +11,11 @@ import 'package:PiliPlus/common/widgets/scroll_physics.dart' show tabBarView;
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/models_new/bubble/dyn_list.dart';
 import 'package:PiliPlus/pages/bubble/controller.dart';
+import 'package:PiliPlus/services/bubble_read_service.dart';
 import 'package:PiliPlus/utils/bili_colors.dart';
 import 'package:PiliPlus/utils/extension/scroll_controller_ext.dart';
 import 'package:PiliPlus/utils/grid.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
@@ -31,13 +35,23 @@ class _BubblePageState extends State<BubblePage>
     with AutomaticKeepAliveClientMixin {
   late final BubbleController _controller;
 
+  /// 小站页面令牌，用于单次模式在所有小站页退出后清空已读
+  late final int _pageToken;
+
   @override
   void initState() {
     super.initState();
+    _pageToken = BubbleReadService.enterPage();
     _controller = Get.put(
       BubbleController(widget.categoryId),
       tag: widget.categoryId ?? 'all',
     );
+  }
+
+  @override
+  void dispose() {
+    BubbleReadService.leavePage(_pageToken);
+    super.dispose();
   }
 
   BubbleController currCtr([int? index]) {
@@ -181,6 +195,30 @@ class _BubblePageState extends State<BubblePage>
     );
   }
 
+  /// 打开帖子。停留满设置里的秒数才记为已读，提前返回不算。
+  Future<void> _openPost(DynList item) async {
+    final id = item.dynId;
+    if (id == null) {
+      return;
+    }
+    final delay = Pref.bubbleReadDelay;
+    final marked = Pref.bubbleReadEnable;
+    Timer? timer;
+    if (marked) {
+      timer = Timer(Duration(seconds: delay), () {
+        BubbleReadService.markRead(id);
+        if (mounted) {
+          setState(() {});
+        }
+      });
+    }
+    await Get.toNamed(
+      '/articlePage',
+      parameters: {'id': id, 'type': 'opus'},
+    );
+    timer?.cancel();
+  }
+
   late final gridDelegate = SliverGridDelegateWithMaxCrossAxisExtent(
     mainAxisExtent: 56,
     maxCrossAxisExtent: 2 * Grid.smallCardWidth,
@@ -244,7 +282,7 @@ class _BubblePageState extends State<BubblePage>
       ],
     );
     // 已读帖子整体弱化，连同评论数气泡一起
-    return item.isRead == true ? Opacity(opacity: 0.5, child: row) : row;
+    return item.read ? Opacity(opacity: 0.5, child: row) : row;
   }
 
   /// 评论数。气泡配色接口已按评论数分好档，直接用它给的色值。
@@ -301,13 +339,7 @@ class _BubblePageState extends State<BubblePage>
                   safeArea: false,
                   visualDensity: .standard,
                   // PageUtils.pushDynFromId(id: item.dynId);
-                  onTap: () => Get.toNamed(
-                    '/articlePage',
-                    parameters: {
-                      'id': item.dynId!,
-                      'type': 'opus',
-                    },
-                  ),
+                  onTap: () => _openPost(item),
                   title: Row(
                     children: [
                       if (item.isTop) _topTag(theme),
@@ -318,7 +350,7 @@ class _BubblePageState extends State<BubblePage>
                           overflow: .ellipsis,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             // 已读帖子标题降低对比度
-                            color: item.isRead == true
+                            color: item.read
                                 ? theme.colorScheme.onSurface.withValues(
                                     alpha: 0.45,
                                   )

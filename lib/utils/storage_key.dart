@@ -351,7 +351,11 @@ abstract final class SettingBoxKey {
       remarkReplaceName = 'remarkReplaceName',
       appFont = 'appFont',
       customAppFont = 'customAppFont',
-      customAppFontNames = 'customAppFontNames';
+      customAppFontNames = 'customAppFontNames',
+      // 小站帖子已读记录（本地维护，接口不返回 is_read）
+      bubbleReadEnable = 'bubbleReadEnable',
+      bubbleReadPersistent = 'bubbleReadPersistent',
+      bubbleReadDelay = 'bubbleReadDelay';
 }
 
 abstract final class LocalCacheKey {
@@ -372,7 +376,8 @@ abstract final class LocalCacheKey {
       remarkMids = 'remarkMids',
       cdnNodeList = 'cdnNodeList',
       cdnNodeListTime = 'cdnNodeListTime',
-      cdnNodeRegion = 'cdnNodeRegion';
+      cdnNodeRegion = 'cdnNodeRegion',
+      bubbleReadDynIds = 'bubbleReadDynIds';
 }
 
 abstract final class VideoBoxKey {
