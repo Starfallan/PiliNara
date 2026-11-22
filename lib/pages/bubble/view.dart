@@ -221,7 +221,7 @@ class _BubblePageState extends State<BubblePage>
     if (replyCount == null && timeText == null) {
       return null;
     }
-    return Row(
+    final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (replyCount != null)
@@ -242,6 +242,8 @@ class _BubblePageState extends State<BubblePage>
         ],
       ],
     );
+    // 已读帖子整体弱化，连同评论数气泡一起
+    return item.isRead == true ? Opacity(opacity: 0.5, child: row) : row;
   }
 
   /// 评论数。气泡配色接口已按评论数分好档，直接用它给的色值。
@@ -306,7 +308,14 @@ class _BubblePageState extends State<BubblePage>
                           item.title!,
                           maxLines: 1,
                           overflow: .ellipsis,
-                          style: theme.textTheme.bodyMedium,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            // 已读帖子标题降低对比度
+                            color: item.isRead == true
+                                ? theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.45,
+                                  )
+                                : null,
+                          ),
                         ),
                       ),
                       if (item.isFeatured) _featuredTag(),
