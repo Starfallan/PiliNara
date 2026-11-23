@@ -1369,6 +1369,12 @@ abstract final class Pref {
   static int get danmakuWeight =>
       _setting.get(SettingBoxKey.danmakuWeight, defaultValue: 0);
 
+  static bool get danmakuFilterEnabled =>
+      _setting.get(SettingBoxKey.danmakuFilterEnabled, defaultValue: true);
+
+  static Future<void> saveDanmakuFilterEnabled(bool value) =>
+      _setting.put(SettingBoxKey.danmakuFilterEnabled, value);
+
   static double get danmakuShowArea =>
       _setting.get(SettingBoxKey.danmakuShowArea, defaultValue: 0.5);
 

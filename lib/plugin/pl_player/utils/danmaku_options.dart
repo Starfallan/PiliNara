@@ -10,6 +10,7 @@ abstract final class DanmakuOptions {
   static bool blockColorful = blockTypes.contains(6);
 
   static int danmakuWeight = Pref.danmakuWeight;
+  static bool danmakuFilterEnabled = Pref.danmakuFilterEnabled;
   static double danmakuFontScaleFS = Pref.danmakuFontScaleFS;
   static double danmakuFontScale = Pref.danmakuFontScale;
   static int danmakuFontWeight = Pref.danmakuFontWeight;
@@ -57,8 +58,12 @@ abstract final class DanmakuOptions {
     );
   }
 
-  static Future<void>? save(double danmakuOpacity) {
-    return GStorage.setting.putAllNE({
+  static Future<void> saveFilterEnabled() =>
+      Pref.saveDanmakuFilterEnabled(danmakuFilterEnabled);
+
+  static Future<void> save(double danmakuOpacity) async {
+    await saveFilterEnabled();
+    await GStorage.setting.putAllNE({
       SettingBoxKey.danmakuBlockType: blockTypes.toList(),
       SettingBoxKey.danmakuShowArea: danmakuShowArea,
       SettingBoxKey.danmakuFontScale: danmakuFontScale,

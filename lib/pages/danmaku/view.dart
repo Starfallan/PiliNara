@@ -141,8 +141,11 @@ class _PlDanmakuState extends State<PlDanmaku> {
     if (currentDanmakuList != null) {
       final blockColorful = DanmakuOptions.blockColorful;
       final danmakuWeight = DanmakuOptions.danmakuWeight;
+      final filters = playerController.filters;
+      final filterEnabled = DanmakuOptions.danmakuFilterEnabled && !filters.isEmpty;
       for (DanmakuElem e in currentDanmakuList) {
         if (e.weight < danmakuWeight) continue;
+        if (filterEnabled && !e.isSelf && filters.remove(e)) continue;
         if (e.mode == 7) {
           if (kDebugMode &&
               !_loggedEarlySpecialDanmaku &&

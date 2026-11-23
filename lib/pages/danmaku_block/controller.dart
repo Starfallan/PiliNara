@@ -17,6 +17,17 @@ class DanmakuBlockController extends GetxController
   );
 
   late TabController tabController;
+  final Rx<LoadingState<void>> syncState = LoadingState<void>.loading().obs;
+  bool _querying = false;
+
+  bool get hasLoadedRules => syncState.value.isSuccess;
+
+  bool ensureRulesLoaded() {
+    if (isClosed) return false;
+    if (hasLoadedRules) return true;
+    SmartDialog.showToast('请先完成屏蔽规则同步后再编辑或导入/导出');
+    return false;
+  }
 
   @override
   void onInit() {
@@ -32,22 +43,35 @@ class DanmakuBlockController extends GetxController
   }
 
   Future<void> queryDanmakuFilter() async {
-    SmartDialog.showLoading(msg: '正在同步弹幕屏蔽规则……');
-    final result = await DanmakuFilterHttp.danmakuFilter();
-    SmartDialog.dismiss();
-    if (result case Success(:final response)) {
-      rules[0].addAll(response.rule);
-      rules[1].addAll(response.rule1);
-      rules[2].addAll(response.rule2);
-      if (response.toast case final toast?) {
-        SmartDialog.showToast(toast);
+    if (_querying || hasLoadedRules || isClosed) return;
+    _querying = true;
+    syncState.value = LoadingState.loading();
+    try {
+      final result = await DanmakuFilterHttp.danmakuFilter();
+      if (isClosed) return;
+      if (result case Success(:final response)) {
+        rules[0].assignAll(response.rule);
+        rules[1].assignAll(response.rule1);
+        rules[2].assignAll(response.rule2);
+        syncState.value = const Success(null);
+        if (response.toast case final toast?) {
+          SmartDialog.showToast(toast);
+        }
+      } else {
+        syncState.value = Error(result.toString());
+        result.toast();
       }
-    } else {
-      result.toast();
+    } catch (error) {
+      if (isClosed) return;
+      syncState.value = Error(error.toString());
+      syncState.value.toast();
+    } finally {
+      _querying = false;
     }
   }
 
   Future<void> danmakuFilterDel(int tabIndex, int itemIndex, int id) async {
+    if (!ensureRulesLoaded()) return;
     SmartDialog.showLoading(msg: '正在删除弹幕屏蔽规则……');
     final res = await DanmakuFilterHttp.danmakuFilterDel(ids: id);
     SmartDialog.dismiss();
@@ -63,6 +87,7 @@ class DanmakuBlockController extends GetxController
     required String filter,
     required int type,
   }) async {
+    if (!ensureRulesLoaded()) return;
     if (type == 2) {
       filter = getCrc32(ascii.encode(filter), 0).toRadixString(16);
     }
@@ -89,6 +114,7 @@ class DanmakuBlockController extends GetxController
   }
 
   Future<void> importDanmakuFilter(List<dynamic> incoming) async {
+    if (!ensureRulesLoaded()) return;
     final incomingRules = incoming
         .whereType<Map<String, dynamic>>()
         .map((e) => (type: (e['type'] as num).toInt(), filter: e['filter'] as String))

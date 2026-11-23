@@ -182,28 +182,7 @@ mixin HeaderMixin<T extends StatefulWidget> on State<T> {
                     ),
                     const SizedBox(height: 10),
                     if (!isLive) ...[
-                      Row(
-                        mainAxisAlignment: .spaceBetween,
-                        children: [
-                          Text('智能云屏蔽 ${DanmakuOptions.danmakuWeight} 级'),
-                          TextButton(
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            onPressed: () => Get
-                              ..back()
-                              ..toNamed(
-                                '/danmakuBlock',
-                                arguments: plPlayerController,
-                              ),
-                            child: Text(
-                              "屏蔽管理(${plPlayerController.filters.count})",
-                            ),
-                          ),
-                        ],
-                      ),
+                      Text('智能云屏蔽 ${DanmakuOptions.danmakuWeight} 级'),
                       Padding(
                         padding: sliderPadding,
                         child: Slider(
@@ -214,6 +193,12 @@ mixin HeaderMixin<T extends StatefulWidget> on State<T> {
                           label: DanmakuOptions.danmakuWeight.toString(),
                           onChanged: updateDanmakuWeight,
                         ),
+                      ),
+                      _buildDanmakuRuleSetting(
+                        theme,
+                        (value) => setState(() {
+                          DanmakuOptions.danmakuFilterEnabled = value;
+                        }),
                       ),
                     ],
                     const Text('按类型屏蔽'),
@@ -473,6 +458,96 @@ mixin HeaderMixin<T extends StatefulWidget> on State<T> {
       },
     )?.whenComplete(
       () => DanmakuOptions.save(plPlayerController.danmakuOpacity.value),
+    );
+  }
+
+  Widget _buildDanmakuRuleSetting(ThemeData theme, ValueChanged<bool> onChanged) {
+    final enabled = DanmakuOptions.danmakuFilterEnabled;
+    final count = plPlayerController.filters.count;
+    final subtitle = count == 0
+        ? '暂无规则 · 点击添加'
+        : '${enabled ? "已启用" : "已暂停"} · $count 条规则';
+    final colors = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Material(
+        color: enabled ? colors.surfaceContainerHigh : colors.surfaceContainerLow,
+        borderRadius: const BorderRadius.all(Radius.circular(16)),
+        clipBehavior: Clip.antiAlias,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 72),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () => Get
+                      ..back()
+                      ..toNamed('/danmakuBlock', arguments: plPlayerController),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '屏蔽规则管理',
+                                  style: theme.textTheme.bodyLarge?.copyWith(
+                                    color: colors.onSurface,
+                                  ),
+                                ),
+                                Text(
+                                  subtitle,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: colors.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          ExcludeSemantics(
+                            child: Icon(
+                              Icons.chevron_right_rounded,
+                              size: 20,
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Center(
+                  child: SizedBox(
+                    width: 1,
+                    height: 28,
+                    child: ColoredBox(color: colors.outlineVariant),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(left: 12, right: 16),
+                  child: Center(
+                    child: Semantics(
+                      label: '个人屏蔽规则',
+                      child: Switch(
+                        value: enabled,
+                        materialTapTargetSize: MaterialTapTargetSize.padded,
+                        padding: EdgeInsets.zero,
+                        onChanged: onChanged,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

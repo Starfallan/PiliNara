@@ -294,6 +294,7 @@ abstract final class SettingBoxKey {
       danmakuEnlargeThreshold = 'danmakuEnlargeThreshold',
       danmakuEnlargeLogBase = 'danmakuEnlargeLogBase',
       danmakuWeight = 'danmakuWeight',
+      danmakuFilterEnabled = 'danmakuFilterEnabled',
       danmakuBlockType = 'danmakuBlockType',
       danmakuShowArea = 'danmakuShowArea',
       danmakuOpacity = 'danmakuOpacity',

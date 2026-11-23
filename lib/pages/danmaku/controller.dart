@@ -8,7 +8,6 @@ import 'package:PiliPlus/grpc/dm.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/data_source.dart';
-import 'package:PiliPlus/plugin/pl_player/utils/danmaku_options.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/danmaku_merge/models.dart';
 import 'package:PiliPlus/utils/danmaku_merge/worker_client.dart';
@@ -322,20 +321,11 @@ class PlDanmakuController {
   }
 
   void _storeDanmaku(List<DanmakuElem> elems) {
-    final filters = _plPlayerController.filters;
-    final shouldFilter = filters.count != 0;
-    final danmakuWeight = DanmakuOptions.danmakuWeight;
+    // Keep candidates so changing filters can also restore already loaded data.
     final enlarge = Pref.danmakuEnlarge;
     final enlargeThreshold = Pref.danmakuEnlargeThreshold;
     final logBaseValue = log(Pref.danmakuEnlargeLogBase.toDouble());
     for (final element in elems) {
-      if (!element.isSelf) {
-        if (element.weight < danmakuWeight ||
-            (shouldFilter && filters.remove(element))) {
-          continue;
-        }
-      }
-
       if (element.count > 1) {
         // Enlarge rate adapted from Pakku.js: log(count) / log(base) once the
         // count passes the threshold; rate 1 keeps the 15px baseline that

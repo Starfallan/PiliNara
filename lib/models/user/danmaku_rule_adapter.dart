@@ -20,7 +20,7 @@ class RuleFilterAdapter extends TypeAdapter<RuleFilter> {
   @override
   void write(BinaryWriter writer, RuleFilter obj) {
     writer
-      ..writeStringList(obj.dmFilterString)
+      ..writeStringList(obj.dmFilterString.toList())
       ..writeStringList(obj.dmRegExp.map((i) => i.pattern).toList())
       ..writeStringList(obj.dmUid.toList());
   }
