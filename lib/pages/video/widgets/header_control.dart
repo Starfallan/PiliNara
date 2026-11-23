@@ -308,6 +308,8 @@ class HeaderControl extends StatefulWidget {
     required this.controller,
     required this.videoDetailCtr,
     required this.heroTag,
+    this.canAdjustPageRatio,
+    this.onAdjustPageRatio,
     super.key,
   });
 
@@ -315,6 +317,8 @@ class HeaderControl extends StatefulWidget {
   final PlPlayerController controller;
   final VideoDetailController videoDetailCtr;
   final String heroTag;
+  final bool Function()? canAdjustPageRatio;
+  final VoidCallback? onAdjustPageRatio;
 
   @override
   State<HeaderControl> createState() => HeaderControlState();
@@ -565,6 +569,16 @@ class HeaderControlState extends State<HeaderControl>
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 14),
               children: [
+                if (widget.canAdjustPageRatio?.call() ?? false)
+                  ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.vertical_split_outlined, size: 20),
+                    title: const Text('页面比例', style: titleStyle),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      widget.onAdjustPageRatio?.call();
+                    },
+                  ),
                 if (plPlayerController.usesFullscreenLayout)
                   ListTile(
                     dense: true,

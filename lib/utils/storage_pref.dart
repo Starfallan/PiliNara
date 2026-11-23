@@ -79,6 +79,17 @@ abstract final class Pref {
     ),
   );
 
+  static double? get videoPaneRatio {
+    final value = _setting.get(SettingBoxKey.videoPaneRatio);
+    return value is num && value.isFinite && value > 0 && value < 1
+        ? value.toDouble()
+        : null;
+  }
+
+  static Future<void> saveVideoPaneRatio(double? ratio) => ratio == null
+      ? _setting.delete(SettingBoxKey.videoPaneRatio)
+      : _setting.put(SettingBoxKey.videoPaneRatio, ratio);
+
   static Set<int> get blackMids {
     final data = _localCache.get(
       LocalCacheKey.blackMids,

@@ -53,6 +53,7 @@ import 'package:PiliPlus/pages/video/widgets/keyboard_scrollable.dart';
 import 'package:PiliPlus/pages/video/view_point/view.dart';
 import 'package:PiliPlus/pages/video/widgets/header_control.dart';
 import 'package:PiliPlus/pages/video/widgets/intro_layout.dart';
+import 'package:PiliPlus/pages/video/widgets/pane_resizer.dart';
 import 'package:PiliPlus/pages/video/widgets/player_focus.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/fullscreen_mode.dart';
@@ -128,6 +129,17 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   // 页面根节点 key：归位目标矩形以页面根为参照系量取——路由转场期间页面
   // 整体在移动，相对页面根的矩形 == 页面落定后的全局矩形
   final _pageRootKey = GlobalKey();
+  final _paneResizerKey = GlobalKey<VideoPaneResizerState>();
+
+  bool get _isPageRatioEnabled => _isPageOwner && isShowing && !isFullScreen &&
+      !videoDetailController.plPlayerController.isPipMode;
+
+  bool get _canAdjustPageRatio => _isPageRatioEnabled &&
+      (_paneResizerKey.currentState?.canAdjust ?? false);
+
+  void _showPageRatio() {
+    if (_canAdjustPageRatio) _paneResizerKey.currentState?.showRatioDialog();
+  }
 
   // intro ctr
   late final CommonIntroController introController =
@@ -882,6 +894,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   // 离开当前页面时
   void didPushNext() {
     super.didPushNext();
+    _paneResizerKey.currentState?.cancelEditing();
     isShowing = false;
 
     removeObserverMobile(this);
@@ -1644,17 +1657,49 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     if (maxWidth >= 560) {
       width = maxWidth - clampDouble(maxWidth - width, 280, 425);
     }
-    final videoWidth = isFullScreen ? maxWidth : width;
-    final double height = width / Style.aspectRatio16x9;
-    final videoHeight = isFullScreen
-        ? maxHeight - (isWindowMode && !isPortrait ? 0 : padding.top)
-        : height;
-    if (height > maxHeight) {
+    if (width / Style.aspectRatio16x9 > maxHeight) {
       return childSplit(Style.aspectRatio16x9);
     }
-    final introHeight = maxHeight - height - padding.top;
     final showIntro =
         videoDetailController.isUgc && videoDetailController.showRelatedVideo;
+    final showSeason = _shouldShowSeasonPanel;
+    final tabCount = (videoDetailController.isFileSource || showIntro ? 1 : 0) +
+        (videoDetailController.showReply ? 1 : 0) + (showSeason ? 1 : 0);
+    final textScale = max(1.0, MediaQuery.textScalerOf(context).scale(13) / 13);
+    return VideoPaneResizer(
+      key: _isPageOwner ? _paneResizerKey : null,
+      enabled: _isPageRatioEnabled,
+      automaticWidth: width,
+      minRightWidth: max(320, tabCount * 96.0 + 116) * textScale,
+      hasIntro: !videoDetailController.isFileSource,
+      readRatio: () => Pref.videoPaneRatio,
+      saveRatio: Pref.saveVideoPaneRatio,
+      onSaveError: () => SmartDialog.showToast('页面比例保存失败，请重试'),
+      builder: (width, size, gap, divider) => _buildLandscapePanes(
+        isFullScreen: isFullScreen,
+        width: width,
+        size: size,
+        gap: gap,
+        divider: divider,
+        showIntro: showIntro,
+        showSeason: showSeason,
+      ),
+    );
+  }
+
+  Widget _buildLandscapePanes({
+    required bool isFullScreen,
+    required double width,
+    required Size size,
+    required double gap,
+    required Widget divider,
+    required bool showIntro,
+    required bool showSeason,
+  }) {
+    final videoWidth = isFullScreen ? size.width : width;
+    final height = width / Style.aspectRatio16x9;
+    final videoHeight = isFullScreen ? size.height : height;
+    final introHeight = max(0.0, size.height - height);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1685,11 +1730,12 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
               ),
           ],
         ),
+        divider,
         Offstage(
           offstage: isFullScreen,
           child: SizedBox(
-            width: maxWidth - width - padding.horizontal,
-            height: maxHeight - padding.top,
+            width: max(0.0, size.width - width - gap),
+            height: size.height,
             child: MiniScaffold(
               key: _ownedKey(videoDetailController.childKey),
               body: Column(
@@ -1723,7 +1769,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                               ),
                             ),
                           if (videoDetailController.showReply) videoReplyPanel(),
-                          if (_shouldShowSeasonPanel) seasonPanel,
+                          if (showSeason) seasonPanel,
                         ],
                       ),
                       resolveCtr: _landscapeTabScrollCtr,
@@ -1914,6 +1960,11 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       shadows: shadows,
     ),
     itemBuilder: (BuildContext context) => <PopupMenuEntry>[
+      if (_canAdjustPageRatio)
+        PopupMenuItem(
+          onTap: _showPageRatio,
+          child: const Text('页面比例'),
+        ),
       PopupMenuItem(
         onTap: introController.viewLater,
         child: const Text('稍后再看'),
@@ -1988,6 +2039,8 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                   controller: videoDetailController.plPlayerController,
                   videoDetailCtr: videoDetailController,
                   heroTag: heroTag,
+                  canAdjustPageRatio: () => _canAdjustPageRatio,
+                  onAdjustPageRatio: _showPageRatio,
                 ),
                 danmuWidget: isPipMode && pipNoDanmaku
                     ? null
