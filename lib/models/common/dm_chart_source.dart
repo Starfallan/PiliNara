@@ -14,9 +14,9 @@ enum DmChartSource with EnumWithLabel {
 
   String get desc => switch (this) {
     disabled => '不显示高能进度条，也不请求相关数据',
-    officialFirst => '优先使用 B 站官方数据，缺失时用弹幕密度生成',
-    danmakuDensity => '始终根据弹幕列表计算密度曲线',
-    officialOnly => '仅使用 B 站官方高能进度条数据',
+    officialFirst => '优先使用 B 站官方数据，缺失时用弹幕密度生成；本地视频使用缓存弹幕生成',
+    danmakuDensity => '始终根据弹幕列表计算密度曲线，本地视频使用缓存弹幕',
+    officialOnly => '仅使用 B 站官方高能进度条数据，本地视频不显示',
   };
 
   bool get enableOfficial => switch (this) {

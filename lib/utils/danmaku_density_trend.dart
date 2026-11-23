@@ -1,10 +1,12 @@
+import 'dart:io' show File;
 import 'dart:math' as math;
+import 'dart:typed_data' show Uint8List;
 
 import 'package:PiliPlus/grpc/bilibili/community/service/dm/v1.pb.dart';
 import 'package:PiliPlus/grpc/dm.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:characters/characters.dart';
-import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint, compute;
 
 abstract final class DanmakuDensityTrend {
   static const int segmentLengthMs = 60 * 6 * 1000;
@@ -18,6 +20,38 @@ abstract final class DanmakuDensityTrend {
   static const double _baseDensityPerMin = 10.0;
   static const double _minWindowMs = 2000.0;
   static const double _maxWindowMs = 20000.0;
+
+  /// 只读取原始缓存弹幕，文件不可用时不转为网络请求。
+  static Future<List<double>?> buildFromFile({
+    required String filePath,
+    required int cid,
+    required int durationMs,
+    bool Function()? shouldCancel,
+  }) async {
+    if (durationMs <= 0 || shouldCancel?.call() == true) return null;
+    try {
+      final file = File(filePath);
+      if (!file.existsSync()) return null;
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty || shouldCancel?.call() == true) return null;
+      final trend = await compute(
+        _buildFromBytes,
+        (bytes: bytes, cid: cid, durationMs: durationMs),
+      );
+      return shouldCancel?.call() == true ? null : trend;
+    } catch (e) {
+      if (kDebugMode) debugPrint('DanmakuDensityTrend file: $e');
+      return null;
+    }
+  }
+
+  static Future<List<double>?> _buildFromBytes(
+    ({Uint8List bytes, int cid, int durationMs}) data,
+  ) => build(
+    cid: data.cid,
+    durationMs: data.durationMs,
+    elems: DmSegMobileReply.fromBuffer(data.bytes).elems,
+  );
 
   /// 拉取指定分P(cid)的全部分段弹幕，失败或取消返回 null。
   ///

@@ -1043,13 +1043,13 @@ class VideoDetailController extends GetxController
     if (plPlayerController.enableBlock) {
       initSkip();
     }
+    if (plPlayerController.showDmChart &&
+        (dmTrend.value == null || (isFileSource && dmTrend.value is Error))) {
+      unawaited(_getDmTrend());
+    }
     if (!isFileSource) {
       if (vttSubtitlesIndex.value == -1) {
         _queryPlayInfo();
-      }
-
-      if (plPlayerController.showDmChart && dmTrend.value == null) {
-        _getDmTrend();
       }
 
       if ((Pref.enableDmCount ||
@@ -1856,6 +1856,7 @@ class VideoDetailController extends GetxController
 
     playedTime = null;
     _dmTrendTaskId++;
+    dmTrend.value = null;
     // 切分P/视频时作废全量弹幕任务并清空弹幕数
     _dmFetchTaskId++;
     _dmElemsFuture = null;
@@ -1887,10 +1888,6 @@ class VideoDetailController extends GetxController
       languages.value = null;
       currLang.value = null;
 
-      // dm trend
-      if (plPlayerController.showDmChart) {
-        dmTrend.value = null;
-      }
       // interactive video
       if (!isStein) {
         graphVersion = null;
@@ -1956,15 +1953,44 @@ class VideoDetailController extends GetxController
 
   Future<void> _getDmTrend() async {
     final source = plPlayerController.dmChartSource;
-    if (!source.isEnabled) {
+    if (!source.isEnabled || (isFileSource && !source.enableLocalDensity)) {
       dmTrend.value = null;
       return;
     }
 
     final taskId = ++_dmTrendTaskId;
-    bool shouldCancel() => taskId != _dmTrendTaskId || isClosed;
+    final requestCid = cid.value;
+    final localDir = isFileSource ? entry.entryDirPath : null;
+    bool shouldCancel() =>
+        taskId != _dmTrendTaskId ||
+        isClosed ||
+        cid.value != requestCid ||
+        (localDir != null && entry.entryDirPath != localDir);
 
     dmTrend.value = LoadingState<List<double>>.loading();
+
+    if (localDir != null) {
+      var durationMs = entry.totalTimeMilli;
+      if (durationMs <= 0 &&
+          plPlayerController.isCurrentVideoSource(bvid: bvid, cid: requestCid)) {
+        final localSource = plPlayerController.dataSource;
+        if (localSource is FileSource && localSource.dir == localDir) {
+          durationMs = plPlayerController.videoPlayerController
+              ?.state.duration.inMilliseconds ?? 0;
+        }
+      }
+      final local = await DanmakuDensityTrend.buildFromFile(
+        filePath: path.join(localDir, PathUtils.danmakuName),
+        cid: requestCid,
+        durationMs: durationMs,
+        shouldCancel: shouldCancel,
+      );
+      if (shouldCancel()) return;
+      dmTrend.value = local?.isNotEmpty == true
+          ? Success(local!)
+          : const Error(null);
+      return;
+    }
 
     if (source.enableOfficial) {
       final official = await _tryGetOfficialDmTrend();
