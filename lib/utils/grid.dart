@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:PiliPlus/common/skeleton/video_card_h.dart';
 import 'package:PiliPlus/common/sliver_single_child_delegate.dart';
+import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:flutter/rendering.dart';
 import 'package:material_ui/material_ui.dart';
@@ -21,12 +22,23 @@ mixin GridMixin {
 abstract final class Grid {
   static final double smallCardWidth = Pref.smallCardWidth;
 
+  /// 水平卡片左侧封面宽度由瓦片高度决定（`VideoCardH` 里是固定 16:10 的
+  /// `AspectRatio`），瓦片一窄，右侧文字区就被挤到放不下播放/弹幕数而横向
+  /// 溢出（窄平板 480~700dp 宽时会出现两列 300dp 左右的瓦片）。
+  /// 这里给瓦片设一个下限宽度：封面 + 左右内边距 + 间距 + 至少 180dp 文字区。
+  static double videoCardHMinWidth({double mainAxisExtent = 110}) =>
+      (mainAxisExtent - 10) * Style.aspectRatio +
+      Style.safeSpace * 2 +
+      10 +
+      180;
+
   static SliverGridDelegateWithMaxCrossAxisExtent videoCardHDelegate({
     double mainAxisExtent = 110,
   }) => SliverGridDelegateWithMaxCrossAxisExtent(
     mainAxisSpacing: 2,
     mainAxisExtent: mainAxisExtent,
     maxCrossAxisExtent: Grid.smallCardWidth * 2,
+    minCrossAxisExtent: Grid.videoCardHMinWidth(mainAxisExtent: mainAxisExtent),
   );
 }
 
@@ -139,17 +151,25 @@ class SliverGridDelegateWithMaxCrossAxisExtent extends SliverGridDelegate {
   /// The [maxCrossAxisExtent], [mainAxisExtent], [mainAxisSpacing],
   /// and [crossAxisSpacing] arguments must not be negative.
   /// The [childAspectRatio] argument must be greater than zero.
+  ///
+  /// [minCrossAxisExtent] 可选：瓦片宽度下限。列数不会多到让瓦片窄于该值
+  /// （避免宽屏上列数过多把文字区挤溢出）。
   SliverGridDelegateWithMaxCrossAxisExtent({
     required this.maxCrossAxisExtent,
+    this.minCrossAxisExtent,
     this.mainAxisSpacing = 0.0,
     this.crossAxisSpacing = 0.0,
     this.childAspectRatio = 1.0,
     this.mainAxisExtent,
   }) : assert(maxCrossAxisExtent > 0),
+       assert(minCrossAxisExtent == null || minCrossAxisExtent > 0),
        assert(mainAxisSpacing >= 0),
        assert(crossAxisSpacing >= 0),
        assert(childAspectRatio > 0),
        assert(mainAxisExtent == null || mainAxisExtent >= 0);
+
+  /// 瓦片宽度下限；为 null 时只按 [maxCrossAxisExtent] 算列数。
+  final double? minCrossAxisExtent;
 
   /// The maximum extent of tiles in the cross axis.
   ///
@@ -201,11 +221,24 @@ class SliverGridDelegateWithMaxCrossAxisExtent extends SliverGridDelegate {
     crossAxisExtentCache = constraints.crossAxisExtent;
     // Ensure a minimum count of 1, can be zero and result in an infinite extent
     // below when the window size is 0.
-    final crossAxisCount = max(
+    final maxCount = max(
       1,
       (constraints.crossAxisExtent / (maxCrossAxisExtent + crossAxisSpacing))
           .ceil(),
     );
+    final int crossAxisCount;
+    if (minCrossAxisExtent case final minExtent?) {
+      crossAxisCount = max(
+        1,
+        min(
+          maxCount,
+          (constraints.crossAxisExtent / (minExtent + crossAxisSpacing))
+              .floor(),
+        ),
+      );
+    } else {
+      crossAxisCount = maxCount;
+    }
     final double usableCrossAxisExtent = max(
       0.0,
       constraints.crossAxisExtent - crossAxisSpacing * (crossAxisCount - 1),

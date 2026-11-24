@@ -47,9 +47,13 @@ import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:media_kit/media_kit.dart';
-import 'package:nativeapi/nativeapi.dart' as nativeapi show Size, Rectangle;
+import 'package:nativeapi/nativeapi.dart' as nativeapi show
+    DisplayManager,
+    Rectangle,
+    Size;
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:screen_retriever/screen_retriever.dart';
 import 'package:screen_brightness_platform_interface/screen_brightness_platform_interface.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -222,6 +226,31 @@ void main() async {
         ..isVisibleInTaskbar = true
         ..title = Constants.appName;
       if (useContentUnderTitleBar) window.setContentUnderTitleBar(true);
+      if (Platform.isLinux) {
+        // phosh 等 Wayland 手机/平板面板是 layer-shell；窗口若以全屏状态或
+        // 全屏尺寸恢复会压在状态栏下面（GDK 不感知 exclusive zone，
+        // workArea 拿不到面板高度）。① 退出误存的全屏态；② 恢复尺寸几乎
+        // 覆盖整屏时改用 maximize，由合成器按面板排除区排版。
+        if (window.isFullScreen) window.isFullScreen = false;
+        final displays = nativeapi.DisplayManager.instance.getAll();
+        final display = displays.firstWhereOrNull(
+          (d) => (d.position.toOffset() & d.size.toSize()).overlaps(
+            Rect.fromLTWH(
+              bounds.x,
+              bounds.y,
+              bounds.width,
+              bounds.height,
+            ),
+          ),
+        );
+        if (display != null) {
+          final size = display.size;
+          if (bounds.width >= size.width * 0.99 &&
+              bounds.height >= size.height * 0.99) {
+            window.maximize();
+          }
+        }
+      }
       if (Pref.isWindowMaximized) window.maximize();
       void show([_]) => window
         ..focus()
