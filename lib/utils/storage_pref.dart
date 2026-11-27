@@ -887,6 +887,15 @@ abstract final class Pref {
   static bool get isPureBlackTheme =>
       _setting.get(SettingBoxKey.isPureBlackTheme, defaultValue: false);
 
+  static bool get hideTextDyn =>
+      _setting.get(SettingBoxKey.hideTextDyn, defaultValue: false);
+
+  static bool get hideImageDyn =>
+      _setting.get(SettingBoxKey.hideImageDyn, defaultValue: false);
+
+  static bool get hideDynamicComments =>
+      _setting.get(SettingBoxKey.hideDynamicComments, defaultValue: false);
+
   static bool get antiGoodsDyn =>
       _setting.get(SettingBoxKey.antiGoodsDyn, defaultValue: false);
 

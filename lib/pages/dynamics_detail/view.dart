@@ -33,12 +33,14 @@ import 'package:PiliPlus/pages/dynamics/widgets/dynamic_panel.dart';
 import 'package:PiliPlus/pages/dynamics_create/view.dart';
 import 'package:PiliPlus/pages/dynamics_detail/controller.dart';
 import 'package:PiliPlus/pages/dynamics_repost/view.dart';
+import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/extension/get_ext.dart';
 import 'package:PiliPlus/utils/grid.dart';
 import 'package:PiliPlus/utils/num_utils.dart';
 import 'package:PiliPlus/utils/reply_scheme_helper.dart';
 import 'package:PiliPlus/utils/request_utils.dart';
 import 'package:PiliPlus/utils/share_utils.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
@@ -115,7 +117,10 @@ class _DynamicDetailPageState extends CommonDynPageMultiState<DynamicDetailPage>
           child: SimpleScaffold(
             appBar: _buildAppBar(),
             body: Padding(
-              padding: EdgeInsets.only(left: padding.left, right: padding.right),
+              padding: EdgeInsets.only(
+                left: padding.left,
+                right: padding.right,
+              ),
               child: _buildBody(),
             ),
             fab: SlideTransition(
@@ -291,6 +296,14 @@ class _DynamicDetailPageState extends CommonDynPageMultiState<DynamicDetailPage>
         : [ratioWidget(maxWidth), const SizedBox(width: 16)],
   );
 
+  bool get _hideReaderComments {
+    if (!Pref.hideDynamicComments) return false;
+    final authorMid = controller.dynItem.modules.moduleAuthor?.mid;
+    return authorMid == null ||
+        authorMid <= 0 ||
+        authorMid != Accounts.main.mid;
+  }
+
   Widget _buildTabBar() {
     return SizedBox(
       height: 40,
@@ -333,7 +346,9 @@ class _DynamicDetailPageState extends CommonDynPageMultiState<DynamicDetailPage>
                     .like => _likeController.count.value,
                   };
                   return Text(
-                    '${e.label}${count < 0 ? '' : ' ${NumUtils.numFormat(count)}'}',
+                    e == DynType.reply && _hideReaderComments
+                        ? '\u8bc4\u8bba\u5df2\u9690\u85cf'
+                        : '${e.label}${count < 0 ? '' : ' ${NumUtils.numFormat(count)}'}',
                   );
                 }),
               ),
@@ -344,18 +359,20 @@ class _DynamicDetailPageState extends CommonDynPageMultiState<DynamicDetailPage>
   }
 
   Widget _buildTabBody([bool isPortrait = true]) {
-    Widget reply = CustomScrollView(
-      primary: true,
-      key: const PageStorageKey(DynType.reply),
-      physics: ReloadScrollPhysics(
-        controller: controller,
-        parent: isPortrait ? platformAlwaysClampingPhysics : null,
-      ),
-      slivers: [
-        buildReplyHeader(isPortrait),
-        Obx(() => replyList(controller.loadingState.value)),
-      ],
-    );
+    Widget reply = _hideReaderComments
+        ? const Center(child: Text('\u8bc4\u8bba\u5df2\u9690\u85cf'))
+        : CustomScrollView(
+            primary: true,
+            key: const PageStorageKey(DynType.reply),
+            physics: ReloadScrollPhysics(
+              controller: controller,
+              parent: isPortrait ? platformAlwaysClampingPhysics : null,
+            ),
+            slivers: [
+              buildReplyHeader(isPortrait),
+              Obx(() => replyList(controller.loadingState.value)),
+            ],
+          );
     if (!isPortrait) {
       reply = refreshIndicator(onRefresh: controller.onRefresh, child: reply);
     }
@@ -492,7 +509,7 @@ class _DynamicDetailPageState extends CommonDynPageMultiState<DynamicDetailPage>
 
   Widget _buildBottom() {
     if (!controller.showDynActionBar) {
-      return fabButton;
+      return _hideReaderComments ? const SizedBox.shrink() : fabButton;
     }
 
     final primary = theme.colorScheme.primary;
@@ -537,13 +554,14 @@ class _DynamicDetailPageState extends CommonDynPageMultiState<DynamicDetailPage>
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(
-              right: kFloatingActionButtonMargin,
-              bottom: kFloatingActionButtonMargin,
+          if (!_hideReaderComments)
+            Padding(
+              padding: const EdgeInsets.only(
+                right: kFloatingActionButtonMargin,
+                bottom: kFloatingActionButtonMargin,
+              ),
+              child: replyButton,
             ),
-            child: replyButton,
-          ),
           Container(
             decoration: BoxDecoration(
               color: theme.colorScheme.surface,
@@ -601,14 +619,15 @@ class _DynamicDetailPageState extends CommonDynPageMultiState<DynamicDetailPage>
                     ),
                   ),
                 ),
-                Expanded(
-                  child: textIconButton(
-                    icon: FontAwesomeIcons.comment,
-                    text: '评论',
-                    stat: moduleStat?.comment,
-                    onPressed: _jumpToComment,
+                if (!_hideReaderComments)
+                  Expanded(
+                    child: textIconButton(
+                      icon: FontAwesomeIcons.comment,
+                      text: '评论',
+                      stat: moduleStat?.comment,
+                      onPressed: _jumpToComment,
+                    ),
                   ),
-                ),
                 Expanded(
                   child: Builder(
                     builder: (context) {

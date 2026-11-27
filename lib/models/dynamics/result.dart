@@ -123,6 +123,8 @@ class DynamicsDataModel {
   }
 }
 
+enum DynamicContentType { text, image }
+
 // 单个动态
 class DynamicItemModel {
   Basic? basic;
@@ -163,6 +165,55 @@ class DynamicItemModel {
     if (json['fallback'] != null) {
       fallback = Fallback.fromJson(json['fallback']);
     }
+  }
+
+  DynamicContentType? get contentType {
+    if (type == 'DYNAMIC_TYPE_FORWARD') return orig?.contentType;
+    if (type != 'DYNAMIC_TYPE_WORD' && type != 'DYNAMIC_TYPE_DRAW') return null;
+
+    final moduleDynamic = modules.moduleDynamic;
+    final major = moduleDynamic?.major;
+    if (major?.type case final type?
+        when type != 'MAJOR_TYPE_OPUS' && type != 'MAJOR_TYPE_DRAW') {
+      return null;
+    }
+    final opus = major?.opus;
+    final nodes = [
+      ...?moduleDynamic?.desc?.richTextNodes,
+      ...?opus?.summary?.richTextNodes,
+    ];
+    bool hasPictures(List<OpusPicModel>? pictures) =>
+        pictures?.any(
+          (pic) =>
+              pic.url?.trim().isNotEmpty == true ||
+              pic.src?.trim().isNotEmpty == true,
+        ) ??
+        false;
+
+    if (major?._hasDrawPictures == true ||
+        hasPictures(opus?.pics) ||
+        nodes.any((node) => hasPictures(node.pics))) {
+      return .image;
+    }
+    if (nodes.any(
+      (node) =>
+          node.pics?.isNotEmpty == true ||
+          node.type == 'RICH_TEXT_NODE_TYPE_VIEW_PICTURE',
+    )) {
+      return null;
+    }
+
+    final hasText =
+        moduleDynamic?.desc?.text?.trim().isNotEmpty == true ||
+        opus?.summary?.text?.trim().isNotEmpty == true ||
+        nodes.any((node) => node.text?.trim().isNotEmpty == true);
+    if (!hasText) return null;
+    if (major?.type == 'MAJOR_TYPE_OPUS') {
+      return opus?.pics?.isEmpty == true ? .text : null;
+    }
+    return type == 'DYNAMIC_TYPE_WORD' && major?.type == null && opus == null
+        ? .text
+        : null;
   }
 
   bool get hasNoPrivilegeDynamic =>
@@ -972,6 +1023,7 @@ class DynamicMajorModel {
   Medialist? medialist;
 
   SubscriptionNew? subscriptionNew;
+  bool _hasDrawPictures = false;
 
   DynamicMajorModel.fromJson(Map<String, dynamic> json) {
     archive = json['archive'] != null
@@ -996,6 +1048,14 @@ class DynamicMajorModel {
         ? DynamicNoneModel.fromJson(json['none'])
         : null;
     type = json['type'];
+    if (json['draw'] case {'items': final List items}) {
+      _hasDrawPictures = items.any(
+        (item) => switch (item) {
+          {'img_src': final String src} => src.trim().isNotEmpty,
+          _ => false,
+        },
+      );
+    }
     courses = json['courses'] == null
         ? null
         : DynamicArchiveModel.fromJson(json['courses']);

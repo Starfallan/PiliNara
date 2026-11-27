@@ -6,6 +6,7 @@ import 'package:PiliPlus/models/dynamics/result.dart';
 import 'package:PiliPlus/pages/dynamics/widgets/dynamic_panel.dart';
 import 'package:PiliPlus/pages/member_dynamics/controller.dart';
 import 'package:PiliPlus/utils/global_data.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:PiliPlus/utils/waterfall.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -81,20 +82,7 @@ class _MemberDynamicsPageState extends State<MemberDynamicsPage>
       Loading() => dynSkeleton,
       Success(:final response) =>
         response != null && response.isNotEmpty
-            ? GlobalData().dynamicsWaterfallFlow
-                  ? SliverMasonryGrid(
-                      crossAxisSpacing: 4,
-                      gridDelegate: dynGridDelegate,
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) => _itemBuilder(response, index),
-                        childCount: response.length,
-                      ),
-                    )
-                  : SliverList.builder(
-                      itemBuilder: (context, index) =>
-                          _itemBuilder(response, index),
-                      itemCount: response.length,
-                    )
+            ? _buildItems(response)
             : HttpError(onReload: _memberDynamicController.onReload),
       Error(:final errMsg) => HttpError(
         errMsg: errMsg,
@@ -103,14 +91,80 @@ class _MemberDynamicsPageState extends State<MemberDynamicsPage>
     };
   }
 
-  Widget _itemBuilder(List<DynamicItemModel> list, int index) {
-    if (index == list.length - 1) {
-      _memberDynamicController.onLoadMore();
+  Widget _buildItems(List<DynamicItemModel> items) {
+    final hideText = Pref.hideTextDyn;
+    final hideImage = Pref.hideImageDyn;
+
+    bool isHidden(DynamicItemModel item) =>
+        (hideText || hideImage) &&
+        item.visible != false &&
+        item.modules.moduleFold == null &&
+        switch (item.contentType) {
+          DynamicContentType.text => hideText,
+          DynamicContentType.image => hideImage,
+          null => false,
+        };
+
+    final lastIndex = items.length - 1;
+    final hiddenTail = isHidden(items.last);
+    final allHidden = items.every(isHidden);
+
+    Widget itemBuilder(BuildContext context, int index) {
+      final item = items[index];
+      final isLast = index == lastIndex;
+      if (isLast && !hiddenTail) _memberDynamicController.onLoadMore();
+      return DynamicPanel(
+        item: item,
+        hidden: isHidden(item),
+        onRemove: _memberDynamicController.onRemove,
+        onSetTop: _memberDynamicController.onSetTop,
+      );
     }
-    return DynamicPanel(
-      item: list[index],
-      onRemove: _memberDynamicController.onRemove,
-      onSetTop: _memberDynamicController.onSetTop,
+
+    final list = GlobalData().dynamicsWaterfallFlow
+        ? SliverMasonryGrid(
+            crossAxisSpacing: 4,
+            gridDelegate: dynGridDelegate,
+            delegate: SliverChildBuilderDelegate(
+              itemBuilder,
+              childCount: items.length,
+            ),
+          )
+        : SliverList.builder(itemBuilder: itemBuilder, itemCount: items.length);
+
+    if (!hiddenTail) return list;
+    final canLoadMore =
+        !_memberDynamicController.isEnd &&
+        _memberDynamicController.offset != '-1';
+    return SliverMainAxisGroup(
+      slivers: [
+        list,
+        SliverToBoxAdapter(
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (allHidden)
+                  const Text(
+                    '\u5f53\u524d\u9875\u9762\u52a8\u6001\u5747\u5df2\u9690\u85cf',
+                  ),
+                if (canLoadMore)
+                  TextButton(
+                    onPressed: () async {
+                      await _memberDynamicController.onLoadMore();
+                      if (mounted &&
+                          (_memberDynamicController.isEnd ||
+                              _memberDynamicController.offset == '-1')) {
+                        setState(() {});
+                      }
+                    },
+                    child: const Text('\u52a0\u8f7d\u66f4\u591a'),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
