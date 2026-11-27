@@ -3,6 +3,7 @@ import 'package:PiliPlus/pages/dynamics_repost/view.dart';
 import 'package:PiliPlus/utils/num_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/request_utils.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -22,6 +23,7 @@ class ActionPanel extends StatelessWidget {
     final forward = moduleStat.forward!;
     final comment = moduleStat.comment!;
     final like = moduleStat.like!;
+    final hideComments = Pref.hideDynamicComments;
     final btnStyle = TextButton.styleFrom(
       tapTargetSize: .padded,
       padding: const EdgeInsets.symmetric(horizontal: 15),
@@ -67,25 +69,28 @@ class ActionPanel extends StatelessWidget {
             },
           ),
         ),
-        Expanded(
-          child: TextButton.icon(
-            onPressed: () => PageUtils.pushDynDetail(
-              item,
-              isPush: true,
-              viewComment: true,
-            ),
-            icon: Icon(
-              FontAwesomeIcons.comment,
-              size: 16,
-              color: outline,
-              semanticLabel: "评论",
-            ),
-            style: btnStyle,
-            label: Text(
-              comment.count != null ? NumUtils.numFormat(comment.count) : '评论',
+        if (!hideComments)
+          Expanded(
+            child: TextButton.icon(
+              onPressed: () => PageUtils.pushDynDetail(
+                item,
+                isPush: true,
+                viewComment: true,
+              ),
+              icon: Icon(
+                FontAwesomeIcons.comment,
+                size: 16,
+                color: outline,
+                semanticLabel: "评论",
+              ),
+              style: btnStyle,
+              label: Text(
+                comment.count != null
+                    ? NumUtils.numFormat(comment.count)
+                    : '评论',
+              ),
             ),
           ),
-        ),
         Expanded(
           child: Builder(
             builder: (context) {

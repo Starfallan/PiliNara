@@ -96,6 +96,27 @@ List<SettingsModel> get dynamicsSettings => [
       // Changes are immediately reflected
     },
   ),
+  const SwitchModel(
+    title: '\u9690\u85cf\u7eaf\u6587\u5b57\u52a8\u6001',
+    subtitle: '\u4ec5\u5f71\u54cd\u5173\u6ce8\u6d41\u3001\u6309 UP \u4e3b\u6d4f\u89c8\u548c\u4e2a\u4eba\u7a7a\u95f4\uff0c\u91cd\u65b0\u8fdb\u5165\u6216\u5237\u65b0\u540e\u751f\u6548',
+    leading: Icon(Icons.notes_outlined),
+    setKey: SettingBoxKey.hideTextDyn,
+    defaultVal: false,
+  ),
+  const SwitchModel(
+    title: '\u9690\u85cf\u56fe\u6587\u52a8\u6001',
+    subtitle: '\u4ec5\u5f71\u54cd\u5173\u6ce8\u6d41\u3001\u6309 UP \u4e3b\u6d4f\u89c8\u548c\u4e2a\u4eba\u7a7a\u95f4\uff0c\u91cd\u65b0\u8fdb\u5165\u6216\u5237\u65b0\u540e\u751f\u6548',
+    leading: Icon(Icons.image_outlined),
+    setKey: SettingBoxKey.hideImageDyn,
+    defaultVal: false,
+  ),
+  const SwitchModel(
+    title: '\u9690\u85cf\u52a8\u6001\u8bfb\u8005\u8bc4\u8bba',
+    subtitle: '\u9690\u85cf\u52a8\u6001\u5361\u7247\u70ed\u8bc4\u548c\u8be6\u60c5\u9875\u8bc4\u8bba\uff1b\u4f5c\u8005\u4ecd\u53ef\u67e5\u770b\u548c\u7ba1\u7406\u8bc4\u8bba',
+    leading: Icon(Icons.comment_outlined),
+    setKey: SettingBoxKey.hideDynamicComments,
+    defaultVal: false,
+  ),
   SwitchModel(
     title: '屏蔽带货动态',
     subtitle: '过滤包含商品推广的动态',
@@ -136,7 +157,6 @@ List<SettingsModel> get dynamicsSettings => [
       DynamicsDataModel.removeDynVideoDyn = value;
     },
   ),
-
 ];
 
 void _showDynDialog(BuildContext context) {

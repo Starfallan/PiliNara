@@ -9,11 +9,13 @@ import 'package:PiliPlus/pages/dynamics/widgets/interaction.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:material_ui/material_ui.dart';
 
 class DynamicPanel extends StatelessWidget {
   final DynamicItemModel item;
   final bool isDetail;
+  final bool hidden;
   final ValueChanged<Object>? onRemove;
   final bool isSave;
   final void Function(bool isTop, Object dynId)? onSetTop;
@@ -30,6 +32,7 @@ class DynamicPanel extends StatelessWidget {
     super.key,
     required this.item,
     this.isDetail = false,
+    this.hidden = false,
     this.onRemove,
     this.isSave = false,
     this.onSetTop,
@@ -44,7 +47,7 @@ class DynamicPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (item.visible == false) {
+    if (item.visible == false || hidden) {
       return const SizedBox.shrink();
     }
     final theme = Theme.of(context);
@@ -61,6 +64,11 @@ class DynamicPanel extends StatelessWidget {
     );
 
     void showMore() => _imageSaveDialog(context, authorWidget.morePanel);
+
+    final interactions = item.modules.moduleInteraction?.items;
+    final visibleInteractions = Pref.hideDynamicComments
+        ? interactions?.where((item) => item.type != 1).toList()
+        : interactions;
 
     final child = Material(
       type: MaterialType.transparency,
@@ -101,14 +109,8 @@ class DynamicPanel extends StatelessWidget {
             ),
             const SizedBox(height: 2),
             if (!isDetail) ...[
-              if (item.modules.moduleInteraction case ModuleInteraction(
-                :final items,
-              ))
-                if (items != null && items.isNotEmpty)
-                  dynInteraction(
-                    theme: theme,
-                    items: items,
-                  ),
+              if (visibleInteractions != null && visibleInteractions.isNotEmpty)
+                dynInteraction(theme: theme, items: visibleInteractions),
               ActionPanel(item: item),
               if (item.modules.moduleFold case final moduleFold?) ...[
                 Divider(
