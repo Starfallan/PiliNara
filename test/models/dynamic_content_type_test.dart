@@ -44,6 +44,8 @@ Map<String, dynamic> draw(List<Map<String, dynamic>> items) =>
     };
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   setUpAll(() async {
     GStorage.setting = await Hive.openBox('settings', bytes: Uint8List(0));
     GStorage.localCache = await Hive.openBox('cache', bytes: Uint8List(0));

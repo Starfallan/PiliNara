@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:hive_ce/hive.dart';
+import 'package:material_ui/material_ui.dart' show GlobalMaterialLocalizations;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -148,15 +149,16 @@ Future<_FeedController> _showFeed(
   Get
     ..put<AccountService>(_AccountService())
     ..put<DynamicsController>(_DynamicsController());
-  final controller =
-      Get.put<DynamicsTabController>(
-            _FeedController(type, pages),
-            tag: type.name,
-          )
-          as _FeedController;
+  final controller = Get.put<DynamicsTabController>(
+    _FeedController(type, pages),
+    tag: type.name,
+  ) as _FeedController;
   await controller.queryData();
   await tester.pumpWidget(
-    MaterialApp(
+    GetMaterialApp(
+      locale: const Locale('zh', 'CN'),
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      supportedLocales: const [Locale('zh', 'CN'), Locale('en', 'US')],
       home: Scaffold(body: DynamicsTabPage(dynamicsType: type)),
     ),
   );

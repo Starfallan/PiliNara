@@ -14,9 +14,10 @@ import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
 
 class MemberDynamicsPage extends StatefulWidget {
-  const MemberDynamicsPage({super.key, this.mid});
+  const MemberDynamicsPage({super.key, this.mid, this.controller});
 
   final int? mid;
+  final MemberDynamicsController? controller;
 
   @override
   State<MemberDynamicsPage> createState() => _MemberDynamicsPageState();
@@ -35,10 +36,9 @@ class _MemberDynamicsPageState extends State<MemberDynamicsPage>
     super.initState();
     mid = widget.mid ?? int.parse(Get.parameters['mid']!);
     final String heroTag = Utils.makeHeroTag(mid);
-    _memberDynamicController = Get.put(
-      MemberDynamicsController(mid),
-      tag: heroTag,
-    );
+    _memberDynamicController =
+        widget.controller ??
+        Get.put(MemberDynamicsController(mid), tag: heroTag);
   }
 
   @override

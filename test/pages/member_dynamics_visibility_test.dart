@@ -9,11 +9,11 @@ import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
-import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:hive_ce/hive.dart';
+import 'package:material_ui/material_ui.dart' show GlobalMaterialLocalizations;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -36,17 +36,17 @@ void main() {
         GlobalData().dynamicsWaterfallFlow = waterfall;
 
         const mid = 42;
-        final controller =
-            Get.put<MemberDynamicsController>(
-                  _MemberController(mid, [_page(), _emptyPage()]),
-                  tag: Utils.makeHeroTag(mid),
-                )
-                as _MemberController;
+        final controller = _MemberController(mid, [_page(), _emptyPage()]);
         await controller.queryData();
 
         await tester.pumpWidget(
-          const MaterialApp(
-            home: Scaffold(body: MemberDynamicsPage(mid: mid)),
+          GetMaterialApp(
+            locale: const Locale('zh', 'CN'),
+            localizationsDelegates: GlobalMaterialLocalizations.delegates,
+            supportedLocales: const [Locale('zh', 'CN'), Locale('en', 'US')],
+            home: Scaffold(
+              body: MemberDynamicsPage(mid: mid, controller: controller),
+            ),
           ),
         );
         await tester.pumpAndSettle();
